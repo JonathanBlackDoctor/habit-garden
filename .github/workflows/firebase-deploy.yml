@@ -1,0 +1,50 @@
+name: Firebase Deploy
+
+# main 브랜치에 푸시되면 자동으로 빌드 후 Firebase에 배포합니다.
+on:
+  push:
+    branches: [main]
+  # 수동 실행도 가능하도록(Actions 탭에서 "Run workflow")
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: pnpm 설치
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Node.js 20 설정
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          # pnpm-lock.yaml 을 커밋해 두면 아래 cache 를 활성화해 빌드를 빠르게 할 수 있습니다.
+          # cache: pnpm
+
+      - name: 의존성 설치 (workspace 전체)
+        # 락파일이 있으면 --frozen-lockfile 로 바꾸는 것을 권장합니다.
+        run: pnpm install --no-frozen-lockfile
+
+      - name: 웹앱 빌드
+        run: pnpm --filter web build
+
+      - name: Cloud Functions 빌드
+        run: pnpm --filter functions build
+
+      - name: Firebase 서비스 계정 자격증명 준비
+        run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > "$HOME/firebase-sa.json"
+
+      - name: Firebase 배포
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ env.HOME }}/firebase-sa.json
+        run: |
+          pnpm exec firebase deploy \
+            --only hosting,functions,firestore,storage \
+            --project planner-web-quick \
+            --non-interactive

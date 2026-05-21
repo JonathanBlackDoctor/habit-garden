@@ -1,0 +1,121 @@
+import { useState, useEffect } from 'react';
+import {
+  collection, addDoc, onSnapshot, updateDoc, deleteDoc, doc, serverTimestamp, query, orderBy,
+} from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { useAppStore } from '@/lib/store';
+import { SEED_HABITS } from 'shared/types/firestore';
+import type { HabitDoc } from 'shared/types/firestore';
+import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { ChevronLeft, Plus, Trash2, Leaf } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+
+export default function Admin() {
+  const uid = useAppStore((s) => s.uid);
+  const navigate = useNavigate();
+  const [habits, setHabits] = useState<HabitDoc[]>([]);
+  const [seeding, setSeeding] = useState(false);
+
+  useEffect(() => {
+    if (!uid) return;
+    const q = query(collection(db, 'users', uid, 'habits'), orderBy('order'));
+    return onSnapshot(q, (snap) => {
+      setHabits(snap.docs.map((d) => d.data() as HabitDoc));
+    });
+  }, [uid]);
+
+  const seedHabits = async () => {
+    if (!uid || seeding) return;
+    setSeeding(true);
+    try {
+      for (const seed of SEED_HABITS) {
+        const ref = await addDoc(collection(db, 'users', uid, 'habits'), {
+          ...seed,
+          id: '', // placeholder, will update
+        });
+        await updateDoc(ref, { id: ref.id });
+      }
+      toast('✅ 시드 습관 8개를 추가했습니다!');
+    } catch (e) {
+      toast.error('시드 추가 실패');
+    } finally {
+      setSeeding(false);
+    }
+  };
+
+  const toggleActive = async (habit: HabitDoc) => {
+    if (!uid) return;
+    await updateDoc(doc(db, 'users', uid, 'habits', habit.id), {
+      active: !habit.active,
+    });
+  };
+
+  const deleteHabit = async (id: string) => {
+    if (!uid) return;
+    if (!confirm('이 습관을 삭제하시겠습니까?')) return;
+    await deleteDoc(doc(db, 'users', uid, 'habits', id));
+  };
+
+  return (
+    <div
+      className="min-h-dvh bg-[var(--bg-base)] p-4 space-y-4 pb-8"
+      style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)' }}
+    >
+      <div className="flex items-center gap-2">
+        <button onClick={() => navigate(-1)} className="text-[var(--fg-muted)]">
+          <ChevronLeft size={22} />
+        </button>
+        <h2 className="text-base font-semibold text-[var(--fg-primary)]">관리</h2>
+      </div>
+
+      {/* 시드 습관 */}
+      <section className="card p-4 space-y-3">
+        <h3 className="text-sm font-medium text-[var(--fg-primary)]">시드 데이터</h3>
+        <p className="text-xs text-[var(--fg-muted)]">
+          시드 습관 8개를 처음 추가합니다. 이미 추가된 경우 중복됩니다.
+        </p>
+        <Button
+          onClick={seedHabits}
+          disabled={seeding}
+          variant="secondary"
+          className="w-full gap-2"
+        >
+          <Leaf size={15} />
+          {seeding ? '추가 중…' : '시드 습관 8개 추가'}
+        </Button>
+      </section>
+
+      {/* 습관 목록 */}
+      <section className="space-y-2">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-medium text-[var(--fg-primary)]">습관 목록 ({habits.length})</h3>
+        </div>
+        {habits.length === 0 && (
+          <p className="text-sm text-[var(--fg-faint)] text-center py-8">습관이 없습니다. 시드를 추가해보세요.</p>
+        )}
+        {habits.map((habit) => (
+          <div key={habit.id} className="card p-3 flex items-center gap-3">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-[var(--fg-primary)] truncate">{habit.title}</p>
+              <p className="text-xs text-[var(--fg-muted)]">
+                W{habit.weight} · {habit.scoreMode} · {habit.timeOfDay}
+              </p>
+            </div>
+            <Switch
+              checked={habit.active}
+              onCheckedChange={() => toggleActive(habit)}
+            />
+            <button
+              onClick={() => deleteHabit(habit.id)}
+              className="text-red-400 hover:text-red-500 p-1"
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
+        ))}
+      </section>
+    </div>
+  );
+}

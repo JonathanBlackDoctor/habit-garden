@@ -1,0 +1,46 @@
+# ───────── 의존성 ─────────
+node_modules/
+.pnpm-store/
+
+# ───────── 빌드 산출물 ─────────
+apps/web/dist/
+functions/lib/
+*.tsbuildinfo
+
+# ───────── 로그 ─────────
+*.log
+npm-debug.log*
+pnpm-debug.log*
+firebase-debug.log*
+firebase-debug.*.log
+
+# ───────── Firebase 로컬/에뮬레이터 ─────────
+.firebase/
+.runtimeconfig.json
+*-debug.log
+ui-debug.log
+firestore-debug.log
+database-debug.log
+pubsub-debug.log
+
+# ───────── 민감/비밀 파일 ─────────
+# Firebase 서비스 계정 키 — 절대 커밋 금지
+*serviceAccount*.json
+service-account*.json
+*-firebase-adminsdk-*.json
+# 일반 .env (functions 등) — 비밀이 들어갈 수 있으므로 제외
+.env
+.env.*
+# 단, apps/web/.env 는 Firebase '클라이언트' 공개 설정값(공개 설계됨)이라
+# CI 빌드에 필요하므로 의도적으로 추적합니다. 아래 한 줄로 예외 처리.
+!apps/web/.env
+
+# ───────── OS / 에디터 ─────────
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# ───────── 소스 압축본 (저장소에 불필요) ─────────
+planner_src.zip

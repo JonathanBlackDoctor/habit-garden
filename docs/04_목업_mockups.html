@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>습관 정원 — 화면 목업</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
+<style>
+:root{
+  --bg-primary:#FFFFFF; --bg-secondary:#F4F6EE; --bg-tertiary:#E9ECE0;
+  --bg-success:#E7F0DD; --bg-info:#E6F1FB; --bg-warning:#FAEEDA;
+  --t-primary:#2A2E27; --t-secondary:#6B7164; --t-tertiary:#9AA08F;
+  --t-success:#4F7A37; --t-info:#1F5FA5; --t-warning:#A85D0B;
+  --bd-tertiary:rgba(42,46,39,.13); --bd-secondary:rgba(42,46,39,.22);
+  --r-md:8px; --r-lg:12px; --r-xl:16px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#EDEFE6;font-family:system-ui,-apple-system,"Noto Sans KR",sans-serif;color:var(--t-primary);padding:28px 14px;-webkit-font-smoothing:antialiased}
+h1{font-size:20px;font-weight:500;text-align:center;margin:0 0 4px}
+.sub{text-align:center;color:var(--t-secondary);font-size:13px;margin:0 0 26px}
+.row{display:flex;gap:26px;justify-content:center;flex-wrap:wrap;align-items:flex-start}
+.col{display:flex;flex-direction:column;align-items:center;gap:10px}
+.caption{font-size:13px;color:var(--t-secondary);font-weight:500}
+.framewrap{background:var(--bg-secondary);border-radius:var(--r-lg);padding:14px;width:380px}
+.phone{background:var(--bg-primary);border:.5px solid var(--bd-tertiary);border-radius:var(--r-xl);overflow:hidden}
+.dot{width:13px;height:13px;border-radius:50%;display:inline-block}
+.dot.on{background:var(--t-success)} .dot.off{background:transparent;border:1.5px solid var(--bd-secondary)}
+.act{display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border-radius:var(--r-md);border:.5px solid var(--bd-secondary);background:var(--bg-primary);font-size:13px;font-weight:500;color:var(--t-primary);cursor:pointer}
+.act .p{font-size:11px;color:var(--t-warning)}
+.plant{display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:.5px solid var(--bd-tertiary);font-size:13px}
+.plant .pn{min-width:60px} .plant .ps{font-size:11px;color:var(--t-secondary);margin-left:2px}
+.plant .pbar{margin-left:auto;width:64px;height:6px;background:var(--bd-tertiary);border-radius:999px;overflow:hidden}
+.plant .pbar>div{height:100%;background:var(--t-success)}
+.tab{flex:1;text-align:center;padding:9px 0;font-size:11px}
+.tab i{font-size:18px;display:block}
+</style>
+</head>
+<body>
+<h1>습관 정원 — 화면 목업</h1>
+<p class="sub">식물/정원 테마 · 폰 우선(380px) · 메인 대시보드 & 정원</p>
+
+<div class="row">
+
+  <!-- ───────── 메인 대시보드 ───────── -->
+  <div class="col">
+    <div class="caption">메인 대시보드 (오늘)</div>
+    <div class="framewrap"><div class="phone">
+
+      <div style="background:var(--bg-secondary);padding:14px 16px;border-bottom:.5px solid var(--bd-tertiary)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="font-size:15px;font-weight:500">목 5월 21일</div>
+          <div style="display:flex;gap:6px">
+            <span style="display:inline-flex;align-items:center;gap:4px;font-size:12px;padding:3px 9px;border-radius:999px;background:var(--bg-info);color:var(--t-info)"><i class="ti ti-seedling"></i> Lv.7</span>
+            <span style="display:inline-flex;align-items:center;gap:4px;font-size:12px;padding:3px 9px;border-radius:999px;background:var(--bg-warning);color:var(--t-warning)"><i class="ti ti-flame"></i> 23일</span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <i class="ti ti-plant-2" style="font-size:18px;color:var(--t-success)"></i>
+          <div style="flex:1"><div style="height:7px;background:var(--bd-tertiary);border-radius:999px;overflow:hidden"><div style="width:82%;height:100%;background:var(--t-success)"></div></div></div>
+          <span style="font-size:12px;color:var(--t-secondary)">생기 82</span>
+          <span style="display:inline-flex;align-items:center;gap:3px;font-size:13px;font-weight:500;color:var(--t-warning)"><i class="ti ti-sparkles"></i>1,240</span>
+        </div>
+      </div>
+
+      <div style="padding:14px 16px">
+        <div style="background:var(--bg-primary);border:.5px solid var(--bd-tertiary);border-radius:var(--r-lg);padding:14px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px"><span style="font-size:15px;font-weight:500">오늘의 습관</span><span style="font-size:12px;color:var(--t-secondary)">5 / 8 달성</span></div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:11px"><i class="ti ti-sunrise" style="font-size:16px;color:var(--t-secondary);width:18px"></i><span style="font-size:13px;width:34px;color:var(--t-secondary)">아침</span><span class="dot on"></span><span class="dot on"></span><span class="dot off"></span><span style="margin-left:auto;font-size:12px;color:var(--t-success)">2/3</span></div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:11px"><i class="ti ti-sun" style="font-size:16px;color:var(--t-secondary);width:18px"></i><span style="font-size:13px;width:34px;color:var(--t-secondary)">점심</span><span class="dot on"></span><span class="dot on"></span><span style="margin-left:auto;font-size:12px;color:var(--t-success)">2/2</span></div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px"><i class="ti ti-sunset" style="font-size:16px;color:var(--t-warning);width:18px"></i><span style="font-size:13px;width:34px">저녁</span><span class="dot off"></span><span class="dot off"></span><span class="dot off"></span><span style="margin-left:auto;font-size:12px;color:var(--t-warning);display:inline-flex;align-items:center;gap:3px"><i class="ti ti-alert-circle"></i>0/3</span></div>
+          <button style="width:100%;padding:11px;border-radius:var(--r-md);border:.5px solid var(--bd-secondary);background:var(--bg-secondary);font-size:14px;font-weight:500;color:var(--t-primary);display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer"><i class="ti ti-circle-check"></i> 지금 체크하기</button>
+        </div>
+
+        <div style="margin-top:12px;background:var(--bg-success);border:.5px solid var(--bd-tertiary);border-radius:var(--r-lg);padding:12px 14px;display:flex;align-items:center;gap:12px;cursor:pointer">
+          <svg width="92" height="60" viewBox="0 0 92 60">
+            <rect x="0" y="48" width="92" height="12" rx="3" fill="#8A6E4B"/>
+            <path d="M20 48 C20 36 14 32 14 32 C14 32 26 32 26 40 L26 48 Z" fill="#639922"/>
+            <path d="M26 48 C26 30 34 22 34 22 C34 22 40 34 32 44 L30 48 Z" fill="#3B6D11"/>
+            <g><rect x="44" y="30" width="3" height="18" fill="#3B6D11"/><circle cx="45.5" cy="26" r="9" fill="#EF9F27"/><circle cx="45.5" cy="26" r="4" fill="#854F0B"/></g>
+            <g><rect x="64" y="34" width="3" height="14" fill="#3B6D11"/><circle cx="60" cy="30" r="5" fill="#97C459"/><circle cx="70" cy="31" r="5" fill="#97C459"/><circle cx="65.5" cy="25" r="6" fill="#639922"/></g>
+          </svg>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:500;color:var(--t-success)">내 정원</div>
+            <div style="font-size:12px;color:var(--t-secondary)">식물 4그루 · 도감 6/20</div>
+            <div style="font-size:12px;color:var(--t-success);margin-top:2px">오늘 +85P 적립</div>
+          </div>
+          <i class="ti ti-chevron-right" style="color:var(--t-tertiary)"></i>
+        </div>
+
+        <div style="margin-top:12px;display:flex;align-items:center;gap:10px;padding:11px 14px;background:var(--bg-secondary);border-radius:var(--r-md);font-size:13px">
+          <i class="ti ti-cloud" style="font-size:17px;color:var(--t-info)"></i><span style="color:var(--t-secondary)">19° / 27° · 30%</span>
+          <span style="margin-left:auto;color:var(--t-secondary)">수면 <b style="font-weight:500;color:var(--t-primary)">78</b></span><span style="color:var(--t-secondary)">기분 <b style="font-weight:500;color:var(--t-primary)">7</b></span>
+        </div>
+
+        <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div style="background:var(--bg-primary);border:.5px solid var(--bd-tertiary);border-radius:var(--r-md);padding:11px 12px">
+            <div style="font-size:12px;color:var(--t-secondary);margin-bottom:7px">오늘 할 일 1/3</div>
+            <div style="font-size:12px;line-height:1.9"><i class="ti ti-square-rounded-check" style="color:var(--t-success);vertical-align:-2px"></i> 자료조사<br><i class="ti ti-square-rounded" style="color:var(--t-tertiary);vertical-align:-2px"></i> 보고서 초안</div>
+          </div>
+          <div style="background:var(--bg-primary);border:.5px solid var(--bd-tertiary);border-radius:var(--r-md);padding:11px 12px">
+            <div style="font-size:12px;color:var(--t-secondary);margin-bottom:7px">하루 회고</div>
+            <div style="font-size:12px;color:var(--t-warning);display:flex;align-items:center;gap:4px"><i class="ti ti-pencil"></i> 미작성</div>
+            <div style="font-size:12px;color:var(--t-tertiary);margin-top:4px">저녁 21시 알림</div>
+          </div>
+        </div>
+
+        <div style="margin-top:12px;display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--bg-info);border-radius:var(--r-md);font-size:13px;color:var(--t-info)"><i class="ti ti-pray"></i> 가족 건강 · 학업 집중</div>
+      </div>
+
+      <div style="display:flex;border-top:.5px solid var(--bd-tertiary);background:var(--bg-secondary)">
+        <div class="tab" style="color:var(--t-primary)"><i class="ti ti-home"></i>오늘</div>
+        <div class="tab" style="color:var(--t-tertiary)"><i class="ti ti-checklist"></i>습관</div>
+        <div class="tab" style="color:var(--t-tertiary)"><i class="ti ti-plant-2"></i>정원</div>
+        <div class="tab" style="color:var(--t-tertiary)"><i class="ti ti-chart-line"></i>진척</div>
+        <div class="tab" style="color:var(--t-tertiary)"><i class="ti ti-dots"></i>더보기</div>
+      </div>
+
+    </div></div>
+  </div>
+
+  <!-- ───────── 정원 ───────── -->
+  <div class="col">
+    <div class="caption">정원 (/garden)</div>
+    <div class="framewrap"><div class="phone">
+
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:.5px solid var(--bd-tertiary)">
+        <span style="font-size:16px;font-weight:500;display:flex;align-items:center;gap:6px"><i class="ti ti-plant-2" style="color:var(--t-success)"></i> 내 정원</span>
+        <span style="display:inline-flex;align-items:center;gap:4px;font-size:13px;font-weight:500;color:var(--t-warning)"><i class="ti ti-sparkles"></i> 1,240P</span>
+      </div>
+
+      <div style="background:var(--bg-success);padding:6px 16px 0">
+        <svg width="100%" viewBox="0 0 348 168" style="display:block">
+          <rect x="296" y="14" width="40" height="40" rx="20" fill="#FAC775"/>
+          <rect x="0" y="138" width="348" height="30" rx="6" fill="#8A6E4B"/>
+          <rect x="0" y="138" width="348" height="9" rx="4" fill="#97C459"/>
+          <g transform="translate(40,138)"><ellipse cx="0" cy="-3" rx="13" ry="6" fill="#5F5E5A" opacity="0.18"/><path d="M-5 0 Q-9 -7 -4 -9 Q0 -12 2 -7 Q6 -10 4 -3 Z" fill="#97C459"/><text x="0" y="22" text-anchor="middle" font-size="11" fill="#27500A">씨앗</text></g>
+          <g transform="translate(104,138)"><rect x="-1.5" y="-26" width="3" height="26" fill="#3B6D11"/><path d="M0 -16 C-12 -18 -14 -28 -14 -28 C-14 -28 -2 -28 0 -18 Z" fill="#639922"/><path d="M0 -20 C12 -22 15 -33 15 -33 C15 -33 3 -32 0 -22 Z" fill="#97C459"/><text x="0" y="22" text-anchor="middle" font-size="11" fill="#27500A">새싹풀</text></g>
+          <g transform="translate(174,138)"><rect x="-2" y="-46" width="4" height="46" fill="#3B6D11"/><circle cx="0" cy="-52" r="13" fill="#EF9F27"/><circle cx="0" cy="-52" r="6" fill="#854F0B"/><path d="M-2 -30 C-16 -32 -20 -42 -20 -42 C-20 -42 -6 -42 -2 -32 Z" fill="#639922"/><path d="M2 -36 C16 -38 20 -48 20 -48 C20 -48 6 -48 2 -38 Z" fill="#97C459"/><text x="0" y="22" text-anchor="middle" font-size="11" fill="#27500A">해바라기</text></g>
+          <g transform="translate(244,138)"><rect x="-3" y="-40" width="6" height="40" fill="#712B13"/><circle cx="-12" cy="-46" r="14" fill="#639922"/><circle cx="12" cy="-44" r="15" fill="#3B6D11"/><circle cx="0" cy="-58" r="16" fill="#97C459"/><text x="0" y="22" text-anchor="middle" font-size="11" fill="#27500A">단풍나무</text></g>
+          <g transform="translate(310,138)"><rect x="-1.5" y="-20" width="3" height="20" fill="#B4B2A9"/><path d="M0 -14 C-9 -15 -11 -22 -11 -22 C-11 -22 -2 -23 0 -16 Z" fill="#C7B68A"/><path d="M0 -16 C9 -17 12 -25 12 -25 C12 -25 3 -25 0 -18 Z" fill="#D3D1C7"/><text x="0" y="22" text-anchor="middle" font-size="11" fill="#5F5E5A">허브</text></g>
+        </svg>
+      </div>
+
+      <div style="padding:13px 16px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:13px"><i class="ti ti-heart" style="font-size:16px;color:var(--t-success)"></i><span style="font-size:12px;color:var(--t-secondary)">정원 생기</span><div style="flex:1;height:7px;background:var(--bd-tertiary);border-radius:999px;overflow:hidden"><div style="width:82%;height:100%;background:var(--t-success)"></div></div><span style="font-size:12px;font-weight:500">82</span></div>
+
+        <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--bg-secondary);border-radius:var(--r-md);margin-bottom:13px"><i class="ti ti-droplet" style="font-size:17px;color:var(--t-info)"></i><div style="flex:1;font-size:12px;color:var(--t-secondary)">허브가 물을 기다리고 있어요. 며칠 돌보면 다시 살아나요.</div><button style="font-size:12px;padding:6px 10px;border-radius:var(--r-md);border:.5px solid var(--bd-secondary);background:var(--bg-primary);color:var(--t-info);white-space:nowrap;cursor:pointer">회복 80P</button></div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:14px">
+          <button class="act"><i class="ti ti-seeding"></i> 씨앗 심기 <span class="p">50</span></button>
+          <button class="act"><i class="ti ti-droplet"></i> 물주기 <span class="p">20</span></button>
+          <button class="act"><i class="ti ti-lock-open"></i> 새 종 해금 <span class="p">200+</span></button>
+          <button class="act"><i class="ti ti-flower"></i> 꾸미기 <span class="p">100+</span></button>
+        </div>
+
+        <div style="font-size:13px;font-weight:500;margin-bottom:9px;color:var(--t-secondary)">기르는 식물</div>
+        <div class="plant"><i class="ti ti-flower" style="color:var(--t-warning)"></i><span class="pn">해바라기</span><span class="ps">개화 · 4/5</span><div class="pbar"><div style="width:80%"></div></div></div>
+        <div class="plant"><i class="ti ti-tree" style="color:var(--t-success)"></i><span class="pn">단풍나무</span><span class="ps">성장 · 3/6</span><div class="pbar"><div style="width:50%"></div></div></div>
+        <div class="plant"><i class="ti ti-plant" style="color:var(--t-success)"></i><span class="pn">새싹풀</span><span class="ps">새싹 · 2/4</span><div class="pbar"><div style="width:50%"></div></div></div>
+        <div class="plant"><i class="ti ti-leaf" style="color:var(--t-tertiary)"></i><span class="pn">허브</span><span class="ps" style="color:var(--t-warning)">시듦 · 회복 가능</span><div class="pbar"><div style="width:20%;background:var(--t-warning)"></div></div></div>
+
+        <div style="margin-top:14px;display:flex;align-items:center;justify-content:space-between;padding:11px 14px;background:var(--bg-info);border-radius:var(--r-md)"><span style="font-size:13px;color:var(--t-info);display:flex;align-items:center;gap:6px"><i class="ti ti-book-2"></i> 식물 도감</span><span style="font-size:13px;font-weight:500;color:var(--t-info)">6 / 20</span></div>
+      </div>
+
+    </div></div>
+  </div>
+
+</div>
+</body>
+</html>

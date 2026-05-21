@@ -1,0 +1,12 @@
+{
+  "name": "habit-garden",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --filter web dev",
+    "build": "pnpm --filter web build",
+    "deploy": "pnpm --filter web build && firebase deploy"
+  },
+  "devDependencies": {
+    "firebase-tools": "^13.0.0"
+  }
+}
