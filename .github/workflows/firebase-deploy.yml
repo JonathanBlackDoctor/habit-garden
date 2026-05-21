@@ -38,11 +38,11 @@ jobs:
         run: pnpm --filter functions build
 
       - name: Firebase 서비스 계정 자격증명 준비
-        run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > "$HOME/firebase-sa.json"
+        run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > "${{ github.workspace }}/firebase-sa.json"
 
       - name: Firebase 배포
         env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ env.HOME }}/firebase-sa.json
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/firebase-sa.json
         run: |
           pnpm exec firebase deploy \
             --only hosting,functions,firestore,storage \
