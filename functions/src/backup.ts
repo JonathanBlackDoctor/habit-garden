@@ -2,7 +2,7 @@
  * monthlyBackup — 매월 1일 03:30 KST
  * users/{uid} 전체를 JSON으로 Storage에 업로드 (14개월 rolling)
  */
-import * as functions from 'firebase-functions';
+import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';

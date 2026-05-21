@@ -6,7 +6,7 @@
  *  3. progress 문서 갱신
  *  4. 배지 조건 확인 → 신규 배지 발급
  */
-import * as functions from 'firebase-functions';
+import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import {

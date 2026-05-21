@@ -2,7 +2,7 @@
  * generateFeedback — 어제 데이터 기반 AI 피드백 생성
  * callable function. 일 5회 상한.
  */
-import * as functions from 'firebase-functions';
+import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import { GoogleGenerativeAI } from '@google/generative-ai';

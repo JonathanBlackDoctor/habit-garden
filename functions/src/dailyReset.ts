@@ -5,7 +5,7 @@
  *  3. 어제 globalStreak 정산 (성공 못한 날이면 리셋)
  *  4. AI 피드백 생성 (generateFeedback 호출)
  */
-import * as functions from 'firebase-functions';
+import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import { subDays, format } from 'date-fns';
