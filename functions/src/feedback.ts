@@ -11,7 +11,6 @@ import { toZonedTime } from 'date-fns-tz';
 import type { HabitDoc, HabitCheckDoc, DayDoc } from '../../shared/types/firestore';
 
 const db = admin.firestore();
-const ALLOWED_UID = 'XMgQWlM1wtM62hIheTH4sKGDNuC2';
 const REGION = 'asia-northeast3';
 const KST = 'Asia/Seoul';
 
@@ -19,10 +18,14 @@ export const generateFeedback = functions
   .region(REGION)
   .https
   .onCall(async (data, context) => {
-    if (!context.auth || context.auth.uid !== ALLOWED_UID) {
-      throw new functions.https.HttpsError('permission-denied', 'Unauthorized');
+    if (!context.auth) {
+      throw new functions.https.HttpsError('unauthenticated', 'Sign in required');
     }
-    const uid = ALLOWED_UID;
+    const uid = context.auth.uid;
+    const profSnap = await db.doc(`userProfiles/${uid}`).get();
+    if (!profSnap.exists || profSnap.data()?.status !== 'approved') {
+      throw new functions.https.HttpsError('permission-denied', 'Not approved');
+    }
 
     const yesterday = format(subDays(toZonedTime(new Date(), KST), 1), 'yyyy-MM-dd');
     const today     = format(toZonedTime(new Date(), KST), 'yyyy-MM-dd');

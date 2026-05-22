@@ -16,6 +16,7 @@ import OneYearAgoCard from '@/features/stats/OneYearAgoCard';
 import WeeklyQuestCard from '@/features/quests/WeeklyQuestCard';
 import CoachCard from '@/features/coach/CoachCard';
 import { useCrisisWatcher } from '@/features/coach/useCrisisWatcher';
+import { useFaithEnabled } from '@/lib/features';
 
 const TIME_LABELS: Record<string, string> = {
   morning: '아침', afternoon: '점심', evening: '저녁', night: '밤', anytime: '언제든',
@@ -26,6 +27,7 @@ export default function Main() {
   const uid      = useAppStore((s) => s.uid);
   const date     = useAppStore((s) => s.currentDate);
   const navigate = useNavigate();
+  const faithEnabled = useFaithEnabled();
   const habits   = useHabits();
   const checks   = useHabitChecks(date);
   const progress = useProgress();
@@ -314,16 +316,18 @@ export default function Main() {
       </motion.div>
 
       {/* ── 기도 ── */}
-      <motion.button
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.25 }}
-        onClick={() => navigate('/prayers')}
-        className="card px-4 py-3 text-left flex items-center justify-between"
-      >
-        <span className="text-sm text-[var(--sky)]">🙏 오늘의 기도 · 감사</span>
-        <ArrowRight size={14} className="text-[var(--fg-faint)]" />
-      </motion.button>
+      {faithEnabled && (
+        <motion.button
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25 }}
+          onClick={() => navigate('/prayers')}
+          className="card px-4 py-3 text-left flex items-center justify-between"
+        >
+          <span className="text-sm text-[var(--sky)]">🙏 오늘의 기도 · 감사</span>
+          <ArrowRight size={14} className="text-[var(--fg-faint)]" />
+        </motion.button>
+      )}
     </div>
   );
 }

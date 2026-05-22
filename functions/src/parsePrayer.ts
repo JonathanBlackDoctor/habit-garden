@@ -3,9 +3,9 @@
  * callable function. 저장은 하지 않고 파싱 결과만 반환 (검토는 클라이언트).
  */
 import * as functions from 'firebase-functions/v1';
+import * as admin from 'firebase-admin';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const ALLOWED_UID = 'XMgQWlM1wtM62hIheTH4sKGDNuC2';
 const REGION = 'asia-northeast3';
 
 const SYS_INSTRUCTION = `당신은 한국어 기도 요청 텍스트를 정리하는 도우미다.
@@ -44,8 +44,13 @@ export const parsePrayerBulk = functions
   .region(REGION)
   .https
   .onCall(async (data, context) => {
-    if (!context.auth || context.auth.uid !== ALLOWED_UID) {
-      throw new functions.https.HttpsError('permission-denied', 'Unauthorized');
+    if (!context.auth) {
+      throw new functions.https.HttpsError('unauthenticated', 'Sign in required');
+    }
+    const db = admin.firestore();
+    const profSnap = await db.doc(`userProfiles/${context.auth.uid}`).get();
+    if (!profSnap.exists || profSnap.data()?.status !== 'approved') {
+      throw new functions.https.HttpsError('permission-denied', 'Not approved');
     }
 
     const rawText: string = (data?.rawText ?? '').toString().trim();

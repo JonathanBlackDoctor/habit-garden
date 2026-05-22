@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { User } from 'firebase/auth';
 import { plannerDate } from './dayBoundary';
+import type { UserProfileDoc, UserSettingsDoc } from 'shared/types/firestore';
 
 // 콤보 윈도우: 마지막 체크로부터 이 시간 안에 다음 체크 시 콤보 유지
 export const COMBO_WINDOW_MS = 30_000;
@@ -14,6 +15,11 @@ interface AppState {
   authLoading: boolean;
   setUser: (user: User | null) => void;
   setAuthLoading: (loading: boolean) => void;
+
+  profile: UserProfileDoc | null;
+  setProfile: (profile: UserProfileDoc | null) => void;
+  settings: UserSettingsDoc | null;
+  setSettings: (settings: UserSettingsDoc | null) => void;
 
   // ── 콤보 (Phase 1-3) ──
   currentCombo: number;
@@ -41,6 +47,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   authLoading:     true,
   setUser:         (user) => set({ user }),
   setAuthLoading:  (loading) => set({ authLoading: loading }),
+
+  profile:         null,
+  setProfile:      (profile) => set({ profile }),
+  settings:        null,
+  setSettings:     (settings) => set({ settings }),
 
   currentCombo:    0,
   lastCheckAt:     0,

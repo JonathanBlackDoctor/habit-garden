@@ -4,9 +4,16 @@ import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import type { JournalEntryDoc } from 'shared/types/firestore';
 import { Plus, ChevronLeft } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
+import { useFaithEnabled } from '@/lib/features';
 
 export default function Devotion() {
+  const faithEnabled = useFaithEnabled();
+  if (!faithEnabled) return <Navigate to="/" replace />;
+  return <DevotionInner />;
+}
+
+function DevotionInner() {
   const uid  = useAppStore((s) => s.uid);
   const date = useAppStore((s) => s.currentDate);
   const navigate = useNavigate();

@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { signOutUser } from '@/lib/auth';
-import { Cloud, BookOpen, Settings, LogOut, Bell, Vibrate, Volume2 } from 'lucide-react';
+import { Cloud, BookOpen, Settings, LogOut, Bell, Vibrate, Volume2, HandHeart } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { enablePushNotifications, disablePushNotifications, isFcmEnabled } from '@/lib/fcm';
 import {
@@ -9,6 +9,7 @@ import {
   isSoundEnabled,  setSoundEnabled,
   feedback,
 } from '@/lib/feedback';
+import { useFaithEnabled, setFaithEnabled } from '@/lib/features';
 
 const items = [
   { icon: Cloud,    label: '컨디션',   to: '/condition' },
@@ -22,6 +23,7 @@ export default function More() {
   const [push, setPush]   = useState(false);
   const [haptic, setHapt] = useState(false);
   const [sound, setSnd]   = useState(false);
+  const faithEnabled = useFaithEnabled();
 
   useEffect(() => {
     setPush(isFcmEnabled());
@@ -33,6 +35,11 @@ export default function More() {
     if (!uid) return;
     if (push) { await disablePushNotifications(); setPush(false); }
     else      { const t = await enablePushNotifications(uid); if (t) setPush(true); }
+  };
+
+  const onFaithToggle = async () => {
+    if (!uid) return;
+    await setFaithEnabled(uid, !faithEnabled);
   };
 
   return (
@@ -78,6 +85,13 @@ export default function More() {
             const v = !sound; setSoundEnabled(v); setSnd(v);
             if (v) feedback('achieve');
           }}
+        />
+        <ToggleRow
+          icon={<HandHeart size={18} className="text-[var(--leaf)]" />}
+          label="신앙 기능"
+          desc="경건·기도제목 메뉴 표시"
+          value={faithEnabled}
+          onToggle={onFaithToggle}
         />
       </div>
 

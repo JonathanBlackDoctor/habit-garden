@@ -18,6 +18,8 @@ import BulkParse from '@/features/prayers/BulkParse';
 import { Plus, ClipboardList, Search, Heart } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { Navigate } from 'react-router-dom';
+import { useFaithEnabled } from '@/lib/features';
 
 type Segment = 'today' | 'all' | 'answered' | 'dormant';
 const SEGMENTS: { id: Segment; label: string }[] = [
@@ -28,6 +30,12 @@ const SEGMENTS: { id: Segment; label: string }[] = [
 ];
 
 export default function Prayers() {
+  const faithEnabled = useFaithEnabled();
+  if (!faithEnabled) return <Navigate to="/" replace />;
+  return <PrayersInner />;
+}
+
+function PrayersInner() {
   const date = useAppStore((s) => s.currentDate);
   const prayers = usePrayers();
   const people  = usePeople();

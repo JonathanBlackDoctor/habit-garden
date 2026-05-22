@@ -1,10 +1,27 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /users/{uid}/{document=**} {
-      allow read, write: if request.auth != null
-        && request.auth.uid == uid
+    function isOwner() {
+      return request.auth != null
         && request.auth.uid == 'XMgQWlM1wtM62hIheTH4sKGDNuC2';
+    }
+    function isApproved(uid) {
+      return request.auth != null
+        && request.auth.uid == uid
+        && get(/databases/$(database)/documents/userProfiles/$(uid)).data.status == 'approved';
+    }
+
+    match /userProfiles/{uid} {
+      allow read: if request.auth != null && (request.auth.uid == uid || isOwner());
+      allow create: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.isOwner == false;
+      allow update, delete: if isOwner();
+    }
+
+    match /users/{uid}/{document=**} {
+      allow read, write: if isApproved(uid) || isOwner();
     }
   }
 }
