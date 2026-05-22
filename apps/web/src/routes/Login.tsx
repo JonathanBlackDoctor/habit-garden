@@ -23,7 +23,7 @@ export default function Login() {
   };
 
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center gap-8 bg-[var(--bg-base)] px-6">
+    <div className="flex min-h-dvh flex-col items-center justify-center gap-6 bg-[var(--bg-base)] px-6 py-10">
       <div className="flex flex-col items-center gap-2">
         <div className="text-6xl">🌱</div>
         <h1 className="text-2xl font-semibold text-[var(--fg-primary)]">습관 정원</h1>
@@ -45,7 +45,17 @@ export default function Login() {
         Google로 로그인
       </button>
 
-      <p className="text-xs text-[var(--fg-faint)]">초대된 사용자만 이용할 수 있습니다.</p>
+      <div className="w-full max-w-xs space-y-2 rounded-[var(--radius)] bg-[var(--bg-surface)] p-4 text-xs leading-relaxed text-[var(--fg-muted)] shadow-[var(--shadow-sm)]">
+        <p>
+          안녕하세요. <span className="font-medium text-[var(--fg-primary)]">조나단</span>(<span className="break-all">alpaomegastartend@gmail.com</span>)이 개인적으로 만든 습관 관리 앱입니다.
+        </p>
+        <p>
+          초대된 분만 사용할 수 있어요. <span className="text-[var(--fg-primary)]">Google로 로그인</span>하시면 자동으로 가입 신청이 접수됩니다.
+        </p>
+        <p>
+          빠른 승인을 원하시면 <span className="text-[var(--fg-primary)]">alpaomegastartend@gmail.com</span> 으로 알려주세요.
+        </p>
+      </div>
     </div>
   );
 }
