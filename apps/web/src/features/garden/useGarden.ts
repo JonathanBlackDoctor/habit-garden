@@ -6,15 +6,18 @@ import type { ProgressDoc, PlantInstance } from 'shared/types/firestore';
 import { PLANT_SPECIES, POINT_PRICES } from 'shared/types/firestore';
 import { toast } from 'sonner';
 
+// 첫 방문 시 테스트해볼 수 있도록 소량의 포인트와 새싹 1개를 지급
 const DEFAULT_PROGRESS: Omit<ProgressDoc, 'updatedAt'> = {
-  totalPoints:      0,
-  spendablePoints:  0,
+  totalPoints:      200,
+  spendablePoints:  200,
   level:            1,
   xpInLevel:        0,
   globalStreak:     0,
   globalBestStreak: 0,
   gardenState: {
-    plants:           [],
+    plants: [
+      { id: 'starter', speciesId: 'sprout', stage: 1, plantedAt: Date.now() as any },
+    ],
     unlockedSpecies:  ['sprout'],
     decorations:      [],
     health:           100,
