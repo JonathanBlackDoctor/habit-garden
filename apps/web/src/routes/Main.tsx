@@ -58,18 +58,28 @@ export default function Main() {
   }).filter(({ group }) => group.length > 0);
 
   return (
-    <div className="flex flex-col gap-3 p-4 pb-6">
+    <div className="flex min-h-full flex-col gap-3 p-4 pb-6">
       {/* ── 상단바 ── */}
       <motion.div
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-[var(--radius-lg)] bg-[var(--leaf)] px-4 py-3 text-white"
-        style={{ boxShadow: '0 2px 8px rgba(79,122,55,0.3)' }}
+        className="relative overflow-hidden rounded-[var(--radius-lg)] px-5 py-4 text-white"
+        style={{
+          background: 'linear-gradient(135deg, #4F7A37 0%, #5E8E42 55%, #6FA152 100%)',
+          boxShadow: '0 6px 16px -4px rgba(79,122,55,0.40), inset 0 1px 0 rgba(255,255,255,0.14)',
+        }}
       >
+        <svg
+          className="pointer-events-none absolute -right-2 -top-2 opacity-[0.18]"
+          width="72" height="72" viewBox="0 0 24 24" fill="white"
+          aria-hidden
+        >
+          <path d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66.95-2.3c.48.17.98.3 1.49.39C18 19 22 14 22 7c0-1.72-.22-3.24-.6-4.6C19.5 1.4 17 1 14 1 9 1 5 4 5 9c0 4 4 7 12 7-1.5-2-3.5-3.5-6-4z"/>
+        </svg>
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs opacity-80">{formatKoreanDate(date)}</p>
-            <p className="text-base font-semibold">
+            <p className="text-lg font-semibold leading-tight">
               Lv.{level}
               {streak > 0 && (
                 <span className="ml-2 text-sm opacity-90">
@@ -80,7 +90,7 @@ export default function Main() {
           </div>
           <div className="text-right">
             <p className="text-xs opacity-80">생기 {health}</p>
-            <p className="text-base font-semibold tabular-nums">✦{spendable.toLocaleString()}P</p>
+            <p className="text-lg font-semibold tabular-nums leading-tight">✦{spendable.toLocaleString()}P</p>
           </div>
         </div>
       </motion.div>
@@ -155,7 +165,7 @@ export default function Main() {
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="card p-4 space-y-2"
+        className="card p-4 space-y-2 flex-1 flex flex-col"
       >
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-[var(--fg-primary)]">정원</h3>
@@ -167,13 +177,14 @@ export default function Main() {
           </button>
         </div>
         <div
-          className="flex items-end justify-center gap-2 rounded-[var(--radius)] bg-gradient-to-b from-[#EEF7E4] to-[var(--leaf-soft)] py-4 min-h-[96px]"
+          className="relative flex-1 flex items-end justify-center gap-2 rounded-[var(--radius)] bg-gradient-to-b from-[#F0F8E6] via-[#DCEBC8] to-[var(--leaf-soft)] py-4 min-h-[140px] overflow-hidden"
         >
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-[#C9DDB0]/60 to-transparent" />
           {plants.length === 0 ? (
-            <p className="text-xs text-[var(--fg-faint)]">씨앗을 심어보세요 🌱</p>
+            <p className="self-center text-sm text-[var(--fg-faint)]">씨앗을 심어보세요 🌱</p>
           ) : (
             plants.slice(0, 4).map((p) => (
-              <PlantSVG key={p.id} speciesId={p.speciesId} stage={p.stage} withered={!!p.witheredSince} size={54} />
+              <PlantSVG key={p.id} speciesId={p.speciesId} stage={p.stage} withered={!!p.witheredSince} size={72} />
             ))
           )}
         </div>
