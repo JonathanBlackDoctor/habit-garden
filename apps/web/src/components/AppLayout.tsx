@@ -16,6 +16,7 @@ export default function AppLayout() {
       <Toaster
         position="bottom-center"
         richColors
+        closeButton
         offset="calc(72px + env(safe-area-inset-bottom))"
         toastOptions={{
           style: { background: 'var(--bloom-soft)', border: '1px solid var(--bloom)', color: 'var(--bloom)' },
