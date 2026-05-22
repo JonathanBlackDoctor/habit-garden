@@ -78,24 +78,26 @@ export function useGardenActions() {
 
   const plantSeed = async (speciesId: string) => {
     if (!uid || !progress) return;
-    const cost = POINT_PRICES.SEED;
-    if (progress.spendablePoints < cost) {
-      toast.error(`포인트가 부족합니다. (필요: ${cost}P)`);
-      return;
-    }
     const baseSpecies = PLANT_SPECIES.find((s) => s.id === speciesId);
     if (!baseSpecies) return;
     if (!progress.gardenState.unlockedSpecies.includes(speciesId)) {
       toast.error('해금되지 않은 식물입니다.');
       return;
     }
+    const cost = baseSpecies.seedCost ?? POINT_PRICES.SEED;
+    if (progress.spendablePoints < cost) {
+      toast.error(`포인트가 부족합니다. (필요: ${cost}P)`);
+      return;
+    }
 
-    // 희귀 씨앗 드롭: 10% 확률로 같은 해금 종 중 한 등급 위 식물로 교체
+    // 희귀 씨앗 드롭: 같은 해금 종 중 한 등급 위로 교체.
+    // 무지개붓꽃 등 lucky 트레잇 종은 드롭 확률 1.5×.
     const unlocked = progress.gardenState.unlockedSpecies;
-    const rarityRank: Record<string, number> = { basic: 0, common: 1, rare: 2, epic: 3 };
+    const rarityRank: Record<string, number> = { basic: 0, common: 1, rare: 2, epic: 3, legendary: 4 };
+    const dropChance = baseSpecies.trait?.kind === 'lucky' ? 0.15 : 0.10;
     let finalSpecies = baseSpecies;
     let upgraded = false;
-    if (Math.random() < 0.10) {
+    if (Math.random() < dropChance) {
       const targetRank = rarityRank[baseSpecies.rarity] + 1;
       const candidates = PLANT_SPECIES.filter(
         (s) => unlocked.includes(s.id) && rarityRank[s.rarity] === targetRank,
@@ -106,7 +108,7 @@ export function useGardenActions() {
       }
     }
 
-    // 클로버 등 lucky 트레잇: 20% 확률로 stage 1 부터 시작
+    // lucky 트레잇: 20% 확률로 stage 1 부터 시작
     const luckyStart = finalSpecies.trait?.kind === 'lucky' && Math.random() < 0.20;
 
     const newPlant: PlantInstance = {
@@ -116,11 +118,22 @@ export function useGardenActions() {
       plantedAt: Timestamp.now() as any,
     };
 
+    // 도감 갱신 — finalSpecies 도 codex 에 자동 등록
+    const prevStats = progress.gardenStats ?? {};
+    const prevCodex = prevStats.codexEntries ?? [];
+    const nextCodex = prevCodex.includes(finalSpecies.id) ? prevCodex : [...prevCodex, finalSpecies.id];
+    const nextRareDrops = (prevStats.rareDropsTriggered ?? 0) + (upgraded ? 1 : 0);
+
     const newPlants = [...progress.gardenState.plants, newPlant];
     try {
       await setDoc(doc(db, 'users', uid, 'progress', 'main'), {
         spendablePoints: progress.spendablePoints - cost,
         gardenState: { ...progress.gardenState, plants: newPlants },
+        gardenStats: {
+          ...prevStats,
+          codexEntries: nextCodex,
+          rareDropsTriggered: nextRareDrops,
+        },
         updatedAt: serverTimestamp(),
       }, { merge: true });
 
@@ -130,11 +143,11 @@ export function useGardenActions() {
       });
 
       if (upgraded) {
-        toast(`🌟 희귀 씨앗 발견! ${finalSpecies.name} 가 자랐어요!`);
+        toast(`🌟 희귀 씨앗 발견! ${finalSpecies.name} 가 자랐어요! (-${cost}P)`);
       } else if (luckyStart) {
-        toast(`🍀 ${finalSpecies.name} — 행운이 깃들어 새싹부터 시작!`);
+        toast(`🍀 ${finalSpecies.name} — 행운! 새싹부터 시작! (-${cost}P)`);
       } else {
-        toast(`🌱 ${finalSpecies.name} 씨앗을 심었습니다!`);
+        toast(`🌱 ${finalSpecies.name} 씨앗을 심었습니다! (-${cost}P)`);
       }
     } catch (e) {
       toast.error('저장 실패: ' + (e as Error).message);
@@ -187,10 +200,17 @@ export function useGardenActions() {
       return;
     }
     const unlockedSpecies = [...progress.gardenState.unlockedSpecies, speciesId];
+
+    // 도감 갱신 — 해금 시점에 자동 등록
+    const prevStats = progress.gardenStats ?? {};
+    const prevCodex = prevStats.codexEntries ?? [];
+    const nextCodex = prevCodex.includes(speciesId) ? prevCodex : [...prevCodex, speciesId];
+
     try {
       await setDoc(doc(db, 'users', uid, 'progress', 'main'), {
         spendablePoints: progress.spendablePoints - cost,
         gardenState: { ...progress.gardenState, unlockedSpecies },
+        gardenStats: { ...prevStats, codexEntries: nextCodex },
         updatedAt: serverTimestamp(),
       }, { merge: true });
 
@@ -199,7 +219,7 @@ export function useGardenActions() {
         createdAt: serverTimestamp(),
       });
 
-      toast(`🌿 ${species.name} 해금!`);
+      toast(`🌿 ${species.name} 해금! 도감 ${nextCodex.length}/25`);
     } catch (e) {
       toast.error('저장 실패: ' + (e as Error).message);
     }
@@ -218,18 +238,42 @@ export function useGardenActions() {
     }
 
     // 수확량 계산
-    const base = species.harvestYield ?? 10;
-    const rarityBonus = (species.rarity === 'rare' || species.rarity === 'epic')
-      ? POINT_PRICES.HARVEST_BONUS_RARE : 0;
-    const streakBonus = (species.trait?.kind === 'streakSync' && (progress.prayerStreak ?? 0) > 0)
-      ? Math.round(base * 0.5) : 0;
-    const totalYield = base + rarityBonus + streakBonus;
+    const prevStats = progress.gardenStats ?? {};
+    const prevHarvestsBySpecies = prevStats.harvestsBySpecies ?? {};
+    const speciesCount = prevHarvestsBySpecies[species.id] ?? 0;       // 수확 횟수 (★ 적용에 사용)
+    const star3Bonus = speciesCount >= 30 ? 0.10 : 0;                 // ★3 (30회 이상) → +10%
 
-    // 연꽃(healer) 트레잇: 정원 생기 회복
+    const base = species.harvestYield ?? 10;
+    const baseAdjusted = Math.round(base * (1 + star3Bonus));
+
+    // 등급 누적 보너스
+    let rarityBonus = 0;
+    if (species.rarity === 'rare')        rarityBonus = POINT_PRICES.HARVEST_BONUS_RARE;
+    else if (species.rarity === 'epic')   rarityBonus = POINT_PRICES.HARVEST_BONUS_RARE + POINT_PRICES.HARVEST_BONUS_EPIC;
+    else if (species.rarity === 'legendary')
+      rarityBonus = POINT_PRICES.HARVEST_BONUS_RARE + POINT_PRICES.HARVEST_BONUS_EPIC + POINT_PRICES.HARVEST_BONUS_LEGENDARY;
+
+    const streakBonus = (species.trait?.kind === 'streakSync' && (progress.prayerStreak ?? 0) > 0)
+      ? Math.round(baseAdjusted * 0.5) : 0;
+    const totalYield = baseAdjusted + rarityBonus + streakBonus;
+
+    // 연꽃·고사리·달꽃(healer) 트레잇: 정원 생기 회복
     let nextHealth = progress.gardenState.health ?? 100;
     if (species.trait?.kind === 'healer') {
       nextHealth = Math.min(100, nextHealth + species.trait.heal);
     }
+
+    // 통계 갱신
+    const nextHarvestsBySpecies = { ...prevHarvestsBySpecies, [species.id]: speciesCount + 1 };
+    const prevHarvestsByRarity = prevStats.harvestsByRarity ?? {};
+    const nextHarvestsByRarity = {
+      ...prevHarvestsByRarity,
+      [species.rarity]: (prevHarvestsByRarity[species.rarity] ?? 0) + 1,
+    };
+
+    // ★ 마일스톤 토스트 후보
+    const newCount = speciesCount + 1;
+    const milestone = newCount === 5 ? '★1' : newCount === 15 ? '★2' : newCount === 30 ? '★3 (영구 +10%)' : null;
 
     const newPlants = progress.gardenState.plants.filter((p) => p.id !== plantId);
     try {
@@ -237,6 +281,11 @@ export function useGardenActions() {
         spendablePoints: (progress.spendablePoints ?? 0) + totalYield,
         totalPoints: (progress.totalPoints ?? 0) + totalYield,
         gardenState: { ...progress.gardenState, plants: newPlants, health: nextHealth },
+        gardenStats: {
+          ...prevStats,
+          harvestsBySpecies: nextHarvestsBySpecies,
+          harvestsByRarity: nextHarvestsByRarity,
+        },
         updatedAt: serverTimestamp(),
       }, { merge: true });
 
@@ -245,7 +294,14 @@ export function useGardenActions() {
         createdAt: serverTimestamp(),
       });
 
-      toast(`🌾 ${species.name} 수확! +${totalYield}P${streakBonus ? ' (기도 보너스 ✨)' : ''}`);
+      const bonusLabel = [
+        streakBonus ? '기도 보너스 ✨' : '',
+        star3Bonus ? '★3 +10%' : '',
+      ].filter(Boolean).join(' · ');
+      toast(`🌾 ${species.name} 수확! +${totalYield}P${bonusLabel ? ` (${bonusLabel})` : ''}`);
+      if (milestone) {
+        toast(`⭐ ${species.name} ${newCount}회 수확 — ${milestone} 달성!`);
+      }
     } catch (e) {
       toast.error('저장 실패: ' + (e as Error).message);
     }

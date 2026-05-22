@@ -236,7 +236,22 @@ export interface ProgressDoc {
   seasonProgress?: SeasonProgressData;  // Phase 4-2
   // ── 온보딩 ─────────────────────────────────
   starterBonusApplied?: boolean;    // 시작 자원(200P + 새싹 1개) 1회 지급 여부
+  // ── 정원 통계 (2차 다양화) ─────────────────
+  gardenStats?: GardenStats;
   updatedAt: Timestamp;
+}
+
+// 정원 게임 통계 — 컬렉션·마일스톤·자동 성장 카운트 등
+export interface GardenStats {
+  codexEntries?: string[];                    // 발견(해금 또는 첫 심기) 한 종 ID 목록
+  harvestsBySpecies?: Record<string, number>; // 종별 누적 수확
+  harvestsByRarity?: Record<string, number>;  // 'basic' | 'common' | 'rare' | 'epic' | 'legendary' 별 수확
+  rareDropsTriggered?: number;                // 희귀 드롭 누적 발생 횟수
+  autogrowToday?: number;                     // 오늘 자동 성장 카운트 (매일 04:00 리셋)
+  autogrowTotal?: number;                     // 누적 자동 성장
+  consecutiveHealthyDays?: number;            // 정원 생기≥80 연속일
+  passiveYieldTotal?: number;                 // 누적 일일 자동 P
+  starBoostBonus?: number;                    // ★3 종 누계로 인한 종합 효율 메타 (정보용)
 }
 
 // ── 시즌 진행 상태 ──────────────────────────────────────
@@ -291,17 +306,25 @@ export interface AIFeedback {
 
 // ── 포인트 상수 ──────────────────────────────────────────
 export const POINT_PRICES = {
-  SEED: 50,
-  WATER: 20,
+  SEED: 50,                       // 기본 심기 비용 (PlantSpecies.seedCost 가 우선)
+  WATER: 10,                      // 물주기 비용 (균형 조정: 20→10)
   UNLOCK_COMMON: 200,
   UNLOCK_RARE: 350,
   UNLOCK_EPIC: 500,
+  UNLOCK_LEGENDARY: 2500,         // 전설 등급 기본 해금 비용
   DECO_LOW: 100,
   DECO_MID: 200,
   DECO_HIGH: 300,
   HEALTH_RESTORE: 80,
   HARVEST_BONUS_RARE: 20,         // 희귀 이상 수확 시 추가 보너스
+  HARVEST_BONUS_EPIC: 40,         // 에픽 이상 수확 시 추가 (희귀 보너스에 누적)
+  HARVEST_BONUS_LEGENDARY: 100,   // 전설 수확 시 추가 (위에 누적)
 } as const;
+
+// 등급별 일일 수확 (만개 식물 → spendablePoints 자동 가산) 기본값
+export const DAILY_YIELD_BY_RARITY: Record<'basic' | 'common' | 'rare' | 'epic' | 'legendary', number> = {
+  basic: 2, common: 4, rare: 6, epic: 10, legendary: 15,
+};
 
 export const POINT_EARN = {
   HABIT_BONUS_PERFECT: 5,
@@ -351,46 +374,80 @@ export const PRAYER_CATEGORY_LABELS: Record<PrayerCategory, string> = {
 // ── 식물 종 ───────────────────────────────────────────────
 // 종별 특성 (passive abilities) — 게임 루프 다양성 위한 트레잇
 export type PlantTrait =
-  | { kind: 'lucky' }                // 클로버: 심기 시 1/5 확률로 stage 1 시작
-  | { kind: 'beauty'; xp: number }   // 장미: 매일 04:00 정원에 있으면 +xp
-  | { kind: 'hardy' }                // 선인장: 시들기 1회 면역
-  | { kind: 'fast' }                 // 대나무: health>80 일 때 dailyReset 시 stage +1
-  | { kind: 'healer'; heal: number } // 연꽃: 만개 시 정원 health +heal
-  | { kind: 'streakSync' };          // 코스모스: 기도 streak>0 일 때 만개 시각효과 + 수확 +50%
+  | { kind: 'lucky' }                // 1/5 확률로 stage 1 시작 + 희귀 드롭 가능성
+  | { kind: 'beauty'; xp: number }   // 매일 04:00 정원에 있으면 +xp
+  | { kind: 'hardy' }                // 시들기 면역
+  | { kind: 'fast' }                 // health>80 일 때 dailyReset 시 stage +1
+  | { kind: 'healer'; heal: number } // 만개 시 정원 health +heal
+  | { kind: 'streakSync' }           // 기도 streak>0 일 때 만개 시각효과 + 수확 +50%
+  | { kind: 'bloomer' };             // 매일 자동 성장 (health 무관, 100% 확률) — legendary 전용
 
 export interface PlantSpecies {
   id: string;
   name: string;
-  rarity: 'basic' | 'common' | 'rare' | 'epic';
+  rarity: 'basic' | 'common' | 'rare' | 'epic' | 'legendary';
   unlockCost: number;
   stages: number;
-  trait?: PlantTrait;                // 신규: 종별 특성
-  harvestYield?: number;             // 신규: 만개 수확 시 환급 P
-  description?: string;              // 상점 UI 한 줄 설명
+  trait?: PlantTrait;
+  harvestYield?: number;             // 만개 수확 시 환급 P (이미 +50% 인플레 반영된 값)
+  seedCost?: number;                 // 종별 차등 심기 비용 (없으면 POINT_PRICES.SEED)
+  dailyYield?: number;               // 만개 후 일일 자동 P (없으면 DAILY_YIELD_BY_RARITY[rarity])
+  description?: string;
 }
 
 export const PLANT_SPECIES: PlantSpecies[] = [
-  // 기본
-  { id: 'sprout',    name: '새싹풀',   rarity: 'basic',  unlockCost: 0,   stages: 4, harvestYield: 10, description: '기본 새싹. 시작점.' },
-  // 일반
-  { id: 'sunflower', name: '해바라기', rarity: 'common', unlockCost: 200, stages: 5, harvestYield: 40, description: '햇살을 머금은 꽃.' },
-  { id: 'herb',      name: '허브',     rarity: 'common', unlockCost: 200, stages: 4, harvestYield: 30, description: '향긋한 잎. 빨리 자람.' },
-  { id: 'clover',    name: '클로버',   rarity: 'common', unlockCost: 150, stages: 3, harvestYield: 25,
-    trait: { kind: 'lucky' }, description: '🍀 행운: 1/5 확률 한 단계 위에서 시작.' },
-  { id: 'rose',      name: '장미',     rarity: 'common', unlockCost: 250, stages: 5, harvestYield: 50,
+  // ── 기본 (basic) ────────────────────────────────────────
+  { id: 'sprout',     name: '새싹풀',   rarity: 'basic',  unlockCost: 0,   seedCost: 25, stages: 4, harvestYield: 15, description: '기본 새싹. 모든 정원의 시작점.' },
+  { id: 'dandelion',  name: '민들레',   rarity: 'basic',  unlockCost: 60,  seedCost: 25, stages: 3, harvestYield: 18,
+    trait: { kind: 'lucky' }, description: '🍃 행운의 홀씨. 1/5 확률 한 단계 위 시작.' },
+  { id: 'moss',       name: '이끼',     rarity: 'basic',  unlockCost: 30,  seedCost: 25, stages: 2, harvestYield: 12,
+    trait: { kind: 'hardy' }, description: '🌿 작지만 끈질김. 시들기 면역.' },
+
+  // ── 일반 (common) ───────────────────────────────────────
+  { id: 'sunflower',  name: '해바라기', rarity: 'common', unlockCost: 200, seedCost: 50, stages: 5, harvestYield: 60, description: '햇살을 머금은 꽃.' },
+  { id: 'herb',       name: '허브',     rarity: 'common', unlockCost: 200, seedCost: 50, stages: 4, harvestYield: 45, description: '향긋한 잎. 부담 없이 키우기 좋음.' },
+  { id: 'clover',     name: '클로버',   rarity: 'common', unlockCost: 150, seedCost: 50, stages: 3, harvestYield: 38,
+    trait: { kind: 'lucky' }, description: '🍀 행운: 1/5 확률 한 단계 위 시작.' },
+  { id: 'rose',       name: '장미',     rarity: 'common', unlockCost: 250, seedCost: 50, stages: 5, harvestYield: 75,
     trait: { kind: 'beauty', xp: 3 }, description: '✿ 매일 정원에 있으면 +3 XP.' },
-  { id: 'cactus',    name: '선인장',   rarity: 'common', unlockCost: 180, stages: 3, harvestYield: 30,
+  { id: 'cactus',     name: '선인장',   rarity: 'common', unlockCost: 180, seedCost: 50, stages: 3, harvestYield: 45,
     trait: { kind: 'hardy' }, description: '🌵 시들기 면역.' },
-  // 희귀
-  { id: 'maple',     name: '단풍나무', rarity: 'rare',   unlockCost: 350, stages: 6, harvestYield: 80, description: '계절을 머금은 나무.' },
-  { id: 'lotus',     name: '연꽃',     rarity: 'rare',   unlockCost: 500, stages: 6, harvestYield: 100,
+  { id: 'tulip',      name: '튤립',     rarity: 'common', unlockCost: 220, seedCost: 50, stages: 4, harvestYield: 60, description: '🌷 봄을 부르는 잔.' },
+  { id: 'daisy',      name: '데이지',   rarity: 'common', unlockCost: 180, seedCost: 50, stages: 4, harvestYield: 50,
+    trait: { kind: 'beauty', xp: 2 }, description: '🌼 매일 정원에 있으면 +2 XP.' },
+  { id: 'mint',       name: '민트',     rarity: 'common', unlockCost: 200, seedCost: 40, stages: 3, harvestYield: 45,
+    trait: { kind: 'fast' }, description: '🌱 생기>80 일 때 매일 자동 성장.' },
+
+  // ── 희귀 (rare) ─────────────────────────────────────────
+  { id: 'maple',      name: '단풍나무', rarity: 'rare',   unlockCost: 350, seedCost: 80, stages: 6, harvestYield: 120, description: '계절을 머금은 나무.' },
+  { id: 'lotus',      name: '연꽃',     rarity: 'rare',   unlockCost: 500, seedCost: 80, stages: 6, harvestYield: 150,
     trait: { kind: 'healer', heal: 10 }, description: '🪷 만개 시 정원 생기 +10.' },
-  { id: 'orchid',    name: '난초',     rarity: 'rare',   unlockCost: 400, stages: 5, harvestYield: 70, description: '귀한 보라꽃.' },
-  { id: 'bamboo',    name: '대나무',   rarity: 'rare',   unlockCost: 300, stages: 6, harvestYield: 80,
-    trait: { kind: 'fast' }, description: '🎋 생기>80 일 때 매일 +1 단계 자동 성장.' },
-  // 에픽
-  { id: 'cosmos',    name: '코스모스', rarity: 'epic',   unlockCost: 600, stages: 5, harvestYield: 120,
+  { id: 'orchid',     name: '난초',     rarity: 'rare',   unlockCost: 400, seedCost: 80, stages: 5, harvestYield: 105, description: '귀한 보라꽃.' },
+  { id: 'bamboo',     name: '대나무',   rarity: 'rare',   unlockCost: 300, seedCost: 80, stages: 6, harvestYield: 120,
+    trait: { kind: 'fast' }, description: '🎋 생기>80 일 때 매일 자동 성장.' },
+  { id: 'pine',       name: '소나무',   rarity: 'rare',   unlockCost: 450, seedCost: 80, stages: 7, harvestYield: 130,
+    trait: { kind: 'hardy' }, description: '🌲 시들기 면역. 길게 자람.' },
+  { id: 'fern',       name: '고사리',   rarity: 'rare',   unlockCost: 380, seedCost: 70, stages: 5, harvestYield: 110,
+    trait: { kind: 'healer', heal: 5 }, description: '🌿 만개 시 정원 생기 +5.' },
+  { id: 'hydrangea',  name: '수국',     rarity: 'rare',   unlockCost: 500, seedCost: 75, stages: 6, harvestYield: 135,
+    trait: { kind: 'beauty', xp: 5 }, description: '💠 매일 정원에 있으면 +5 XP.' },
+  { id: 'carnation',  name: '카네이션', rarity: 'rare',   unlockCost: 420, seedCost: 70, stages: 5, harvestYield: 120, description: '🌷 감사의 꽃.' },
+
+  // ── 에픽 (epic) ─────────────────────────────────────────
+  { id: 'cosmos',     name: '코스모스', rarity: 'epic',   unlockCost: 700, seedCost: 130, stages: 5, harvestYield: 180,
     trait: { kind: 'streakSync' }, description: '✨ 기도 연속일 동안 빛나며, 수확 +50%.' },
+  { id: 'firefly_flower', name: '반딧불꽃', rarity: 'epic', unlockCost: 800, seedCost: 130, stages: 6, harvestYield: 210,
+    trait: { kind: 'streakSync' }, description: '🌟 밤하늘처럼 반짝. 기도 연속 시 수확 +50%.' },
+  { id: 'rainbow_iris', name: '무지개붓꽃', rarity: 'epic', unlockCost: 1100, seedCost: 130, stages: 5, harvestYield: 240,
+    trait: { kind: 'lucky' }, description: '🌈 행운 + 빛. 희귀 드롭 확률↑.' },
+  { id: 'moonbloom',  name: '달꽃',     rarity: 'epic',   unlockCost: 1300, seedCost: 150, stages: 6, harvestYield: 270,
+    trait: { kind: 'healer', heal: 15 }, description: '🌙 만개 시 정원 생기 +15.' },
+
+  // ── 전설 (legendary) ────────────────────────────────────
+  { id: 'tree_of_life', name: '생명나무', rarity: 'legendary', unlockCost: 2500, seedCost: 200, stages: 8, harvestYield: 450, dailyYield: 15,
+    trait: { kind: 'bloomer' }, description: '🌳 매일 자동 성장. 8단계 만에 만개하는 영광의 나무.' },
+  { id: 'prayer_lily', name: '기도백합', rarity: 'legendary', unlockCost: 3500, seedCost: 250, stages: 7, harvestYield: 600, dailyYield: 20,
+    trait: { kind: 'streakSync' }, description: '🕊️ 기도와 함께 자라는 신성한 꽃. 수확 +50%.' },
 ];
 
 // ── 배지 정의 ─────────────────────────────────────────────
@@ -408,8 +465,23 @@ export const BADGE_DEFS: BadgeDef[] = [
   { id: 'reflect_30',  title: '돌아보는 사람', tier: 'silver', description: '회고 30일 연속' },
   { id: 'habit_50',    title: '꾸준함 50',     tier: 'bronze', description: '한 습관 50회 달성' },
   { id: 'first_bloom', title: '첫 개화',       tier: 'bronze', description: '식물 첫 만개' },
-  { id: 'collector',   title: '정원사',         tier: 'gold',   description: '식물 종 5개 해금' },
+  { id: 'collector',   title: '정원사',         tier: 'bronze', description: '식물 종 5개 해금' },
   { id: 'condition_7', title: '몸을 살피다',   tier: 'bronze', description: '컨디션 7일 연속 기록' },
+  // ── 정원 2차: 컬렉션 등급 ──────────────────────────────
+  { id: 'collector_10',  title: '식물 애호가',   tier: 'bronze', description: '식물 종 10개 해금' },
+  { id: 'collector_15',  title: '정원 마스터',   tier: 'silver', description: '식물 종 15개 해금' },
+  { id: 'collector_20',  title: '식물학자',       tier: 'gold',   description: '식물 종 20개 해금' },
+  { id: 'collector_25',  title: '생명의 정원',   tier: 'gold',   description: '모든 식물 종 25개 해금' },
+  // ── 정원 2차: 수확 챌린지 ──────────────────────────────
+  { id: 'harvest_rare_10',      title: '귀한 수확',     tier: 'silver', description: '희귀 이상 10회 수확' },
+  { id: 'harvest_epic_5',       title: '에픽 수확가',   tier: 'gold',   description: '에픽 식물 5회 수확' },
+  { id: 'harvest_legendary_1',  title: '전설의 정원사', tier: 'gold',   description: '전설 식물 1회 수확' },
+  // ── 정원 2차: 트레잇·자동 성장 ─────────────────────────
+  { id: 'rare_drop_5',          title: '행운의 손길',   tier: 'bronze', description: '희귀 씨앗 드롭 5회 경험' },
+  { id: 'autogrow_50',          title: '자라나는 정원', tier: 'silver', description: '습관·기도로 자동 성장 50회' },
+  // ── 정원 2차: 도감·생기 ───────────────────────────────
+  { id: 'codex_complete',       title: '도감 완성',     tier: 'gold',   description: '식물 도감 25종 모두 발견' },
+  { id: 'garden_healthy_14',    title: '활기찬 정원',   tier: 'silver', description: '정원 생기 80 이상 14일 연속' },
 ];
 
 // ── 회고 질문 세트 ────────────────────────────────────────

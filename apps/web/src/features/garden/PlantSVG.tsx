@@ -14,7 +14,7 @@
  */
 import { cn } from '@/lib/utils';
 
-type Rarity = 'basic' | 'common' | 'rare' | 'epic';
+type Rarity = 'basic' | 'common' | 'rare' | 'epic' | 'legendary';
 
 interface PlantSVGProps {
   speciesId: string;
@@ -29,7 +29,10 @@ export default function PlantSVG({ speciesId, stage, withered, size = 72, classN
   const col = withered ? '#C7B68A' : getColor(speciesId);
   const accent = withered ? '#D1C4A8' : getAccent(speciesId);
   const s = stage;
-  const showGlow = !withered && (rarity === 'rare' || rarity === 'epic') && s >= 3;
+  const showGlow = !withered && (rarity === 'rare' || rarity === 'epic' || rarity === 'legendary') && s >= 2;
+  const glowRadius = rarity === 'legendary' ? 12 : rarity === 'epic' ? 8 : 5;
+  // legendary 는 무지개 글로우 (단색 대신 골드 톤)
+  const glowColor = rarity === 'legendary' ? '#FFD44A' : accent;
 
   return (
     <svg
@@ -38,7 +41,7 @@ export default function PlantSVG({ speciesId, stage, withered, size = 72, classN
       height={size}
       className={cn('transition-all duration-500', className)}
       aria-label={`${speciesId} stage ${stage}`}
-      style={showGlow ? { filter: `drop-shadow(0 0 ${rarity === 'epic' ? 8 : 5}px ${accent})` } : undefined}
+      style={showGlow ? { filter: `drop-shadow(0 0 ${glowRadius}px ${glowColor})` } : undefined}
     >
       {/* 화분/흙 */}
       <ellipse cx="40" cy="74" rx="16" ry="4" fill={withered ? '#D1C4A8' : '#A68B6A'} opacity="0.7" />
@@ -62,12 +65,19 @@ export default function PlantSVG({ speciesId, stage, withered, size = 72, classN
         <circle cx="40" cy="18" r="7" fill={withered ? '#D1C4A8' : accent} opacity="0.95" />
       )}
 
-      {/* 에픽 (코스모스 등) 만개 시 별 반짝 */}
-      {!withered && rarity === 'epic' && s >= 3 && (
-        <g opacity="0.9">
+      {/* 에픽/전설 만개 시 별 반짝 — 전설은 더 화려하게 */}
+      {!withered && (rarity === 'epic' || rarity === 'legendary') && s >= 3 && (
+        <g opacity={rarity === 'legendary' ? 1 : 0.9}>
           <text x="14" y="22" fontSize="10" fill="#FFD44A">✦</text>
           <text x="60" y="18" fontSize="8"  fill="#FFB8E8">✦</text>
           <text x="58" y="50" fontSize="7"  fill="#FFD44A">✧</text>
+          {rarity === 'legendary' && (
+            <>
+              <text x="10" y="50" fontSize="9" fill="#FFB8E8">✦</text>
+              <text x="68" y="35" fontSize="9" fill="#FFD44A">✧</text>
+              <text x="40" y="10" fontSize="7" fill="#FFFFFF">✺</text>
+            </>
+          )}
         </g>
       )}
     </svg>
@@ -120,7 +130,52 @@ function renderStemAndLeaves(speciesId: string, stage: number, col: string, with
     );
   }
 
-  // 기본 (sprout/sunflower/herb/maple/lotus/clover/rose/orchid/cosmos)
+  // 생명나무: 굵은 줄기 + 큰 둥근 잎 덩어리 (위로 갈수록 커짐)
+  if (speciesId === 'tree_of_life') {
+    return (
+      <>
+        <rect x="36" y={stage >= 2 ? 32 : 50} width="8" height={stage >= 2 ? 36 : 18} rx="2"
+              fill="#7C4A1E" opacity="0.95" />
+        {stage >= 2 && (
+          <>
+            <circle cx="40" cy="30" r="14" fill={col} opacity="0.85" />
+            <circle cx="28" cy="38" r="9"  fill={col} opacity="0.78" />
+            <circle cx="52" cy="38" r="9"  fill={col} opacity="0.78" />
+            <circle cx="40" cy="20" r="8"  fill={col} opacity="0.88" />
+          </>
+        )}
+      </>
+    );
+  }
+
+  // 소나무·고사리: 가는 잎이 깃털처럼
+  if (speciesId === 'pine' || speciesId === 'fern') {
+    return (
+      <>
+        <line x1="40" y1="68" x2="40" y2={stage >= 2 ? 28 : 50}
+              stroke={col} strokeWidth="3" strokeLinecap="round" />
+        {[58, 50, 42, 34].slice(0, stage + 1).map((y, i) => (
+          <g key={i}>
+            <line x1="40" y1={y} x2={40 - 12} y2={y - 3} stroke={col} strokeWidth="2.5" strokeLinecap="round" />
+            <line x1="40" y1={y} x2={40 + 12} y2={y - 3} stroke={col} strokeWidth="2.5" strokeLinecap="round" />
+          </g>
+        ))}
+      </>
+    );
+  }
+
+  // 이끼: 낮고 옆으로 퍼지는 덩어리
+  if (speciesId === 'moss') {
+    return (
+      <>
+        <ellipse cx="40" cy="66" rx="18" ry="5" fill={col} opacity="0.9" />
+        {stage >= 1 && <ellipse cx="32" cy="62" rx="8" ry="4" fill={col} opacity="0.85" />}
+        {stage >= 1 && <ellipse cx="50" cy="62" rx="8" ry="4" fill={col} opacity="0.85" />}
+      </>
+    );
+  }
+
+  // 기본 (sprout/sunflower/herb/maple/lotus/clover/rose/orchid/cosmos/등)
   return (
     <>
       <line x1="40" y1="68" x2="40" y2={stage >= 2 ? 38 : 52}
@@ -216,6 +271,150 @@ function renderFlower(speciesId: string, accent: string, withered?: boolean): Re
     );
   }
 
+  // 민들레: 흰 솜털 (씨앗 머리)
+  if (speciesId === 'dandelion') {
+    return (
+      <g>
+        <line x1="40" y1="38" x2="40" y2="30" stroke={stem} strokeWidth="2.5" strokeLinecap="round" />
+        <circle cx="40" cy="24" r="10" fill="#FFFFFF" opacity="0.9" />
+        {[0, 45, 90, 135, 180, 225, 270, 315].map((deg) => (
+          <line key={deg} x1="40" y1="24" x2={40 + 9 * Math.cos((deg * Math.PI) / 180)}
+                y2={24 + 9 * Math.sin((deg * Math.PI) / 180)} stroke="#FFFFFF" strokeWidth="1.5" />
+        ))}
+        <circle cx="40" cy="24" r="3" fill={c} opacity="0.8" />
+      </g>
+    );
+  }
+
+  // 튤립: 잔 모양
+  if (speciesId === 'tulip') {
+    return (
+      <g>
+        <line x1="40" y1="38" x2="40" y2="30" stroke={stem} strokeWidth="3" strokeLinecap="round" />
+        <path d="M30 28 Q30 16 40 14 Q50 16 50 28 Z" fill={c} opacity="0.92" />
+        <path d="M40 14 Q40 22 35 28 M40 14 Q40 22 45 28" stroke={withered ? '#C7B68A' : '#FFFFFF'} strokeWidth="0.8" opacity="0.4" fill="none" />
+      </g>
+    );
+  }
+
+  // 데이지: 흰 꽃잎 5장 + 노란 중심
+  if (speciesId === 'daisy') {
+    return (
+      <g>
+        <line x1="40" y1="38" x2="40" y2="28" stroke={stem} strokeWidth="2.5" strokeLinecap="round" />
+        {[0, 72, 144, 216, 288].map((deg) => (
+          <ellipse key={deg} cx="40" cy="18" rx="3" ry="7" fill={c} opacity="0.92"
+                   transform={`rotate(${deg} 40 26)`} />
+        ))}
+        <circle cx="40" cy="26" r="3" fill="#FFD44A" />
+      </g>
+    );
+  }
+
+  // 민트: 작은 잎 다발 (꽃 없이)
+  if (speciesId === 'mint') {
+    return (
+      <g>
+        <ellipse cx="32" cy="30" rx="6" ry="3" fill={c} opacity="0.88" transform="rotate(-25 32 30)" />
+        <ellipse cx="48" cy="28" rx="6" ry="3" fill={c} opacity="0.88" transform="rotate(25 48 28)" />
+        <ellipse cx="40" cy="22" rx="5" ry="3" fill={c} opacity="0.9" />
+      </g>
+    );
+  }
+
+  // 카네이션: 주름진 꽃잎
+  if (speciesId === 'carnation') {
+    return (
+      <g>
+        <line x1="40" y1="38" x2="40" y2="28" stroke={stem} strokeWidth="3" strokeLinecap="round" />
+        <circle cx="36" cy="24" r="6" fill={c} opacity="0.85" />
+        <circle cx="44" cy="24" r="6" fill={c} opacity="0.85" />
+        <circle cx="40" cy="20" r="6" fill={c} opacity="0.9" />
+        <circle cx="40" cy="24" r="3" fill={withered ? '#C7B68A' : '#FFFFFF'} opacity="0.5" />
+      </g>
+    );
+  }
+
+  // 수국: 작은 꽃송이가 모인 둥근 덩어리
+  if (speciesId === 'hydrangea') {
+    return (
+      <g>
+        <line x1="40" y1="38" x2="40" y2="30" stroke={stem} strokeWidth="3" strokeLinecap="round" />
+        {[[34, 26], [46, 26], [40, 18], [32, 20], [48, 20], [40, 28]].map(([cx, cy], i) => (
+          <circle key={i} cx={cx} cy={cy} r="3.5" fill={c} opacity="0.85" />
+        ))}
+      </g>
+    );
+  }
+
+  // 반딧불꽃: 빛 점이 박힌 꽃 (작은 점들)
+  if (speciesId === 'firefly_flower') {
+    return (
+      <g>
+        <line x1="40" y1="38" x2="40" y2="28" stroke={stem} strokeWidth="2.5" strokeLinecap="round" />
+        <circle cx="40" cy="24" r="9" fill={withered ? '#C7B68A' : '#5A4F8A'} opacity="0.85" />
+        {!withered && [[36, 22], [44, 22], [40, 18], [38, 28], [42, 28]].map(([cx, cy], i) => (
+          <circle key={i} cx={cx} cy={cy} r="1.5" fill="#FFE066" opacity="1">
+            <animate attributeName="opacity" values="1;0.3;1" dur="2s" repeatCount="indefinite" begin={`${i * 0.3}s`} />
+          </circle>
+        ))}
+      </g>
+    );
+  }
+
+  // 무지개붓꽃: 위아래로 흐르는 꽃잎, 그라데이션 느낌
+  if (speciesId === 'rainbow_iris') {
+    return (
+      <g>
+        <line x1="40" y1="38" x2="40" y2="28" stroke={stem} strokeWidth="3" strokeLinecap="round" />
+        <ellipse cx="34" cy="24" rx="5" ry="10" fill={withered ? '#C7B68A' : '#FF80A0'} opacity="0.85" transform="rotate(-20 34 24)" />
+        <ellipse cx="46" cy="24" rx="5" ry="10" fill={withered ? '#C7B68A' : '#FFD44A'} opacity="0.85" transform="rotate(20 46 24)" />
+        <ellipse cx="40" cy="18" rx="5" ry="11" fill={withered ? '#C7B68A' : '#80E0FF'} opacity="0.88" />
+        <circle cx="40" cy="26" r="3" fill={withered ? '#C7B68A' : '#FFFFFF'} opacity="0.7" />
+      </g>
+    );
+  }
+
+  // 달꽃: 반달 모양 꽃잎 + 빛
+  if (speciesId === 'moonbloom') {
+    return (
+      <g>
+        <line x1="40" y1="38" x2="40" y2="28" stroke={stem} strokeWidth="3" strokeLinecap="round" />
+        <circle cx="40" cy="22" r="11" fill={withered ? '#C7B68A' : '#E8E0FF'} opacity="0.85" />
+        <circle cx="40" cy="22" r="6" fill={withered ? '#D1C4A8' : '#FFFFFF'} opacity="0.92" />
+        <path d="M40 18 Q44 22 40 26 Q36 22 40 18 Z" fill={withered ? '#D1C4A8' : '#FFE6A8'} opacity="0.95" />
+      </g>
+    );
+  }
+
+  // 생명나무: 큰 빛 구체 (이미 stemAndLeaves 에서 큰 잎. 여기서 빛만)
+  if (speciesId === 'tree_of_life') {
+    return (
+      <g>
+        <circle cx="40" cy="24" r="6" fill={withered ? '#D1C4A8' : '#FFE066'} opacity="0.95">
+          <animate attributeName="r" values="6;7;6" dur="3s" repeatCount="indefinite" />
+        </circle>
+        <circle cx="40" cy="24" r="3" fill="#FFFFFF" opacity="0.7" />
+      </g>
+    );
+  }
+
+  // 기도백합: 6장 꽃잎 + 중앙 십자
+  if (speciesId === 'prayer_lily') {
+    return (
+      <g>
+        <line x1="40" y1="38" x2="40" y2="28" stroke={stem} strokeWidth="3" strokeLinecap="round" />
+        {[0, 60, 120, 180, 240, 300].map((deg) => (
+          <ellipse key={deg} cx="40" cy="18" rx="3" ry="9" fill={c} opacity="0.92"
+                   transform={`rotate(${deg} 40 26)`} />
+        ))}
+        {/* 중앙 십자 */}
+        <line x1="40" y1="22" x2="40" y2="30" stroke={withered ? '#A89878' : '#FFD44A'} strokeWidth="1.4" strokeLinecap="round" />
+        <line x1="36" y1="26" x2="44" y2="26" stroke={withered ? '#A89878' : '#FFD44A'} strokeWidth="1.4" strokeLinecap="round" />
+      </g>
+    );
+  }
+
   // 기본: 단일 꽃 (sprout/sunflower/herb/maple/lotus 등)
   return (
     <>
@@ -229,8 +428,9 @@ function renderFlower(speciesId: string, accent: string, withered?: boolean): Re
 // ── 만개 보조 꽃송이 (stage 4+) ────────────────────────────
 function renderBloom(speciesId: string, accent: string, withered?: boolean): React.ReactNode {
   const c = withered ? '#D1C4A8' : accent;
-  // 선인장은 만개해도 꽃송이 안 늘림 (가시 줄기 그대로)
-  if (speciesId === 'cactus') return null;
+  // 만개해도 추가 꽃송이 없는 종: 선인장, 이끼, 민트, 소나무, 고사리, 생명나무, 대나무
+  const NO_BLOOM_OVERLAY = new Set(['cactus', 'moss', 'mint', 'pine', 'fern', 'tree_of_life', 'bamboo']);
+  if (NO_BLOOM_OVERLAY.has(speciesId)) return null;
   return (
     <>
       <circle cx="28" cy="32" r="8" fill={c} opacity="0.85" />
@@ -243,6 +443,7 @@ function renderBloom(speciesId: string, accent: string, withered?: boolean): Rea
 // ── 컬러 맵 ────────────────────────────────────────────────
 function getColor(speciesId: string): string {
   const map: Record<string, string> = {
+    // 기존 11종
     sprout:    '#5D8F3E',
     sunflower: '#6AAB3C',
     herb:      '#4F7A37',
@@ -254,12 +455,28 @@ function getColor(speciesId: string): string {
     orchid:    '#6B4A8C',
     bamboo:    '#5A8C3E',
     cosmos:    '#7A4FA0',
+    // 신규 14종
+    dandelion: '#6B8E2E',
+    moss:      '#4A6B3A',
+    tulip:     '#5A8C4E',
+    daisy:     '#5D8F3E',
+    mint:      '#4F8C5E',
+    pine:      '#2D5A3E',
+    fern:      '#3E7A4F',
+    hydrangea: '#4F7A8A',
+    carnation: '#5A8C3E',
+    firefly_flower: '#5A4F8A',
+    rainbow_iris:   '#6B4F8C',
+    moonbloom: '#4F5A8C',
+    tree_of_life: '#5A3E1E',
+    prayer_lily:  '#7A8C9E',
   };
   return map[speciesId] ?? '#4F7A37';
 }
 
 function getAccent(speciesId: string): string {
   const map: Record<string, string> = {
+    // 기존 11종
     sprout:    '#A8D08D',
     sunflower: '#FFD44A',
     herb:      '#C7E0A8',
@@ -271,6 +488,21 @@ function getAccent(speciesId: string): string {
     orchid:    '#C088E8',
     bamboo:    '#A8D08D',
     cosmos:    '#FFB8E8',
+    // 신규 14종
+    dandelion: '#FFE066',
+    moss:      '#7AAE6F',
+    tulip:     '#E85A6E',
+    daisy:     '#FFFFFF',
+    mint:      '#A8E0C0',
+    pine:      '#3E7A4F',
+    fern:      '#A8D0A0',
+    hydrangea: '#A0C8E0',
+    carnation: '#FFA0B5',
+    firefly_flower: '#FFE066',
+    rainbow_iris:   '#FF80FF',
+    moonbloom: '#E8E0FF',
+    tree_of_life: '#FFD44A',
+    prayer_lily:  '#FFFFFF',
   };
   return map[speciesId] ?? '#A8D08D';
 }
