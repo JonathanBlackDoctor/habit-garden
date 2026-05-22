@@ -32,7 +32,27 @@ export function useProgress() {
     if (!uid) return;
     return onSnapshot(doc(db, 'users', uid, 'progress', 'main'), (snap) => {
       if (snap.exists()) {
-        setProgress(snap.data() as ProgressDoc);
+        const data = snap.data() as ProgressDoc;
+        setProgress(data);
+
+        // 기존 사용자 최소 보장: 200P 미만이면 200P로, 식물 0개면 새싹 1개 지급
+        const needsPoints = (data.spendablePoints ?? 0) < 200;
+        const needsPlant  = (data.gardenState?.plants?.length ?? 0) === 0;
+        if (needsPoints || needsPlant) {
+          const patch: any = { updatedAt: serverTimestamp() };
+          if (needsPoints) {
+            const bump = 200 - (data.spendablePoints ?? 0);
+            patch.spendablePoints = 200;
+            patch.totalPoints = (data.totalPoints ?? 0) + bump;
+          }
+          if (needsPlant) {
+            patch.gardenState = {
+              ...(data.gardenState ?? { unlockedSpecies: ['sprout'], decorations: [], health: 100 }),
+              plants: [{ id: 'starter', speciesId: 'sprout', stage: 1, plantedAt: Date.now() as any }],
+            };
+          }
+          setDoc(doc(db, 'users', uid, 'progress', 'main'), patch, { merge: true });
+        }
       } else {
         // 첫 방문: progress 문서 초기화
         setDoc(doc(db, 'users', uid, 'progress', 'main'), {
