@@ -27,12 +27,12 @@ export function useProgress() {
 
   useEffect(() => {
     if (!uid) return;
-    return onSnapshot(doc(db, 'users', uid, 'progress'), (snap) => {
+    return onSnapshot(doc(db, 'users', uid, 'progress', 'main'), (snap) => {
       if (snap.exists()) {
         setProgress(snap.data() as ProgressDoc);
       } else {
         // 첫 방문: progress 문서 초기화
-        setDoc(doc(db, 'users', uid, 'progress'), {
+        setDoc(doc(db, 'users', uid, 'progress', 'main'), {
           ...DEFAULT_PROGRESS,
           updatedAt: serverTimestamp(),
         });
@@ -69,7 +69,7 @@ export function useGardenActions() {
     };
 
     const newPlants = [...progress.gardenState.plants, newPlant];
-    await setDoc(doc(db, 'users', uid, 'progress'), {
+    await setDoc(doc(db, 'users', uid, 'progress', 'main'), {
       spendablePoints: progress.spendablePoints - cost,
       gardenState: { ...progress.gardenState, plants: newPlants },
       updatedAt: serverTimestamp(),
@@ -98,7 +98,7 @@ export function useGardenActions() {
       return { ...p, stage: Math.min(p.stage + 1, maxStage), witheredSince: undefined };
     });
 
-    await setDoc(doc(db, 'users', uid, 'progress'), {
+    await setDoc(doc(db, 'users', uid, 'progress', 'main'), {
       spendablePoints: progress.spendablePoints - cost,
       gardenState: { ...progress.gardenState, plants },
       updatedAt: serverTimestamp(),
@@ -126,7 +126,7 @@ export function useGardenActions() {
       return;
     }
     const unlockedSpecies = [...progress.gardenState.unlockedSpecies, speciesId];
-    await setDoc(doc(db, 'users', uid, 'progress'), {
+    await setDoc(doc(db, 'users', uid, 'progress', 'main'), {
       spendablePoints: progress.spendablePoints - cost,
       gardenState: { ...progress.gardenState, unlockedSpecies },
       updatedAt: serverTimestamp(),

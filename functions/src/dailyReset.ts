@@ -65,7 +65,7 @@ export const dailyReset = functions
       const success  = total > 0 && achieved / total >= 0.6;
 
       if (!success) {
-        const progressRef = db.doc(`users/${uid}/progress`);
+        const progressRef = db.doc(`users/${uid}/progress/main`);
         const pSnap = await progressRef.get();
         const current = pSnap.exists ? (pSnap.data()?.globalStreak ?? 0) : 0;
         if (current > 0) {

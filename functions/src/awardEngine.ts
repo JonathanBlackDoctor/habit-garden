@@ -86,7 +86,7 @@ async function creditPoints(
   });
 
   // progress 갱신
-  const progressRef = db.doc(`users/${uid}/progress`);
+  const progressRef = db.doc(`users/${uid}/progress/main`);
   batch.set(progressRef, {
     totalPoints:     FieldValue.increment(delta),
     spendablePoints: FieldValue.increment(delta),
@@ -101,7 +101,7 @@ async function creditPoints(
 }
 
 async function checkLevelUp(uid: string) {
-  const ref  = db.doc(`users/${uid}/progress`);
+  const ref  = db.doc(`users/${uid}/progress/main`);
   const snap = await ref.get();
   if (!snap.exists) return;
 
@@ -158,7 +158,7 @@ async function updateDayScore(uid: string, date: string) {
 }
 
 async function handleSuccessDay(uid: string, date: string) {
-  const progressRef = db.doc(`users/${uid}/progress`);
+  const progressRef = db.doc(`users/${uid}/progress/main`);
   const snap = await progressRef.get();
   const progress = snap.exists ? (snap.data() as ProgressDoc) : null;
   const lastStreak = progress?.globalStreak ?? 0;
@@ -182,7 +182,7 @@ async function handleSuccessDay(uid: string, date: string) {
 }
 
 async function checkBadges(uid: string) {
-  const progressSnap = await db.doc(`users/${uid}/progress`).get();
+  const progressSnap = await db.doc(`users/${uid}/progress/main`).get();
   if (!progressSnap.exists) return;
   const p = progressSnap.data() as ProgressDoc;
 

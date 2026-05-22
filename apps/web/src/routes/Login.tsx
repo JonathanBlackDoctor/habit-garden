@@ -1,9 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { signInWithGoogle } from '@/lib/auth';
+import { signInWithGoogle, isAllowedUser } from '@/lib/auth';
 import { useAppStore } from '@/lib/store';
-import { isAllowedUser } from '@/lib/auth';
-import { setAuthDebug } from '@/lib/authDebug';
 
 export default function Login() {
   const user = useAppStore((s) => s.user);
@@ -17,7 +15,6 @@ export default function Login() {
   }, [user, authLoading, navigate]);
 
   const handleLogin = async () => {
-    setAuthDebug({ loginBtnClicked: 'yes @ ' + new Date().toTimeString().slice(0, 8) });
     try {
       await signInWithGoogle();
     } catch (e) {
@@ -27,7 +24,6 @@ export default function Login() {
 
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center gap-8 bg-[var(--bg-base)] px-6">
-      {/* 로고 */}
       <div className="flex flex-col items-center gap-2">
         <div className="text-6xl">🌱</div>
         <h1 className="text-2xl font-semibold text-[var(--fg-primary)]">습관 정원</h1>
@@ -36,7 +32,6 @@ export default function Login() {
         </p>
       </div>
 
-      {/* 로그인 버튼 */}
       <button
         onClick={handleLogin}
         className="flex w-full max-w-xs items-center justify-center gap-3 rounded-[var(--radius)] border border-[var(--border)] bg-white px-6 py-3 text-sm font-medium text-[var(--fg-primary)] shadow-[var(--shadow-sm)] transition-opacity active:opacity-70"

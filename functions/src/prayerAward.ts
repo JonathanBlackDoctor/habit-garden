@@ -94,7 +94,7 @@ async function checkDailyListComplete(uid: string, date: string, checkedIds: str
   await creditPoints(uid, PRAYER_POINT_EARN.DAILY_LIST_COMPLETE, 'prayer_list_complete', date);
 
   // prayerStreak 갱신
-  const progressRef = db.doc(`users/${uid}/progress`);
+  const progressRef = db.doc(`users/${uid}/progress/main`);
   const pSnap = await progressRef.get();
   const p = pSnap.exists ? (pSnap.data() as ProgressDoc) : null;
   const last = p?.lastPrayerDate;
@@ -129,7 +129,7 @@ export const prayerAnsweredAward = functions
 
     await creditPoints(uid, PRAYER_POINT_EARN.PRAYER_ANSWERED, 'prayer_answered', after.id);
 
-    const progressRef = db.doc(`users/${uid}/progress`);
+    const progressRef = db.doc(`users/${uid}/progress/main`);
     await progressRef.set({
       totalPrayersAnswered: FieldValue.increment(1),
       updatedAt: FieldValue.serverTimestamp(),
@@ -153,7 +153,7 @@ async function creditPoints(uid: string, delta: number, reason: string, refId?: 
   batch.set(ledgerRef, {
     delta, reason, refId: refId ?? null, createdAt: FieldValue.serverTimestamp(),
   });
-  const progressRef = db.doc(`users/${uid}/progress`);
+  const progressRef = db.doc(`users/${uid}/progress/main`);
   batch.set(progressRef, {
     totalPoints:     FieldValue.increment(delta),
     spendablePoints: FieldValue.increment(delta),
