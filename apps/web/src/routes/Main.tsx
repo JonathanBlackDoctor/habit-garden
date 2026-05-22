@@ -46,8 +46,8 @@ export default function Main() {
   const spendable     = progress?.spendablePoints ?? 0;
   const streak        = progress?.globalStreak ?? 0;
   const level         = progress?.level ?? 1;
-  const health        = progress?.gardenState.health ?? 100;
-  const plants        = progress?.gardenState.plants ?? [];
+  const health        = progress?.gardenState?.health ?? 100;
+  const plants        = progress?.gardenState?.plants ?? [];
   const hasReflection = !!dayDoc?.reflection;
 
   // 시간대별 요약

@@ -4,6 +4,7 @@ import { useAuth } from '@/lib/auth';
 
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AppLayout from '@/components/AppLayout';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
 import Login      from '@/routes/Login';
 import Main       from '@/routes/Main';
@@ -29,6 +30,7 @@ function AuthInit({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
+    <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <HashRouter>
         <AuthInit>
@@ -53,5 +55,6 @@ export default function App() {
         </AuthInit>
       </HashRouter>
     </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
