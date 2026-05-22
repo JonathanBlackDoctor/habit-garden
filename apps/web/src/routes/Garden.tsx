@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useProgress, useGardenActions } from '@/features/garden/useGarden';
 import PlantSVG from '@/features/garden/PlantSVG';
 import PlantCodex from '@/features/garden/PlantCodex';
@@ -57,6 +57,7 @@ export default function Garden() {
   const freeze = useFreezeTokens();
   const [selected, setSelected] = useState<PlantInstance | null>(null);
   const [tab, setTab] = useState<Tab>('garden');
+  const [waterFx, setWaterFx] = useState<{ id: string; key: number } | null>(null);
 
   if (!progress) {
     return (
@@ -154,11 +155,15 @@ export default function Garden() {
               const sp = PLANT_SPECIES.find((s) => s.id === plant.speciesId);
               const maxStage = (sp?.stages ?? 4) - 1;
               const isFull = plant.stage >= maxStage;
+              const isWatering = waterFx?.id === plant.id;
               return (
                 <motion.button
                   key={plant.id}
                   whileTap={{ scale: 0.95 }}
-                  animate={{ scale: isSelected ? 1.08 : 1 }}
+                  animate={isWatering
+                    ? { scale: [isSelected ? 1.08 : 1, 1.18, isSelected ? 1.08 : 1] }
+                    : { scale: isSelected ? 1.08 : 1 }}
+                  transition={isWatering ? { duration: 0.5 } : undefined}
                   onClick={() => setSelected(isSelected ? null : plant)}
                   className={cn(
                     'flex flex-col items-center gap-1 rounded-lg p-1 transition-all relative',
@@ -179,6 +184,22 @@ export default function Garden() {
                       +{sp.dailyYield ?? DAILY_YIELD_BY_RARITY[sp.rarity]}/일
                     </span>
                   )}
+                  <AnimatePresence>
+                    {isWatering && (
+                      <motion.span
+                        key={waterFx!.key}
+                        initial={{ opacity: 0, y: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, y: -28, scale: 1 }}
+                        exit={{ opacity: 0, y: -40 }}
+                        transition={{ duration: 1.0, ease: 'easeOut' }}
+                        onAnimationComplete={() => setWaterFx(null)}
+                        className="pointer-events-none absolute -top-2 left-1/2 -translate-x-1/2 rounded-full bg-[#E5F0F8] px-2 py-0.5 text-[10px] font-semibold text-[#3A6EA5] shadow-sm whitespace-nowrap"
+                        aria-hidden
+                      >
+                        💧 +1Lv
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
                 </motion.button>
               );
             })}
@@ -244,7 +265,11 @@ export default function Garden() {
                       <Button
                         variant="secondary"
                         size="sm"
-                        onClick={() => waterPlant(selected.id)}
+                        onClick={async () => {
+                          const id = selected.id;
+                          const ok = await waterPlant(id);
+                          if (ok) setWaterFx({ id, key: Date.now() });
+                        }}
                         className="w-full gap-2"
                       >
                         <Droplets size={15} />
