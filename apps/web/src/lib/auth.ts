@@ -9,7 +9,7 @@ import {
   signOut,
   User,
 } from 'firebase/auth';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 import { useEffect } from 'react';
 import { auth, db } from './firebase';
 import { useAppStore } from './store';
@@ -74,16 +74,54 @@ export function useAuth(): {
     return unsubscribe;
   }, [setUser, setAuthLoading, setUid, setProfile, setSettings]);
 
-  // userProfiles/{uid} 실시간 구독
+  // userProfiles/{uid} 실시간 구독 (+ Cloud Function이 못 만들었으면 self-create 폴백)
   useEffect(() => {
     if (!user) {
       setProfile(null);
       return;
     }
+    const ref = doc(db, 'userProfiles', user.uid);
+    let attemptedCreate = false;
     const unsub = onSnapshot(
-      doc(db, 'userProfiles', user.uid),
-      (snap) => setProfile(snap.exists() ? (snap.data() as UserProfileDoc) : null),
-      () => setProfile(null),
+      ref,
+      async (snap) => {
+        if (snap.exists()) {
+          setProfile(snap.data() as UserProfileDoc);
+          return;
+        }
+        setProfile(null);
+        if (attemptedCreate) return;
+        attemptedCreate = true;
+        try {
+          // 규칙상 create 는 status='pending' & isOwner=false 만 허용됨.
+          // owner 는 직후 update 로 self-approve (rules: update,delete if isOwner).
+          await setDoc(ref, {
+            uid:         user.uid,
+            email:       user.email ?? '',
+            displayName: user.displayName ?? null,
+            photoURL:    user.photoURL ?? null,
+            status:      'pending',
+            isOwner:     false,
+            createdAt:   serverTimestamp(),
+            approvedAt:  null,
+            approvedBy:  null,
+          });
+          if (user.uid === OWNER_UID) {
+            await updateDoc(ref, {
+              status:     'approved',
+              isOwner:    true,
+              approvedAt: serverTimestamp(),
+              approvedBy: user.uid,
+            });
+          }
+        } catch (e) {
+          console.error('userProfile self-create 실패', e);
+        }
+      },
+      (err) => {
+        console.error('userProfile 구독 오류', err);
+        setProfile(null);
+      },
     );
     return unsub;
   }, [user, setProfile]);
