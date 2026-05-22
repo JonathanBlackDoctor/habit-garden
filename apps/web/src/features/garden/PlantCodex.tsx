@@ -57,14 +57,16 @@ export default function PlantCodex({ progress }: { progress: ProgressDoc }) {
 
       {/* 진척바 */}
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--leaf-soft)]">
-        <div
+        <motion.div
           className={cn(
-            'h-full rounded-full transition-all',
+            'h-full rounded-full',
             percent === 100
-              ? 'bg-gradient-to-r from-[#FFD44A] via-[#FFB8E8] to-[#80E0FF]'
+              ? 'bg-gradient-to-r from-[#FFD44A] via-[#FFB8E8] to-[#80E0FF] codex-progress-complete'
               : 'bg-[var(--leaf)]',
           )}
-          style={{ width: `${percent}%` }}
+          initial={false}
+          animate={{ width: `${percent}%` }}
+          transition={{ type: 'spring', stiffness: 200, damping: 26 }}
         />
       </div>
 
@@ -77,36 +79,52 @@ export default function PlantCodex({ progress }: { progress: ProgressDoc }) {
 
       {/* 5×5 그리드 */}
       <div className="grid grid-cols-5 gap-2">
-        {sorted.map((sp) => {
+        {sorted.map((sp, idx) => {
           const isDiscovered = discovered.has(sp.id);
           const isUnlocked = unlocked.has(sp.id);
           const count = harvests[sp.id] ?? 0;
           const stars = starsFor(count);
+          const isLegendary = sp.rarity === 'legendary' && isDiscovered;
           return (
             <motion.div
               key={sp.id}
-              whileHover={{ scale: 1.03 }}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: idx * 0.018, duration: 0.22 }}
+              whileHover={{ scale: 1.03, y: -2 }}
               whileTap={{ scale: 0.97 }}
               className={cn(
-                'relative flex flex-col items-center gap-1 rounded-lg border p-1.5 text-center transition-all',
+                'relative overflow-hidden flex flex-col items-center gap-1 rounded-lg border p-1.5 text-center',
                 isDiscovered
                   ? 'border-[var(--leaf-soft)] bg-white/80'
-                  : 'border-dashed border-[var(--fg-faint)] bg-[var(--leaf-soft)]/30 opacity-60',
+                  : 'border-dashed border-[var(--fg-faint)] bg-[var(--leaf-soft)]/30',
+                isLegendary && 'codex-card-legendary',
               )}
               title={isDiscovered ? sp.name : '미발견'}
             >
-              {/* 식물 SVG (미발견은 어둡게) */}
-              <div className={cn('relative', !isDiscovered && 'grayscale opacity-30')}>
-                <PlantSVG
-                  speciesId={sp.id}
-                  stage={isDiscovered ? Math.max(3, sp.stages - 1) : 2}
-                  rarity={sp.rarity}
-                  size={42}
-                />
+              {/* 식물 SVG (미발견은 어둡게 + ? 오버레이) */}
+              <div className={cn('relative', !isDiscovered && 'opacity-40')}>
+                <div className={cn(!isDiscovered && 'grayscale')}>
+                  <PlantSVG
+                    speciesId={sp.id}
+                    stage={isDiscovered ? Math.max(3, sp.stages - 1) : 2}
+                    rarity={sp.rarity}
+                    size={42}
+                  />
+                </div>
                 {!isDiscovered && (
-                  <div className="absolute inset-0 flex items-center justify-center text-lg font-bold text-[var(--fg-faint)]">
-                    ?
-                  </div>
+                  <>
+                    <div
+                      aria-hidden
+                      className="pointer-events-none absolute inset-0 rounded-md"
+                      style={{
+                        background: 'radial-gradient(circle at 50% 55%, rgba(255,255,255,0.25), rgba(154,160,143,0.35) 75%)',
+                      }}
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center text-xl font-bold text-[var(--fg-faint)] drop-shadow-sm">
+                      ?
+                    </div>
+                  </>
                 )}
               </div>
 
@@ -125,7 +143,14 @@ export default function PlantCodex({ progress }: { progress: ProgressDoc }) {
               {isDiscovered && count > 0 && (
                 <div className="absolute right-1 top-1 flex flex-col items-end">
                   {stars && (
-                    <span className="text-[9px] leading-none text-[#FFD44A]">{stars}</span>
+                    <motion.span
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ type: 'spring', stiffness: 320, damping: 18 }}
+                      className="text-[9px] leading-none text-[#FFD44A]"
+                    >
+                      {stars}
+                    </motion.span>
                   )}
                   <span className="text-[8px] leading-none text-[var(--fg-faint)] tabular-nums">×{count}</span>
                 </div>
