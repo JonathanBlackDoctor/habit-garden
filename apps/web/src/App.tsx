@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/auth';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AppLayout from '@/components/AppLayout';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import DiagnosticBanner from '@/components/DiagnosticBanner';
 
 import Login      from '@/routes/Login';
 import Main       from '@/routes/Main';
@@ -34,6 +35,7 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <HashRouter>
         <AuthInit>
+          <DiagnosticBanner />
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route element={<ProtectedRoute />}>
