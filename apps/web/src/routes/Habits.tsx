@@ -1,6 +1,13 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { addDoc, collection, updateDoc } from 'firebase/firestore';
+import { Pencil, Check, Plus, Settings } from 'lucide-react';
+import { toast } from 'sonner';
+import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import { useHabits, useHabitChecks, useSaveHabitCheck } from '@/features/habits/useHabits';
 import HabitCard from '@/features/habits/HabitCard';
+import HabitEditRow from '@/features/habits/HabitEditRow';
 import type { HabitDoc } from 'shared/types/firestore';
 import { timeOfDay } from '@/lib/dayBoundary';
 
@@ -40,25 +47,80 @@ function groupByTime(habits: HabitDoc[]) {
 }
 
 export default function Habits() {
+  const navigate = useNavigate();
+  const uid    = useAppStore((s) => s.uid);
   const date   = useAppStore((s) => s.currentDate);
-  const habits = useHabits();
+  const [editMode, setEditMode] = useState(false);
+  const habits = useHabits({ includeInactive: editMode });
   const checks = useHabitChecks(date);
   const save   = useSaveHabitCheck();
 
   const groups = groupByTime(habits);
-  const totalActive    = habits.length;
-  const totalAchieved  = Object.values(checks).filter((c) => c.achieved).length;
-  const totalChecked   = Object.values(checks).filter((c) => c.score !== null).length;
+  const activeHabits   = habits.filter((h) => h.active);
+  const totalActive    = activeHabits.length;
+  const totalAchieved  = activeHabits.filter((h) => checks[h.id]?.achieved).length;
+  const totalChecked   = activeHabits.filter((h) => checks[h.id]?.score !== undefined && checks[h.id]?.score !== null).length;
   const currentTOD     = timeOfDay();
+
+  const addNewHabit = async () => {
+    if (!uid) return;
+    try {
+      const nextOrder = habits.length > 0 ? Math.max(...habits.map((h) => h.order)) + 1 : 0;
+      const ref = await addDoc(collection(db, 'users', uid, 'habits'), {
+        id: '',
+        title: '새 습관',
+        weight: 5,
+        timeOfDay: 'anytime',
+        order: nextOrder,
+        scoreMode: 'binary',
+        achieveThreshold: 1,
+        iconName: 'leaf',
+        active: true,
+      });
+      await updateDoc(ref, { id: ref.id });
+      setEditMode(true);
+      toast('새 습관 추가됨');
+    } catch {
+      toast.error('습관 추가 실패');
+    }
+  };
 
   return (
     <div className="min-h-screen p-4 space-y-4 pb-8">
       {/* 헤더 */}
-      <div className="pt-2">
-        <h2 className="text-base font-semibold text-[var(--fg-primary)]">습관 체크</h2>
-        <p className="text-sm text-[var(--fg-muted)]">
-          달성 {totalAchieved}/{totalActive} · 체크 {totalChecked}/{totalActive}
-        </p>
+      <div className="pt-2 flex items-start justify-between gap-2">
+        <div>
+          <h2 className="text-base font-semibold text-[var(--fg-primary)]">습관 체크</h2>
+          <p className="text-sm text-[var(--fg-muted)]">
+            달성 {totalAchieved}/{totalActive} · 체크 {totalChecked}/{totalActive}
+          </p>
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={addNewHabit}
+            className="rounded-full p-1.5 text-[var(--fg-muted)] hover:bg-[var(--leaf-soft)] hover:text-[var(--leaf)]"
+            aria-label="습관 추가"
+            title="습관 추가"
+          >
+            <Plus size={18} />
+          </button>
+          <button
+            onClick={() => setEditMode((v) => !v)}
+            className={`rounded-full p-1.5 ${editMode ? 'bg-[var(--leaf-soft)] text-[var(--leaf)]' : 'text-[var(--fg-muted)] hover:bg-[var(--leaf-soft)] hover:text-[var(--leaf)]'}`}
+            aria-label={editMode ? '편집 완료' : '편집'}
+            title={editMode ? '편집 완료' : '편집'}
+          >
+            {editMode ? <Check size={18} /> : <Pencil size={18} />}
+          </button>
+          <button
+            onClick={() => navigate('/admin')}
+            className="rounded-full p-1.5 text-[var(--fg-muted)] hover:bg-[var(--leaf-soft)] hover:text-[var(--leaf)]"
+            aria-label="관리"
+            title="관리 페이지"
+          >
+            <Settings size={18} />
+          </button>
+        </div>
       </div>
 
       {/* 시간대별 그룹 */}
@@ -97,12 +159,20 @@ export default function Habits() {
               </span>
             </div>
             {group.map((habit) => (
-              <HabitCard
-                key={habit.id}
-                habit={habit}
-                check={checks[habit.id]}
-                onScore={(score) => save(habit, score)}
-              />
+              editMode ? (
+                <HabitEditRow
+                  key={habit.id}
+                  habit={habit}
+                  groupSiblings={group}
+                />
+              ) : (
+                <HabitCard
+                  key={habit.id}
+                  habit={habit}
+                  check={checks[habit.id]}
+                  onScore={(score) => save(habit, score)}
+                />
+              )
             ))}
           </section>
         );
@@ -111,7 +181,7 @@ export default function Habits() {
       {habits.length === 0 && (
         <div className="flex flex-col items-center gap-2 py-16 text-[var(--fg-faint)]">
           <p className="text-sm">습관이 없습니다.</p>
-          <p className="text-xs">관리 페이지에서 시드 습관을 추가하세요.</p>
+          <p className="text-xs">우측 상단 + 버튼으로 추가하거나, ⚙ 관리에서 시드를 불러오세요.</p>
         </div>
       )}
     </div>

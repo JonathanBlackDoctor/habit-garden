@@ -9,17 +9,19 @@ import { pointsForCheck } from 'shared/lib/habitPoints';
 import { toast } from 'sonner';
 import { feedback } from '@/lib/feedback';
 
-export function useHabits() {
+export function useHabits(opts?: { includeInactive?: boolean }) {
   const uid  = useAppStore((s) => s.uid);
+  const includeInactive = opts?.includeInactive ?? false;
   const [habits, setHabits] = useState<HabitDoc[]>([]);
 
   useEffect(() => {
     if (!uid) return;
     const q = query(collection(db, 'users', uid, 'habits'), orderBy('order'));
     return onSnapshot(q, (snap) => {
-      setHabits(snap.docs.map((d) => d.data() as HabitDoc).filter((h) => h.active));
+      const all = snap.docs.map((d) => d.data() as HabitDoc);
+      setHabits(includeInactive ? all : all.filter((h) => h.active));
     });
-  }, [uid]);
+  }, [uid, includeInactive]);
 
   return habits;
 }
