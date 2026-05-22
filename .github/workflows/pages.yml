@@ -1,0 +1,57 @@
+name: Deploy to GitHub Pages
+
+# main 브랜치에 푸시되면 웹앱(apps/web)을 빌드해 GitHub Pages에 배포합니다.
+# 공개 URL: https://jonathanblackdoctor.github.io/habit-garden/
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 동시에 하나의 Pages 배포만 실행
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Node.js 20 설정
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 의존성 설치 (apps/web)
+        working-directory: apps/web
+        run: npm install --no-audit --no-fund
+
+      - name: 웹앱 빌드 (Vite)
+        working-directory: apps/web
+        run: npx vite build
+
+      - name: Pages 설정
+        uses: actions/configure-pages@v5
+
+      - name: 빌드 산출물 업로드
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/web/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: GitHub Pages 배포
+        id: deployment
+        uses: actions/deploy-pages@v4

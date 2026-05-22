@@ -2,9 +2,8 @@ name: Firebase Deploy
 
 # main 브랜치에 푸시되면 자동으로 빌드 후 Firebase에 배포합니다.
 on:
-  push:
-    branches: [main]
-  # 수동 실행도 가능하도록(Actions 탭에서 "Run workflow")
+  # 자동 푸시 배포는 비활성화. GitHub Pages 워크플로우(pages.yml)가 프론트엔드를 배포합니다.
+  # Firebase 백엔드(functions/firestore 등) 배포가 필요할 때 Actions 탭에서 수동 실행하세요.
   workflow_dispatch:
 
 jobs:
