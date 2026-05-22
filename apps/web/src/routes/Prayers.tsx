@@ -76,7 +76,7 @@ function PrayersInner() {
           onChange={(e) => setQuick(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && submitQuick()}
           placeholder="기도제목 한 줄 빠른 추가…"
-          className="flex-1 rounded-[var(--radius)] border border-[var(--border)] bg-white px-4 py-2.5 text-sm outline-none focus:border-[var(--sky)]"
+          className="min-w-0 flex-1 rounded-[var(--radius)] border border-[var(--border)] bg-white px-4 py-2.5 text-sm outline-none focus:border-[var(--sky)]"
         />
         <select
           value={lastCat}
@@ -89,7 +89,7 @@ function PrayersInner() {
         </select>
         <button
           onClick={submitQuick}
-          className="flex items-center justify-center rounded-[var(--radius)] bg-[var(--leaf)] px-3 text-white"
+          className="flex shrink-0 items-center justify-center rounded-[var(--radius)] bg-[var(--leaf)] px-3 text-white"
           aria-label="추가"
         >
           <Plus size={18} />

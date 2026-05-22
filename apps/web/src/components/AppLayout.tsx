@@ -14,8 +14,9 @@ export default function AppLayout() {
       </div>
       <TabBar />
       <Toaster
-        position="top-center"
+        position="bottom-center"
         richColors
+        offset="calc(72px + env(safe-area-inset-bottom))"
         toastOptions={{
           style: { background: 'var(--bloom-soft)', border: '1px solid var(--bloom)', color: 'var(--bloom)' },
         }}

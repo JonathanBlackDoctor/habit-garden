@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { signOutUser } from '@/lib/auth';
-import { Cloud, BookOpen, Settings, LogOut, Bell, Vibrate, Volume2, HandHeart, Download } from 'lucide-react';
+import { Cloud, BookOpen, Settings, LogOut, Bell, Vibrate, Volume2, HandHeart, Download, GraduationCap } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { enablePushNotifications, disablePushNotifications, isFcmEnabled } from '@/lib/fcm';
 import {
@@ -14,9 +14,10 @@ import { useFaithEnabled, setFaithEnabled } from '@/lib/features';
 import { usePwaInstall } from '@/lib/pwaInstall';
 
 const items = [
-  { icon: Cloud,    label: '컨디션',   to: '/condition' },
-  { icon: BookOpen, label: '플래너',   to: '/planner' },
-  { icon: Settings, label: '관리',     to: '/admin' },
+  { icon: GraduationCap, label: '튜토리얼', to: '/tutorial' },
+  { icon: Cloud,         label: '컨디션',   to: '/condition' },
+  { icon: BookOpen,      label: '플래너',   to: '/planner' },
+  { icon: Settings,      label: '관리',     to: '/admin' },
 ];
 
 export default function More() {

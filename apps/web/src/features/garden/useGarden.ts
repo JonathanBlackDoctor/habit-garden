@@ -154,12 +154,12 @@ export function useGardenActions() {
     }
   };
 
-  const waterPlant = async (plantId: string) => {
-    if (!uid || !progress) return;
+  const waterPlant = async (plantId: string): Promise<boolean> => {
+    if (!uid || !progress) return false;
     const cost = POINT_PRICES.WATER;
     if (progress.spendablePoints < cost) {
       toast.error(`포인트가 부족합니다. (필요: ${cost}P)`);
-      return;
+      return false;
     }
     const plants = progress.gardenState.plants.map((p) => {
       if (p.id !== plantId) return p;
@@ -180,9 +180,10 @@ export function useGardenActions() {
         createdAt: serverTimestamp(),
       });
 
-      toast('💧 물을 줬습니다!');
+      return true;
     } catch (e) {
       toast.error('저장 실패: ' + (e as Error).message);
+      return false;
     }
   };
 
