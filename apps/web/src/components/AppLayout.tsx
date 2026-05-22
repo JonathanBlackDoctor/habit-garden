@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom';
 import TabBar from './TabBar';
 import { Toaster } from 'sonner';
+import CelebrationOverlay from '@/features/habits/CelebrationOverlay';
 
 export default function AppLayout() {
   return (
@@ -19,6 +20,7 @@ export default function AppLayout() {
           style: { background: 'var(--bloom-soft)', border: '1px solid var(--bloom)', color: 'var(--bloom)' },
         }}
       />
+      <CelebrationOverlay />
     </div>
   );
 }

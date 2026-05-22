@@ -7,6 +7,10 @@ import { BADGE_DEFS } from 'shared/types/firestore';
 import type { BadgeDoc, DayDoc } from 'shared/types/firestore';
 import { xpForLevel } from '@/lib/utils';
 import { Flame, Star, Award } from 'lucide-react';
+import HabitHeatmap from '@/features/stats/HabitHeatmap';
+import WeeklyReport from '@/features/stats/WeeklyReport';
+import SeasonCard from '@/features/seasons/SeasonCard';
+import WeeklyInsightCard from '@/features/coach/WeeklyInsightCard';
 
 export default function Progress() {
   const uid      = useAppStore((s) => s.uid);
@@ -114,6 +118,18 @@ export default function Progress() {
           <span>낮음 → 높음</span>
         </div>
       </div>
+
+      {/* AI 주간 인사이트 */}
+      <WeeklyInsightCard />
+
+      {/* 시즌 챌린지 */}
+      <SeasonCard />
+
+      {/* 주간 리포트 */}
+      <WeeklyReport />
+
+      {/* 1년 잔디 히트맵 */}
+      <HabitHeatmap />
 
       {/* 배지 */}
       <div className="card p-4 space-y-3">

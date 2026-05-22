@@ -6,10 +6,16 @@ import { useAppStore } from '@/lib/store';
 import { useHabits, useHabitChecks } from '@/features/habits/useHabits';
 import { useProgress } from '@/features/garden/useGarden';
 import PlantSVG from '@/features/garden/PlantSVG';
+import TodayGrowth from '@/features/garden/TodayGrowth';
 import { formatKoreanDate, timeOfDay } from '@/lib/dayBoundary';
 import type { DayDoc, TodayTodoDoc } from 'shared/types/firestore';
 import { motion } from 'framer-motion';
-import { Flame, ArrowRight, CheckCircle2, RefreshCw } from 'lucide-react';
+import { Flame, ArrowRight, CheckCircle2, RefreshCw, Sparkles, X } from 'lucide-react';
+import { useComeback } from '@/features/comeback/useComeback';
+import OneYearAgoCard from '@/features/stats/OneYearAgoCard';
+import WeeklyQuestCard from '@/features/quests/WeeklyQuestCard';
+import CoachCard from '@/features/coach/CoachCard';
+import { useCrisisWatcher } from '@/features/coach/useCrisisWatcher';
 
 const TIME_LABELS: Record<string, string> = {
   morning: '아침', afternoon: '점심', evening: '저녁', night: '밤', anytime: '언제든',
@@ -41,6 +47,8 @@ export default function Main() {
     });
   }, [uid, date]);
 
+  const comeback = useComeback();
+  useCrisisWatcher();
   const totalAchieved = Object.values(checks).filter((c) => c.achieved).length;
   const totalHabits   = habits.length;
   const spendable     = progress?.spendablePoints ?? 0;
@@ -103,6 +111,37 @@ export default function Main() {
           </div>
         </div>
       </motion.div>
+
+      {/* ── AI 코치 한 줄 (Phase 3-3) ── */}
+      <CoachCard />
+
+      {/* ── 주간 퀘스트 (Phase 4-1) ── */}
+      <WeeklyQuestCard />
+
+      {/* ── 1년 전 오늘 (Phase 2-5) ── */}
+      <OneYearAgoCard />
+
+      {/* ── Comeback 환영 (Phase 4-5) ── */}
+      {comeback.active && (
+        <motion.div
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative flex items-start gap-3 rounded-[var(--radius)] border border-[var(--bloom)]/30 bg-[var(--bloom-soft)] p-3"
+        >
+          <Sparkles size={18} className="mt-0.5 shrink-0 text-[var(--bloom)]" />
+          <div className="flex-1 text-xs leading-snug text-[var(--fg-primary)]">
+            <p className="font-semibold text-[var(--bloom)]">{comeback.gapDays}일 만이에요</p>
+            <p>완벽이 아니라 돌아오는 게 중요해요. 앞으로 3일간 포인트 ×2!</p>
+          </div>
+          <button
+            onClick={comeback.dismiss}
+            aria-label="닫기"
+            className="-mt-1 -mr-1 rounded-full p-1 text-[var(--fg-faint)] hover:text-[var(--fg-muted)]"
+          >
+            <X size={14} />
+          </button>
+        </motion.div>
+      )}
 
       {/* ── 오늘의 습관 ── */}
       <motion.section
@@ -197,11 +236,14 @@ export default function Main() {
             ))
           )}
         </div>
-        {totalAchieved > 0 && (
-          <p className="text-xs text-[var(--fg-muted)] text-center">
-            오늘 +{totalAchieved * 10}P 예상 적립
-          </p>
-        )}
+        <div className="flex items-center justify-between">
+          <TodayGrowth achieved={totalAchieved} total={totalHabits} />
+          {totalAchieved > 0 && (
+            <p className="text-xs text-[var(--fg-muted)] tabular-nums">
+              +{totalAchieved * 10}P 예상
+            </p>
+          )}
+        </div>
       </motion.section>
 
       {/* ── 컨디션 한 줄 ── */}

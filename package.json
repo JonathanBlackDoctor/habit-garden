@@ -8,5 +8,8 @@
   },
   "devDependencies": {
     "firebase-tools": "^13.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild", "protobufjs", "re2"]
   }
 }

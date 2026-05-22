@@ -5,7 +5,9 @@ import {
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import type { HabitDoc, HabitCheckDoc } from 'shared/types/firestore';
+import { pointsForCheck } from 'shared/lib/habitPoints';
 import { toast } from 'sonner';
+import { feedback } from '@/lib/feedback';
 
 export function useHabits() {
   const uid  = useAppStore((s) => s.uid);
@@ -56,10 +58,46 @@ export function useSaveHabitCheck() {
       doc(db, 'users', uid, 'days', date, 'habitChecks', habit.id),
       check
     );
-    // 포인트 토스트는 awardEngine에서 처리. 클라이언트에서 간단히 알림.
+
+    const { bumpCombo, resetCombo, triggerCelebration } = useAppStore.getState();
+
+    if (score === null) {
+      // pass — 콤보 끊김
+      resetCombo();
+      return;
+    }
+
+    const perfect = habit.scoreMode === 'scaled' && score === 5;
+    const basePts = pointsForCheck(habit.weight, habit.scoreMode, score);
+
     if (achieved) {
-      const pts = habit.weight * 2 + (habit.scoreMode === 'scaled' && score === 5 ? 5 : 0);
-      toast(`✦ +${pts}P`, { description: `${habit.title} 달성` });
+      const combo = bumpCombo();
+      const comboBonus = combo >= 3 ? combo : 0;
+      const totalPts = basePts + comboBonus;
+
+      feedback(perfect ? 'perfect' : 'achieve');
+      if (combo >= 3) feedback('combo');
+
+      toast(`✦ +${totalPts}P`, {
+        description:
+          comboBonus > 0
+            ? `${habit.title} 달성 · 🔥${combo} 콤보 +${comboBonus}`
+            : `${habit.title} 달성`,
+      });
+
+      if (perfect) {
+        triggerCelebration('perfect', {
+          title: habit.title,
+          points: totalPts,
+          detail: comboBonus > 0 ? `🔥 ${combo} 콤보` : undefined,
+        });
+      }
+    } else {
+      // 부분 점수 — 작은 토스트, 콤보는 끊지 않음
+      feedback('check');
+      if (basePts > 0) {
+        toast(`✦ +${basePts}P`, { description: `${habit.title} · 시도 인정` });
+      }
     }
   };
 }
