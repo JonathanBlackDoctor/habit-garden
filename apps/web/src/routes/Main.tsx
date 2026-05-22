@@ -251,15 +251,15 @@ export default function Main() {
         </button>
       </motion.div>
 
-      {/* ── 경건 ── */}
+      {/* ── 기도 ── */}
       <motion.button
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.25 }}
-        onClick={() => navigate('/devotion')}
+        onClick={() => navigate('/prayers')}
         className="card px-4 py-3 text-left flex items-center justify-between"
       >
-        <span className="text-sm text-[var(--sky)]">🙏 경건 · 감사 기록</span>
+        <span className="text-sm text-[var(--sky)]">🙏 오늘의 기도 · 감사</span>
         <ArrowRight size={14} className="text-[var(--fg-faint)]" />
       </motion.button>
     </div>

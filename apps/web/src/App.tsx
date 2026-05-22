@@ -14,6 +14,7 @@ import Progress   from '@/routes/Progress';
 import Condition  from '@/routes/Condition';
 import Planner    from '@/routes/Planner';
 import Devotion   from '@/routes/Devotion';
+import Prayers    from '@/routes/Prayers';
 import Admin      from '@/routes/Admin';
 import More       from '@/routes/More';
 
@@ -39,6 +40,7 @@ export default function App() {
                 <Route path="/habits"    element={<Habits />} />
                 <Route path="/reflection" element={<Reflection />} />
                 <Route path="/garden"    element={<Garden />} />
+                <Route path="/prayers"   element={<Prayers />} />
                 <Route path="/progress"  element={<Progress />} />
                 <Route path="/condition" element={<Condition />} />
                 <Route path="/planner"   element={<Planner />} />

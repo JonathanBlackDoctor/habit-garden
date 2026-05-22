@@ -21,7 +21,15 @@ export interface DayDoc {
   streakSnapshot?: number;
   aiFeedback?: AIFeedback;
   finalized?: boolean;
+  prayerPlan?: PrayerPlan;        // 오늘의 기도 목록 (dailyReset이 미리 계산)
   updatedAt: Timestamp;
+}
+
+// 오늘의 기도 계획 — DayDoc.prayerPlan
+export interface PrayerPlan {
+  pinnedIds: string[];            // 고정 — 항상 노출
+  rotationIds: string[];          // 오늘 추천된 로테이션 목록 (상한 N개)
+  generatedAt: Timestamp;
 }
 
 // ── 컨디션 ───────────────────────────────────────────────
@@ -92,14 +100,64 @@ export interface JournalEntryDoc {
   createdAt: Timestamp;
 }
 
+// ── 기도제목 시스템 ───────────────────────────────────────
+export type PrayerCategory = 'self' | 'family' | 'church' | 'ministry' | 'friend' | 'other';
+export type PrayerStatus   = 'active' | 'answered' | 'dormant';   // 활성 / 응답됨 / 잠든
+export type PrayerPriority  = 'high' | 'mid' | 'low';
+export type PrayerSource    = 'quick' | 'manual' | 'bulk_ai';
+
+// 기도 대상자 — users/{uid}/people/{personId}
+export interface PrayerPersonDoc {
+  id: string;
+  name: string;                 // 표시 이름
+  aliases?: string[];           // 다른 표기(별명 등) — AI 중복 매칭용
+  relation: PrayerCategory;     // 기본 분류
+  note?: string;                // 메모(관계, 배경)
+  activeCount: number;          // 활성 기도제목 수 (denormalized)
+  answeredCount: number;        // 응답된 기도제목 수
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+// 기도제목 — users/{uid}/prayers/{prayerId}
 export interface PrayerDoc {
   id: string;
-  category: 'self' | 'family' | 'church' | 'other';
-  title: string;
-  body?: string;
-  rotationDays: number;
-  priority: 'high' | 'mid' | 'low';
-  active: boolean;
+
+  // ── 정리 기준 ──────────────────────────────
+  personId?: string;            // 대상자 링크 (없을 수 있음)
+  personName: string;           // 표시·검색용 (비정규화)
+  category: PrayerCategory;     // 분류
+  receivedAt: Timestamp;        // 받은 날짜
+
+  // ── 내용 ───────────────────────────────────
+  title: string;                // 한 줄 요약 (목록 표시)
+  body?: string;                // 상세 / 원문 보존
+  tags?: string[];              // 자유 태그(선택)
+
+  // ── 우선순위·로테이션 ───────────────────────
+  priority: PrayerPriority;
+  pinned: boolean;              // 고정 = 매일 노출, 망각 안 됨
+  rotationDays?: number;        // 희망 주기(일). 미지정 시 priority 기본값 사용
+
+  // ── 상태·추적 ──────────────────────────────
+  status: PrayerStatus;
+  lastPrayedAt?: Timestamp;     // 마지막으로 기도한 시각
+  prayCount: number;            // 누적 기도 횟수
+  streak: number;               // 이 제목 연속 기도(선택적 표시)
+  answeredAt?: Timestamp;
+  answerNote?: string;          // 응답 간증
+  dormantSince?: Timestamp;     // 잠든 시각
+
+  // ── 출처·메타 ──────────────────────────────
+  source: PrayerSource;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+// 일일 기도 체크 — users/{uid}/days/{YYYY-MM-DD}/prayerChecks/{prayerId}
+export interface PrayerCheckDoc {
+  prayerId: string;
+  prayedAt: Timestamp;
 }
 
 // ── 플래너 ──────────────────────────────────────────────
@@ -131,6 +189,11 @@ export interface ProgressDoc {
   globalStreak: number;
   globalBestStreak: number;
   gardenState: GardenState;
+  // ── 기도 진척 ──────────────────────────────
+  prayerStreak?: number;            // 기도 전역 연속일
+  prayerBestStreak?: number;
+  lastPrayerDate?: string;          // 'YYYY-MM-DD'
+  totalPrayersAnswered?: number;
   updatedAt: Timestamp;
 }
 
@@ -199,6 +262,42 @@ export const POINT_EARN = {
   STREAK_100: 500,
 } as const;
 
+// ── 기도 포인트 상수 (설계 §7.2) ──────────────────────────
+export const PRAYER_POINT_EARN = {
+  PRAYER_CHECK:        2,    // 기도제목 1건 체크
+  DAILY_LIST_COMPLETE: 15,   // 오늘의 목록 전부 완료
+  PRAYER_STREAK_7:     40,
+  PRAYER_STREAK_30:    150,
+  PRAYER_ANSWERED:     30,   // 응답 기록 시 (간증 작성 권장)
+} as const;
+
+// 하루 기도 체크 포인트 상한 (인플레이션 방지)
+export const PRAYER_DAILY_CHECK_CAP = 30;
+
+// 오늘의 기도 로테이션 목록 상한 N
+export const PRAYER_ROTATION_LIMIT = 9;
+
+// ── 우선순위별 로테이션 기본값 (설계 §5.1) ────────────────
+// baseInterval: 기본 노출 주기(일), dormantThreshold: 잠듦 임계(일)
+export const PRAYER_ROTATION_DEFAULTS: Record<
+  PrayerPriority,
+  { baseInterval: number; dormantThreshold: number; weight: number }
+> = {
+  high: { baseInterval: 2,  dormantThreshold: 120, weight: 3 },
+  mid:  { baseInterval: 5,  dormantThreshold: 75,  weight: 2 },
+  low:  { baseInterval: 10, dormantThreshold: 45,  weight: 1 },
+};
+
+// 기도 분류 라벨 (UI 표시용)
+export const PRAYER_CATEGORY_LABELS: Record<PrayerCategory, string> = {
+  self:     '자신',
+  family:   '가족',
+  church:   '교회',
+  ministry: '사역',
+  friend:   '지인',
+  other:    '기타',
+};
+
 // ── 식물 종 ───────────────────────────────────────────────
 export interface PlantSpecies {
   id: string;
@@ -261,3 +360,26 @@ export const SEED_HABITS: Omit<HabitDoc, 'id'>[] = [
   { title: '설거지',         weight: 5,  timeOfDay: 'evening',   order: 6, scoreMode: 'binary', achieveThreshold: 1, iconName: 'utensils',      active: true },
   { title: '청소',           weight: 5,  timeOfDay: 'evening',   order: 7, scoreMode: 'binary', achieveThreshold: 1, iconName: 'sparkles',      active: true },
 ];
+
+// ── 시드 기도제목 데이터 ──────────────────────────────────
+export type PrayerSeed = Pick<PrayerDoc, 'category' | 'title' | 'priority'> & {
+  personName?: string;
+  body?: string;
+  pinned?: boolean;
+};
+
+export const SEED_PRAYERS: PrayerSeed[] = [
+  { category: 'self',     title: '말씀과 기도로 하루를 시작하기',   priority: 'high', pinned: true,  body: '매일 아침 QT와 기도로 하나님과 동행하기' },
+  { category: 'self',     title: '미디어 절제와 마음의 절제',       priority: 'mid',  body: '스마트폰·숏츠 사용을 줄이고 집중력 회복' },
+  { category: 'family',   title: '가족의 건강과 믿음',              priority: 'high', personName: '가족', body: '부모님의 건강과 온 가족의 신앙 성장' },
+  { category: 'church',   title: '교회 공동체와 주일 예배',         priority: 'mid',  body: '함께 예배하는 지체들과 교회의 부흥' },
+  { category: 'ministry', title: '맡은 사역을 충성되게',            priority: 'mid',  body: '섬기는 자리에서 지혜와 사랑으로 감당하기' },
+  { category: 'friend',   title: '친구·지인의 구원과 회복',         priority: 'low',  personName: '친구', body: '아직 주님을 모르는 친구들을 위한 중보' },
+];
+
+// 기도 우선순위 라벨 (UI 표시용)
+export const PRAYER_PRIORITY_LABELS: Record<PrayerPriority, string> = {
+  high: '높음',
+  mid:  '보통',
+  low:  '낮음',
+};

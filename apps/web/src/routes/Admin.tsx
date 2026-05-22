@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react';
 import {
-  collection, addDoc, onSnapshot, updateDoc, deleteDoc, doc, serverTimestamp, query, orderBy,
+  collection, addDoc, onSnapshot, updateDoc, deleteDoc, doc, setDoc, getDocs,
+  serverTimestamp, query, orderBy,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
-import { SEED_HABITS } from 'shared/types/firestore';
+import { SEED_HABITS, SEED_PRAYERS } from 'shared/types/firestore';
 import type { HabitDoc } from 'shared/types/firestore';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { ChevronLeft, Plus, Trash2, Leaf } from 'lucide-react';
+import { ChevronLeft, Trash2, Leaf, HandHeart } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -17,6 +18,8 @@ export default function Admin() {
   const navigate = useNavigate();
   const [habits, setHabits] = useState<HabitDoc[]>([]);
   const [seeding, setSeeding] = useState(false);
+  const [prayerSeeding, setPrayerSeeding] = useState(false);
+  const [migrating, setMigrating] = useState(false);
 
   useEffect(() => {
     if (!uid) return;
@@ -42,6 +45,76 @@ export default function Admin() {
       toast.error('시드 추가 실패');
     } finally {
       setSeeding(false);
+    }
+  };
+
+  const seedPrayers = async () => {
+    if (!uid || prayerSeeding) return;
+    setPrayerSeeding(true);
+    try {
+      for (const seed of SEED_PRAYERS) {
+        const ref = doc(collection(db, 'users', uid, 'prayers'));
+        const now = serverTimestamp();
+        await setDoc(ref, {
+          id: ref.id,
+          personName: seed.personName ?? '',
+          category: seed.category,
+          receivedAt: now,
+          title: seed.title,
+          body: seed.body,
+          priority: seed.priority,
+          pinned: seed.pinned ?? false,
+          status: 'active',
+          prayCount: 0,
+          streak: 0,
+          source: 'manual',
+          createdAt: now,
+          updatedAt: now,
+        });
+      }
+      toast(`🙏 시드 기도제목 ${SEED_PRAYERS.length}개를 추가했습니다!`);
+    } catch {
+      toast.error('기도 시드 추가 실패');
+    } finally {
+      setPrayerSeeding(false);
+    }
+  };
+
+  // 기존 PrayerDoc({active, category, ...}) → 신규 스키마(status, personName, ...) 변환
+  const migratePrayers = async () => {
+    if (!uid || migrating) return;
+    setMigrating(true);
+    try {
+      const snap = await getDocs(collection(db, 'users', uid, 'prayers'));
+      let migrated = 0;
+      for (const d of snap.docs) {
+        const data = d.data() as any;
+        if (data.status) continue; // 이미 신규 스키마
+        const now = serverTimestamp();
+        await setDoc(d.ref, {
+          id: d.id,
+          personName: data.personName ?? '',
+          category: data.category ?? 'other',
+          receivedAt: data.createdAt ?? now,
+          title: data.title ?? '(제목 없음)',
+          body: data.body,
+          priority: data.priority ?? 'mid',
+          pinned: false,
+          status: data.active === false ? 'dormant' : 'active',
+          prayCount: 0,
+          streak: 0,
+          rotationDays: data.rotationDays,
+          source: 'manual',
+          createdAt: data.createdAt ?? now,
+          updatedAt: now,
+        }, { merge: true });
+        migrated++;
+      }
+      toast(migrated > 0 ? `✅ 기도제목 ${migrated}건 마이그레이션 완료` : '변환할 구형 데이터가 없습니다.');
+    } catch {
+      toast.error('마이그레이션 실패');
+    } finally {
+      setMigrating(false);
     }
   };
 
@@ -84,6 +157,23 @@ export default function Admin() {
         >
           <Leaf size={15} />
           {seeding ? '추가 중…' : '시드 습관 8개 추가'}
+        </Button>
+        <Button
+          onClick={seedPrayers}
+          disabled={prayerSeeding}
+          variant="secondary"
+          className="w-full gap-2"
+        >
+          <HandHeart size={15} />
+          {prayerSeeding ? '추가 중…' : `시드 기도제목 ${SEED_PRAYERS.length}개 추가`}
+        </Button>
+        <Button
+          onClick={migratePrayers}
+          disabled={migrating}
+          variant="ghost"
+          className="w-full gap-2"
+        >
+          {migrating ? '변환 중…' : '기도제목 스키마 마이그레이션'}
         </Button>
       </section>
 

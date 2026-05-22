@@ -1,11 +1,12 @@
 import { NavLink } from 'react-router-dom';
-import { Home, CheckSquare, Flower2, BarChart2, MoreHorizontal } from 'lucide-react';
+import { Home, CheckSquare, Flower2, HandHeart, BarChart2, MoreHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const tabs = [
   { to: '/',         icon: Home,         label: '오늘' },
   { to: '/habits',   icon: CheckSquare,  label: '습관' },
   { to: '/garden',   icon: Flower2,      label: '정원' },
+  { to: '/prayers',  icon: HandHeart,    label: '기도' },
   { to: '/progress', icon: BarChart2,    label: '진척' },
   { to: '/more',     icon: MoreHorizontal, label: '더보기' },
 ];

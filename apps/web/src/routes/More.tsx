@@ -1,11 +1,10 @@
 import { useNavigate } from 'react-router-dom';
 import { signOutUser } from '@/lib/auth';
-import { Heart, Cloud, BookOpen, Settings, LogOut } from 'lucide-react';
+import { Cloud, BookOpen, Settings, LogOut } from 'lucide-react';
 
 const items = [
   { icon: Cloud,    label: '컨디션',   to: '/condition' },
   { icon: BookOpen, label: '플래너',   to: '/planner' },
-  { icon: Heart,    label: '경건',     to: '/devotion' },
   { icon: Settings, label: '관리',     to: '/admin' },
 ];
 

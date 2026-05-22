@@ -44,3 +44,10 @@ Thumbs.db
 
 # ───────── 소스 압축본 (저장소에 불필요) ─────────
 planner_src.zip
+
+# Claude build artifacts
+.tmpbuild/
+.npmcache/
+.npm-install.log
+apps/web/node_modules
+.claude/
