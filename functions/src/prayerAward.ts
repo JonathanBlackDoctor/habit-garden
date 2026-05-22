@@ -18,9 +18,9 @@ import {
   type DayDoc,
   type ProgressDoc,
 } from '../../shared/types/firestore';
+import { growRandomPlant, bumpGardenHealth } from './gardenAutogrow';
 
 const db = admin.firestore();
-const ALLOWED_UID = 'XMgQWlM1wtM62hIheTH4sKGDNuC2';
 const REGION = 'asia-northeast3';
 
 function prevDate(dateStr: string): string {
@@ -36,7 +36,6 @@ export const prayerAward = functions
   .document('users/{uid}/days/{date}/prayerChecks/{prayerId}')
   .onCreate(async (_snap, context) => {
     const { uid, date, prayerId } = context.params as { uid: string; date: string; prayerId: string };
-    if (uid !== ALLOWED_UID) return;
 
     // 1. prayer 문서 갱신 (per-prayer streak)
     const prayerRef = db.doc(`users/${uid}/prayers/${prayerId}`);
@@ -66,6 +65,7 @@ export const prayerAward = functions
     const delta = earnedNow - earnedPrev;
     if (delta > 0) {
       await creditPoints(uid, delta, 'prayer_check', `${date}/${prayerId}`);
+      await growRandomPlant(uid, 0.3);  // 정원 자동 성장 (30% 확률, 인플레 방지)
     }
 
     // 3. 오늘 목록 전부 완료?
@@ -92,6 +92,7 @@ async function checkDailyListComplete(uid: string, date: string, checkedIds: str
   // 완료 보너스
   await dayRef.set({ prayerListCompleted: true, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
   await creditPoints(uid, PRAYER_POINT_EARN.DAILY_LIST_COMPLETE, 'prayer_list_complete', date);
+  await bumpGardenHealth(uid, 5);  // 기도 완주 → 정원 생기 +5
 
   // prayerStreak 갱신
   const progressRef = db.doc(`users/${uid}/progress/main`);
@@ -121,7 +122,6 @@ export const prayerAnsweredAward = functions
   .document('users/{uid}/prayers/{prayerId}')
   .onUpdate(async (change, context) => {
     const { uid } = context.params as { uid: string };
-    if (uid !== ALLOWED_UID) return;
 
     const before = change.before.data() as PrayerDoc;
     const after  = change.after.data() as PrayerDoc;

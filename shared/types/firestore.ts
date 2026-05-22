@@ -75,7 +75,41 @@ export interface HabitCheckDoc {
   score: number | null;           // scaled:1-5, binary:0|1, null=pass
   achieved: boolean;
   note?: string;
+  mood?: 1 | 2 | 3 | 4 | 5;       // 체크 직후 한 줄 회고 — Phase 2-4
   checkedAt: Timestamp;
+}
+
+// ── 일일 한 줄 회고 (습관별 묶음) ────────────────────────
+// users/{uid}/reflections/{YYYY-MM-DD}
+export interface DailyReflectionDoc {
+  date: string;
+  entries: Array<{
+    habitId: string;
+    mood: 1 | 2 | 3 | 4 | 5;
+    note?: string;
+    at: Timestamp;
+  }>;
+  updatedAt: Timestamp;
+}
+
+// ── FCM 디바이스 토큰 ─────────────────────────────────────
+// users/{uid}/notifications/{tokenId}
+export interface NotificationTokenDoc {
+  token: string;
+  platform: 'web' | 'android' | 'ios';
+  userAgent?: string;
+  createdAt: Timestamp;
+  lastSeenAt: Timestamp;
+}
+
+// ── 주간 퀘스트 (ProgressDoc 내부) ───────────────────────
+export interface WeeklyQuestData {
+  id: string;                     // 퀘스트 정의 ID
+  weekStart: string;              // 'YYYY-MM-DD' (월요일 기준)
+  goal: number;                   // 목표값
+  current: number;                // 진행값
+  reward: { points: number; freezeTokens?: number };
+  completedAt?: Timestamp;
 }
 
 // ── 습관별 스트릭 ─────────────────────────────────────────
@@ -194,7 +228,20 @@ export interface ProgressDoc {
   prayerBestStreak?: number;
   lastPrayerDate?: string;          // 'YYYY-MM-DD'
   totalPrayersAnswered?: number;
+  // ── 동기부여 확장 ──────────────────────────
+  weeklyQuest?: WeeklyQuestData;    // Phase 4-1
+  lastReminderAt?: Timestamp;       // Phase 3 — 알림 throttle
+  comebackUntil?: string;           // Phase 4-5 — 회복 모드 종료일 'YYYY-MM-DD'
+  freezeTokens?: number;            // Phase 4-3 — 글로벌 freeze 토큰
+  seasonProgress?: SeasonProgressData;  // Phase 4-2
   updatedAt: Timestamp;
+}
+
+// ── 시즌 진행 상태 ──────────────────────────────────────
+export interface SeasonProgressData {
+  seasonId: string;                 // 예: '2026-spring'
+  totalChecks: number;              // 시즌 동안 달성된 체크 수
+  rewardsClaimed: string[];         // 받은 보상 ID 목록
 }
 
 export interface GardenState {
@@ -251,6 +298,7 @@ export const POINT_PRICES = {
   DECO_MID: 200,
   DECO_HIGH: 300,
   HEALTH_RESTORE: 80,
+  HARVEST_BONUS_RARE: 20,         // 희귀 이상 수확 시 추가 보너스
 } as const;
 
 export const POINT_EARN = {
@@ -299,20 +347,48 @@ export const PRAYER_CATEGORY_LABELS: Record<PrayerCategory, string> = {
 };
 
 // ── 식물 종 ───────────────────────────────────────────────
+// 종별 특성 (passive abilities) — 게임 루프 다양성 위한 트레잇
+export type PlantTrait =
+  | { kind: 'lucky' }                // 클로버: 심기 시 1/5 확률로 stage 1 시작
+  | { kind: 'beauty'; xp: number }   // 장미: 매일 04:00 정원에 있으면 +xp
+  | { kind: 'hardy' }                // 선인장: 시들기 1회 면역
+  | { kind: 'fast' }                 // 대나무: health>80 일 때 dailyReset 시 stage +1
+  | { kind: 'healer'; heal: number } // 연꽃: 만개 시 정원 health +heal
+  | { kind: 'streakSync' };          // 코스모스: 기도 streak>0 일 때 만개 시각효과 + 수확 +50%
+
 export interface PlantSpecies {
   id: string;
   name: string;
-  rarity: 'basic' | 'common' | 'rare';
+  rarity: 'basic' | 'common' | 'rare' | 'epic';
   unlockCost: number;
   stages: number;
+  trait?: PlantTrait;                // 신규: 종별 특성
+  harvestYield?: number;             // 신규: 만개 수확 시 환급 P
+  description?: string;              // 상점 UI 한 줄 설명
 }
 
 export const PLANT_SPECIES: PlantSpecies[] = [
-  { id: 'sprout',    name: '새싹풀',   rarity: 'basic',  unlockCost: 0,   stages: 4 },
-  { id: 'sunflower', name: '해바라기', rarity: 'common', unlockCost: 200, stages: 5 },
-  { id: 'herb',      name: '허브',     rarity: 'common', unlockCost: 200, stages: 4 },
-  { id: 'maple',     name: '단풍나무', rarity: 'rare',   unlockCost: 350, stages: 6 },
-  { id: 'lotus',     name: '연꽃',     rarity: 'rare',   unlockCost: 500, stages: 6 },
+  // 기본
+  { id: 'sprout',    name: '새싹풀',   rarity: 'basic',  unlockCost: 0,   stages: 4, harvestYield: 10, description: '기본 새싹. 시작점.' },
+  // 일반
+  { id: 'sunflower', name: '해바라기', rarity: 'common', unlockCost: 200, stages: 5, harvestYield: 40, description: '햇살을 머금은 꽃.' },
+  { id: 'herb',      name: '허브',     rarity: 'common', unlockCost: 200, stages: 4, harvestYield: 30, description: '향긋한 잎. 빨리 자람.' },
+  { id: 'clover',    name: '클로버',   rarity: 'common', unlockCost: 150, stages: 3, harvestYield: 25,
+    trait: { kind: 'lucky' }, description: '🍀 행운: 1/5 확률 한 단계 위에서 시작.' },
+  { id: 'rose',      name: '장미',     rarity: 'common', unlockCost: 250, stages: 5, harvestYield: 50,
+    trait: { kind: 'beauty', xp: 3 }, description: '✿ 매일 정원에 있으면 +3 XP.' },
+  { id: 'cactus',    name: '선인장',   rarity: 'common', unlockCost: 180, stages: 3, harvestYield: 30,
+    trait: { kind: 'hardy' }, description: '🌵 시들기 면역.' },
+  // 희귀
+  { id: 'maple',     name: '단풍나무', rarity: 'rare',   unlockCost: 350, stages: 6, harvestYield: 80, description: '계절을 머금은 나무.' },
+  { id: 'lotus',     name: '연꽃',     rarity: 'rare',   unlockCost: 500, stages: 6, harvestYield: 100,
+    trait: { kind: 'healer', heal: 10 }, description: '🪷 만개 시 정원 생기 +10.' },
+  { id: 'orchid',    name: '난초',     rarity: 'rare',   unlockCost: 400, stages: 5, harvestYield: 70, description: '귀한 보라꽃.' },
+  { id: 'bamboo',    name: '대나무',   rarity: 'rare',   unlockCost: 300, stages: 6, harvestYield: 80,
+    trait: { kind: 'fast' }, description: '🎋 생기>80 일 때 매일 +1 단계 자동 성장.' },
+  // 에픽
+  { id: 'cosmos',    name: '코스모스', rarity: 'epic',   unlockCost: 600, stages: 5, harvestYield: 120,
+    trait: { kind: 'streakSync' }, description: '✨ 기도 연속일 동안 빛나며, 수확 +50%.' },
 ];
 
 // ── 배지 정의 ─────────────────────────────────────────────

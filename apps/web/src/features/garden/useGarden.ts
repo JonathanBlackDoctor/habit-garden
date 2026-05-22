@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { doc, onSnapshot, setDoc, serverTimestamp, collection, addDoc } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc, serverTimestamp, collection, addDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import type { ProgressDoc, PlantInstance } from 'shared/types/firestore';
@@ -7,6 +7,7 @@ import { PLANT_SPECIES, POINT_PRICES } from 'shared/types/firestore';
 import { toast } from 'sonner';
 
 // 첫 방문 시 테스트해볼 수 있도록 소량의 포인트와 새싹 1개를 지급
+// plantedAt 은 setDoc 시점에 serverTimestamp() 로 주입 (PlantInstance.plantedAt 은 Timestamp 타입)
 const DEFAULT_PROGRESS: Omit<ProgressDoc, 'updatedAt'> = {
   totalPoints:      200,
   spendablePoints:  200,
@@ -16,7 +17,7 @@ const DEFAULT_PROGRESS: Omit<ProgressDoc, 'updatedAt'> = {
   globalBestStreak: 0,
   gardenState: {
     plants: [
-      { id: 'starter', speciesId: 'sprout', stage: 1, plantedAt: Date.now() as any },
+      { id: 'starter', speciesId: 'sprout', stage: 1, plantedAt: Timestamp.now() as any },
     ],
     unlockedSpecies:  ['sprout'],
     decorations:      [],
@@ -48,7 +49,7 @@ export function useProgress() {
           if (needsPlant) {
             patch.gardenState = {
               ...(data.gardenState ?? { unlockedSpecies: ['sprout'], decorations: [], health: 100 }),
-              plants: [{ id: 'starter', speciesId: 'sprout', stage: 1, plantedAt: Date.now() as any }],
+              plants: [{ id: 'starter', speciesId: 'sprout', stage: 1, plantedAt: Timestamp.now() as any }],
             };
           }
           setDoc(doc(db, 'users', uid, 'progress', 'main'), patch, { merge: true });
@@ -77,34 +78,62 @@ export function useGardenActions() {
       toast.error(`포인트가 부족합니다. (필요: ${cost}P)`);
       return;
     }
-    const species = PLANT_SPECIES.find((s) => s.id === speciesId);
-    if (!species) return;
+    const baseSpecies = PLANT_SPECIES.find((s) => s.id === speciesId);
+    if (!baseSpecies) return;
     if (!progress.gardenState.unlockedSpecies.includes(speciesId)) {
       toast.error('해금되지 않은 식물입니다.');
       return;
     }
 
+    // 희귀 씨앗 드롭: 10% 확률로 같은 해금 종 중 한 등급 위 식물로 교체
+    const unlocked = progress.gardenState.unlockedSpecies;
+    const rarityRank: Record<string, number> = { basic: 0, common: 1, rare: 2, epic: 3 };
+    let finalSpecies = baseSpecies;
+    let upgraded = false;
+    if (Math.random() < 0.10) {
+      const targetRank = rarityRank[baseSpecies.rarity] + 1;
+      const candidates = PLANT_SPECIES.filter(
+        (s) => unlocked.includes(s.id) && rarityRank[s.rarity] === targetRank,
+      );
+      if (candidates.length > 0) {
+        finalSpecies = candidates[Math.floor(Math.random() * candidates.length)];
+        upgraded = true;
+      }
+    }
+
+    // 클로버 등 lucky 트레잇: 20% 확률로 stage 1 부터 시작
+    const luckyStart = finalSpecies.trait?.kind === 'lucky' && Math.random() < 0.20;
+
     const newPlant: PlantInstance = {
       id:        Date.now().toString(),
-      speciesId,
-      stage:     0,
-      plantedAt: serverTimestamp() as any,
+      speciesId: finalSpecies.id,
+      stage:     luckyStart ? 1 : 0,
+      plantedAt: Timestamp.now() as any,
     };
 
     const newPlants = [...progress.gardenState.plants, newPlant];
-    await setDoc(doc(db, 'users', uid, 'progress', 'main'), {
-      spendablePoints: progress.spendablePoints - cost,
-      gardenState: { ...progress.gardenState, plants: newPlants },
-      updatedAt: serverTimestamp(),
-    }, { merge: true });
+    try {
+      await setDoc(doc(db, 'users', uid, 'progress', 'main'), {
+        spendablePoints: progress.spendablePoints - cost,
+        gardenState: { ...progress.gardenState, plants: newPlants },
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
 
-    // pointLedger
-    await addDoc(collection(db, 'users', uid, 'pointLedger'), {
-      delta: -cost, reason: 'spend_plant', refId: speciesId,
-      createdAt: serverTimestamp(),
-    });
+      await addDoc(collection(db, 'users', uid, 'pointLedger'), {
+        delta: -cost, reason: upgraded ? 'spend_plant_rare_drop' : 'spend_plant', refId: finalSpecies.id,
+        createdAt: serverTimestamp(),
+      });
 
-    toast(`🌱 ${species.name} 씨앗을 심었습니다!`);
+      if (upgraded) {
+        toast(`🌟 희귀 씨앗 발견! ${finalSpecies.name} 가 자랐어요!`);
+      } else if (luckyStart) {
+        toast(`🍀 ${finalSpecies.name} — 행운이 깃들어 새싹부터 시작!`);
+      } else {
+        toast(`🌱 ${finalSpecies.name} 씨앗을 심었습니다!`);
+      }
+    } catch (e) {
+      toast.error('저장 실패: ' + (e as Error).message);
+    }
   };
 
   const waterPlant = async (plantId: string) => {
@@ -121,18 +150,22 @@ export function useGardenActions() {
       return { ...p, stage: Math.min(p.stage + 1, maxStage), witheredSince: undefined };
     });
 
-    await setDoc(doc(db, 'users', uid, 'progress', 'main'), {
-      spendablePoints: progress.spendablePoints - cost,
-      gardenState: { ...progress.gardenState, plants },
-      updatedAt: serverTimestamp(),
-    }, { merge: true });
+    try {
+      await setDoc(doc(db, 'users', uid, 'progress', 'main'), {
+        spendablePoints: progress.spendablePoints - cost,
+        gardenState: { ...progress.gardenState, plants },
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
 
-    await addDoc(collection(db, 'users', uid, 'pointLedger'), {
-      delta: -cost, reason: 'spend_water', refId: plantId,
-      createdAt: serverTimestamp(),
-    });
+      await addDoc(collection(db, 'users', uid, 'pointLedger'), {
+        delta: -cost, reason: 'spend_water', refId: plantId,
+        createdAt: serverTimestamp(),
+      });
 
-    toast('💧 물을 줬습니다!');
+      toast('💧 물을 줬습니다!');
+    } catch (e) {
+      toast.error('저장 실패: ' + (e as Error).message);
+    }
   };
 
   const unlockSpecies = async (speciesId: string) => {
@@ -149,19 +182,69 @@ export function useGardenActions() {
       return;
     }
     const unlockedSpecies = [...progress.gardenState.unlockedSpecies, speciesId];
-    await setDoc(doc(db, 'users', uid, 'progress', 'main'), {
-      spendablePoints: progress.spendablePoints - cost,
-      gardenState: { ...progress.gardenState, unlockedSpecies },
-      updatedAt: serverTimestamp(),
-    }, { merge: true });
+    try {
+      await setDoc(doc(db, 'users', uid, 'progress', 'main'), {
+        spendablePoints: progress.spendablePoints - cost,
+        gardenState: { ...progress.gardenState, unlockedSpecies },
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
 
-    await addDoc(collection(db, 'users', uid, 'pointLedger'), {
-      delta: -cost, reason: 'unlock_species', refId: speciesId,
-      createdAt: serverTimestamp(),
-    });
+      await addDoc(collection(db, 'users', uid, 'pointLedger'), {
+        delta: -cost, reason: 'unlock_species', refId: speciesId,
+        createdAt: serverTimestamp(),
+      });
 
-    toast(`🌿 ${species.name} 해금!`);
+      toast(`🌿 ${species.name} 해금!`);
+    } catch (e) {
+      toast.error('저장 실패: ' + (e as Error).message);
+    }
   };
 
-  return { plantSeed, waterPlant, unlockSpecies };
+  const harvestPlant = async (plantId: string) => {
+    if (!uid || !progress) return;
+    const plant = progress.gardenState.plants.find((p) => p.id === plantId);
+    if (!plant) return;
+    const species = PLANT_SPECIES.find((s) => s.id === plant.speciesId);
+    if (!species) return;
+    const maxStage = (species.stages ?? 4) - 1;
+    if (plant.stage < maxStage) {
+      toast.error('아직 만개하지 않았습니다.');
+      return;
+    }
+
+    // 수확량 계산
+    const base = species.harvestYield ?? 10;
+    const rarityBonus = (species.rarity === 'rare' || species.rarity === 'epic')
+      ? POINT_PRICES.HARVEST_BONUS_RARE : 0;
+    const streakBonus = (species.trait?.kind === 'streakSync' && (progress.prayerStreak ?? 0) > 0)
+      ? Math.round(base * 0.5) : 0;
+    const totalYield = base + rarityBonus + streakBonus;
+
+    // 연꽃(healer) 트레잇: 정원 생기 회복
+    let nextHealth = progress.gardenState.health ?? 100;
+    if (species.trait?.kind === 'healer') {
+      nextHealth = Math.min(100, nextHealth + species.trait.heal);
+    }
+
+    const newPlants = progress.gardenState.plants.filter((p) => p.id !== plantId);
+    try {
+      await setDoc(doc(db, 'users', uid, 'progress', 'main'), {
+        spendablePoints: (progress.spendablePoints ?? 0) + totalYield,
+        totalPoints: (progress.totalPoints ?? 0) + totalYield,
+        gardenState: { ...progress.gardenState, plants: newPlants, health: nextHealth },
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+
+      await addDoc(collection(db, 'users', uid, 'pointLedger'), {
+        delta: totalYield, reason: 'harvest_plant', refId: plantId,
+        createdAt: serverTimestamp(),
+      });
+
+      toast(`🌾 ${species.name} 수확! +${totalYield}P${streakBonus ? ' (기도 보너스 ✨)' : ''}`);
+    } catch (e) {
+      toast.error('저장 실패: ' + (e as Error).message);
+    }
+  };
+
+  return { plantSeed, waterPlant, unlockSpecies, harvestPlant };
 }

@@ -16,9 +16,10 @@ import {
   type HabitCheckDoc,
   type ProgressDoc,
 } from '../../shared/types/firestore';
+import { pointsForCheck } from '../../shared/lib/habitPoints';
+import { growRandomPlant } from './gardenAutogrow';
 
 const db = admin.firestore();
-const ALLOWED_UID = 'XMgQWlM1wtM62hIheTH4sKGDNuC2';
 const REGION = 'asia-northeast3';
 
 // ── habitChecks onWrite ─────────────────────────────────────────────────────
@@ -28,7 +29,6 @@ export const awardEngine = functions
   .document('users/{uid}/days/{date}/habitChecks/{habitId}')
   .onWrite(async (change, context) => {
     const { uid, date, habitId } = context.params;
-    if (uid !== ALLOWED_UID) return;
 
     const after = change.after.exists ? (change.after.data() as HabitCheckDoc) : null;
     if (!after || after.score === null) return;
@@ -38,15 +38,25 @@ export const awardEngine = functions
     if (!habitSnap.exists) return;
     const habit = habitSnap.data() as HabitDoc;
 
-    // 포인트 계산
-    if (!after.achieved) return; // 달성 실패 시 포인트 없음
+    // 포인트 계산 — 부분 점수 인정 (Phase 4-4)
+    const delta = pointsForCheck(habit.weight, habit.scoreMode, after.score);
+    if (delta <= 0) return;
 
-    let delta = habit.weight * 2;
-    if (habit.scoreMode === 'scaled' && after.score === 5) delta += POINT_EARN.HABIT_BONUS_PERFECT;
+    // Comeback Mode (Phase 4-5) — 활성화 기간이면 ×2
+    const progSnap = await db.doc(`users/${uid}/progress/main`).get();
+    const prog = progSnap.exists ? (progSnap.data() as ProgressDoc) : null;
+    const today = date;
+    const inComeback = prog?.comebackUntil && prog.comebackUntil >= today;
+    const finalDelta = inComeback ? delta * 2 : delta;
+    const reason = inComeback
+      ? (after.achieved ? 'habit_achieved_comeback' : 'habit_partial_comeback')
+      : (after.achieved ? 'habit_achieved' : 'habit_partial');
 
-    await creditPoints(uid, delta, 'habit_achieved', habitId);
+    await creditPoints(uid, finalDelta, reason, habitId);
     await updateDayScore(uid, date);
     await checkBadges(uid);
+    if (after.achieved) await growRandomPlant(uid);  // 정원 자동 성장
+    void POINT_EARN; // 미사용 경고 방지 (HABIT_BONUS_PERFECT 는 pointsForCheck 안에 통합됨)
   });
 
 // ── 회고 작성 감지 (days 문서 onUpdate) ───────────────────────────────────
@@ -56,7 +66,6 @@ export const reflectionAward = functions
   .document('users/{uid}/days/{date}')
   .onUpdate(async (change, context) => {
     const { uid, date } = context.params;
-    if (uid !== ALLOWED_UID) return;
 
     const before = change.before.data();
     const after  = change.after.data();
@@ -64,6 +73,7 @@ export const reflectionAward = functions
     // 회고가 새로 완료된 경우만
     if (!before?.reflection && after?.reflection) {
       await creditPoints(uid, POINT_EARN.REFLECTION, 'reflection', date);
+      await growRandomPlant(uid);  // 정원 자동 성장
     }
   });
 
