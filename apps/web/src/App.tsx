@@ -7,6 +7,7 @@ import AppLayout from '@/components/AppLayout';
 import ErrorBoundary from '@/components/ErrorBoundary';
 
 import Login      from '@/routes/Login';
+import PendingApproval from '@/routes/PendingApproval';
 import Main       from '@/routes/Main';
 import Habits     from '@/routes/Habits';
 import Reflection from '@/routes/Reflection';
@@ -36,6 +37,7 @@ export default function App() {
         <AuthInit>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/pending" element={<PendingApproval />} />
             <Route element={<ProtectedRoute />}>
               <Route element={<AppLayout />}>
                 <Route path="/"          element={<Main />} />

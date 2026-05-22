@@ -1,17 +1,19 @@
 import { useState, useEffect } from 'react';
 import {
   collection, addDoc, onSnapshot, updateDoc, deleteDoc, doc, setDoc, getDocs,
-  serverTimestamp, query, orderBy,
+  serverTimestamp, query, orderBy, where,
 } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { httpsCallable } from 'firebase/functions';
+import { db, functions } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import { SEED_HABITS, SEED_PRAYERS } from 'shared/types/firestore';
-import type { HabitDoc } from 'shared/types/firestore';
+import type { HabitDoc, UserProfileDoc } from 'shared/types/firestore';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { ChevronLeft, Trash2, Leaf, HandHeart } from 'lucide-react';
+import { ChevronLeft, Trash2, Leaf, HandHeart, Check, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { isOwner } from '@/lib/auth';
 
 export default function Admin() {
   const uid = useAppStore((s) => s.uid);
@@ -20,6 +22,52 @@ export default function Admin() {
   const [seeding, setSeeding] = useState(false);
   const [prayerSeeding, setPrayerSeeding] = useState(false);
   const [migrating, setMigrating] = useState(false);
+  const [pending, setPending] = useState<UserProfileDoc[]>([]);
+  const [approved, setApproved] = useState<UserProfileDoc[]>([]);
+  const [actingUid, setActingUid] = useState<string | null>(null);
+  const showAdminControls = isOwner(uid);
+
+  useEffect(() => {
+    if (!showAdminControls) return;
+    const unsubPending = onSnapshot(
+      query(collection(db, 'userProfiles'), where('status', '==', 'pending')),
+      (snap) => setPending(snap.docs.map((d) => d.data() as UserProfileDoc)),
+    );
+    const unsubApproved = onSnapshot(
+      query(collection(db, 'userProfiles'), where('status', '==', 'approved')),
+      (snap) => setApproved(snap.docs.map((d) => d.data() as UserProfileDoc)),
+    );
+    return () => { unsubPending(); unsubApproved(); };
+  }, [showAdminControls]);
+
+  const decide = async (targetUid: string, action: 'approve' | 'reject') => {
+    if (actingUid) return;
+    setActingUid(targetUid);
+    try {
+      const call = httpsCallable(functions, 'approveUser');
+      await call({ targetUid, action });
+      toast(action === 'approve' ? '✅ 승인했습니다.' : '🚫 거절했습니다.');
+    } catch (e: any) {
+      toast.error(`처리 실패: ${e?.message ?? '오류'}`);
+    } finally {
+      setActingUid(null);
+    }
+  };
+
+  const revoke = async (targetUid: string) => {
+    if (actingUid) return;
+    if (!confirm('이 사용자의 접근을 거절(차단)하시겠습니까?')) return;
+    setActingUid(targetUid);
+    try {
+      const call = httpsCallable(functions, 'approveUser');
+      await call({ targetUid, action: 'reject' });
+      toast('🚫 접근을 차단했습니다.');
+    } catch (e: any) {
+      toast.error(`처리 실패: ${e?.message ?? '오류'}`);
+    } finally {
+      setActingUid(null);
+    }
+  };
 
   useEffect(() => {
     if (!uid) return;
@@ -142,6 +190,80 @@ export default function Admin() {
         </button>
         <h2 className="text-base font-semibold text-[var(--fg-primary)]">관리</h2>
       </div>
+
+      {/* 사용자 승인 (owner 전용) */}
+      {showAdminControls && (
+        <section className="card p-4 space-y-3">
+          <h3 className="text-sm font-medium text-[var(--fg-primary)]">
+            대기 중인 사용자 ({pending.length})
+          </h3>
+          {pending.length === 0 ? (
+            <p className="text-xs text-[var(--fg-faint)]">대기 중인 가입자가 없습니다.</p>
+          ) : (
+            <div className="space-y-2">
+              {pending.map((p) => (
+                <div key={p.uid} className="flex items-center gap-3 rounded-md bg-[var(--bg-base)] p-2">
+                  {p.photoURL ? (
+                    <img src={p.photoURL} alt="" className="h-8 w-8 rounded-full" />
+                  ) : (
+                    <div className="h-8 w-8 rounded-full bg-[var(--leaf-soft)]" />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm text-[var(--fg-primary)]">
+                      {p.displayName ?? '(이름 없음)'}
+                    </p>
+                    <p className="truncate text-[10px] text-[var(--fg-muted)]">{p.email}</p>
+                  </div>
+                  <button
+                    disabled={actingUid === p.uid}
+                    onClick={() => decide(p.uid, 'approve')}
+                    className="flex items-center gap-1 rounded-md bg-[var(--leaf)] px-2 py-1 text-xs text-white disabled:opacity-40"
+                  >
+                    <Check size={12} /> 승인
+                  </button>
+                  <button
+                    disabled={actingUid === p.uid}
+                    onClick={() => decide(p.uid, 'reject')}
+                    className="flex items-center gap-1 rounded-md bg-red-500/90 px-2 py-1 text-xs text-white disabled:opacity-40"
+                  >
+                    <X size={12} /> 거절
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="pt-2">
+            <h3 className="text-sm font-medium text-[var(--fg-primary)]">
+              승인된 사용자 ({approved.length})
+            </h3>
+            <div className="mt-2 space-y-1">
+              {approved.map((p) => (
+                <div key={p.uid} className="flex items-center gap-2 rounded-md bg-[var(--bg-base)] p-2">
+                  {p.photoURL ? (
+                    <img src={p.photoURL} alt="" className="h-6 w-6 rounded-full" />
+                  ) : (
+                    <div className="h-6 w-6 rounded-full bg-[var(--leaf-soft)]" />
+                  )}
+                  <span className="min-w-0 flex-1 truncate text-xs text-[var(--fg-primary)]">
+                    {p.displayName ?? p.email}
+                    {p.isOwner && <span className="ml-1 text-[10px] text-[var(--leaf)]">owner</span>}
+                  </span>
+                  {!p.isOwner && (
+                    <button
+                      disabled={actingUid === p.uid}
+                      onClick={() => revoke(p.uid)}
+                      className="text-[10px] text-red-400 disabled:opacity-40"
+                    >
+                      차단
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* 시드 습관 */}
       <section className="card p-4 space-y-3">

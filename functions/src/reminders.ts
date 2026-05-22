@@ -27,9 +27,9 @@ export const sendScheduledReminder = functions
     if (![9, 13, 19, 21].includes(hour)) return null;
     const today = format(now, 'yyyy-MM-dd');
 
-    // 알림 토큰을 가진 사용자만 대상으로 처리 (비용 최소화)
-    const usersSnap = await db.collection('users').get();
-    await Promise.all(usersSnap.docs.map((doc) => processUser(doc.id, hour, today)));
+    // 승인된 사용자만 대상으로 처리 (비용 최소화)
+    const profilesSnap = await db.collection('userProfiles').where('status', '==', 'approved').get();
+    await Promise.all(profilesSnap.docs.map((doc) => processUser(doc.id, hour, today)));
     return null;
   });
 

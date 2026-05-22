@@ -35,10 +35,10 @@ export const dailyReset = functions
     const today     = todayKST();
     const yesterday = yesterdayKST();
 
-    // 모든 사용자 순회 (본인 단일 계정도 정상 처리, 미래 확장도 자동 대응)
-    const userDocs = await db.collection('users').listDocuments();
-    for (const userRef of userDocs) {
-      const uid = userRef.id;
+    // 승인된 사용자만 순회
+    const profilesSnap = await db.collection('userProfiles').where('status', '==', 'approved').get();
+    for (const profileDoc of profilesSnap.docs) {
+      const uid = profileDoc.id;
       try {
         const success = await processUserDay(uid, today, yesterday);
         await processDailyGarden(uid, success);  // 정원 트레잇·생기·시들기·보너스 시드
@@ -47,7 +47,7 @@ export const dailyReset = functions
       }
     }
 
-    console.log(`dailyReset complete: today=${today}, yesterday=${yesterday}, users=${userDocs.length}`);
+    console.log(`dailyReset complete: today=${today}, yesterday=${yesterday}, users=${profilesSnap.size}`);
   });
 
 async function processUserDay(uid: string, today: string, yesterday: string): Promise<boolean> {

@@ -10,6 +10,29 @@ export interface Timestamp {
   toMillis(): number;
 }
 
+// ── 사용자 프로필 (승인 게이트) ─────────────────────────
+// userProfiles/{uid}
+export interface UserProfileDoc {
+  uid: string;
+  email: string;
+  displayName: string | null;
+  photoURL: string | null;
+  status: 'pending' | 'approved' | 'rejected';
+  isOwner: boolean;
+  createdAt: Timestamp;
+  approvedAt: Timestamp | null;
+  approvedBy: string | null;
+}
+
+// ── 사용자 설정 ─────────────────────────────────────────
+// users/{uid}/settings/main
+export interface UserSettingsDoc {
+  features: {
+    faith: boolean;          // 경건·기도제목 메뉴 표시 여부
+  };
+  updatedAt: Timestamp;
+}
+
 // ── 일일 문서 ────────────────────────────────────────────
 // users/{uid}/days/{YYYY-MM-DD}
 export interface DayDoc {

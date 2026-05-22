@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { signInWithGoogle, isAllowedUser } from '@/lib/auth';
+import { signInWithGoogle } from '@/lib/auth';
 import { useAppStore } from '@/lib/store';
 
 export default function Login() {
@@ -9,7 +9,7 @@ export default function Login() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!authLoading && user && isAllowedUser(user.uid)) {
+    if (!authLoading && user) {
       navigate('/', { replace: true });
     }
   }, [user, authLoading, navigate]);
@@ -45,7 +45,7 @@ export default function Login() {
         Google로 로그인
       </button>
 
-      <p className="text-xs text-[var(--fg-faint)]">본인 계정으로만 접근 가능합니다.</p>
+      <p className="text-xs text-[var(--fg-faint)]">초대된 사용자만 이용할 수 있습니다.</p>
     </div>
   );
 }
