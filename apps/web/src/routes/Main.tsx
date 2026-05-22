@@ -9,7 +9,7 @@ import PlantSVG from '@/features/garden/PlantSVG';
 import { formatKoreanDate, timeOfDay } from '@/lib/dayBoundary';
 import type { DayDoc, TodayTodoDoc } from 'shared/types/firestore';
 import { motion } from 'framer-motion';
-import { Flame, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Flame, ArrowRight, CheckCircle2, RefreshCw } from 'lucide-react';
 
 const TIME_LABELS: Record<string, string> = {
   morning: '아침', afternoon: '점심', evening: '저녁', night: '밤', anytime: '언제든',
@@ -88,9 +88,18 @@ export default function Main() {
               )}
             </p>
           </div>
-          <div className="text-right">
-            <p className="text-xs opacity-80">생기 {health}</p>
-            <p className="text-lg font-semibold tabular-nums leading-tight">✦{spendable.toLocaleString()}P</p>
+          <div className="flex items-start gap-2">
+            <div className="text-right">
+              <p className="text-xs opacity-80">생기 {health}</p>
+              <p className="text-lg font-semibold tabular-nums leading-tight">✦{spendable.toLocaleString()}P</p>
+            </div>
+            <button
+              onClick={() => window.location.reload()}
+              aria-label="새로고침"
+              className="mt-0.5 rounded-full p-1.5 text-white/90 transition-colors hover:bg-white/15 active:bg-white/20"
+            >
+              <RefreshCw size={14} />
+            </button>
           </div>
         </div>
       </motion.div>
