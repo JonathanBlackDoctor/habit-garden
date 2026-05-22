@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { HashRouter, Route, Routes } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -29,7 +29,7 @@ function AuthInit({ children }: { children: React.ReactNode }) {
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
+      <HashRouter>
         <AuthInit>
           <Routes>
             <Route path="/login" element={<Login />} />
@@ -49,7 +49,7 @@ export default function App() {
             </Route>
           </Routes>
         </AuthInit>
-      </BrowserRouter>
+      </HashRouter>
     </QueryClientProvider>
   );
 }
