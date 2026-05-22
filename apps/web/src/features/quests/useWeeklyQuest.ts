@@ -86,11 +86,12 @@ export function useWeeklyQuest() {
     if (!uid || !progress?.weeklyQuest || completed) return;
     if (current < goal || goal === 0) return;
 
-    const reward = progress.weeklyQuest.reward;
+    const quest = progress.weeklyQuest;
+    const reward = quest.reward;
     (async () => {
       // progress 갱신
       const patch: any = {
-        weeklyQuest: { ...progress.weeklyQuest, completedAt: serverTimestamp() as any, current },
+        weeklyQuest: { ...quest, completedAt: serverTimestamp() as any, current },
         spendablePoints: (progress.spendablePoints ?? 0) + reward.points,
         totalPoints: (progress.totalPoints ?? 0) + reward.points,
         updatedAt: serverTimestamp() as any,
@@ -101,7 +102,7 @@ export function useWeeklyQuest() {
       await setDoc(doc(db, 'users', uid, 'progress', 'main'), patch, { merge: true });
       await addDoc(collection(db, 'users', uid, 'pointLedger'), {
         delta: reward.points,
-        reason: `weekly_quest_${progress.weeklyQuest.id}`,
+        reason: `weekly_quest_${quest.id}`,
         createdAt: serverTimestamp() as any,
       });
       feedback('levelup');
