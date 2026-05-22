@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { signInWithGoogle } from '@/lib/auth';
 import { useAppStore } from '@/lib/store';
+import { OnboardingInfo } from '@/components/onboarding/OnboardingInfo';
 
 export default function Login() {
   const user = useAppStore((s) => s.user);
@@ -45,7 +46,7 @@ export default function Login() {
       <FloatingLeaf className="absolute right-10 top-40 text-[var(--leaf)]/20" delay={0.6} size={22} rotate={-20} />
       <FloatingLeaf className="absolute left-10 bottom-32 text-[var(--bloom)]/25" delay={1.2} size={20} rotate={35} />
 
-      <div className="relative mx-auto flex min-h-dvh max-w-md flex-col items-center justify-between px-7 pb-10 pt-16">
+      <div className="relative mx-auto max-w-md px-7 pb-12 pt-16">
         {/* 히어로 */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
@@ -82,7 +83,7 @@ export default function Login() {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.18, ease: [0.22, 1, 0.36, 1] }}
-          className="flex w-full flex-col items-center gap-5"
+          className="mt-10 flex w-full flex-col items-center gap-5"
         >
           <button
             onClick={handleLogin}
@@ -117,12 +118,15 @@ export default function Login() {
           </div>
         </motion.div>
 
+        {/* 앱 소개 — PendingApproval 화면과 동일한 정보 */}
+        <OnboardingInfo baseDelay={0.32} />
+
         {/* 푸터 */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 0.6, delay: 0.4 }}
-          className="flex flex-col items-center gap-1 pt-4"
+          transition={{ duration: 0.6, delay: 0.6 }}
+          className="mt-10 flex flex-col items-center gap-1 pt-4"
         >
           <div className="flex items-center gap-2 text-[11px] text-[var(--fg-faint)]">
             <span className="h-px w-6 bg-[var(--border)]" />
