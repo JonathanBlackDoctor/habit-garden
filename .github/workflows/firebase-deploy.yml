@@ -1,9 +1,8 @@
 name: Firebase Deploy
 
-# main 브랜치에 푸시되면 자동으로 빌드 후 Firebase에 배포합니다.
+# Firebase 백엔드(functions / firestore rules / storage rules) 배포 전용 워크플로.
+# 프론트엔드는 GitHub Pages (pages.yml) 가 담당하므로 여기서는 hosting 을 배포하지 않습니다.
 on:
-  # 자동 푸시 배포는 비활성화. GitHub Pages 워크플로우(pages.yml)가 프론트엔드를 배포합니다.
-  # Firebase 백엔드(functions/firestore 등) 배포가 필요할 때 Actions 탭에서 수동 실행하세요.
   workflow_dispatch:
 
 jobs:
@@ -30,9 +29,6 @@ jobs:
         # 락파일이 있으면 --frozen-lockfile 로 바꾸는 것을 권장합니다.
         run: pnpm install --no-frozen-lockfile
 
-      - name: 웹앱 빌드
-        run: pnpm --filter web build
-
       - name: Cloud Functions 빌드
         run: pnpm --filter functions build
 
@@ -44,6 +40,6 @@ jobs:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/firebase-sa.json
         run: |
           pnpm exec firebase deploy \
-            --only hosting,functions,firestore,storage \
+            --only functions,firestore,storage \
             --project planner-web-quick \
             --non-interactive
