@@ -5,19 +5,54 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 // GitHub Pages project site is served from /<repo>/.
 // Repo: JonathanBlackDoctor/habit-garden → https://jonathanblackdoctor.github.io/habit-garden/
-//
-// 모바일에 박혀 있던 옛 서비스워커가 새 번들을 못 받게 막아 빈 화면이 발생함.
-// vite-plugin-pwa 의 `selfDestroying: true` 모드를 켜면, 동일 경로(/habit-garden/sw.js)에
-// "모든 캐시 삭제 + self unregister" 만 하는 자폭 SW 가 배포됨.
-// 옛 SW 가 이걸 install/activate 하는 순간 자기 자신과 모든 캐시가 제거되므로
-// 두 번째 새로고침부터는 깨끗한 네트워크 상태로 동작함.
 export default defineConfig({
   base: '/habit-garden/',
   plugins: [
     react(),
     VitePWA({
-      selfDestroying: true,
       registerType: 'autoUpdate',
+      includeAssets: ['favicon.svg', 'icons/icon-192.png', 'icons/icon-512.png'],
+      manifest: {
+        name: '습관 정원 (Habit Garden)',
+        short_name: '습관정원',
+        description: '함께하는 습관 체크와 정원 가꾸기',
+        start_url: '/habit-garden/',
+        scope: '/habit-garden/',
+        display: 'standalone',
+        theme_color: '#F4F6EE',
+        background_color: '#F4F6EE',
+        lang: 'ko',
+        icons: [
+          {
+            src: 'icons/icon-192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'any',
+          },
+          {
+            src: 'icons/icon-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any',
+          },
+          {
+            src: 'icons/icon-192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
+          {
+            src: 'icons/icon-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
+        ],
+      },
+      workbox: {
+        navigateFallback: '/habit-garden/index.html',
+        globPatterns: ['**/*.{js,css,html,svg,png,ico,webmanifest}'],
+      },
     }),
   ],
   resolve: {

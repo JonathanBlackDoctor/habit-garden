@@ -1,7 +1,8 @@
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { signOutUser } from '@/lib/auth';
-import { Cloud, BookOpen, Settings, LogOut, Bell, Vibrate, Volume2, HandHeart, GraduationCap } from 'lucide-react';
+import { Cloud, BookOpen, Settings, LogOut, Bell, Vibrate, Volume2, HandHeart, Download, GraduationCap } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { enablePushNotifications, disablePushNotifications, isFcmEnabled } from '@/lib/fcm';
 import {
@@ -10,6 +11,7 @@ import {
   feedback,
 } from '@/lib/feedback';
 import { useFaithEnabled, setFaithEnabled } from '@/lib/features';
+import { usePwaInstall } from '@/lib/pwaInstall';
 
 const items = [
   { icon: GraduationCap, label: '튜토리얼', to: '/tutorial' },
@@ -25,6 +27,7 @@ export default function More() {
   const [haptic, setHapt] = useState(false);
   const [sound, setSnd]   = useState(false);
   const faithEnabled = useFaithEnabled();
+  const { canInstall, isStandalone, isIOS, promptInstall } = usePwaInstall();
 
   useEffect(() => {
     setPush(isFcmEnabled());
@@ -41,6 +44,22 @@ export default function More() {
   const onFaithToggle = async () => {
     if (!uid) return;
     await setFaithEnabled(uid, !faithEnabled);
+  };
+
+  const onInstallClick = async () => {
+    if (isIOS) {
+      toast('Safari 공유 메뉴 → "홈 화면에 추가"를 눌러주세요', {
+        description: 'iOS는 16.4 이상에서 푸시 알림이 지원됩니다',
+      });
+      return;
+    }
+    if (canInstall) {
+      await promptInstall();
+      return;
+    }
+    toast('지금은 설치할 수 없어요', {
+      description: '브라우저 메뉴의 "앱 설치" 항목을 사용해보세요',
+    });
   };
 
   return (
@@ -95,6 +114,19 @@ export default function More() {
           onToggle={onFaithToggle}
         />
       </div>
+
+      {!isStandalone && (
+        <button
+          onClick={onInstallClick}
+          className="flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3.5 text-sm text-[var(--fg-primary)] shadow-[var(--shadow-sm)] active:opacity-70 mt-4 text-left"
+        >
+          <Download size={18} className="text-[var(--leaf)]" />
+          <div className="flex-1">
+            <p>앱으로 설치</p>
+            <p className="text-[10px] text-[var(--fg-faint)]">홈 화면에 설치하면 푸시 알림이 크롬과 분리됩니다</p>
+          </div>
+        </button>
+      )}
 
       <button
         onClick={() => signOutUser()}
