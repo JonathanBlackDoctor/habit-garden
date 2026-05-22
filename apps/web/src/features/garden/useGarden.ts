@@ -15,6 +15,7 @@ const DEFAULT_PROGRESS: Omit<ProgressDoc, 'updatedAt'> = {
   xpInLevel:        0,
   globalStreak:     0,
   globalBestStreak: 0,
+  starterBonusApplied: true,
   gardenState: {
     plants: [
       { id: 'starter', speciesId: 'sprout', stage: 1, plantedAt: Timestamp.now() as any },
@@ -36,11 +37,15 @@ export function useProgress() {
         const data = snap.data() as ProgressDoc;
         setProgress(data);
 
-        // 기존 사용자 최소 보장: 200P 미만이면 200P로, 식물 0개면 새싹 1개 지급
-        const needsPoints = (data.spendablePoints ?? 0) < 200;
-        const needsPlant  = (data.gardenState?.plants?.length ?? 0) === 0;
-        if (needsPoints || needsPlant) {
-          const patch: any = { updatedAt: serverTimestamp() };
+        // 기존 사용자 1회성 시작 보너스: 한 번도 받지 않은 사용자에 한해 적용.
+        // 플래그(starterBonusApplied)가 없는 사용자만 대상 → 사용 후 다시 200P 미만이 되어도 재지급 X.
+        if (!data.starterBonusApplied) {
+          const needsPoints = (data.spendablePoints ?? 0) < 200;
+          const needsPlant  = (data.gardenState?.plants?.length ?? 0) === 0;
+          const patch: any = {
+            starterBonusApplied: true,
+            updatedAt: serverTimestamp(),
+          };
           if (needsPoints) {
             const bump = 200 - (data.spendablePoints ?? 0);
             patch.spendablePoints = 200;

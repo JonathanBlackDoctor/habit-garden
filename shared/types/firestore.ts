@@ -234,6 +234,8 @@ export interface ProgressDoc {
   comebackUntil?: string;           // Phase 4-5 — 회복 모드 종료일 'YYYY-MM-DD'
   freezeTokens?: number;            // Phase 4-3 — 글로벌 freeze 토큰
   seasonProgress?: SeasonProgressData;  // Phase 4-2
+  // ── 온보딩 ─────────────────────────────────
+  starterBonusApplied?: boolean;    // 시작 자원(200P + 새싹 1개) 1회 지급 여부
   updatedAt: Timestamp;
 }
 
