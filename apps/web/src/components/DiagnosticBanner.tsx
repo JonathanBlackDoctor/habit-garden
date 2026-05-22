@@ -4,9 +4,8 @@ import { useAppStore } from '@/lib/store';
 import { getAuthDebug } from '@/lib/authDebug';
 
 /**
- * 화면 하단에 진단 정보를 항상 표시. 모바일에서 콘솔이 없는 상황에서도
- * path/auth 상태/마지막 auth 이벤트/리다이렉트 결과를 캡쳐로 알릴 수 있게 한다.
- * 문제 해결 후 제거.
+ * 화면 하단의 진단 배너. pointer-events:none 으로 클릭이 그 아래 콘텐츠로 통과되게 한다.
+ * (배너가 로그인 버튼을 가려 클릭을 가로채는 사고 방지)
  */
 export default function DiagnosticBanner() {
   const loc = useLocation();
@@ -14,7 +13,6 @@ export default function DiagnosticBanner() {
   const authLoading = useAppStore((s) => s.authLoading);
   const uid = useAppStore((s) => s.uid);
 
-  // 글로벌 __authDbg 변경을 받아 다시 그리기
   const [, force] = useState(0);
   useEffect(() => {
     const handler = () => force((n) => n + 1);
@@ -42,16 +40,15 @@ export default function DiagnosticBanner() {
         fontFamily: 'monospace',
         whiteSpace: 'pre-wrap',
         wordBreak: 'break-all',
+        pointerEvents: 'none', // 클릭이 디버그 배너를 통과해서 그 아래로 가도록
       }}
     >
       [DBG] path={loc.pathname} hash={typeof window !== 'undefined' ? window.location.hash : ''}
       {' '}authLoading={String(authLoading)} uid={uidShort} email={email}
-      {'\n'}
-      signInPath={dbg.signInPath} signInErr={dbg.signInErr}
-      {'\n'}
-      redirect={dbg.redirect} redirectErr={dbg.redirectErr}
-      {'\n'}
-      lastAuthEvent={dbg.lastAuthEvent}
+      {'\n'}signInPath={dbg.signInPath} signInErr={dbg.signInErr}
+      {'\n'}redirect={dbg.redirect} redirectErr={dbg.redirectErr}
+      {'\n'}lastAuthEvent={dbg.lastAuthEvent}
+      {'\n'}lastClick={dbg.lastClick} loginBtnClicked={dbg.loginBtnClicked}
     </div>
   );
 }

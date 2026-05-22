@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { signInWithGoogle } from '@/lib/auth';
 import { useAppStore } from '@/lib/store';
 import { isAllowedUser } from '@/lib/auth';
+import { setAuthDebug } from '@/lib/authDebug';
 
 export default function Login() {
   const user = useAppStore((s) => s.user);
@@ -16,6 +17,7 @@ export default function Login() {
   }, [user, authLoading, navigate]);
 
   const handleLogin = async () => {
+    setAuthDebug({ loginBtnClicked: 'yes @ ' + new Date().toTimeString().slice(0, 8) });
     try {
       await signInWithGoogle();
     } catch (e) {

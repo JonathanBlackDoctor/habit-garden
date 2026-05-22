@@ -2,11 +2,13 @@
 // 정상화 이후 제거 예정.
 
 export interface AuthDebug {
-  redirect: string;       // getRedirectResult 결과
-  redirectErr: string;    // getRedirectResult 에러
-  signInErr: string;      // signInWithGoogle 호출 실패 시
-  lastAuthEvent: string;  // onAuthStateChanged 가 마지막으로 본 user
-  signInPath: string;     // 어느 경로(popup/redirect)로 시도했는지
+  redirect: string;
+  redirectErr: string;
+  signInErr: string;
+  lastAuthEvent: string;
+  signInPath: string;
+  lastClick: string;        // 마지막으로 눌린 엘리먼트 요약
+  loginBtnClicked: string;  // Login 페이지의 버튼이 실제 핸들러에 도달했는지
 }
 
 const w = window as any;
@@ -17,7 +19,23 @@ if (!w.__authDbg) {
     signInErr: '-',
     lastAuthEvent: '-',
     signInPath: '-',
+    lastClick: '-',
+    loginBtnClicked: '-',
   } as AuthDebug;
+
+  // 어떤 엘리먼트가 눌렸는지 capture phase 로 잡아둔다.
+  document.addEventListener(
+    'click',
+    (ev) => {
+      const t = ev.target as HTMLElement | null;
+      if (!t) return;
+      const tag = t.tagName?.toLowerCase() ?? '?';
+      const txt = (t.textContent ?? '').trim().slice(0, 24);
+      w.__authDbg.lastClick = `${tag}:"${txt}"`;
+      window.dispatchEvent(new Event('authdbg'));
+    },
+    true
+  );
 }
 
 export function getAuthDebug(): AuthDebug {
@@ -26,6 +44,5 @@ export function getAuthDebug(): AuthDebug {
 
 export function setAuthDebug(patch: Partial<AuthDebug>) {
   Object.assign((window as any).__authDbg, patch);
-  // 화면을 강제로 갱신하기 위해 storage 이벤트를 흉내냄
   window.dispatchEvent(new Event('authdbg'));
 }
