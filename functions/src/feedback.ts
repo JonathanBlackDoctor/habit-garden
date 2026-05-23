@@ -89,17 +89,17 @@ ${habitSummary}
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) throw new functions.https.HttpsError('internal', 'GEMINI_API_KEY not set');
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-
     const sysInstr = `당신은 본인 1인의 일일 데이터를 분석하는 코치다. 한국어로 응답한다.
 정량 데이터에 근거한 객관적 진술을 우선한다. 과장된 칭찬·공허한 위로·이모지·느낌표는 쓰지 않는다.
 단, 진전과 연속성(스트릭, 추세 개선)은 사실에 근거해 한 줄로 인정하고 다음 행동을 이어가도록 동기를 부여한다.
 추천 행동은 구체적이고 측정 가능해야 한다. 출력은 반드시 지정된 JSON 스키마를 따른다.`;
 
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash', systemInstruction: sysInstr });
+
     let result;
     try {
-      const chat = model.startChat({ systemInstruction: sysInstr });
+      const chat = model.startChat();
       const res  = await chat.sendMessage(prompt);
       const text = res.response.text().trim();
       const clean = text.replace(/```json|```/g, '').trim();

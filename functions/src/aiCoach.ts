@@ -120,8 +120,8 @@ ${habitStats}
     if (!apiKey) throw new functions.https.HttpsError('internal', 'GEMINI_API_KEY not set');
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-    const chat = model.startChat({ systemInstruction: sysInstr });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash', systemInstruction: sysInstr });
+    const chat = model.startChat();
 
     let parsed: any;
     try {
