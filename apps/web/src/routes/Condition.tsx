@@ -6,7 +6,8 @@ import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import type { ConditionData } from 'shared/types/firestore';
 import { ChevronLeft } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import PastDateBanner from '@/components/PastDateBanner';
 
 function useDebouncedSave(uid: string | null, date: string, data: ConditionData) {
   useEffect(() => {
@@ -24,7 +25,11 @@ function useDebouncedSave(uid: string | null, date: string, data: ConditionData)
 
 export default function Condition() {
   const uid  = useAppStore((s) => s.uid);
-  const date = useAppStore((s) => s.currentDate);
+  const today = useAppStore((s) => s.currentDate);
+  const [searchParams] = useSearchParams();
+  const dateParam = searchParams.get('date');
+  const date = dateParam ?? today;
+  const isPast = !!dateParam && dateParam !== today;
   const navigate = useNavigate();
 
   const [cond, setCond] = useState<ConditionData>({});
@@ -55,6 +60,7 @@ export default function Condition() {
         </button>
         <h2 className="text-base font-semibold text-[var(--fg-primary)]">컨디션</h2>
       </div>
+      {isPast && <PastDateBanner date={date} />}
 
       {/* 슬라이더들 */}
       <section className="card p-4 space-y-5">

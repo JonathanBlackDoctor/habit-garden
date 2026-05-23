@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { collection, onSnapshot, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
@@ -14,6 +15,7 @@ import WeeklyInsightCard from '@/features/coach/WeeklyInsightCard';
 
 export default function Progress() {
   const uid      = useAppStore((s) => s.uid);
+  const navigate = useNavigate();
   const progress = useProgress();
   const [badges, setBadges]   = useState<BadgeDoc[]>([]);
   const [recentDays, setRecentDays] = useState<DayDoc[]>([]);
@@ -86,25 +88,29 @@ export default function Progress() {
 
       {/* 잔디 히트맵 */}
       <div className="card p-4 space-y-2">
-        <h3 className="text-sm font-medium text-[var(--fg-primary)]">최근 30일</h3>
+        <h3 className="text-sm font-medium text-[var(--fg-primary)]">최근 30일 · 탭하여 수정</h3>
         <div className="flex flex-wrap gap-1">
           {Array.from({ length: 30 }).map((_, i) => {
             const day = recentDays[29 - i];
             const score = day?.dayScore ?? 0;
+            const bg = score === 0
+              ? 'var(--leaf-soft)'
+              : score < 40
+              ? '#B8D89A'
+              : score < 70
+              ? '#7CB95B'
+              : '#4F7A37';
+            if (!day?.date) {
+              return <div key={i} className="h-5 w-5 rounded-sm" style={{ background: bg }} />;
+            }
             return (
-              <div
+              <button
                 key={i}
-                title={day?.date ?? ''}
-                className="h-5 w-5 rounded-sm"
-                style={{
-                  background: score === 0
-                    ? 'var(--leaf-soft)'
-                    : score < 40
-                    ? '#B8D89A'
-                    : score < 70
-                    ? '#7CB95B'
-                    : '#4F7A37',
-                }}
+                type="button"
+                title={`${day.date} · ${score}점`}
+                onClick={() => navigate(`/day/${day.date}`)}
+                className="h-5 w-5 rounded-sm focus:outline-none focus:ring-2 focus:ring-[var(--leaf)]"
+                style={{ background: bg }}
               />
             );
           })}

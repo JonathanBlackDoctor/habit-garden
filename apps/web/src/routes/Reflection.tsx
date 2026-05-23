@@ -6,11 +6,16 @@ import { DEFAULT_REFLECTION_QUESTIONS } from 'shared/types/firestore';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { ChevronLeft, CheckCircle2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import PastDateBanner from '@/components/PastDateBanner';
 
 export default function Reflection() {
   const uid  = useAppStore((s) => s.uid);
-  const date = useAppStore((s) => s.currentDate);
+  const today = useAppStore((s) => s.currentDate);
+  const [searchParams] = useSearchParams();
+  const dateParam = searchParams.get('date');
+  const date = dateParam ?? today;
+  const isPast = !!dateParam && dateParam !== today;
   const navigate = useNavigate();
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [completed, setCompleted] = useState(false);
@@ -59,6 +64,7 @@ export default function Reflection() {
         <h2 className="text-base font-semibold text-[var(--fg-primary)]">하루 회고</h2>
         {completed && <CheckCircle2 size={18} className="text-[var(--leaf)] ml-auto" />}
       </div>
+      {isPast && <PastDateBanner date={date} />}
 
       {completed && (
         <div className="rounded-[var(--radius)] bg-[var(--leaf-soft)] px-4 py-2.5 text-sm text-[var(--leaf)]">
