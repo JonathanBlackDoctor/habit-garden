@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import {
-  collection, addDoc, onSnapshot, updateDoc, deleteDoc, doc, setDoc, getDocs,
+  collection, onSnapshot, updateDoc, deleteDoc, doc, setDoc, getDocs,
   serverTimestamp, query, orderBy, where,
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
-import { SEED_HABITS, SEED_PRAYERS } from 'shared/types/firestore';
+import { SEED_PRAYERS } from 'shared/types/firestore';
 import type { HabitDoc, UserProfileDoc } from 'shared/types/firestore';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -14,6 +14,7 @@ import { ChevronLeft, Trash2, Leaf, HandHeart, Check, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { isOwner } from '@/lib/auth';
+import { seedDefaultHabits } from '@/lib/seed';
 
 export default function Admin() {
   const uid = useAppStore((s) => s.uid);
@@ -81,14 +82,8 @@ export default function Admin() {
     if (!uid || seeding) return;
     setSeeding(true);
     try {
-      for (const seed of SEED_HABITS) {
-        const ref = await addDoc(collection(db, 'users', uid, 'habits'), {
-          ...seed,
-          id: '', // placeholder, will update
-        });
-        await updateDoc(ref, { id: ref.id });
-      }
-      toast('✅ 시드 습관 8개를 추가했습니다!');
+      const n = await seedDefaultHabits(uid);
+      toast(`✅ 시드 습관 ${n}개를 추가했습니다!`);
     } catch (e) {
       toast.error('시드 추가 실패');
     } finally {

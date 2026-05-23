@@ -17,6 +17,9 @@ export const ensureUserProfile = functions
   .auth.user()
   .onCreate(async (user) => {
     const uid = user.uid;
+    // 익명 게스트는 프로필/승인 대기열을 만들지 않는다.
+    if (!user.providerData || user.providerData.length === 0) return;
+
     const profileRef  = db.doc(`userProfiles/${uid}`);
     const settingsRef = db.doc(`users/${uid}/settings/main`);
 

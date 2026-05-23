@@ -3,6 +3,7 @@ import { httpsCallable } from 'firebase/functions';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db, functions } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
+import { useIsPremium } from '@/lib/features';
 
 type Mode = 'daily' | 'crisis' | 'weekly';
 
@@ -13,27 +14,28 @@ export interface WeeklyCoach { strengths: string; pattern: string; recommendatio
 export function useDailyCoach() {
   const uid = useAppStore((s) => s.uid);
   const today = useAppStore((s) => s.currentDate);
+  const isPremium = useIsPremium();
   const [data, setData] = useState<DailyCoach | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // 캐시 구독
   useEffect(() => {
-    if (!uid) return;
+    if (!uid || !isPremium) return;
     return onSnapshot(doc(db, 'users', uid, 'coach', `${today}_daily`), (snap) => {
       if (snap.exists()) setData(snap.data() as DailyCoach);
     });
-  }, [uid, today]);
+  }, [uid, today, isPremium]);
 
-  // 캐시 없으면 호출
+  // 캐시 없으면 호출 (승인 사용자만)
   useEffect(() => {
-    if (!uid || data || loading) return;
+    if (!uid || !isPremium || data || loading) return;
     setLoading(true);
     callCoach('daily')
       .then((r) => setData(r as DailyCoach))
       .catch((e) => setError(e?.message ?? 'error'))
       .finally(() => setLoading(false));
-  }, [uid, data, loading]);
+  }, [uid, isPremium, data, loading]);
 
   return { data, loading, error };
 }
@@ -42,15 +44,16 @@ export function useDailyCoach() {
 export function useWeeklyCoach() {
   const uid = useAppStore((s) => s.uid);
   const today = useAppStore((s) => s.currentDate);
+  const isPremium = useIsPremium();
   const [data, setData] = useState<WeeklyCoach | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!uid) return;
+    if (!uid || !isPremium) return;
     return onSnapshot(doc(db, 'users', uid, 'coach', `${today}_weekly`), (snap) => {
       if (snap.exists()) setData(snap.data() as WeeklyCoach);
     });
-  }, [uid, today]);
+  }, [uid, today, isPremium]);
 
   const refresh = async () => {
     setLoading(true);

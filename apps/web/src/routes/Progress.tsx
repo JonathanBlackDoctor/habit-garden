@@ -14,10 +14,13 @@ import WeeklyReport from '@/features/stats/WeeklyReport';
 import SeasonCard from '@/features/seasons/SeasonCard';
 import WeeklyInsightCard from '@/features/coach/WeeklyInsightCard';
 import CorrelationCard from '@/features/insights/CorrelationCard';
+import SignupCTA from '@/components/SignupCTA';
+import { useIsPremium } from '@/lib/features';
 
 export default function Progress() {
   const uid      = useAppStore((s) => s.uid);
   const navigate = useNavigate();
+  const isPremium = useIsPremium();
   const progress = useProgress();
   const [badges, setBadges]   = useState<BadgeDoc[]>([]);
   const [recentDays, setRecentDays] = useState<DayDoc[]>([]);
@@ -135,8 +138,15 @@ export default function Progress() {
         </div>
       </div>
 
-      {/* AI 주간 인사이트 */}
-      <WeeklyInsightCard />
+      {/* AI 주간 인사이트 — 승인 사용자 전용 */}
+      {isPremium ? (
+        <WeeklyInsightCard />
+      ) : (
+        <SignupCTA
+          title="주간 인사이트"
+          desc="가입하면 한 주의 패턴을 분석한 AI 주간 인사이트와 AI 피드백이 열려요."
+        />
+      )}
 
       {/* 무드-습관 상관 (B-16) */}
       <CorrelationCard />

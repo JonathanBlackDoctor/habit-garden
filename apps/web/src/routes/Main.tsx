@@ -15,8 +15,9 @@ import { useComeback } from '@/features/comeback/useComeback';
 import OneYearAgoCard from '@/features/stats/OneYearAgoCard';
 import WeeklyQuestCard from '@/features/quests/WeeklyQuestCard';
 import CoachCard from '@/features/coach/CoachCard';
+import SignupCTA from '@/components/SignupCTA';
 import { useCrisisWatcher } from '@/features/coach/useCrisisWatcher';
-import { useFaithEnabled } from '@/lib/features';
+import { useFaithEnabled, useIsPremium } from '@/lib/features';
 
 const TIME_LABELS: Record<string, string> = {
   morning: '아침', afternoon: '점심', evening: '저녁', night: '밤', anytime: '언제든',
@@ -28,6 +29,7 @@ export default function Main() {
   const date     = useAppStore((s) => s.currentDate);
   const navigate = useNavigate();
   const faithEnabled = useFaithEnabled();
+  const isPremium = useIsPremium();
   const habits   = useHabits();
   const checks   = useHabitChecks(date);
   const progress = useProgress();
@@ -139,8 +141,15 @@ export default function Main() {
         </motion.div>
       )}
 
-      {/* ── AI 코치 한 줄 (Phase 3-3) ── */}
-      <CoachCard />
+      {/* ── AI 코치 한 줄 (Phase 3-3) — 승인 사용자 전용 ── */}
+      {isPremium ? (
+        <CoachCard />
+      ) : (
+        <SignupCTA
+          title="AI 코치가 기다려요"
+          desc="가입하면 매일의 기록을 읽고 한 줄 코칭을 건네는 AI 코치와 주간 인사이트가 열려요."
+        />
+      )}
 
       {/* ── 주간 퀘스트 (Phase 4-1) ── */}
       <WeeklyQuestCard />
