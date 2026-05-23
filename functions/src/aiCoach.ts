@@ -19,6 +19,7 @@ type Mode = 'daily' | 'crisis' | 'weekly';
 
 export const aiCoach = functions
   .region(REGION)
+  .runWith({ secrets: ['GEMINI_API_KEY'] })
   .https
   .onCall(async (data, context) => {
     if (!context.auth) {
