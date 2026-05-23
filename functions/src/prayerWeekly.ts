@@ -110,7 +110,12 @@ async function processUserWeekly(uid: string, nowKst: Date): Promise<void> {
       const genAI = new GoogleGenerativeAI(apiKey);
       const model = genAI.getGenerativeModel({
         model: 'gemini-2.0-flash',
-        systemInstruction: '너는 따뜻한 영적 동반자다. 과장하거나 지어내지 말고, 주어진 데이터에 근거해 한국어 두 문장으로 격려하라.',
+        systemInstruction: `너는 따뜻한 영적 동반자다. 과장하거나 지어내지 말고, 주어진 데이터를 직접 인용해 한국어로 격려하라.
+원칙:
+- 숫자·인물명·영역명을 본문에서 1회 이상 그대로 인용한다.
+- "잘하셨어요" 류의 평가 어휘 대신, 무엇이 어떻게 이어졌는지 사실로 묘사한다.
+- 응답된 기도가 있으면 그 의미를 한 줄로 짚고, 잊혀가는 기도가 있으면 비난 없이 환기시킨다.
+- 이모지·느낌표는 쓰지 않는다.`,
       });
       const prompt = `이번 주 기도 데이터:
 - 총 기도 체크: ${totalChecks}회
@@ -118,10 +123,16 @@ async function processUserWeekly(uid: string, nowKst: Date): Promise<void> {
 - 가장 집중한 영역: ${PRAYER_CATEGORY_LABELS[topCategory]}
 - 응답된 기도: ${answeredItems.length}건
 - 잊혀가는 기도: ${forgottenWarning.length}건
-두 문장으로 격려하라.`;
+
+위 데이터를 인용하며 3~4문장(250~450자)으로 격려하라.
+구성:
+1) 이번 주 기도의 결을 데이터로 짧게 묘사(체크 횟수·집중 대상·영역).
+2) 응답된 기도가 있으면 그 의미, 없으면 꾸준함 자체의 의미를 한 줄.
+3) 잊혀가는 기도가 있으면 비난 없이 다음 주 한 명을 다시 떠올리도록 권유.
+4) 다음 한 주를 향한 짧은 한 줄 권면.`;
       const res = await model.generateContent(prompt);
       const t = res.response.text().trim();
-      if (t) encouragement = t.slice(0, 300);
+      if (t) encouragement = t.slice(0, 700);
     } catch (e) {
       console.error('weekly gemini error', e);
     }

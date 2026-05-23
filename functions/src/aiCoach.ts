@@ -84,20 +84,35 @@ export const aiCoach = functions
     let prompt = '';
     let schemaHint = '';
     let sysInstr = `당신은 한국어로 응답하는 1인 자기관리 코치다.
-과장된 칭찬·공허한 위로·이모지·느낌표는 피한다. 데이터 사실에 근거해 짧고 구체적으로 말한다.`;
+
+원칙:
+- 모든 진술은 주어진 데이터(점수·달성 비율·회고 문장)를 직접 인용한 뒤 해석한다.
+- 과장된 칭찬·공허한 위로·이모지·느낌표는 쓰지 않는다.
+- 단순 한 줄 결론 대신, [관찰] → [해석/인과] → [구체 행동] 의 흐름을 짧은 단락으로 풀어쓴다.
+- 행동 제안은 "언제·무엇을·얼마나"가 들어가야 한다.
+- 반드시 지정된 JSON 스키마로만 응답한다. 코드펜스·설명 금지.`;
 
     if (mode === 'daily') {
       prompt = `최근 ${days}일 dayScore: ${dayScoreSummary}
 최근 회고 일부: ${reflectionSummary || '없음'}
 오늘 진행: ${todayAchieved}/${todayTotal}
-한 줄(30자 이내)로 오늘을 위한 격려 또는 짧은 코칭 한 마디를 작성하라.`;
-      schemaHint = '{"message":"…30자 이내…","tone":"encourage|nudge|celebrate"}';
+
+오늘을 위한 코칭 한마디를 2~3문장(120~180자)으로 작성하라.
+- 첫 문장: 최근 점수 추세나 회고 표현을 직접 인용.
+- 둘째 문장: 그 데이터가 오늘 어떤 의미인지(인과·시사점) 해석.
+- (선택) 셋째 문장: 오늘 당장 할 수 있는 1가지 구체 행동.
+tone 은 격려(encourage)/슬쩍 자극(nudge)/축하(celebrate) 중 데이터에 맞춰 선택.`;
+      schemaHint = '{"message":"…2~3문장 120~180자…","tone":"encourage|nudge|celebrate"}';
     } else if (mode === 'crisis') {
       const wkLow = recentDays.filter((d) => (d.dayScore ?? 0) < 50).length;
       prompt = `최근 ${days}일 중 ${wkLow}일이 50점 미만.
 오늘 ${todayAchieved}/${todayTotal} 진행. 아직 오후이며 핵심 습관이 미체크다.
-부드럽게(비난 없이) "지금이라도 1개만 해보자"고 유도하는 1-2문장(60자 이내) 응답을 만들어라.`;
-      schemaHint = '{"message":"…1-2문장…","tone":"gentle"}';
+
+비난 없이 부드럽게 다가가는 2~3문장(140~200자) 메시지를 작성하라.
+- 첫 문장: 지금 상황을 사실 그대로 짧게 짚는다(예: "오늘 ${todayAchieved}/${todayTotal} 진행 중").
+- 둘째 문장: 부담을 덜어주는 해석("완벽이 아니라 하나라도 한 걸음").
+- 셋째 문장: 지금 30초 안에 할 수 있는 가장 작은 1개 행동을 구체적으로 제안.`;
+      schemaHint = '{"message":"…2~3문장 140~200자…","tone":"gentle"}';
     } else {
       // weekly
       const habitStats = Object.values(habitsMap).map((h) => {
@@ -110,8 +125,11 @@ export const aiCoach = functions
 ${habitStats}
 회고 요약: ${reflectionSummary || '없음'}
 
-이 사용자의 한 주 패턴을 분석해 (1) 잘된 부분 한 줄 (2) 패턴(요일/시간대) 한 줄 (3) 다음 주 1가지 추천 — 각 80자 이내로 작성하라.`;
-      schemaHint = '{"strengths":"…","pattern":"…","recommendation":"…"}';
+한 주 패턴을 분석해 세 필드를 각 2~3문장(150~250자)으로 작성하라.
+(1) strengths: 어떤 습관·어떤 점수가 어떻게 좋았는지 숫자를 인용해 짚고, 그게 왜 의미 있는지 한 줄 해석.
+(2) pattern: 요일·시간대·습관 간 상관 등 구체적 패턴을 데이터와 함께 제시(예: "주중 dayScore 평균 72 vs 주말 58").
+(3) recommendation: 다음 주에 시도할 1가지를 "언제·무엇을·얼마나"로 구체화하고, 왜 그게 효과적인지 한 줄 근거.`;
+      schemaHint = '{"strengths":"…2~3문장…","pattern":"…2~3문장…","recommendation":"…2~3문장…"}';
     }
 
     const finalPrompt = `${prompt}\n\n반드시 다음 JSON 스키마로만 응답: ${schemaHint}`;
