@@ -1,0 +1,136 @@
+/* ───────────────────────────────────────────────
+ * Garden 전용 스타일 — 정원 라우트(.garden-root)에서만 적용
+ * - data-garden-theme="meadow" (기본) | "sunset"
+ * - prefers-reduced-motion 대응은 .garden-root 한정으로 보수적으로
+ * ─────────────────────────────────────────────── */
+
+.garden-root {
+  /* 메인 필드 그라데이션 토큰 (테마별 재정의됨) */
+  --field-grad-top:    #E8F5D8;
+  --field-grad-bottom: var(--leaf-soft);
+  --leaf-strong:       #3E5F2A;
+  --bloom-strong:      #8A4A07;
+}
+
+/* ── 저녁햇살 무드 ─────────────────────────────── */
+.garden-root[data-garden-theme="sunset"] {
+  --leaf:              #6B7A2E;
+  --leaf-soft:         #F2EAD0;
+  --leaf-strong:       #5A6622;
+  --bloom:             #C24E2A;
+  --bloom-soft:        #FBD9C2;
+  --bloom-strong:      #8A2E12;
+  --sky-soft:          #FFD9A8;
+  --soil:              #7A5236;
+  --field-grad-top:    #FFE0B8;
+  --field-grad-bottom: #E8C896;
+}
+
+/* ── 도감 진척바 100% 무지개 펄스 ──────────────── */
+@keyframes garden-pulse-rainbow {
+  0%, 100% { opacity: 1; filter: brightness(1); }
+  50%      { opacity: 0.92; filter: brightness(1.08); }
+}
+.garden-root .codex-progress-complete {
+  animation: garden-pulse-rainbow 2.4s ease-in-out infinite;
+}
+
+/* ── legendary 카드 shimmer 보더 ────────────────── */
+@keyframes garden-legendary-shimmer {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+.garden-root .codex-card-legendary {
+  background-image: linear-gradient(
+    100deg,
+    transparent 40%,
+    rgba(255, 212, 74, 0.18) 50%,
+    transparent 60%
+  );
+  background-size: 200% 100%;
+  animation: garden-legendary-shimmer 6s linear infinite;
+}
+
+/* ── 식물 idle 호흡 (만개 + rare 이상) ───────────── */
+@keyframes garden-idle-breath {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.02); }
+}
+.garden-root .plant-idle-breath {
+  animation: garden-idle-breath 3.4s ease-in-out infinite;
+  transform-origin: center bottom;
+  will-change: transform;
+}
+
+/* ── HarvestBurst 파티클 ───────────────────────── */
+@keyframes garden-burst-leaf {
+  0%   { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+  100% { transform: var(--burst-end-transform, translate(40px, -32px) rotate(45deg)); opacity: 0; }
+}
+@keyframes garden-burst-star {
+  0%   { transform: translate(0, 0) scale(0); opacity: 0; }
+  30%  { transform: var(--burst-mid-transform, translate(20px, -16px) scale(1)); opacity: 1; }
+  100% { transform: var(--burst-end-transform, translate(40px, -32px) scale(0.6)); opacity: 0; }
+}
+@keyframes garden-burst-text {
+  0%   { transform: translateY(0); opacity: 0; }
+  20%  { transform: translateY(-4px); opacity: 1; }
+  100% { transform: translateY(-22px); opacity: 0; }
+}
+@keyframes garden-burst-card-pop {
+  0%, 100% { transform: scale(1); }
+  40%      { transform: scale(1.08); }
+}
+@keyframes garden-burst-legendary-glow {
+  0%   { transform: scale(0.6) rotate(0deg); opacity: 0; }
+  20%  { transform: scale(1) rotate(20deg); opacity: 0.85; }
+  80%  { transform: scale(1.15) rotate(140deg); opacity: 0.4; }
+  100% { transform: scale(1.4) rotate(180deg); opacity: 0; }
+}
+
+.garden-burst-particle {
+  position: absolute;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+/* ── 빈 상태 Sprout 위아래 호흡 ─────────────────── */
+@keyframes garden-empty-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-3px); }
+}
+.garden-root .garden-empty-icon {
+  animation: garden-empty-float 3.6s ease-in-out infinite;
+}
+
+/* ───────────────────────────────────────────────
+ * 모바일: drop-shadow 비용을 줄이기 위해 글로우 감쇄.
+ * PlantSVG가 inline style로 drop-shadow를 거는데, 모바일에선
+ * blur 반경을 절반으로 깎는 효과를 부드럽게 시뮬레이션.
+ * 정확한 반경은 PlantSVG가 useMediaQuery로 직접 계산하지만,
+ * 폴백으로 mobile에서도 visual은 약해지도록 한 번 더 가드.
+ * ─────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .garden-root .plant-glow-mobile {
+    filter: none !important;
+  }
+}
+
+/* ───────────────────────────────────────────────
+ * prefers-reduced-motion: 정원 한정 모션 차단.
+ * 전역 * 셀렉터 절대 금지 — garden-root 하위로만.
+ * ─────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .garden-root .plant-idle-breath,
+  .garden-root .codex-card-legendary,
+  .garden-root .codex-progress-complete,
+  .garden-root .garden-empty-icon {
+    animation: none !important;
+  }
+  .garden-root .garden-burst-particle {
+    animation-duration: 0.01ms !important;
+  }
+  .garden-root [data-garden-motion] {
+    transition: none !important;
+  }
+}

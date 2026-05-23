@@ -1,8 +1,11 @@
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useProgress, useGardenActions } from '@/features/garden/useGarden';
 import PlantSVG from '@/features/garden/PlantSVG';
 import PlantCodex from '@/features/garden/PlantCodex';
+import GardenThemeToggle from '@/features/garden/theme/GardenThemeToggle';
+import { useGardenTheme } from '@/features/garden/theme/useGardenTheme';
+import HarvestBurst, { type HarvestBurstSpec } from '@/features/garden/HarvestBurst';
 import { PLANT_SPECIES, POINT_PRICES, DAILY_YIELD_BY_RARITY } from 'shared/types/firestore';
 import type { PlantInstance, PlantSpecies } from 'shared/types/firestore';
 import { Button } from '@/components/ui/button';
@@ -57,11 +60,12 @@ export default function Garden() {
   const freeze = useFreezeTokens();
   const [selected, setSelected] = useState<PlantInstance | null>(null);
   const [tab, setTab] = useState<Tab>('garden');
-  const [waterFx, setWaterFx] = useState<{ id: string; key: number } | null>(null);
+  const [burst, setBurst] = useState<HarvestBurstSpec | null>(null);
+  const gardenTheme = useGardenTheme((s) => s.theme);
 
   if (!progress) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="garden-root flex min-h-screen items-center justify-center" data-garden-theme={gardenTheme}>
         <div className="text-[var(--fg-faint)]">정원을 불러오는 중…</div>
       </div>
     );
@@ -74,7 +78,7 @@ export default function Garden() {
   const codexCount = progress.gardenStats?.codexEntries?.length ?? 0;
 
   return (
-    <div className="min-h-screen p-4 space-y-4 pb-8">
+    <div className="garden-root min-h-screen p-4 space-y-4 pb-8" data-garden-theme={gardenTheme}>
       {/* 헤더 */}
       <div className="flex items-center justify-between pt-2">
         <div>
@@ -94,19 +98,31 @@ export default function Garden() {
             <Sparkles size={11} />
             오늘 자동 +{autogrowToday}
           </span>
+          {/* 테마 토글: meadow ↔ sunset */}
+          <GardenThemeToggle />
         </div>
       </div>
 
       {/* 정원 생기 바 */}
       <div className="space-y-1">
         <div className="flex justify-between text-xs">
-          <span className={cn('font-medium', vibe.chip)}>{vibe.label}</span>
+          <motion.span
+            key={vibe.label}
+            initial={{ opacity: 0, y: -2 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.18 }}
+            className={cn('font-medium', vibe.chip)}
+          >
+            {vibe.label}
+          </motion.span>
           <span className="text-[var(--fg-muted)] tabular-nums">{gardenState.health}%</span>
         </div>
         <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--leaf-soft)]">
-          <div
-            className={cn('h-full rounded-full transition-all', vibe.bar)}
-            style={{ width: `${gardenState.health}%` }}
+          <motion.div
+            className={cn('h-full rounded-full', vibe.bar)}
+            initial={false}
+            animate={{ width: `${gardenState.health}%` }}
+            transition={{ type: 'spring', stiffness: 200, damping: 26 }}
           />
         </div>
       </div>
@@ -122,14 +138,21 @@ export default function Garden() {
             key={id}
             onClick={() => setTab(id)}
             className={cn(
-              'flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors',
+              'relative flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors',
               tab === id
-                ? 'border-b-2 border-[var(--leaf)] text-[var(--leaf-strong,var(--leaf))]'
+                ? 'text-[var(--leaf-strong,var(--leaf))]'
                 : 'text-[var(--fg-muted)] hover:text-[var(--fg-primary)]',
             )}
           >
             <Icon size={13} />
             {label}
+            {tab === id && (
+              <motion.span
+                layoutId="garden-tab-active"
+                className="absolute inset-x-0 -bottom-px h-[2px] rounded-full bg-[var(--leaf)]"
+                transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+              />
+            )}
           </button>
         ))}
       </div>
@@ -138,32 +161,39 @@ export default function Garden() {
       {tab === 'garden' && (
         <>
           <div
-            className="relative rounded-[var(--radius-lg)] bg-gradient-to-b from-[#E8F5D8] to-[var(--leaf-soft)] p-4 min-h-[240px] flex flex-wrap items-end gap-3 justify-center"
+            className="relative overflow-hidden rounded-[var(--radius-lg)] bg-gradient-to-b from-[var(--field-grad-top)] to-[var(--field-grad-bottom)] p-4 min-h-[240px] flex flex-wrap items-end gap-3 justify-center"
             style={{ boxShadow: 'inset 0 -4px 8px rgba(79,122,55,0.08)' }}
           >
+            {/* sky 그라데이션 상단 (아주 옅게) */}
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 top-0 h-12 rounded-t-[var(--radius-lg)]"
+              style={{ background: 'linear-gradient(to bottom, var(--sky-soft) 0%, transparent 100%)', opacity: 0.55 }}
+            />
+            {/* 흙 라인 (하단) */}
             <div className="absolute bottom-0 left-0 right-0 h-8 rounded-b-[var(--radius-lg)] bg-[var(--soil)] opacity-20" />
 
             {plants.length === 0 && (
               <div className="flex flex-col items-center gap-2 text-[var(--fg-faint)] py-8 w-full">
-                <Sprout size={32} className="text-[var(--leaf-soft)]" opacity={0.6} />
+                <div className="garden-empty-icon">
+                  <Sprout size={32} className="text-[var(--leaf-soft)]" opacity={0.6} />
+                </div>
                 <p className="text-sm">씨앗을 심어 정원을 시작하세요!</p>
               </div>
             )}
 
-            {plants.map((plant) => {
+            {plants.map((plant, idx) => {
               const isSelected = selected?.id === plant.id;
               const sp = PLANT_SPECIES.find((s) => s.id === plant.speciesId);
               const maxStage = (sp?.stages ?? 4) - 1;
               const isFull = plant.stage >= maxStage;
-              const isWatering = waterFx?.id === plant.id;
+              // 성능 가드: 동시 idle 호흡은 처음 6개까지만
+              const allowIdle = idx < 6;
               return (
                 <motion.button
                   key={plant.id}
                   whileTap={{ scale: 0.95 }}
-                  animate={isWatering
-                    ? { scale: [isSelected ? 1.08 : 1, 1.18, isSelected ? 1.08 : 1] }
-                    : { scale: isSelected ? 1.08 : 1 }}
-                  transition={isWatering ? { duration: 0.5 } : undefined}
+                  animate={{ scale: isSelected ? 1.08 : 1 }}
                   onClick={() => setSelected(isSelected ? null : plant)}
                   className={cn(
                     'flex flex-col items-center gap-1 rounded-lg p-1 transition-all relative',
@@ -176,30 +206,15 @@ export default function Garden() {
                     withered={!!plant.witheredSince}
                     rarity={sp?.rarity}
                     size={68}
+                    idle={allowIdle && isFull && !plant.witheredSince}
                   />
                   <span className="text-[10px] text-[var(--fg-muted)] tabular-nums">Lv{plant.stage}</span>
                   {/* 만개 식물에는 일일 yield 표시 */}
                   {isFull && sp && !plant.witheredSince && (
-                    <span className="absolute -top-1 -right-1 rounded-full bg-[#FFD44A] px-1.5 py-0.5 text-[8px] font-bold text-[#5A3E1E] tabular-nums">
+                    <span className="absolute -top-1 -right-1 rounded-full bg-[#FFD44A] px-1.5 py-0.5 text-[8px] font-bold text-[#5A3E1E] tabular-nums shadow-sm">
                       +{sp.dailyYield ?? DAILY_YIELD_BY_RARITY[sp.rarity]}/일
                     </span>
                   )}
-                  <AnimatePresence>
-                    {isWatering && (
-                      <motion.span
-                        key={waterFx!.key}
-                        initial={{ opacity: 0, y: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, y: -28, scale: 1 }}
-                        exit={{ opacity: 0, y: -40 }}
-                        transition={{ duration: 1.0, ease: 'easeOut' }}
-                        onAnimationComplete={() => setWaterFx(null)}
-                        className="pointer-events-none absolute -top-2 left-1/2 -translate-x-1/2 rounded-full bg-[#E5F0F8] px-2 py-0.5 text-[10px] font-semibold text-[#3A6EA5] shadow-sm whitespace-nowrap"
-                        aria-hidden
-                      >
-                        💧 +1Lv
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
                 </motion.button>
               );
             })}
@@ -255,7 +270,19 @@ export default function Garden() {
                       <Button
                         variant="default"
                         size="sm"
-                        onClick={async () => { await harvestPlant(selected.id); setSelected(null); }}
+                        onClick={async () => {
+                          if (sp) {
+                            setBurst({
+                              rarity:      sp.rarity,
+                              speciesId:   sp.id,
+                              speciesName: sp.name,
+                              totalYield,
+                              stage:       selected.stage,
+                            });
+                          }
+                          await harvestPlant(selected.id);
+                          setSelected(null);
+                        }}
                         className="w-full gap-2 bg-[var(--bloom)] hover:opacity-90"
                       >
                         <Wheat size={15} />
@@ -265,11 +292,7 @@ export default function Garden() {
                       <Button
                         variant="secondary"
                         size="sm"
-                        onClick={async () => {
-                          const id = selected.id;
-                          const ok = await waterPlant(id);
-                          if (ok) setWaterFx({ id, key: Date.now() });
-                        }}
+                        onClick={() => waterPlant(selected.id)}
                         className="w-full gap-2"
                       >
                         <Droplets size={15} />
@@ -348,6 +371,9 @@ export default function Garden() {
 
       {/* 도감 탭 */}
       {tab === 'codex' && <PlantCodex progress={progress} />}
+
+      {/* 수확 모먼트 — 희귀도별 차등 셀러브레이션 */}
+      <HarvestBurst burst={burst} onDone={() => setBurst(null)} />
     </div>
   );
 }
