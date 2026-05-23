@@ -1,17 +1,18 @@
 /**
- * PlantSVG — 25종 × stage별 벡터 식물 렌더러
+ * PlantSVG — 11종 × stage별 벡터 식물 렌더러
  * stage 0: 씨앗, stage 1: 새싹, stage 2: 성장, stage 3: 개화, stage 4+: 만개, stage 5+: 최고
  *
- * 폴리시:
- *  - 잎/줄기에 2단 그라데이션 (PlantDefs)
- *  - 화분/흙도 라디얼 그라데이션
- *  - 모바일/reduced motion 시 drop-shadow 글로우 감쇄
- *  - idle=true + 만개 + rare 이상에서만 idle 호흡
+ * 종별 비주얼 분기:
+ *  - sprout/herb/sunflower/maple/lotus (기본 5종): 기존 곡선·꽃 차이만
+ *  - clover: 4-잎 클로버 (개화 단계)
+ *  - rose: 다중 꽃잎 원
+ *  - cactus: 굵은 줄기 + 가시
+ *  - orchid: 보라색 우아한 꽃잎
+ *  - bamboo: 마디가 있는 곧은 줄기
+ *  - cosmos: 큰 꽃잎 6개 + 별 반짝
+ *  - 희귀 이상은 stage>=3 부터 글로우 효과
  */
-import { useId } from 'react';
-import { useReducedMotion } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { PlantDefs } from './svg/leafGradients';
 
 type Rarity = 'basic' | 'common' | 'rare' | 'epic' | 'legendary';
 
@@ -22,70 +23,39 @@ interface PlantSVGProps {
   size?: number;
   className?: string;
   rarity?: Rarity;
-  /** 만개 + rarity≥rare 시 미세 idle 호흡 (reduced motion에서는 자동 무시) */
-  idle?: boolean;
 }
 
-export default function PlantSVG({
-  speciesId, stage, withered, size = 72, className, rarity = 'basic', idle = false,
-}: PlantSVGProps) {
-  const reactId = useId();
-  const idPrefix = `psvg-${reactId.replace(/[:]/g, '')}`;
-  const reduced = useReducedMotion();
-
+export default function PlantSVG({ speciesId, stage, withered, size = 72, className, rarity = 'basic' }: PlantSVGProps) {
   const col = withered ? '#C7B68A' : getColor(speciesId);
   const accent = withered ? '#D1C4A8' : getAccent(speciesId);
   const s = stage;
-  const leafFill = `url(#${idPrefix}-leaf)`;
-  const potFill  = `url(#${idPrefix}-pot)`;
-
   const showGlow = !withered && (rarity === 'rare' || rarity === 'epic' || rarity === 'legendary') && s >= 2;
-  const isMobile = typeof window !== 'undefined'
-    && window.matchMedia?.('(max-width: 640px)').matches;
-  const glowScale = (isMobile || reduced) ? 0.5 : 1;
-  const glowRadius = (rarity === 'legendary' ? 12 : rarity === 'epic' ? 8 : 5) * glowScale;
+  const glowRadius = rarity === 'legendary' ? 12 : rarity === 'epic' ? 8 : 5;
+  // legendary 는 무지개 글로우 (단색 대신 골드 톤)
   const glowColor = rarity === 'legendary' ? '#FFD44A' : accent;
-
-  // idle 호흡: 부모가 isFull 보장 + rarity≥rare + reduced motion 아님
-  const breath = idle && !reduced && !withered
-    && (rarity === 'rare' || rarity === 'epic' || rarity === 'legendary');
-
-  // firefly_flower / tree_of_life 자체 점멸도 reduced 시 끔
-  const allowSelfAnim = !reduced && !withered;
 
   return (
     <svg
       viewBox="0 0 80 80"
       width={size}
       height={size}
-      className={cn(
-        'transition-all duration-500',
-        breath && 'plant-idle-breath',
-        showGlow && isMobile && 'plant-glow-mobile',
-        className,
-      )}
+      className={cn('transition-all duration-500', className)}
       aria-label={`${speciesId} stage ${stage}`}
       style={showGlow ? { filter: `drop-shadow(0 0 ${glowRadius}px ${glowColor})` } : undefined}
     >
-      <PlantDefs idPrefix={idPrefix} col={col} accent={accent} withered={withered} />
-
-      {/* 화분/흙 — 라디얼 그라데이션 */}
-      <ellipse cx="40" cy="74" rx="16" ry="4" fill={potFill} opacity="0.8" />
-      {/* 흙 결 한 줄 */}
-      {!withered && (
-        <line x1="26" y1="74" x2="54" y2="74" stroke="#000" strokeWidth="0.3" opacity="0.12" />
-      )}
+      {/* 화분/흙 */}
+      <ellipse cx="40" cy="74" rx="16" ry="4" fill={withered ? '#D1C4A8' : '#A68B6A'} opacity="0.7" />
 
       {/* stage 0: 씨앗 */}
       {s === 0 && (
         <ellipse cx="40" cy="68" rx="6" ry="4" fill={withered ? '#D1C4A8' : '#8A6E4B'} />
       )}
 
-      {/* 종별 줄기/잎 모양 — stage 1부터 분기. col 자리에 그라데이션 URL */}
-      {s >= 1 && renderStemAndLeaves(speciesId, s, leafFill, withered, col)}
+      {/* 종별 줄기/잎 모양 — stage 1부터 분기 */}
+      {s >= 1 && renderStemAndLeaves(speciesId, s, col, withered)}
 
       {/* 개화 단계 (stage 3+): 종별 꽃 분기 */}
-      {s >= 3 && renderFlower(speciesId, accent, withered, allowSelfAnim)}
+      {s >= 3 && renderFlower(speciesId, accent, withered)}
 
       {/* 만개 단계 (stage 4+): 풍성한 보조 꽃송이 */}
       {s >= 4 && renderBloom(speciesId, accent, withered)}
@@ -115,14 +85,7 @@ export default function PlantSVG({
 }
 
 // ── 줄기와 잎 (stage 1~2) ────────────────────────────────
-// col 인자에는 그라데이션 URL(url(#…))을 받음. solidCol은 잎맥/그림자 라인 등에 옵션.
-function renderStemAndLeaves(
-  speciesId: string,
-  stage: number,
-  col: string,
-  withered?: boolean,
-  _solidCol?: string,
-): React.ReactNode {
+function renderStemAndLeaves(speciesId: string, stage: number, col: string, withered?: boolean): React.ReactNode {
   // 선인장: 굵은 줄기 + 가시
   if (speciesId === 'cactus') {
     return (
@@ -231,8 +194,7 @@ function renderStemAndLeaves(
 }
 
 // ── 종별 꽃 (stage 3) ────────────────────────────────────
-// allowAnim=false 면 firefly_flower / tree_of_life 의 <animate> 점멸을 끔 (reduced motion 대응)
-function renderFlower(speciesId: string, accent: string, withered?: boolean, allowAnim: boolean = true): React.ReactNode {
+function renderFlower(speciesId: string, accent: string, withered?: boolean): React.ReactNode {
   const c = withered ? '#C7B68A' : accent;
   const stem = withered ? '#C7B68A' : '#5D8F3E';
 
@@ -392,10 +354,8 @@ function renderFlower(speciesId: string, accent: string, withered?: boolean, all
         <line x1="40" y1="38" x2="40" y2="28" stroke={stem} strokeWidth="2.5" strokeLinecap="round" />
         <circle cx="40" cy="24" r="9" fill={withered ? '#C7B68A' : '#5A4F8A'} opacity="0.85" />
         {!withered && [[36, 22], [44, 22], [40, 18], [38, 28], [42, 28]].map(([cx, cy], i) => (
-          <circle key={i} cx={cx} cy={cy} r="1.5" fill="#FFE066" opacity={allowAnim ? 1 : 0.75}>
-            {allowAnim && (
-              <animate attributeName="opacity" values="1;0.3;1" dur="2s" repeatCount="indefinite" begin={`${i * 0.3}s`} />
-            )}
+          <circle key={i} cx={cx} cy={cy} r="1.5" fill="#FFE066" opacity="1">
+            <animate attributeName="opacity" values="1;0.3;1" dur="2s" repeatCount="indefinite" begin={`${i * 0.3}s`} />
           </circle>
         ))}
       </g>
@@ -432,9 +392,7 @@ function renderFlower(speciesId: string, accent: string, withered?: boolean, all
     return (
       <g>
         <circle cx="40" cy="24" r="6" fill={withered ? '#D1C4A8' : '#FFE066'} opacity="0.95">
-          {allowAnim && (
-            <animate attributeName="r" values="6;7;6" dur="3s" repeatCount="indefinite" />
-          )}
+          <animate attributeName="r" values="6;7;6" dur="3s" repeatCount="indefinite" />
         </circle>
         <circle cx="40" cy="24" r="3" fill="#FFFFFF" opacity="0.7" />
       </g>

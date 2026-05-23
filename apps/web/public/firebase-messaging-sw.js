@@ -24,19 +24,9 @@ self.addEventListener('message', (event) => {
       badge: '/habit-garden/icons/icon-192.png',
       data: payload.data,
       tag: 'habit-reminder',
-      renotify: true,
-      requireInteraction: true,
-      vibrate: [200, 100, 200],
     });
   });
 });
-
-// PWA 설치 기준(installability) 충족용 no-op fetch 핸들러.
-// 캐싱은 하지 않고 네트워크로 그대로 통과시킴.
-self.addEventListener('fetch', () => {});
-
-self.addEventListener('install', () => self.skipWaiting());
-self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
