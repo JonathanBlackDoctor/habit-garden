@@ -96,9 +96,6 @@ ${habitSummary}
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) throw new functions.https.HttpsError('internal', 'GEMINI_API_KEY not set');
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-
     const sysInstr = `당신은 본인 1인의 일일 데이터를 깊이 분석하는 코치다. 한국어로 응답한다.
 
 기본 원칙:
