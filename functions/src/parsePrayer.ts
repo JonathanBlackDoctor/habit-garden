@@ -71,6 +71,7 @@ export const parsePrayerBulk = functions
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
       model: 'gemini-2.0-flash',
+      systemInstruction: SYS_INSTRUCTION,
       generationConfig: {
         responseMimeType: 'application/json',
         // 타입 정의가 enum/Schema를 강하게 요구해 any 캐스팅
@@ -86,7 +87,7 @@ ${rawText}
 """`;
 
     try {
-      const chat = model.startChat({ systemInstruction: SYS_INSTRUCTION });
+      const chat = model.startChat();
       const res  = await chat.sendMessage(prompt);
       const text = res.response.text().trim();
       const clean = text.replace(/```json|```/g, '').trim();

@@ -45,7 +45,17 @@ export interface DayDoc {
   aiFeedback?: AIFeedback;
   finalized?: boolean;
   prayerPlan?: PrayerPlan;        // 오늘의 기도 목록 (dailyReset이 미리 계산)
+  morningBrief?: MorningBrief;    // 매일 06:00 생성되는 개인화 모닝 브리프
   updatedAt: Timestamp;
+}
+
+// 모닝 브리프 — DayDoc.morningBrief (morningBrief 스케줄러가 생성)
+export interface MorningBrief {
+  message: string;                          // AI 개인화 한두 문장
+  priorityHabits: Array<{ id: string; title: string }>;  // 오늘 핵심 습관 (가중치 상위)
+  yesterdayScore: number;                   // 어제 dayScore
+  streak: number;                           // 현재 글로벌 스트릭
+  generatedAt: Timestamp;
 }
 
 // 오늘의 기도 계획 — DayDoc.prayerPlan
@@ -99,6 +109,8 @@ export interface HabitCheckDoc {
   achieved: boolean;
   note?: string;
   mood?: 1 | 2 | 3 | 4 | 5;       // 체크 직후 한 줄 회고 — Phase 2-4
+  whyMissed?: string;             // 미달성 시 원인 한 줄 (Why-Tracking)
+  tags?: string[];                // 자유 태그 (#스트레스 #피곤 등)
   checkedAt: Timestamp;
 }
 
@@ -272,6 +284,10 @@ export interface ProgressDoc {
   comebackUntil?: string;           // Phase 4-5 — 회복 모드 종료일 'YYYY-MM-DD'
   freezeTokens?: number;            // Phase 4-3 — 글로벌 freeze 토큰
   seasonProgress?: SeasonProgressData;  // Phase 4-2
+  // ── 스트릭 보호 (그레이스/아픔/휴가) ──────────
+  graceUsed?: { weekStart: string; daysUsed: number };  // 주 1회 그레이스 데이
+  sickDays?: { month: string; daysUsed: number };       // 월 1회 아픔 데이
+  vacationUntil?: string;           // 'YYYY-MM-DD' — 이 날짜까지 스트릭 동결
   // ── 온보딩 ─────────────────────────────────
   starterBonusApplied?: boolean;    // 시작 자원(200P + 새싹 1개) 1회 지급 여부
   // ── 정원 통계 (2차 다양화) ─────────────────

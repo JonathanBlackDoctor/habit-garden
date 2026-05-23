@@ -12,4 +12,6 @@ export { generatePrayerWeekly } from './prayerWeekly';
 export { prayerAward, prayerAnsweredAward } from './prayerAward';
 export { aiCoach } from './aiCoach';
 export { sendScheduledReminder } from './reminders';
+export { flushReminderQueue } from './reminderQueue';
+export { morningBrief } from './morningBrief';
 export { ensureUserProfile, approveUser, listPendingUsers } from './userProfile';

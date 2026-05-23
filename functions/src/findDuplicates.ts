@@ -63,6 +63,7 @@ export const findDuplicatePrayers = functions
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
       model: 'gemini-2.0-flash',
+      systemInstruction: SYS_INSTRUCTION,
       generationConfig: {
         responseMimeType: 'application/json',
         responseSchema: RESPONSE_SCHEMA as any,
@@ -74,7 +75,7 @@ export const findDuplicatePrayers = functions
       .join('\n');
 
     try {
-      const chat = model.startChat({ systemInstruction: SYS_INSTRUCTION });
+      const chat = model.startChat();
       const res = await chat.sendMessage(`다음 활성 기도제목들에서 중복 그룹을 찾아라:\n${list}`);
       const text = res.response.text().replace(/```json|```/g, '').trim();
       const parsed = JSON.parse(text);

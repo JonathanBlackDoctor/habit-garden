@@ -114,9 +114,12 @@ ${habitSummary}
 출력 형식:
 - 반드시 지정된 JSON 스키마로만 응답한다. 다른 설명·마크다운·코드펜스 금지.`;
 
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash', systemInstruction: sysInstr });
+
     let result;
     try {
-      const chat = model.startChat({ systemInstruction: sysInstr });
+      const chat = model.startChat();
       const res  = await chat.sendMessage(prompt);
       const text = res.response.text().trim();
       const clean = text.replace(/```json|```/g, '').trim();
