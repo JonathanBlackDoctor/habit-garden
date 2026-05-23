@@ -16,6 +16,7 @@ const KST = 'Asia/Seoul';
 
 export const generateFeedback = functions
   .region(REGION)
+  .runWith({ secrets: ['GEMINI_API_KEY'] })
   .https
   .onCall(async (data, context) => {
     if (!context.auth) {
