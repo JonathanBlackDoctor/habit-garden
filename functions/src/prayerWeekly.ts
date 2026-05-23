@@ -9,6 +9,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { subDays, format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { callGeminiWithRetry } from './geminiUtil';
 import type { PrayerDoc, PrayerCategory } from '../../shared/types/firestore';
 import { PRAYER_CATEGORY_LABELS } from '../../shared/types/firestore';
 
@@ -130,7 +131,7 @@ async function processUserWeekly(uid: string, nowKst: Date): Promise<void> {
 2) 응답된 기도가 있으면 그 의미, 없으면 꾸준함 자체의 의미를 한 줄.
 3) 잊혀가는 기도가 있으면 비난 없이 다음 주 한 명을 다시 떠올리도록 권유.
 4) 다음 한 주를 향한 짧은 한 줄 권면.`;
-      const res = await model.generateContent(prompt);
+      const res = await callGeminiWithRetry(() => model.generateContent(prompt));
       const t = res.response.text().trim();
       if (t) encouragement = t.slice(0, 700);
     } catch (e) {

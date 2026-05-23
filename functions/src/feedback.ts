@@ -8,6 +8,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { subDays, format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
+import { callGeminiWithRetry, throwIfRateLimit } from './geminiUtil';
 import type { HabitDoc, HabitCheckDoc, DayDoc } from '../../shared/types/firestore';
 
 const db = admin.firestore();
@@ -117,18 +118,23 @@ ${habitSummary}
     let result;
     try {
       const chat = model.startChat();
-      const res  = await chat.sendMessage(prompt);
+      const res  = await callGeminiWithRetry(() => chat.sendMessage(prompt));
       const text = res.response.text().trim();
       const clean = text.replace(/```json|```/g, '').trim();
       result = JSON.parse(clean);
-    } catch {
-      result = {
+    } catch (e) {
+      throwIfRateLimit(e);
+      // 폴백은 저장하지 않는다 → 일 5회 상한 미소진, 기존 피드백 보존.
+      const existing = daySnap.data()?.aiFeedback;
+      if (existing) return existing;
+      return {
         oneLineSummary:    '피드백을 생성하지 못했습니다.',
         goodPoints:        [],
         toFix:             [],
-        recommendations:   ['내일 다시 시도해보세요.'],
+        recommendations:   ['잠시 후 다시 시도해보세요.'],
         momentum:          '',
         conditionAnalysis: '',
+        retryCount,
       };
     }
 
