@@ -5,6 +5,7 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { callGeminiWithRetry, throwIfRateLimit } from './geminiUtil';
 
 const REGION = 'asia-northeast3';
 
@@ -88,7 +89,7 @@ ${rawText}
 
     try {
       const chat = model.startChat();
-      const res  = await chat.sendMessage(prompt);
+      const res  = await callGeminiWithRetry(() => chat.sendMessage(prompt));
       const text = res.response.text().trim();
       const clean = text.replace(/```json|```/g, '').trim();
       const parsed = JSON.parse(clean);
@@ -111,6 +112,7 @@ ${rawText}
       return { items: cleaned };
     } catch (e) {
       console.error('parsePrayerBulk error', e);
+      throwIfRateLimit(e);
       throw new functions.https.HttpsError('internal', 'AI 정리에 실패했습니다.');
     }
   });

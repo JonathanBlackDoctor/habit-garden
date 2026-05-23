@@ -5,6 +5,7 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { callGeminiWithRetry, throwIfRateLimit } from './geminiUtil';
 import type { PrayerDoc } from '../../shared/types/firestore';
 
 const REGION = 'asia-northeast3';
@@ -76,7 +77,7 @@ export const findDuplicatePrayers = functions
 
     try {
       const chat = model.startChat();
-      const res = await chat.sendMessage(`다음 활성 기도제목들에서 중복 그룹을 찾아라:\n${list}`);
+      const res = await callGeminiWithRetry(() => chat.sendMessage(`다음 활성 기도제목들에서 중복 그룹을 찾아라:\n${list}`));
       const text = res.response.text().replace(/```json|```/g, '').trim();
       const parsed = JSON.parse(text);
 
@@ -92,6 +93,7 @@ export const findDuplicatePrayers = functions
       return { groups };
     } catch (e) {
       console.error('findDuplicatePrayers error', e);
+      throwIfRateLimit(e);
       throw new functions.https.HttpsError('internal', '중복 분석에 실패했습니다.');
     }
   });

@@ -9,6 +9,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { format, subDays } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
+import { callGeminiWithRetry, throwIfRateLimit } from './geminiUtil';
 import type { HabitDoc, HabitCheckDoc, DayDoc } from '../../shared/types/firestore';
 
 const db = admin.firestore();
@@ -142,11 +143,14 @@ ${habitStats}
     const chat = model.startChat();
 
     let parsed: any;
+    let isFallback = false;
     try {
-      const res = await chat.sendMessage(finalPrompt);
+      const res = await callGeminiWithRetry(() => chat.sendMessage(finalPrompt));
       const text = res.response.text().trim().replace(/```json|```/g, '').trim();
       parsed = JSON.parse(text);
-    } catch {
+    } catch (e) {
+      throwIfRateLimit(e);
+      isFallback = true;
       parsed = mode === 'weekly'
         ? { strengths: '꾸준함', pattern: '데이터 부족', recommendation: '내일도 1개부터' }
         : { message: '오늘도 한 걸음만.', tone: 'encourage' };
@@ -158,6 +162,9 @@ ${habitStats}
       generatedAt: FieldValue.serverTimestamp(),
     };
 
-    await db.doc(`users/${uid}/coach/${cacheKey}`).set(payload);
+    // 폴백 응답은 캐시에 굳히지 않는다 (할당량 회복 후 다음 호출에서 실제 응답 생성).
+    if (!isFallback) {
+      await db.doc(`users/${uid}/coach/${cacheKey}`).set(payload);
+    }
     return payload;
   });
