@@ -19,7 +19,7 @@ const REGION = 'asia-northeast3';
 
 export const generatePrayerWeekly = functions
   .region(REGION)
-  .runWith({ secrets: ['GEMINI_API_KEY'] })
+  .runWith({ secrets: ['GEMINI_API_KEY'], timeoutSeconds: 540 })
   .pubsub
   .schedule('0 21 * * 0')          // 일요일 21:00 KST
   .timeZone(KST)

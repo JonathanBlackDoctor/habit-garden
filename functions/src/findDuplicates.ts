@@ -38,7 +38,7 @@ const RESPONSE_SCHEMA = {
 
 export const findDuplicatePrayers = functions
   .region(REGION)
-  .runWith({ secrets: ['GEMINI_API_KEY'] })
+  .runWith({ secrets: ['GEMINI_API_KEY'], timeoutSeconds: 300 })
   .https
   .onCall(async (_data, context) => {
     if (!context.auth) {
