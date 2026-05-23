@@ -7,6 +7,7 @@ import { useProgress } from '@/features/garden/useGarden';
 import { BADGE_DEFS } from 'shared/types/firestore';
 import type { BadgeDoc, DayDoc } from 'shared/types/firestore';
 import { xpForLevel } from '@/lib/utils';
+import { plannerDate } from '@/lib/dayBoundary';
 import { Flame, Star, Award } from 'lucide-react';
 import HabitHeatmap from '@/features/stats/HabitHeatmap';
 import WeeklyReport from '@/features/stats/WeeklyReport';
@@ -40,6 +41,14 @@ export default function Progress() {
   const { level, xpInLevel, globalStreak, globalBestStreak, spendablePoints, totalPoints } = progress;
   const xpNeeded = xpForLevel(level);
   const earnedIds = new Set(badges.map((b) => b.badgeId));
+
+  const scoreByDate = new Map(recentDays.map((d) => [d.date, d.dayScore ?? 0]));
+  const base = new Date(plannerDate() + 'T00:00:00Z');
+  const last30Dates = Array.from({ length: 30 }, (_, i) => {
+    const d = new Date(base);
+    d.setUTCDate(d.getUTCDate() - (29 - i));
+    return d.toISOString().slice(0, 10);
+  });
 
   return (
     <div className="min-h-screen p-4 space-y-4 pb-8">
@@ -91,8 +100,8 @@ export default function Progress() {
         <h3 className="text-sm font-medium text-[var(--fg-primary)]">최근 30일 · 탭하여 수정</h3>
         <div className="flex flex-wrap gap-1">
           {Array.from({ length: 30 }).map((_, i) => {
-            const day = recentDays[29 - i];
-            const score = day?.dayScore ?? 0;
+            const date = last30Dates[i];
+            const score = scoreByDate.get(date) ?? 0;
             const bg = score === 0
               ? 'var(--leaf-soft)'
               : score < 40
@@ -100,18 +109,18 @@ export default function Progress() {
               : score < 70
               ? '#7CB95B'
               : '#4F7A37';
-            if (!day?.date) {
-              return <div key={i} className="h-5 w-5 rounded-sm" style={{ background: bg }} />;
-            }
+            const dayNum = Number(date.slice(8, 10));
             return (
               <button
                 key={i}
                 type="button"
-                title={`${day.date} · ${score}점`}
-                onClick={() => navigate(`/day/${day.date}`)}
-                className="h-5 w-5 rounded-sm focus:outline-none focus:ring-2 focus:ring-[var(--leaf)]"
-                style={{ background: bg }}
-              />
+                title={`${date} · ${score}점`}
+                onClick={() => navigate(`/day/${date}`)}
+                className="flex h-7 w-7 items-center justify-center rounded-sm text-[10px] leading-none tabular-nums focus:outline-none focus:ring-2 focus:ring-[var(--leaf)]"
+                style={{ background: bg, color: score >= 70 ? 'rgba(255,255,255,0.95)' : 'rgba(0,0,0,0.5)' }}
+              >
+                {dayNum}
+              </button>
             );
           })}
         </div>
