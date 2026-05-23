@@ -11,6 +11,8 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { subDays, format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import { processDailyGarden } from './gardenAutogrow';
+import { shouldBecomeDormant, type RotationInput } from '../../shared/prayerRotation';
+import type { PrayerDoc } from '../../shared/types/firestore';
 
 const db = admin.firestore();
 const KST = 'Asia/Seoul';
@@ -42,6 +44,8 @@ export const dailyReset = functions
       try {
         const success = await processUserDay(uid, today, yesterday);
         await processDailyGarden(uid, success);  // 정원 트레잇·생기·시들기·보너스 시드
+        const dormantCount = await processDormantTransitions(uid);  // 잊혀짐 자동 전이 (설계 §5)
+        if (dormantCount > 0) console.log(`dormant transition: uid=${uid}, n=${dormantCount}`);
       } catch (e) {
         console.error(`dailyReset failed for uid=${uid}:`, e);
       }
@@ -49,6 +53,42 @@ export const dailyReset = functions
 
     console.log(`dailyReset complete: today=${today}, yesterday=${yesterday}, users=${profilesSnap.size}`);
   });
+
+function tsToMs(ts: unknown): number | undefined {
+  return ts && typeof (ts as any).toMillis === 'function' ? (ts as any).toMillis() : undefined;
+}
+
+/** 활성 기도제목 중 망각 임계를 넘긴 항목을 dormant로 전이 (pinned 제외) */
+async function processDormantTransitions(uid: string): Promise<number> {
+  const snap = await db.collection(`users/${uid}/prayers`).where('status', '==', 'active').get();
+  if (snap.empty) return 0;
+
+  const nowMs = Date.now();
+  let count = 0;
+  const batch = db.batch();
+  for (const docSnap of snap.docs) {
+    const p = docSnap.data() as PrayerDoc;
+    if (p.pinned) continue;
+    const input: RotationInput = {
+      id: p.id,
+      priority: p.priority,
+      pinned: p.pinned,
+      rotationDays: p.rotationDays,
+      receivedAtMs: tsToMs(p.receivedAt) ?? nowMs,
+      lastPrayedAtMs: tsToMs(p.lastPrayedAt),
+    };
+    if (shouldBecomeDormant(input, nowMs)) {
+      batch.update(docSnap.ref, {
+        status: 'dormant',
+        dormantSince: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      count++;
+    }
+  }
+  if (count > 0) await batch.commit();
+  return count;
+}
 
 async function processUserDay(uid: string, today: string, yesterday: string): Promise<boolean> {
   // 1. 오늘 DayDoc 생성

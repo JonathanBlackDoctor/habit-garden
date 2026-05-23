@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  collection, onSnapshot, query, orderBy, doc, setDoc, updateDoc, deleteDoc,
-  addDoc, serverTimestamp, increment, Timestamp,
+  collection, onSnapshot, query, orderBy, doc, getDoc, setDoc, updateDoc, deleteDoc,
+  addDoc, serverTimestamp, increment, limit, Timestamp,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import type {
   PrayerDoc, PrayerPersonDoc, PrayerCheckDoc, DayDoc,
-  PrayerCategory, PrayerPriority,
+  PrayerCategory, PrayerPriority, PrayerWeeklyDigestDoc,
 } from 'shared/types/firestore';
 import { selectTodayPrayers, type RotationInput } from 'shared/prayerRotation';
 import { plannerDate } from '@/lib/dayBoundary';
@@ -59,6 +59,25 @@ export function usePrayerChecks(date: string) {
   }, [uid, date]);
 
   return checks;
+}
+
+export function useLatestWeeklyDigest() {
+  const uid = useAppStore((s) => s.uid);
+  const [digest, setDigest] = useState<PrayerWeeklyDigestDoc | null>(null);
+
+  useEffect(() => {
+    if (!uid) return;
+    const q = query(
+      collection(db, 'users', uid, 'prayerWeekly'),
+      orderBy('generatedAt', 'desc'),
+      limit(1),
+    );
+    return onSnapshot(q, (snap) => {
+      setDigest(snap.empty ? null : (snap.docs[0].data() as PrayerWeeklyDigestDoc));
+    });
+  }, [uid]);
+
+  return digest;
 }
 
 export function useDayDoc(date: string) {
@@ -313,9 +332,55 @@ export function usePrayerActions() {
     return saved;
   };
 
+  /** 중복 기도제목 병합 — 가장 먼저 받은 항목으로 합치고 나머지는 삭제 */
+  const mergePrayers = async (ids: string[]) => {
+    if (!uid || ids.length < 2) return;
+    const snaps = await Promise.all(
+      ids.map((id) => getDoc(doc(db, 'users', uid, 'prayers', id)))
+    );
+    const docs = snaps.filter((s) => s.exists()).map((s) => s.data() as PrayerDoc);
+    if (docs.length < 2) return;
+
+    const ms = (p: PrayerDoc) => tsToMs(p.receivedAt as any) ?? Number.MAX_SAFE_INTEGER;
+    docs.sort((a, b) => ms(a) - ms(b));
+    const keep = docs[0];
+    const rest = docs.slice(1);
+
+    const rank: Record<PrayerPriority, number> = { high: 3, mid: 2, low: 1 };
+    const topPriority = docs.reduce<PrayerPriority>(
+      (acc, d) => (rank[d.priority] > rank[acc] ? d.priority : acc),
+      keep.priority,
+    );
+    const mergedBody = docs
+      .map((d) => (d.body ? `• ${d.title}\n${d.body}` : `• ${d.title}`))
+      .join('\n\n');
+    const mergedTags = Array.from(new Set(docs.flatMap((d) => d.tags ?? [])));
+
+    const now = serverTimestamp();
+    await updateDoc(doc(db, 'users', uid, 'prayers', keep.id), {
+      body: mergedBody,
+      prayCount: docs.reduce((s, d) => s + (d.prayCount ?? 0), 0),
+      streak: Math.max(...docs.map((d) => d.streak ?? 0)),
+      priority: topPriority,
+      pinned: docs.some((d) => d.pinned),
+      tags: mergedTags.length ? mergedTags : undefined,
+      updatedAt: now,
+    } as any);
+
+    for (const d of rest) {
+      await deleteDoc(doc(db, 'users', uid, 'prayers', d.id));
+      if (d.personId && d.status === 'active') {
+        await updateDoc(doc(db, 'users', uid, 'people', d.personId), {
+          activeCount: increment(-1), updatedAt: now,
+        }).catch(() => {});
+      }
+    }
+    toast(`🔗 ${docs.length}개를 하나로 합쳤어요`);
+  };
+
   return {
     quickAdd, updatePrayer, togglePin, checkPrayer, uncheckPrayer,
-    markAnswered, awaken, removePrayer, ensurePerson, bulkSave,
+    markAnswered, awaken, removePrayer, ensurePerson, bulkSave, mergePrayers,
   };
 }
 

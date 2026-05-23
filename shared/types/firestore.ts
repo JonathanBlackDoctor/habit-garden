@@ -217,6 +217,21 @@ export interface PrayerCheckDoc {
   prayedAt: Timestamp;
 }
 
+// 주간 기도 회고 — users/{uid}/prayerWeekly/{weekId='YYYY-MM-DD'(주 시작일)}
+export interface PrayerWeeklyDigestDoc {
+  id: string;
+  weekStart: Timestamp;
+  weekEnd: Timestamp;
+  totalChecks: number;
+  topPersons: { personName: string; count: number }[];
+  topCategory: PrayerCategory;
+  answeredCount: number;
+  answeredItems: { title: string; personName: string; answerNote?: string }[];
+  forgottenWarning: { title: string; personName: string; daysSince: number }[];
+  oneLineEncouragement: string;       // AI 생성 격려 두 문장
+  generatedAt: Timestamp;
+}
+
 // ── 플래너 ──────────────────────────────────────────────
 export interface LongTodoDoc {
   id: string;
