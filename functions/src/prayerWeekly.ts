@@ -9,7 +9,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { subDays, format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { callGeminiWithRetry } from './geminiUtil';
+import { callGeminiWithRetry, GEMINI_MODEL } from './geminiUtil';
 import type { PrayerDoc, PrayerCategory } from '../../shared/types/firestore';
 import { PRAYER_CATEGORY_LABELS } from '../../shared/types/firestore';
 
@@ -110,7 +110,7 @@ async function processUserWeekly(uid: string, nowKst: Date): Promise<void> {
     try {
       const genAI = new GoogleGenerativeAI(apiKey);
       const model = genAI.getGenerativeModel({
-        model: 'gemini-2.0-flash',
+        model: GEMINI_MODEL,
         systemInstruction: `너는 따뜻한 영적 동반자다. 과장하거나 지어내지 말고, 주어진 데이터를 직접 인용해 한국어로 격려하라.
 원칙:
 - 숫자·인물명·영역명을 본문에서 1회 이상 그대로 인용한다.

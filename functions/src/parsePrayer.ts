@@ -5,7 +5,7 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { callGeminiWithRetry, throwIfRateLimit } from './geminiUtil';
+import { callGeminiWithRetry, throwIfRateLimit, GEMINI_MODEL } from './geminiUtil';
 
 const REGION = 'asia-northeast3';
 
@@ -71,7 +71,7 @@ export const parsePrayerBulk = functions
 
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash',
+      model: GEMINI_MODEL,
       systemInstruction: SYS_INSTRUCTION,
       generationConfig: {
         responseMimeType: 'application/json',

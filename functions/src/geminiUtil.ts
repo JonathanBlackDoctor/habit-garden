@@ -3,6 +3,9 @@
  */
 import * as functions from 'firebase-functions/v1';
 
+/** 모든 Gemini 호출이 쓰는 모델 ID. 모델 폐기 시 여기 한 곳만 바꾼다. */
+export const GEMINI_MODEL = 'gemini-2.5-flash';
+
 export const RATE_LIMIT_MESSAGE =
   '지금 AI 사용량이 잠시 초과됐어요. 1~2분 후 다시 시도해 주세요.';
 
