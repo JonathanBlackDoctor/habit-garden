@@ -21,7 +21,7 @@ const KST = 'Asia/Seoul';
 
 export const morningBrief = functions
   .region(REGION)
-  .runWith({ secrets: ['GEMINI_API_KEY'] })
+  .runWith({ secrets: ['GEMINI_API_KEY'], timeoutSeconds: 540 })
   .pubsub
   .schedule('0 6 * * *')
   .timeZone(KST)
