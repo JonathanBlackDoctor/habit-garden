@@ -10,7 +10,7 @@ import TodayGrowth from '@/features/garden/TodayGrowth';
 import { formatKoreanDate, timeOfDay } from '@/lib/dayBoundary';
 import type { DayDoc, TodayTodoDoc } from 'shared/types/firestore';
 import { motion } from 'framer-motion';
-import { Flame, ArrowRight, CheckCircle2, RefreshCw, Sparkles, X } from 'lucide-react';
+import { Flame, ArrowRight, CheckCircle2, RefreshCw, Sparkles, X, Sunrise } from 'lucide-react';
 import { useComeback } from '@/features/comeback/useComeback';
 import OneYearAgoCard from '@/features/stats/OneYearAgoCard';
 import WeeklyQuestCard from '@/features/quests/WeeklyQuestCard';
@@ -113,6 +113,31 @@ export default function Main() {
           </div>
         </div>
       </motion.div>
+
+      {/* ── 모닝 브리프 (B-8/B-32) ── */}
+      {dayDoc?.morningBrief && (
+        <motion.div
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-[var(--radius)] border border-[var(--bloom)]/20 bg-gradient-to-br from-[#FFF6E5] to-[#FFE9C2] p-3"
+        >
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-[var(--bloom)]">
+            <Sunrise size={14} /> 오늘의 브리프
+          </div>
+          <p className="mt-1 text-sm leading-snug text-[var(--fg-primary)]">{dayDoc.morningBrief.message}</p>
+          <div className="mt-2 flex items-center gap-2 text-[11px] text-[var(--fg-muted)]">
+            <span className="tabular-nums">어제 {dayDoc.morningBrief.yesterdayScore}점</span>
+            {dayDoc.morningBrief.streak > 0 && <span className="tabular-nums">🔥 {dayDoc.morningBrief.streak}일</span>}
+          </div>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {dayDoc.morningBrief.priorityHabits.map((h) => (
+              <span key={h.id} className="rounded-full bg-white/70 px-2 py-0.5 text-[11px] text-[var(--fg-primary)]">
+                ⭐ {h.title}
+              </span>
+            ))}
+          </div>
+        </motion.div>
+      )}
 
       {/* ── AI 코치 한 줄 (Phase 3-3) ── */}
       <CoachCard />

@@ -70,7 +70,13 @@ async function processUser(uid: string, hour: number, today: string): Promise<vo
     await admin.messaging().sendEachForMulticast({
       tokens,
       notification: { title, body },
-      data: { tod: tod ?? 'anytime', date: today },
+      data: {
+        tod: tod ?? 'anytime',
+        date: today,
+        action: 'habit_reminder',
+        habitIds: unchecked.map((h) => h.id).join(','),
+      },
+      webpush: { fcmOptions: { link: '/habit-garden/#/habits' } },
     });
   } catch (e) {
     console.error(`FCM send error for ${uid}:`, e);

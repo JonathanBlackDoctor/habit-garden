@@ -1,8 +1,10 @@
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
 import { signOutUser } from '@/lib/auth';
-import { Cloud, BookOpen, Settings, LogOut, Bell, Vibrate, Volume2, HandHeart, Download, GraduationCap } from 'lucide-react';
+import { Cloud, BookOpen, Settings, LogOut, Bell, Vibrate, Volume2, HandHeart, Download, GraduationCap, Palmtree, Thermometer, ShieldCheck } from 'lucide-react';
+import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import { enablePushNotifications, disablePushNotifications, isFcmEnabled } from '@/lib/fcm';
 import {
@@ -23,9 +25,12 @@ const items = [
 export default function More() {
   const navigate = useNavigate();
   const uid = useAppStore((s) => s.uid);
+  const today = useAppStore((s) => s.currentDate);
   const [push, setPush]   = useState(false);
   const [haptic, setHapt] = useState(false);
   const [sound, setSnd]   = useState(false);
+  const [vacationUntil, setVacationUntil] = useState<string | null>(null);
+  const [sickDays, setSickDays] = useState<{ month: string; daysUsed: number } | null>(null);
   const faithEnabled = useFaithEnabled();
   const { canInstall, isStandalone, isIOS, promptInstall } = usePwaInstall();
 
@@ -34,6 +39,55 @@ export default function More() {
     setHapt(isHapticEnabled());
     setSnd(isSoundEnabled());
   }, []);
+
+  useEffect(() => {
+    if (!uid) return;
+    return onSnapshot(doc(db, 'users', uid, 'progress', 'main'), (snap) => {
+      const p = snap.data();
+      setVacationUntil(p?.vacationUntil ?? null);
+      setSickDays(p?.sickDays ?? null);
+    });
+  }, [uid]);
+
+  const startVacation = async () => {
+    if (!uid) return;
+    const input = prompt('며칠간 휴가 모드로 스트릭을 동결할까요?', '7');
+    if (!input) return;
+    const days = Math.max(1, Math.min(60, Number(input) || 0));
+    if (!days) return;
+    const until = new Date(`${today}T00:00:00`);
+    until.setDate(until.getDate() + days - 1);
+    const untilStr = until.toISOString().slice(0, 10);
+    await setDoc(doc(db, 'users', uid, 'progress', 'main'),
+      { vacationUntil: untilStr, updatedAt: serverTimestamp() }, { merge: true });
+    toast.success(`🌴 ${untilStr}까지 휴가 모드`);
+  };
+
+  const endVacation = async () => {
+    if (!uid) return;
+    await setDoc(doc(db, 'users', uid, 'progress', 'main'),
+      { vacationUntil: null, updatedAt: serverTimestamp() }, { merge: true });
+    toast('휴가 모드를 해제했어요');
+  };
+
+  const takeSickDay = async () => {
+    if (!uid) return;
+    const month = today.slice(0, 7);
+    const usedThisMonth = sickDays?.month === month ? sickDays.daysUsed : 0;
+    if (usedThisMonth >= 1) {
+      toast.error('이번 달 아픔 데이를 이미 사용했어요');
+      return;
+    }
+    await setDoc(doc(db, 'users', uid, 'progress', 'main'), {
+      sickDays: { month, daysUsed: usedThisMonth + 1 },
+      vacationUntil: today,   // 오늘 하루 스트릭 보호
+      updatedAt: serverTimestamp(),
+    }, { merge: true });
+    toast.success('🤒 오늘은 푹 쉬세요. 스트릭은 지켜드릴게요');
+  };
+
+  const vacationActive = !!vacationUntil && vacationUntil >= today;
+  const sickUsedThisMonth = sickDays?.month === today.slice(0, 7) ? sickDays.daysUsed : 0;
 
   const onPushToggle = async () => {
     if (!uid) return;
@@ -113,6 +167,52 @@ export default function More() {
           value={faithEnabled}
           onToggle={onFaithToggle}
         />
+      </div>
+
+      {/* 스트릭 보호 (B-4) */}
+      <div className="mt-4 rounded-[var(--radius)] bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-sm)] space-y-3">
+        <div className="flex items-center gap-2">
+          <ShieldCheck size={18} className="text-[var(--leaf)]" />
+          <p className="text-sm font-medium text-[var(--fg-primary)]">스트릭 보호</p>
+        </div>
+        <p className="text-[11px] leading-snug text-[var(--fg-faint)]">
+          매주 1회는 자동 그레이스로 스트릭이 보호돼요. 길게 쉴 땐 휴가 모드, 아픈 날엔 아픔 데이(월 1회)를 쓰세요.
+        </p>
+
+        {vacationActive ? (
+          <button
+            onClick={endVacation}
+            className="flex w-full items-center gap-3 rounded-[var(--radius-sm)] bg-[var(--leaf-soft)] px-3 py-2.5 text-left text-sm active:opacity-70"
+          >
+            <Palmtree size={16} className="text-[var(--leaf)]" />
+            <div className="flex-1">
+              <p className="text-[var(--fg-primary)]">휴가 모드 켜짐 — {vacationUntil}까지</p>
+              <p className="text-[10px] text-[var(--fg-faint)]">탭하면 해제</p>
+            </div>
+          </button>
+        ) : (
+          <button
+            onClick={startVacation}
+            className="flex w-full items-center gap-3 rounded-[var(--radius-sm)] bg-[var(--bg-base)] px-3 py-2.5 text-left text-sm active:opacity-70"
+          >
+            <Palmtree size={16} className="text-[var(--leaf)]" />
+            <span className="text-[var(--fg-primary)]">🌴 휴가 모드 시작</span>
+          </button>
+        )}
+
+        <button
+          onClick={takeSickDay}
+          disabled={sickUsedThisMonth >= 1}
+          className="flex w-full items-center gap-3 rounded-[var(--radius-sm)] bg-[var(--bg-base)] px-3 py-2.5 text-left text-sm active:opacity-70 disabled:opacity-40"
+        >
+          <Thermometer size={16} className="text-[var(--bloom)]" />
+          <div className="flex-1">
+            <p className="text-[var(--fg-primary)]">🤒 오늘 아픔 데이</p>
+            <p className="text-[10px] text-[var(--fg-faint)]">
+              {sickUsedThisMonth >= 1 ? '이번 달 사용 완료' : '이번 달 1회 남음'}
+            </p>
+          </div>
+        </button>
       </div>
 
       {!isStandalone && (
