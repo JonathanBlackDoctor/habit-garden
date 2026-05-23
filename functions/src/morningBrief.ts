@@ -12,6 +12,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { format, subDays } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
+import { callGeminiWithRetry, GEMINI_MODEL } from './geminiUtil';
 import type { HabitDoc, DayDoc, ProgressDoc, NotificationTokenDoc } from '../../shared/types/firestore';
 
 const db = admin.firestore();
@@ -20,6 +21,7 @@ const KST = 'Asia/Seoul';
 
 export const morningBrief = functions
   .region(REGION)
+  .runWith({ secrets: ['GEMINI_API_KEY'] })
   .pubsub
   .schedule('0 6 * * *')
   .timeZone(KST)
@@ -104,11 +106,11 @@ async function buildMessage(ctx: BriefCtx): Promise<string> {
   if (!apiKey) return fallback;
 
   try {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
     const sysInstr = `당신은 한국어로 응답하는 1인 자기관리 코치다.
 과장된 칭찬·공허한 위로·이모지·느낌표 남발은 피한다. 데이터에 근거해 따뜻하고 구체적으로 말한다.`;
-    const chat = model.startChat({ systemInstruction: sysInstr });
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: GEMINI_MODEL, systemInstruction: sysInstr });
+    const chat = model.startChat();
     const prompt = `사용자의 오늘 아침 데이터:
 - 최근 7일 평균 점수: ${ctx.avg}점
 - 어제 점수: ${ctx.yesterdayScore}점
@@ -117,7 +119,7 @@ async function buildMessage(ctx: BriefCtx): Promise<string> {
 
 이 사용자를 위한 모닝 브리프를 1-2문장(70자 이내)으로 작성하라.
 반드시 다음 JSON 스키마로만 응답: {"message":"…70자 이내…"}`;
-    const res = await chat.sendMessage(prompt);
+    const res = await callGeminiWithRetry(() => chat.sendMessage(prompt));
     const text = res.response.text().trim().replace(/```json|```/g, '').trim();
     const parsed = JSON.parse(text);
     return typeof parsed.message === 'string' && parsed.message.trim() ? parsed.message.trim() : fallback;

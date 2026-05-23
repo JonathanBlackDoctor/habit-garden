@@ -8,7 +8,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { subDays, format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
-import { callGeminiWithRetry, throwIfRateLimit } from './geminiUtil';
+import { callGeminiWithRetry, throwIfRateLimit, GEMINI_MODEL } from './geminiUtil';
 import type { HabitDoc, HabitCheckDoc, DayDoc } from '../../shared/types/firestore';
 
 const db = admin.firestore();
@@ -113,7 +113,7 @@ ${habitSummary}
 - 반드시 지정된 JSON 스키마로만 응답한다. 다른 설명·마크다운·코드펜스 금지.`;
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash', systemInstruction: sysInstr });
+    const model = genAI.getGenerativeModel({ model: GEMINI_MODEL, systemInstruction: sysInstr });
 
     let result;
     try {
