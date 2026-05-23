@@ -10,11 +10,16 @@ import type {
 import { PRAYER_CATEGORY_LABELS } from 'shared/types/firestore';
 import {
   usePrayers, usePeople, usePrayerChecks, useDayDoc, useTodayPrayers, usePrayerActions,
+  useLatestWeeklyDigest,
 } from '@/features/prayers/usePrayers';
 import {
   PrayerCheckCard, PrayerListCard, PrayerDetailDialog,
 } from '@/features/prayers/PrayerComponents';
 import BulkParse from '@/features/prayers/BulkParse';
+import { VoiceInputButton } from '@/features/prayers/VoiceInput';
+import { DuplicateFinder } from '@/features/prayers/DuplicateFinder';
+import { WeeklyDigestCard } from '@/features/prayers/WeeklyDigestCard';
+import { parseQuickAdd } from '@/features/prayers/parseQuickAdd';
 import { Plus, ClipboardList, Search, Heart } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -41,7 +46,7 @@ function PrayersInner() {
   const people  = usePeople();
   const checks  = usePrayerChecks(date);
   const dayDoc  = useDayDoc(date);
-  const { quickAdd } = usePrayerActions();
+  const { quickAdd, ensurePerson } = usePrayerActions();
 
   const [seg, setSeg] = useState<Segment>('today');
   const [quick, setQuick] = useState('');
@@ -59,7 +64,20 @@ function PrayersInner() {
 
   const submitQuick = async () => {
     if (!quick.trim()) return;
-    await quickAdd({ title: quick, category: lastCat });
+    const parsed = parseQuickAdd(quick);
+    const category = parsed.category ?? lastCat;
+    let personId: string | undefined;
+    if (parsed.personName) {
+      personId = await ensurePerson(parsed.personName, category, people);
+    }
+    await quickAdd({
+      title: parsed.title,
+      category,
+      priority: parsed.priority,
+      personName: parsed.personName,
+      personId,
+    });
+    if (parsed.category) setLastCat(parsed.category);
     setQuick('');
   };
 
@@ -75,8 +93,11 @@ function PrayersInner() {
           value={quick}
           onChange={(e) => setQuick(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && submitQuick()}
-          placeholder="기도제목 한 줄 빠른 추가…"
+          placeholder="예) #가족 @엄마 건강 회복 high"
           className="min-w-0 flex-1 rounded-[var(--radius)] border border-[var(--border)] bg-white px-4 py-2.5 text-sm outline-none focus:border-[var(--sky)]"
+        />
+        <VoiceInputButton
+          onTranscript={(t) => setQuick((prev) => (prev ? `${prev} ${t}` : t))}
         />
         <select
           value={lastCat}
@@ -149,6 +170,7 @@ function TodayView({
 }) {
   const { checkPrayer, uncheckPrayer } = usePrayerActions();
   const { pinned, rotation } = useTodayPrayers(prayers, dayDoc);
+  const digest = useLatestWeeklyDigest();
 
   const all = [...pinned, ...rotation];
   const total = all.length;
@@ -157,12 +179,16 @@ function TodayView({
 
   if (total === 0) {
     return (
-      <EmptyState text="오늘 기도할 목록이 비어 있어요. 위에서 기도제목을 추가해보세요. 🙏" />
+      <div className="space-y-3">
+        {digest && <WeeklyDigestCard digest={digest} />}
+        <EmptyState text="오늘 기도할 목록이 비어 있어요. 위에서 기도제목을 추가해보세요. 🙏" />
+      </div>
     );
   }
 
   return (
     <div className="space-y-3">
+      {digest && <WeeklyDigestCard digest={digest} />}
       {/* 진행 표시 */}
       <div className="card p-3">
         <div className="mb-1.5 flex items-center justify-between text-xs">
@@ -247,6 +273,8 @@ function AllView({ prayers, onOpen }: { prayers: PrayerDoc[]; onOpen: (p: Prayer
           <Chip key={c} active={cat === c} onClick={() => setCat(c)}>{PRAYER_CATEGORY_LABELS[c]}</Chip>
         ))}
       </div>
+
+      <DuplicateFinder prayers={active} onOpen={onOpen} />
 
       {filtered.length === 0 ? (
         <EmptyState text="조건에 맞는 기도제목이 없습니다." />
