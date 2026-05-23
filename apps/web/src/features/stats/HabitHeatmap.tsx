@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { collection, onSnapshot, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
@@ -34,6 +35,7 @@ const LEVEL_COLORS = [
 
 export default function HabitHeatmap() {
   const uid = useAppStore((s) => s.uid);
+  const navigate = useNavigate();
   const [scoreMap, setScoreMap] = useState<Record<string, number>>({});
 
   useEffect(() => {
@@ -116,16 +118,28 @@ export default function HabitHeatmap() {
           >
             {cells.map((c, i) => {
               const lv = levelFromScore(c.score);
+              if (c.future) {
+                return (
+                  <div
+                    key={i}
+                    title={c.date}
+                    className="h-2.5 w-2.5 rounded-[2px]"
+                    style={{
+                      background: 'transparent',
+                      border: '1px dashed var(--leaf-soft)',
+                      opacity: 0.3,
+                    }}
+                  />
+                );
+              }
               return (
-                <div
+                <button
                   key={i}
-                  title={c.future ? c.date : `${c.date} · ${c.score}점`}
-                  className="h-2.5 w-2.5 rounded-[2px]"
-                  style={{
-                    background: c.future ? 'transparent' : LEVEL_COLORS[lv],
-                    border: c.future ? '1px dashed var(--leaf-soft)' : 'none',
-                    opacity: c.future ? 0.3 : 1,
-                  }}
+                  type="button"
+                  title={`${c.date} · ${c.score}점 — 탭하여 수정`}
+                  onClick={() => navigate(`/day/${c.date}`)}
+                  className="h-2.5 w-2.5 rounded-[2px] focus:outline-none focus:ring-1 focus:ring-[var(--leaf)]"
+                  style={{ background: LEVEL_COLORS[lv] }}
                 />
               );
             })}

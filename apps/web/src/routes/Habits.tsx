@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { addDoc, collection, updateDoc } from 'firebase/firestore';
 import { Pencil, Check, Plus, Settings } from 'lucide-react';
 import { toast } from 'sonner';
@@ -8,6 +8,7 @@ import { useAppStore } from '@/lib/store';
 import { useHabits, useHabitChecks, useSaveHabitCheck } from '@/features/habits/useHabits';
 import HabitCard from '@/features/habits/HabitCard';
 import HabitEditRow from '@/features/habits/HabitEditRow';
+import PastDateBanner from '@/components/PastDateBanner';
 import type { HabitDoc } from 'shared/types/firestore';
 import { timeOfDay } from '@/lib/dayBoundary';
 
@@ -48,12 +49,16 @@ function groupByTime(habits: HabitDoc[]) {
 
 export default function Habits() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const uid    = useAppStore((s) => s.uid);
-  const date   = useAppStore((s) => s.currentDate);
+  const today  = useAppStore((s) => s.currentDate);
+  const dateParam = searchParams.get('date');
+  const date   = dateParam ?? today;
+  const isPast = !!dateParam && dateParam !== today;
   const [editMode, setEditMode] = useState(false);
   const habits = useHabits({ includeInactive: editMode });
   const checks = useHabitChecks(date);
-  const save   = useSaveHabitCheck();
+  const save   = useSaveHabitCheck(isPast ? date : undefined);
 
   const groups = groupByTime(habits);
   const activeHabits   = habits.filter((h) => h.active);
@@ -87,6 +92,7 @@ export default function Habits() {
 
   return (
     <div className="min-h-screen p-4 space-y-4 pb-8">
+      {isPast && <PastDateBanner date={date} />}
       {/* 헤더 */}
       <div className="pt-2 flex items-start justify-between gap-2">
         <div>

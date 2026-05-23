@@ -43,9 +43,11 @@ export function useHabitChecks(date: string) {
   return checks;
 }
 
-export function useSaveHabitCheck() {
+export function useSaveHabitCheck(dateOverride?: string) {
   const uid  = useAppStore((s) => s.uid);
-  const date = useAppStore((s) => s.currentDate);
+  const storeDate = useAppStore((s) => s.currentDate);
+  const date = dateOverride ?? storeDate;
+  const isPastEdit = !!dateOverride && dateOverride !== storeDate;
 
   return async (habit: HabitDoc, score: number | null) => {
     if (!uid) return;
@@ -60,6 +62,18 @@ export function useSaveHabitCheck() {
       doc(db, 'users', uid, 'days', date, 'habitChecks', habit.id),
       check
     );
+
+    if (isPastEdit) {
+      // 과거 날짜 편집은 토스트만 — 콤보·셀러브레이션은 오늘 한정
+      if (score === null) {
+        toast(`${habit.title} 기록 삭제됨`);
+      } else {
+        toast(`${habit.title} 저장됨`, {
+          description: `${date} · ${achieved ? '달성' : '시도'}`,
+        });
+      }
+      return;
+    }
 
     const { bumpCombo, resetCombo, triggerCelebration } = useAppStore.getState();
 

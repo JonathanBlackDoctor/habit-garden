@@ -20,6 +20,7 @@ import Prayers    from '@/routes/Prayers';
 import Admin      from '@/routes/Admin';
 import More       from '@/routes/More';
 import Tutorial   from '@/routes/Tutorial';
+import PastDay    from '@/routes/PastDay';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000 } },
@@ -52,6 +53,7 @@ export default function App() {
                 <Route path="/devotion"  element={<Devotion />} />
                 <Route path="/more"      element={<More />} />
                 <Route path="/tutorial"  element={<Tutorial />} />
+                <Route path="/day/:date" element={<PastDay />} />
               </Route>
               <Route path="/admin" element={<Admin />} />
             </Route>
