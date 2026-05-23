@@ -3,8 +3,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import type { HabitDoc, HabitCheckDoc } from 'shared/types/firestore';
 import { Flame, SkipForward } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useSaveReflection } from '@/features/habits/useReflections';
+import { useSaveReflection, useSaveMissReason } from '@/features/habits/useReflections';
 import { useHabitHistory } from '@/features/habits/useHabitHistory';
+
+const QUICK_TAGS = ['피곤', '스트레스', '바쁨', '약속', '여행', '회복'] as const;
 
 interface Props {
   habit: HabitDoc;
@@ -23,10 +25,14 @@ export default function HabitCard({ habit, check, streak = 0, onScore }: Props) 
   const [showReflection, setShowReflection] = useState(false);
   const [mood, setMood] = useState<1 | 2 | 3 | 4 | 5 | null>(null);
   const [note, setNote] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
   const saveReflection = useSaveReflection();
+  const saveMissReason = useSaveMissReason();
   const lastCheckedRef = useRef<number | null>(null);
   const currentScore = check?.score ?? null;
   const achieved = check?.achieved ?? false;
+  // 미달성(점수 입력했지만 임계 미만) → 원인 추적 모드
+  const missed = currentScore !== null && currentScore !== undefined && !achieved;
 
   // 체크 직후 6초 동안 슬라이드업 회고 입력 노출
   useEffect(() => {
@@ -36,23 +42,36 @@ export default function HabitCard({ habit, check, streak = 0, onScore }: Props) 
       : Date.now();
     if (lastCheckedRef.current === ts) return;
     lastCheckedRef.current = ts;
-    // 이미 mood 가 저장돼 있으면 노출 안 함
-    if (check?.mood) return;
+    // 이미 mood/원인 이 저장돼 있으면 노출 안 함
+    if (check?.mood || check?.whyMissed) return;
     setShowReflection(true);
     setMood(null);
     setNote('');
+    setTags([]);
     const t = setTimeout(() => setShowReflection(false), REFLECTION_DISMISS_MS);
     return () => clearTimeout(t);
-  }, [currentScore, check?.checkedAt, check?.mood]);
+  }, [currentScore, check?.checkedAt, check?.mood, check?.whyMissed]);
 
   const submitReflection = async () => {
-    if (mood === null && !note.trim()) {
+    if (mood === null && !note.trim() && tags.length === 0) {
       setShowReflection(false);
       return;
     }
-    await saveReflection(habit.id, { mood: mood ?? 3, note: note.trim() || undefined });
+    if (missed) {
+      // 미달성 — 원인·태그 추적
+      await saveMissReason(habit.id, {
+        whyMissed: note.trim() || undefined,
+        tags: tags.length ? tags : undefined,
+        mood: mood ?? undefined,
+      });
+    } else {
+      await saveReflection(habit.id, { mood: mood ?? 3, note: note.trim() || undefined });
+    }
     setShowReflection(false);
   };
+
+  const toggleTag = (t: string) =>
+    setTags((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
 
   return (
     <div
@@ -173,7 +192,9 @@ export default function HabitCard({ habit, check, streak = 0, onScore }: Props) 
           >
             <div className="rounded-[var(--radius-sm)] bg-[var(--bg-base)] p-2.5 space-y-2">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs text-[var(--fg-muted)]">오늘 이 습관, 어땠어?</span>
+                <span className="text-xs text-[var(--fg-muted)]">
+                  {missed ? '왜 못 했을까? 다음을 위해 짧게 남겨봐' : '오늘 이 습관, 어땠어?'}
+                </span>
                 <button
                   onClick={() => setShowReflection(false)}
                   className="text-[10px] text-[var(--fg-faint)] hover:text-[var(--fg-muted)]"
@@ -203,19 +224,38 @@ export default function HabitCard({ habit, check, streak = 0, onScore }: Props) 
                   type="text"
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
-                  placeholder="한 줄 메모 (선택)"
+                  placeholder={missed ? '원인 (예: 늦잠, 약속, 피곤)' : '한 줄 메모 (선택)'}
                   className="ml-1 flex-1 rounded-[var(--radius-sm)] border border-transparent bg-white px-2 py-1 text-xs placeholder:text-[var(--fg-faint)] focus:border-[var(--leaf)] focus:outline-none"
                   onKeyDown={(e) => { if (e.key === 'Enter') submitReflection(); }}
                   maxLength={80}
                 />
                 <button
                   onClick={submitReflection}
-                  disabled={mood === null && !note.trim()}
+                  disabled={mood === null && !note.trim() && tags.length === 0}
                   className="rounded-[var(--radius-sm)] bg-[var(--leaf)] px-2 py-1 text-xs font-medium text-white disabled:opacity-30"
                 >
                   저장
                 </button>
               </div>
+              {/* 빠른 태그 칩 — 미달성 원인 분류용 */}
+              {missed && (
+                <div className="flex flex-wrap gap-1">
+                  {QUICK_TAGS.map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => toggleTag(t)}
+                      className={cn(
+                        'rounded-full px-2 py-0.5 text-[10px] transition-colors',
+                        tags.includes(t)
+                          ? 'bg-[var(--leaf)] text-white'
+                          : 'bg-white text-[var(--fg-muted)] hover:bg-[var(--leaf-soft)]',
+                      )}
+                    >
+                      #{t}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </motion.div>
         )}

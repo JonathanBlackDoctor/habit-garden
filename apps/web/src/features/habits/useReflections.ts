@@ -47,6 +47,32 @@ export function useSaveReflection() {
   };
 }
 
+/**
+ * 미달성 습관의 원인(whyMissed)과 태그를 habitCheck 문서에 저장 (Why-Tracking).
+ * mood 도 함께 머지해 카드 회고창 재오픈을 막는다.
+ */
+export function useSaveMissReason() {
+  const uid  = useAppStore((s) => s.uid);
+  const date = useAppStore((s) => s.currentDate);
+
+  return async (
+    habitId: string,
+    payload: { whyMissed?: string; tags?: string[]; mood?: 1 | 2 | 3 | 4 | 5 },
+  ) => {
+    if (!uid) return;
+    const checkRef = doc(db, 'users', uid, 'days', date, 'habitChecks', habitId);
+    await setDoc(
+      checkRef,
+      {
+        ...(payload.whyMissed ? { whyMissed: payload.whyMissed } : {}),
+        ...(payload.tags && payload.tags.length ? { tags: payload.tags } : {}),
+        ...(payload.mood ? { mood: payload.mood } : {}),
+      },
+      { merge: true },
+    );
+  };
+}
+
 /** 오늘자 회고 entries 실시간 구독. 통계/AI 코치 입력용. */
 export function useTodayReflection(date: string) {
   const uid = useAppStore((s) => s.uid);

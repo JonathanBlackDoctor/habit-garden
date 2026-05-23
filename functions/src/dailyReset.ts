@@ -85,12 +85,59 @@ async function processUserDay(uid: string, today: string, yesterday: string): Pr
       const pSnap = await progressRef.get();
       const current = pSnap.exists ? (pSnap.data()?.globalStreak ?? 0) : 0;
       if (current > 0) {
-        await progressRef.set({
-          globalStreak: 0,
-          updatedAt: FieldValue.serverTimestamp(),
-        }, { merge: true });
+        // 스트릭 보호 (휴가/아픔/그레이스) 적용 — 보호 시 리셋하지 않음
+        const protectedDay = await tryConsumeStreakProtection(uid, yesterday, pSnap.data());
+        if (!protectedDay) {
+          await progressRef.set({
+            globalStreak: 0,
+            updatedAt: FieldValue.serverTimestamp(),
+          }, { merge: true });
+        }
       }
     }
   }
   return success;
+}
+
+/**
+ * 어제(date)가 성공일이 아닐 때 스트릭을 끊지 않고 보호할 수 있는지 판단·소모.
+ *  1) vacationUntil 이 date 이상이면 보호 (소모 없음 — 휴가 기간)
+ *  2) 주간 그레이스(주 1회) 미사용이면 소모 후 보호
+ * 보호되면 true 반환 → 호출부에서 globalStreak 리셋 생략.
+ */
+async function tryConsumeStreakProtection(
+  uid: string,
+  date: string,
+  prog: FirebaseFirestore.DocumentData | undefined,
+): Promise<boolean> {
+  if (!prog) return false;
+  const progressRef = db.doc(`users/${uid}/progress/main`);
+
+  // 1) 휴가/아픔 모드 — vacationUntil 이 보호 대상일 이상
+  if (prog.vacationUntil && prog.vacationUntil >= date) {
+    return true;
+  }
+
+  // 2) 주간 그레이스 (주 1회)
+  const weekStart = getWeekStart(date);
+  const grace = prog.graceUsed;
+  const usedThisWeek = grace && grace.weekStart === weekStart ? (grace.daysUsed ?? 0) : 0;
+  if (usedThisWeek < 1) {
+    await progressRef.set({
+      graceUsed: { weekStart, daysUsed: usedThisWeek + 1 },
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    return true;
+  }
+
+  return false;
+}
+
+// 주의 시작(월요일) 'YYYY-MM-DD' 반환
+function getWeekStart(dateStr: string): string {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  const day = d.getUTCDay();             // 0=일 … 6=토
+  const diff = day === 0 ? -6 : 1 - day; // 월요일로 보정
+  d.setUTCDate(d.getUTCDate() + diff);
+  return d.toISOString().slice(0, 10);
 }

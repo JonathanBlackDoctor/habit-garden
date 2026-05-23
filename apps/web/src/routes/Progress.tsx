@@ -11,6 +11,7 @@ import HabitHeatmap from '@/features/stats/HabitHeatmap';
 import WeeklyReport from '@/features/stats/WeeklyReport';
 import SeasonCard from '@/features/seasons/SeasonCard';
 import WeeklyInsightCard from '@/features/coach/WeeklyInsightCard';
+import CorrelationCard from '@/features/insights/CorrelationCard';
 
 export default function Progress() {
   const uid      = useAppStore((s) => s.uid);
@@ -121,6 +122,9 @@ export default function Progress() {
 
       {/* AI 주간 인사이트 */}
       <WeeklyInsightCard />
+
+      {/* 무드-습관 상관 (B-16) */}
+      <CorrelationCard />
 
       {/* 시즌 챌린지 */}
       <SeasonCard />
