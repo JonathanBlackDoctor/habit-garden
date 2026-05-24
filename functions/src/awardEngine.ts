@@ -6,12 +6,14 @@
  *  3. progress 문서 갱신
  *  4. 배지 조건 확인 → 신규 배지 발급
  *
- * 포인트 정산 방식 (하루 1회 보상):
- *  - days/{date}.habitCheckAwardedIds: string[]
- *    오늘 보상이 지급된 습관 id 목록. 멱등 게이트 역할.
- *    한 습관은 하루에 한 번만 보상(포인트·콤보·정원성장)을 받는다.
- *    점수 변경(1↔5)이나 체크↔해제 반복으로 트리거가 재발생해도 중복 지급 없음.
- *  - days/{date}.habitPointsToday: 하루 누적 지급량 (하루 상한 적용)
+ * 포인트 정산 방식 (델타 기반 — 현재 점수를 반영):
+ *  - days/{date}.habitBasePointsCurrent: { [habitId]: number }
+ *    오늘 각 습관의 현재 기본 포인트. score 변경 시 (현재 - 이전) 델타만 지급/삭감.
+ *    상향 → 양수 지급, 하향·완료해제(score=null) → 음수 삭감, 동일 → 0(무시).
+ *    1↔5 반복 시에도 현재 점수 기준값으로 수렴하므로 무한 적립이 없다.
+ *    (콤보·셀러브레이션 중복은 클라이언트의 rewardedHabitIds 게이트로 막는다.)
+ *  - days/{date}.habitPointsToday: 하루 누적 순 지급량 (양수 델타에만 상한 적용)
+ *  - days/{date}.successAwarded: '성공한 날' 보너스·스트릭 1회 지급 게이트
  */
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
@@ -39,12 +41,19 @@ export const awardEngine = functions
     const { uid, date, habitId } = context.params;
 
     const after = change.after.exists ? (change.after.data() as HabitCheckDoc) : null;
-    if (!after || after.score === null) return;
+    const afterScore = after ? after.score : null;
 
     // 습관 정의 로드
     const habitSnap = await db.doc(`users/${uid}/habits/${habitId}`).get();
     if (!habitSnap.exists) return;
     const habit = habitSnap.data() as HabitDoc;
+
+    // score=null(건너뛰기) 또는 문서 삭제 → 중립 처리: 포인트 변화 없음(삭감 안 함).
+    // 점수 하향(예: 5→1)이나 이진 모드 완료해제(1→0)는 아래 델타 정산에서 삭감된다.
+    if (afterScore === null) {
+      await updateDayScore(uid, date);
+      return;
+    }
 
     // Comeback Mode 여부 사전 확인 (트랜잭션 외부에서 읽어도 무방)
     const progSnap = await db.doc(`users/${uid}/progress/main`).get();
@@ -59,28 +68,37 @@ export const awardEngine = functions
       const daySnap = await tx.get(dayRef);
       const dayData = daySnap.data() ?? {};
 
-      // 멱등 게이트: 한 습관의 보상은 하루에 한 번만 지급.
-      // 점수 변경(1↔5) 또는 체크↔해제 반복으로 트리거가 재발생해도 중복 적립·콤보 없음.
-      const awarded: string[] = dayData.habitCheckAwardedIds ?? [];
-      if (awarded.includes(habitId)) return; // 오늘 이미 지급됨
+      // 각 습관의 현재 기본 포인트를 추적해 (현재-이전) 만큼만 지급/삭감한다.
+      // 상향 → 양수 지급, 하향·완료해제 → 음수 삭감, 동일 → 0(무시).
+      // 1↔5를 반복해도 현재 점수 기준값으로 수렴하므로 무한 적립이 없다.
+      const currentMap: Record<string, number> = dayData.habitBasePointsCurrent ?? {};
+      const prevBase = currentMap[habitId] ?? 0;
+      const currBase = pointsForCheck(habit.weight, habit.scoreMode, afterScore);
 
-      const base = pointsForCheck(habit.weight, habit.scoreMode, after.score);
-      // 보상이 없는 입력(예: 이진 모드 미완료 score=0)은 잠그지 않아 이후 완료 시 1회 지급되게 한다.
-      if (base <= 0) return;
+      if (currBase === prevBase) return;
+
+      const rawDelta = currBase - prevBase; // 양수=지급, 음수=삭감
 
       // Comeback Mode ×2
-      const multiplied = inComeback ? base * 2 : base;
+      const multipliedDelta = inComeback ? rawDelta * 2 : rawDelta;
 
-      // 하루 상한 적용
+      // 양수(지급)에만 하루 상한 적용 — 삭감은 항상 그대로 반영
+      let cappedDelta: number;
       const earnedToday: number = dayData.habitPointsToday ?? 0;
-      const remaining = Math.max(0, HABIT_DAILY_CHECK_CAP - earnedToday);
-      const cappedDelta = Math.min(multiplied, remaining);
+      if (multipliedDelta > 0) {
+        const remaining = Math.max(0, HABIT_DAILY_CHECK_CAP - earnedToday);
+        cappedDelta = Math.min(multipliedDelta, remaining);
+      } else {
+        cappedDelta = multipliedDelta;
+      }
+
+      if (cappedDelta === 0) return;
 
       finalDelta = cappedDelta;
-      shouldGrow = !!after.achieved;
+      shouldGrow = !!after.achieved && rawDelta > 0;
 
       tx.set(dayRef, {
-        habitCheckAwardedIds: FieldValue.arrayUnion(habitId),
+        habitBasePointsCurrent: { ...currentMap, [habitId]: currBase },
         habitPointsToday: earnedToday + cappedDelta,
         updatedAt: FieldValue.serverTimestamp(),
       }, { merge: true });
@@ -91,14 +109,16 @@ export const awardEngine = functions
       return;
     }
 
-    const reason = inComeback
-      ? (after.achieved ? 'habit_achieved_comeback' : 'habit_partial_comeback')
-      : (after.achieved ? 'habit_achieved' : 'habit_partial');
+    const reason = finalDelta < 0
+      ? 'habit_downgrade'
+      : inComeback
+        ? (after.achieved ? 'habit_achieved_comeback' : 'habit_partial_comeback')
+        : (after.achieved ? 'habit_achieved' : 'habit_partial');
 
     await creditPoints(uid, finalDelta, reason, habitId);
     await updateDayScore(uid, date);
     await checkBadges(uid);
-    if (shouldGrow) await growRandomPlant(uid);  // 정원 자동 성장
+    if (shouldGrow) await growRandomPlant(uid);  // 정원 자동 성장 (지급 시에만)
     void POINT_EARN; // 미사용 경고 방지
   });
 
@@ -211,6 +231,19 @@ async function updateDayScore(uid: string, date: string) {
 }
 
 async function handleSuccessDay(uid: string, date: string) {
+  const dayRef = db.doc(`users/${uid}/days/${date}`);
+
+  // 멱등 게이트: '성공한 날' 보너스·스트릭은 하루에 한 번만 지급.
+  // 습관 체크↔해제·점수 변경으로 트리거가 재발생해도 daily_success 중복 적립과
+  // globalStreak 폭증이 일어나지 않게 한다.
+  const firstSuccessToday = await db.runTransaction(async (tx) => {
+    const day = (await tx.get(dayRef)).data() ?? {};
+    if (day.successAwarded) return false;
+    tx.set(dayRef, { successAwarded: true, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    return true;
+  });
+  if (!firstSuccessToday) return;
+
   const progressRef = db.doc(`users/${uid}/progress/main`);
   const snap = await progressRef.get();
   const progress = snap.exists ? (snap.data() as ProgressDoc) : null;
