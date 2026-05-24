@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import {
   collection, addDoc, onSnapshot, updateDoc, deleteDoc, doc, setDoc,
-  serverTimestamp, query, orderBy,
+  deleteField, serverTimestamp, query, orderBy,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import type { TodayTodoDoc, LongTodoDoc } from 'shared/types/firestore';
-import { Plus, ChevronLeft, Trash2, CalendarDays } from 'lucide-react';
+import { Plus, ChevronLeft, Trash2, CalendarDays, Pencil, Check, X, Undo2, Archive } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { differenceInCalendarDays } from 'date-fns';
 
@@ -38,6 +38,7 @@ export default function Planner() {
   const [longInput, setLongInput] = useState('');
   const [longPriority, setLongPriority] = useState<Priority>('mid');
   const [longDeadline, setLongDeadline] = useState('');
+  const [showArchive, setShowArchive] = useState(false);
 
   useEffect(() => {
     if (!uid) return;
@@ -95,21 +96,10 @@ export default function Planner() {
     setLongPriority('mid');
   };
 
-  const setLongProgress = async (t: LongTodoDoc, progress: number) => {
+  const patchLong = async (t: LongTodoDoc, patch: Record<string, unknown>) => {
     if (!uid) return;
     await updateDoc(doc(db, 'users', uid, 'longTodos', t.id), {
-      progress,
-      done: progress >= 100,
-      updatedAt: serverTimestamp(),
-    });
-  };
-
-  const toggleLongDone = async (t: LongTodoDoc) => {
-    if (!uid) return;
-    const done = !t.done;
-    await updateDoc(doc(db, 'users', uid, 'longTodos', t.id), {
-      done,
-      progress: done ? 100 : t.progress,
+      ...patch,
       updatedAt: serverTimestamp(),
     });
   };
@@ -119,6 +109,9 @@ export default function Planner() {
     if (!confirm('이 장기 목표를 삭제할까요?')) return;
     await deleteDoc(doc(db, 'users', uid, 'longTodos', t.id));
   };
+
+  const activeLong = longTodos.filter((t) => !t.done);
+  const archivedLong = longTodos.filter((t) => t.done);
 
   return (
     <div className="min-h-screen p-4 space-y-6">
@@ -215,60 +208,234 @@ export default function Planner() {
         </div>
 
         <div className="space-y-2">
-          {longTodos.length === 0 && (
+          {activeLong.length === 0 && (
             <p className="text-center text-sm text-[var(--fg-faint)] py-6">장기적으로 이루고 싶은 목표를 추가해보세요.</p>
           )}
-          {longTodos.map((t) => (
-            <div
+          {activeLong.map((t) => (
+            <LongTodoItem
               key={t.id}
-              className="rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3 shadow-[var(--shadow-sm)] space-y-2"
-            >
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => toggleLongDone(t)}
-                  className={`h-5 w-5 shrink-0 rounded-full border-2 flex items-center justify-center transition-colors ${t.done ? 'border-[var(--leaf)] bg-[var(--leaf)]' : 'border-[var(--border)]'}`}
-                  aria-label="완료 토글"
-                >
-                  {t.done && <span className="text-white text-xs">✓</span>}
-                </button>
-                <span className={`flex-1 text-sm ${t.done ? 'line-through text-[var(--fg-faint)]' : 'text-[var(--fg-primary)]'}`}>
-                  {t.title}
-                </span>
-                <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${PRIORITY_META[t.priority].cls}`}>
-                  {PRIORITY_META[t.priority].label}
-                </span>
-                <button
-                  onClick={() => removeLong(t)}
-                  aria-label="삭제"
-                  className="text-[var(--fg-faint)] hover:text-[var(--wither)]"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-
-              <div className="flex items-center gap-2">
-                {t.deadline && (
-                  <span className="shrink-0 rounded-full bg-[var(--border-soft)] px-2 py-0.5 text-[11px] tabular-nums text-[var(--fg-muted)]">
-                    {dDayLabel(t.deadline)}
-                  </span>
-                )}
-                <input
-                  type="range"
-                  min={0}
-                  max={100}
-                  step={5}
-                  value={t.progress}
-                  onChange={(e) => setLongProgress(t, Number(e.target.value))}
-                  className="flex-1 accent-[var(--leaf)]"
-                />
-                <span className="w-9 shrink-0 text-right text-xs tabular-nums text-[var(--fg-muted)]">
-                  {t.progress}%
-                </span>
-              </div>
-            </div>
+              todo={t}
+              archived={false}
+              onPatch={(patch) => patchLong(t, patch)}
+              onRemove={() => removeLong(t)}
+            />
           ))}
         </div>
+
+        {/* 보관함 */}
+        {archivedLong.length > 0 && (
+          <div className="space-y-2 pt-1">
+            <button
+              onClick={() => setShowArchive((v) => !v)}
+              className="flex w-full items-center gap-2 text-xs font-medium text-[var(--fg-muted)]"
+            >
+              <Archive size={14} />
+              보관함 ({archivedLong.length})
+              <span className="ml-auto">{showArchive ? '숨기기' : '보기'}</span>
+            </button>
+            {showArchive && archivedLong.map((t) => (
+              <LongTodoItem
+                key={t.id}
+                todo={t}
+                archived
+                onPatch={(patch) => patchLong(t, patch)}
+                onRemove={() => removeLong(t)}
+              />
+            ))}
+          </div>
+        )}
       </section>
+    </div>
+  );
+}
+
+function LongTodoItem({
+  todo, archived, onPatch, onRemove,
+}: {
+  todo: LongTodoDoc;
+  archived: boolean;
+  onPatch: (patch: Record<string, unknown>) => void;
+  onRemove: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [eTitle, setETitle] = useState(todo.title);
+  const [ePriority, setEPriority] = useState<Priority>(todo.priority);
+  const [eDeadline, setEDeadline] = useState(todo.deadline ?? '');
+  const [draft, setDraft] = useState(todo.progress);
+  const [confirmDone, setConfirmDone] = useState(false);
+
+  // 외부(다른 기기) 변경 시 진행도 슬라이더 동기화 — 편집 중이 아닐 때만
+  useEffect(() => { setDraft(todo.progress); }, [todo.progress]);
+
+  const startEdit = () => {
+    setETitle(todo.title);
+    setEPriority(todo.priority);
+    setEDeadline(todo.deadline ?? '');
+    setEditing(true);
+  };
+
+  const saveEdit = () => {
+    if (!eTitle.trim()) return;
+    onPatch({
+      title: eTitle.trim(),
+      priority: ePriority,
+      deadline: eDeadline ? eDeadline : deleteField(),
+    });
+    setEditing(false);
+  };
+
+  const progressDirty = draft !== todo.progress;
+
+  // ── 편집 모드 ──
+  if (editing) {
+    return (
+      <div className="space-y-2 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3 shadow-[var(--shadow-sm)]">
+        <input
+          value={eTitle}
+          onChange={(e) => setETitle(e.target.value)}
+          className="w-full rounded-[var(--radius)] border border-[var(--border)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--leaf)]"
+        />
+        <div className="flex items-center gap-2">
+          <div className="flex gap-1">
+            {(Object.keys(PRIORITY_META) as Priority[]).map((p) => (
+              <button
+                key={p}
+                onClick={() => setEPriority(p)}
+                className={`rounded-full px-2.5 py-1 text-xs font-medium transition-opacity ${PRIORITY_META[p].cls} ${ePriority === p ? 'ring-2 ring-[var(--fg-muted)]/30' : 'opacity-50'}`}
+              >
+                {PRIORITY_META[p].label}
+              </button>
+            ))}
+          </div>
+          <label className="ml-auto flex items-center gap-1 text-xs text-[var(--fg-muted)]">
+            <CalendarDays size={14} />
+            <input
+              type="date"
+              value={eDeadline}
+              onChange={(e) => setEDeadline(e.target.value)}
+              className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-2 py-1 text-xs outline-none focus:border-[var(--leaf)]"
+            />
+          </label>
+        </div>
+        <div className="flex justify-end gap-2">
+          <button
+            onClick={() => setEditing(false)}
+            className="rounded-[var(--radius)] border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--fg-muted)]"
+          >
+            취소
+          </button>
+          <button
+            onClick={saveEdit}
+            className="rounded-[var(--radius)] bg-[var(--leaf)] px-3 py-1.5 text-xs text-white"
+          >
+            저장
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── 보관함(완료) 항목 ──
+  if (archived) {
+    return (
+      <div className="flex items-center gap-2 rounded-[var(--radius)] bg-[var(--bg-base)] px-4 py-3">
+        <Check size={16} className="shrink-0 text-[var(--leaf)]" />
+        <span className="flex-1 text-sm line-through text-[var(--fg-faint)]">{todo.title}</span>
+        <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${PRIORITY_META[todo.priority].cls}`}>
+          {PRIORITY_META[todo.priority].label}
+        </span>
+        <button
+          onClick={() => onPatch({ done: false })}
+          aria-label="복원"
+          className="flex items-center gap-1 text-xs text-[var(--fg-muted)] hover:text-[var(--leaf)]"
+        >
+          <Undo2 size={15} /> 복원
+        </button>
+        <button
+          onClick={onRemove}
+          aria-label="삭제"
+          className="text-[var(--fg-faint)] hover:text-[var(--wither)]"
+        >
+          <Trash2 size={16} />
+        </button>
+      </div>
+    );
+  }
+
+  // ── 진행 중 항목 ──
+  return (
+    <div className="rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3 shadow-[var(--shadow-sm)] space-y-2">
+      <div className="flex items-center gap-2">
+        {confirmDone ? (
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => { onPatch({ done: true, progress: 100 }); setConfirmDone(false); }}
+              className="flex items-center gap-1 rounded-full bg-[var(--leaf)] px-2.5 py-1 text-xs text-white"
+            >
+              <Check size={13} /> 완료
+            </button>
+            <button
+              onClick={() => setConfirmDone(false)}
+              aria-label="취소"
+              className="rounded-full border border-[var(--border)] p-1 text-[var(--fg-muted)]"
+            >
+              <X size={13} />
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setConfirmDone(true)}
+            aria-label="완료"
+            className="h-5 w-5 shrink-0 rounded-full border-2 border-[var(--border)] transition-colors hover:border-[var(--leaf)]"
+          />
+        )}
+        <span className="flex-1 text-sm text-[var(--fg-primary)]">{todo.title}</span>
+        <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${PRIORITY_META[todo.priority].cls}`}>
+          {PRIORITY_META[todo.priority].label}
+        </span>
+        <button
+          onClick={startEdit}
+          aria-label="수정"
+          className="text-[var(--fg-faint)] hover:text-[var(--fg-muted)]"
+        >
+          <Pencil size={15} />
+        </button>
+        <button
+          onClick={onRemove}
+          aria-label="삭제"
+          className="text-[var(--fg-faint)] hover:text-[var(--wither)]"
+        >
+          <Trash2 size={16} />
+        </button>
+      </div>
+
+      <div className="flex items-center gap-2">
+        {todo.deadline && (
+          <span className="shrink-0 rounded-full bg-[var(--border-soft)] px-2 py-0.5 text-[11px] tabular-nums text-[var(--fg-muted)]">
+            {dDayLabel(todo.deadline)}
+          </span>
+        )}
+        <input
+          type="range"
+          min={0}
+          max={100}
+          step={5}
+          value={draft}
+          onChange={(e) => setDraft(Number(e.target.value))}
+          className="flex-1 accent-[var(--leaf)]"
+        />
+        <span className="w-9 shrink-0 text-right text-xs tabular-nums text-[var(--fg-muted)]">
+          {draft}%
+        </span>
+        {progressDirty && (
+          <button
+            onClick={() => onPatch({ progress: draft })}
+            className="shrink-0 rounded-[var(--radius)] bg-[var(--leaf)] px-2.5 py-1 text-xs text-white"
+          >
+            적용
+          </button>
+        )}
+      </div>
     </div>
   );
 }
