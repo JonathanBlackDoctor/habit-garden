@@ -84,17 +84,21 @@ export function useSaveHabitCheck(dateOverride?: string) {
 
     const { bumpCombo, triggerCelebration, tryRewardHabit } = useAppStore.getState();
 
-    if (score === null) {
-      // 의도적 건너뛰기 — 중립 처리: 콤보 유지, 포인트·스트릭 영향 없음
-      feedback('check');
-      toast('건너뜀', { description: habit.title });
-      return;
-    }
-
     // 서버 정산과 동일한 델타: 현재 점수 포인트 − 이전 점수 포인트
-    const basePts = pointsForCheck(habit.weight, habit.scoreMode, score);
+    const basePts = score === null ? 0 : pointsForCheck(habit.weight, habit.scoreMode, score);
     const prevBasePts = prevScore === null ? 0 : pointsForCheck(habit.weight, habit.scoreMode, prevScore);
     const delta = basePts - prevBasePts;
+
+    if (score === null) {
+      // 건너뛰기 — 콤보는 유지(중립). 단, 이미 적립된 점수가 있으면 그만큼 삭감.
+      feedback('check');
+      if (delta < 0) {
+        toast(`✦ ${delta}P`, { description: `${habit.title} · 건너뛰기 (기록 취소)` });
+      } else {
+        toast('건너뜀', { description: habit.title });
+      }
+      return;
+    }
 
     // 포인트 감소 — 점수 하향 또는 완료 해제(이진 모드 미완료)
     if (delta < 0) {

@@ -41,19 +41,15 @@ export const awardEngine = functions
     const { uid, date, habitId } = context.params;
 
     const after = change.after.exists ? (change.after.data() as HabitCheckDoc) : null;
+    // score=null(건너뛰기) 또는 문서 삭제 → 현재 기본 포인트 0으로 정산.
+    // 적립된 점수가 있으면 그만큼 삭감되고, 없으면 델타 0이라 중립이다.
+    const afterScore: number | null = after ? after.score : null;
+    const achievedAfter = !!after?.achieved;
 
     // 습관 정의 로드
     const habitSnap = await db.doc(`users/${uid}/habits/${habitId}`).get();
     if (!habitSnap.exists) return;
     const habit = habitSnap.data() as HabitDoc;
-
-    // score=null(건너뛰기) 또는 문서 삭제 → 중립 처리: 포인트 변화 없음(삭감 안 함).
-    // 점수 하향(예: 5→1)이나 이진 모드 완료해제(1→0)는 아래 델타 정산에서 삭감된다.
-    if (!after || after.score === null) {
-      await updateDayScore(uid, date);
-      return;
-    }
-    const afterScore = after.score; // 이 시점부터 non-null
 
     // Comeback Mode 여부 사전 확인 (트랜잭션 외부에서 읽어도 무방)
     const progSnap = await db.doc(`users/${uid}/progress/main`).get();
@@ -69,11 +65,13 @@ export const awardEngine = functions
       const dayData = daySnap.data() ?? {};
 
       // 각 습관의 현재 기본 포인트를 추적해 (현재-이전) 만큼만 지급/삭감한다.
-      // 상향 → 양수 지급, 하향·완료해제 → 음수 삭감, 동일 → 0(무시).
+      // 상향 → 양수 지급, 하향·완료해제·건너뛰기 → 음수 삭감, 동일 → 0(무시).
       // 1↔5를 반복해도 현재 점수 기준값으로 수렴하므로 무한 적립이 없다.
       const currentMap: Record<string, number> = dayData.habitBasePointsCurrent ?? {};
       const prevBase = currentMap[habitId] ?? 0;
-      const currBase = pointsForCheck(habit.weight, habit.scoreMode, afterScore);
+      const currBase = afterScore === null
+        ? 0
+        : pointsForCheck(habit.weight, habit.scoreMode, afterScore);
 
       if (currBase === prevBase) return;
 
@@ -95,7 +93,7 @@ export const awardEngine = functions
       if (cappedDelta === 0) return;
 
       finalDelta = cappedDelta;
-      shouldGrow = !!after.achieved && rawDelta > 0;
+      shouldGrow = achievedAfter && rawDelta > 0;
 
       tx.set(dayRef, {
         habitBasePointsCurrent: { ...currentMap, [habitId]: currBase },
@@ -112,8 +110,8 @@ export const awardEngine = functions
     const reason = finalDelta < 0
       ? 'habit_downgrade'
       : inComeback
-        ? (after.achieved ? 'habit_achieved_comeback' : 'habit_partial_comeback')
-        : (after.achieved ? 'habit_achieved' : 'habit_partial');
+        ? (achievedAfter ? 'habit_achieved_comeback' : 'habit_partial_comeback')
+        : (achievedAfter ? 'habit_achieved' : 'habit_partial');
 
     await creditPoints(uid, finalDelta, reason, habitId);
     await updateDayScore(uid, date);
