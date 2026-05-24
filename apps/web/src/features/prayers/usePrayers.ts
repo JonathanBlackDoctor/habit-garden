@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   collection, onSnapshot, query, orderBy, doc, getDoc, setDoc, updateDoc, deleteDoc,
-  serverTimestamp, limit, Timestamp,
+  serverTimestamp, limit, Timestamp, writeBatch,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
@@ -254,14 +254,40 @@ export function usePrayerActions() {
     await deleteDoc(doc(db, 'users', uid, 'prayers', p.id));
   };
 
-  /** AI 검토 후 일괄 저장 */
+  /** 여러 기도제목 일괄 삭제 */
+  const removePrayers = async (ids: string[]) => {
+    if (!uid || ids.length === 0) return;
+    const batch = writeBatch(db);
+    for (const id of ids) {
+      batch.delete(doc(db, 'users', uid, 'prayers', id));
+    }
+    await batch.commit();
+    toast(`🗑️ ${ids.length}개를 삭제했어요`);
+  };
+
+  /** 여러 기도제목 일괄 부분 수정 (모임/우선순위/고정 등) */
+  const updatePrayers = async (ids: string[], patch: Partial<PrayerDoc>) => {
+    if (!uid || ids.length === 0) return;
+    const batch = writeBatch(db);
+    for (const id of ids) {
+      batch.update(doc(db, 'users', uid, 'prayers', id), {
+        ...patch, updatedAt: serverTimestamp(),
+      } as any);
+    }
+    await batch.commit();
+    toast(`✏️ ${ids.length}개를 수정했어요`);
+  };
+
+  /** AI 검토 후 일괄 저장 — 같은 batchId로 묶어 원자적 저장 */
   const bulkSave = async (items: QuickAddInput[]): Promise<number> => {
-    if (!uid) return 0;
+    if (!uid || items.length === 0) return 0;
+    const batch = writeBatch(db);
+    const batchId = doc(collection(db, 'users', uid, 'prayers')).id;
+    const now = serverTimestamp();
     let saved = 0;
     for (const item of items) {
       const ref = doc(collection(db, 'users', uid, 'prayers'));
-      const now = serverTimestamp();
-      await setDoc(ref, {
+      batch.set(ref, {
         id: ref.id,
         group: (item.group ?? '개인').trim() || '개인',
         receivedAt: now,
@@ -273,11 +299,13 @@ export function usePrayerActions() {
         prayCount: 0,
         streak: 0,
         source: 'bulk_ai',
+        batchId,
         createdAt: now,
         updatedAt: now,
       } as any);
       saved++;
     }
+    await batch.commit();
     return saved;
   };
 
@@ -324,7 +352,7 @@ export function usePrayerActions() {
 
   return {
     quickAdd, addPrayerGroup, updatePrayer, togglePin, checkPrayer, uncheckPrayer,
-    markAnswered, awaken, removePrayer, bulkSave, mergePrayers,
+    markAnswered, awaken, removePrayer, removePrayers, updatePrayers, bulkSave, mergePrayers,
   };
 }
 

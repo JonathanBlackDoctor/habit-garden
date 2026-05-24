@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Timestamp } from 'firebase/firestore';
 import type { PrayerDoc, PrayerPriority } from 'shared/types/firestore';
 import { PRAYER_PRIORITY_LABELS } from 'shared/types/firestore';
 import { PRAYER_ROTATION_DEFAULTS } from 'shared/types/firestore';
 import { usePrayerActions, usePrayerGroups } from './usePrayers';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Check, Pin, Sparkles, Moon, Trash2, Flame, Pencil } from 'lucide-react';
+import { Check, Pin, Sparkles, Moon, Trash2, Flame, Pencil, Layers, Link2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const GROUP_COLORS = [
@@ -92,15 +92,28 @@ export function PrayerCheckCard({
 }
 
 // ── 목록(전체/응답/잠든)용 카드 ─────────────────────────────
-export function PrayerListCard({ prayer, onOpen }: { prayer: PrayerDoc; onOpen: () => void }) {
-  return (
-    <button onClick={onOpen} className="card w-full p-3 text-left">
+export function PrayerListCard({
+  prayer, onOpen, selectMode = false, selected = false, onToggleSelect,
+}: {
+  prayer: PrayerDoc;
+  onOpen: () => void;
+  selectMode?: boolean;
+  selected?: boolean;
+  onToggleSelect?: () => void;
+}) {
+  const inner = (
+    <>
       <div className="flex items-center gap-1.5">
         {prayer.pinned && <Pin size={11} className="shrink-0 text-[var(--bloom)]" />}
         <p className="truncate text-sm text-[var(--fg-primary)]">{prayer.title}</p>
       </div>
       <div className="mt-1 flex flex-wrap items-center gap-1.5">
         <GroupBadge group={prayer.group} />
+        {prayer.batchId && (
+          <span className="flex items-center gap-0.5 rounded-full bg-[var(--bg-base)] px-1.5 py-0.5 text-[10px] text-[var(--fg-muted)]">
+            <Layers size={9} /> 무더기
+          </span>
+        )}
         <span className="text-[10px] text-[var(--fg-faint)]">
           {PRAYER_PRIORITY_LABELS[prayer.priority]} · {prayer.prayCount}회 기도
           {tsToLabel(prayer.receivedAt) && ` · ${tsToLabel(prayer.receivedAt)} 받음`}
@@ -111,7 +124,222 @@ export function PrayerListCard({ prayer, onOpen }: { prayer: PrayerDoc; onOpen: 
           ✨ {prayer.answerNote}
         </p>
       )}
+    </>
+  );
+
+  if (selectMode) {
+    return (
+      <button
+        onClick={onToggleSelect}
+        className={cn(
+          'card flex w-full items-start gap-3 p-3 text-left transition-colors',
+          selected && 'ring-2 ring-[var(--leaf)]'
+        )}
+      >
+        <span
+          className={cn(
+            'mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors',
+            selected ? 'border-[var(--leaf)] bg-[var(--leaf)] text-white' : 'border-[var(--border)] bg-white text-transparent'
+          )}
+        >
+          <Check size={13} strokeWidth={3} />
+        </span>
+        <span className="min-w-0 flex-1">{inner}</span>
+      </button>
+    );
+  }
+
+  return (
+    <button onClick={onOpen} className="card w-full p-3 text-left">
+      {inner}
     </button>
+  );
+}
+
+// ── 다중 선택 상태 훅 ──────────────────────────────────────
+export function usePrayerSelection() {
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const toggle = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const selectAll = useCallback((ids: string[]) => {
+    setSelectedIds(new Set(ids));
+  }, []);
+
+  const clear = useCallback(() => setSelectedIds(new Set()), []);
+
+  const isSelected = useCallback((id: string) => selectedIds.has(id), [selectedIds]);
+
+  const exit = useCallback(() => { setSelectMode(false); setSelectedIds(new Set()); }, []);
+
+  return { selectMode, setSelectMode, selectedIds, toggle, selectAll, clear, isSelected, exit };
+}
+
+// ── 일괄 작업 하단 바 ──────────────────────────────────────
+export function BulkActionBar({
+  ids, onDone,
+}: {
+  ids: string[];
+  onDone: () => void;          // 작업 완료/취소 시 선택 모드 종료
+}) {
+  const { removePrayers, mergePrayers } = usePrayerActions();
+  const [editOpen, setEditOpen] = useState(false);
+  const count = ids.length;
+
+  const handleDelete = async () => {
+    if (count === 0) return;
+    if (!confirm(`${count}개의 기도제목을 영구 삭제할까요?`)) return;
+    await removePrayers(ids);
+    onDone();
+  };
+
+  const handleMerge = async () => {
+    if (count < 2) return;
+    if (!confirm(`${count}개를 하나의 기도제목으로 합칠까요?`)) return;
+    await mergePrayers(ids);
+    onDone();
+  };
+
+  return (
+    <>
+      <div className="sticky bottom-0 z-10 -mx-4 flex items-center gap-2 border-t border-[var(--border)] bg-[var(--bg-surface)] px-4 py-2.5">
+        <span className="text-xs font-medium text-[var(--fg-primary)]">{count}개 선택</span>
+        <div className="ml-auto flex items-center gap-1.5">
+          <button
+            onClick={() => setEditOpen(true)}
+            disabled={count === 0}
+            className="flex items-center gap-1 rounded-[var(--radius)] bg-[var(--bg-base)] px-2.5 py-1.5 text-xs text-[var(--fg-muted)] disabled:opacity-40"
+          >
+            <Pencil size={13} /> 수정
+          </button>
+          <button
+            onClick={handleMerge}
+            disabled={count < 2}
+            className="flex items-center gap-1 rounded-[var(--radius)] bg-[var(--bg-base)] px-2.5 py-1.5 text-xs text-[var(--fg-muted)] disabled:opacity-40"
+          >
+            <Link2 size={13} /> 합치기
+          </button>
+          <button
+            onClick={handleDelete}
+            disabled={count === 0}
+            className="flex items-center gap-1 rounded-[var(--radius)] px-2.5 py-1.5 text-xs text-red-500 disabled:opacity-40"
+          >
+            <Trash2 size={13} /> 삭제
+          </button>
+          <button
+            onClick={onDone}
+            className="flex items-center gap-1 rounded-[var(--radius)] px-2 py-1.5 text-xs text-[var(--fg-muted)]"
+            aria-label="선택 취소"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      </div>
+      <BulkEditDialog ids={ids} open={editOpen} onOpenChange={setEditOpen} onDone={onDone} />
+    </>
+  );
+}
+
+// ── 일괄 수정 다이얼로그 ────────────────────────────────────
+type PinChoice = 'none' | 'pin' | 'unpin';
+
+function BulkEditDialog({
+  ids, open, onOpenChange, onDone,
+}: {
+  ids: string[];
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  onDone: () => void;
+}) {
+  const { updatePrayers } = usePrayerActions();
+  const groups = usePrayerGroups();
+  const [group, setGroup] = useState<string>('');
+  const [priority, setPriority] = useState<PrayerPriority | ''>('');
+  const [pin, setPin] = useState<PinChoice>('none');
+  const [saving, setSaving] = useState(false);
+
+  const reset = () => { setGroup(''); setPriority(''); setPin('none'); setSaving(false); };
+  const close = () => { reset(); onOpenChange(false); };
+
+  const apply = async () => {
+    const patch: Partial<PrayerDoc> = {};
+    if (group) patch.group = group;
+    if (priority) patch.priority = priority;
+    if (pin !== 'none') patch.pinned = pin === 'pin';
+    if (Object.keys(patch).length === 0) { close(); return; }
+    setSaving(true);
+    try {
+      await updatePrayers(ids, patch);
+      close();
+      onDone();
+    } catch {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) close(); else onOpenChange(v); }}>
+      <DialogContent className="max-w-[420px] space-y-3" onOpenAutoFocus={(e) => e.preventDefault()}>
+        <DialogHeader>
+          <DialogTitle className="pr-6">{ids.length}개 함께 수정</DialogTitle>
+        </DialogHeader>
+        <p className="text-xs text-[var(--fg-faint)]">변경할 항목만 선택하세요. 비워두면 그대로 유지됩니다.</p>
+
+        <label className="block space-y-1">
+          <span className="text-xs text-[var(--fg-muted)]">받은 모임</span>
+          <select
+            className={cn(SELECT_CLS, 'w-full')}
+            value={group}
+            onChange={(e) => setGroup(e.target.value)}
+          >
+            <option value="">변경 없음</option>
+            {groups.map((g) => <option key={g} value={g}>{g}</option>)}
+          </select>
+        </label>
+
+        <label className="block space-y-1">
+          <span className="text-xs text-[var(--fg-muted)]">우선순위</span>
+          <select
+            className={cn(SELECT_CLS, 'w-full')}
+            value={priority}
+            onChange={(e) => setPriority(e.target.value as PrayerPriority | '')}
+          >
+            <option value="">변경 없음</option>
+            {(['high','mid','low'] as PrayerPriority[]).map((p) => (
+              <option key={p} value={p}>{PRAYER_PRIORITY_LABELS[p]}</option>
+            ))}
+          </select>
+        </label>
+
+        <label className="block space-y-1">
+          <span className="text-xs text-[var(--fg-muted)]">고정</span>
+          <select
+            className={cn(SELECT_CLS, 'w-full')}
+            value={pin}
+            onChange={(e) => setPin(e.target.value as PinChoice)}
+          >
+            <option value="none">변경 없음</option>
+            <option value="pin">고정으로 설정</option>
+            <option value="unpin">고정 해제</option>
+          </select>
+        </label>
+
+        <button
+          onClick={apply}
+          disabled={saving}
+          className="w-full rounded-[var(--radius)] bg-[var(--leaf)] py-2 text-sm font-medium text-white disabled:opacity-50"
+        >
+          적용
+        </button>
+      </DialogContent>
+    </Dialog>
   );
 }
 
