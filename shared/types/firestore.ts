@@ -64,6 +64,7 @@ export interface MorningBrief {
 export interface PrayerPlan {
   pinnedIds: string[];            // 고정 — 항상 노출
   rotationIds: string[];          // 오늘 추천된 로테이션 목록 (상한 N개)
+  extraIds?: string[];            // 사용자가 '더 받기'로 추가한 오늘 한정 목록
   generatedAt: Timestamp;
 }
 

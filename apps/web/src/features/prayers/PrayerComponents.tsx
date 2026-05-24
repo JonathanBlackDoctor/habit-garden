@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Timestamp } from 'firebase/firestore';
 import type { PrayerDoc, PrayerPriority } from 'shared/types/firestore';
 import { PRAYER_PRIORITY_LABELS } from 'shared/types/firestore';
@@ -58,11 +58,11 @@ export function PrayerCheckCard({
   onOpen: () => void;
 }) {
   return (
-    <div className="card flex items-center gap-3 p-3">
+    <div className="card flex items-start gap-3 p-3">
       <button
         onClick={() => (checked ? onUncheck() : onCheck())}
         className={cn(
-          'flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition-colors',
+          'mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition-colors',
           checked
             ? 'border-[var(--leaf)] bg-[var(--leaf)] text-white'
             : 'border-[var(--border)] bg-white text-transparent'
@@ -89,6 +89,14 @@ export function PrayerCheckCard({
             </span>
           )}
         </div>
+        {prayer.body && (
+          <p className={cn(
+            'mt-1.5 whitespace-pre-line text-xs leading-relaxed',
+            checked ? 'text-[var(--fg-faint)]' : 'text-[var(--fg-muted)]'
+          )}>
+            {prayer.body}
+          </p>
+        )}
       </button>
     </div>
   );
@@ -410,6 +418,116 @@ export function TargetSelect({
       {options.map((t) => <option key={t} value={t}>{t}</option>)}
       <option value="__new__">+ 새 대상 추가…</option>
     </select>
+  );
+}
+
+// ── 상세 추가 다이얼로그 (제목·상세·모임·대상·우선순위) ──────
+export function AddPrayerDialog({
+  open, onOpenChange, initialTitle = '',
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  initialTitle?: string;
+}) {
+  const groups = usePrayerGroups();
+  const targets = usePrayerTargets();
+  const { quickAdd } = usePrayerActions();
+  const [title, setTitle] = useState('');
+  const [body, setBody] = useState('');
+  const [group, setGroup] = useState(groups[0] ?? '개인');
+  const [target, setTarget] = useState(targets[0] ?? '나 자신');
+  const [priority, setPriority] = useState<PrayerPriority>('mid');
+  const [pinned, setPinned] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setTitle(initialTitle);
+    setBody('');
+    setGroup(groups[0] ?? '개인');
+    setTarget(targets[0] ?? '나 자신');
+    setPriority('mid');
+    setPinned(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  const save = async () => {
+    if (!title.trim() || saving) return;
+    setSaving(true);
+    await quickAdd({ title, body: body || undefined, group, target, priority, pinned });
+    setSaving(false);
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-[420px] space-y-3" onOpenAutoFocus={(e) => e.preventDefault()}>
+        <DialogHeader>
+          <DialogTitle>기도제목 추가</DialogTitle>
+        </DialogHeader>
+
+        <label className="block space-y-1">
+          <span className="text-xs text-[var(--fg-muted)]">제목</span>
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="기도제목"
+            className="w-full rounded-[var(--radius)] border border-[var(--border)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--sky)]"
+          />
+        </label>
+
+        <textarea
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          placeholder="상세 내용 / 원문… (선택)"
+          rows={3}
+          className="w-full resize-none rounded-[var(--radius)] border border-[var(--border)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--sky)]"
+        />
+
+        <div className="grid grid-cols-2 gap-2">
+          <label className="space-y-1">
+            <span className="text-xs text-[var(--fg-muted)]">받은 모임</span>
+            <GroupSelect className="w-full" value={group} onChange={setGroup} />
+          </label>
+          <label className="space-y-1">
+            <span className="text-xs text-[var(--fg-muted)]">기도 대상</span>
+            <TargetSelect className="w-full" value={target} onChange={setTarget} />
+          </label>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <label className="space-y-1">
+            <span className="text-xs text-[var(--fg-muted)]">우선순위</span>
+            <select
+              className={cn(SELECT_CLS, 'w-full')}
+              value={priority}
+              onChange={(e) => setPriority(e.target.value as PrayerPriority)}
+            >
+              {(['high','mid','low'] as PrayerPriority[]).map((p) => (
+                <option key={p} value={p}>{PRAYER_PRIORITY_LABELS[p]}</option>
+              ))}
+            </select>
+          </label>
+          <label className="flex items-end gap-2 pb-1.5">
+            <input
+              type="checkbox"
+              checked={pinned}
+              onChange={(e) => setPinned(e.target.checked)}
+              className="h-4 w-4 accent-[var(--bloom)]"
+            />
+            <span className="text-xs text-[var(--fg-muted)]">매일 고정</span>
+          </label>
+        </div>
+
+        <button
+          onClick={save}
+          disabled={saving || !title.trim()}
+          className="w-full rounded-[var(--radius)] bg-[var(--leaf)] py-2 text-sm font-medium text-white disabled:opacity-50"
+        >
+          추가
+        </button>
+      </DialogContent>
+    </Dialog>
   );
 }
 
