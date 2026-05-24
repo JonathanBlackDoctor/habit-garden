@@ -193,36 +193,34 @@ function TodayView({
 
   const hasMore = active.some((p) => !p.pinned && !planIds.has(p.id) && !extraIds.includes(p.id));
 
-  if (total === 0) {
-    return (
-      <div className="space-y-3">
-        {digest && <WeeklyDigestCard digest={digest} />}
-        <EmptyState text="오늘 기도할 목록이 비어 있어요. 위에서 기도제목을 추가해보세요. 🙏" />
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-3">
       {digest && <WeeklyDigestCard digest={digest} />}
-      {/* 진행 표시 */}
-      <div className="card p-3">
-        <div className="mb-1.5 flex items-center justify-between text-xs">
-          <span className="font-medium text-[var(--fg-primary)]">오늘 {done} / {total} 기도</span>
-          <span className="tabular-nums text-[var(--fg-muted)]">{pct}%</span>
+
+      {/* 진행 표시 (목록이 있을 때만) */}
+      {total > 0 ? (
+        <div className="card p-3">
+          <div className="mb-1.5 flex items-center justify-between text-xs">
+            <span className="font-medium text-[var(--fg-primary)]">오늘 {done} / {total} 기도</span>
+            <span className="tabular-nums text-[var(--fg-muted)]">{pct}%</span>
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-[var(--bg-base)]">
+            <motion.div
+              className="h-full rounded-full bg-[var(--leaf)]"
+              initial={{ width: 0 }}
+              animate={{ width: `${pct}%` }}
+              transition={{ duration: 0.4 }}
+            />
+          </div>
+          {done === total && (
+            <p className="mt-2 text-center text-xs text-[var(--leaf)]">오늘의 기도 완료 — 수고했어요! (+15P)</p>
+          )}
         </div>
-        <div className="h-2 overflow-hidden rounded-full bg-[var(--bg-base)]">
-          <motion.div
-            className="h-full rounded-full bg-[var(--leaf)]"
-            initial={{ width: 0 }}
-            animate={{ width: `${pct}%` }}
-            transition={{ duration: 0.4 }}
-          />
-        </div>
-        {done === total && (
-          <p className="mt-2 text-center text-xs text-[var(--leaf)]">오늘의 기도 완료 — 수고했어요! (+15P)</p>
-        )}
-      </div>
+      ) : (
+        <p className="px-1 py-6 text-center text-sm text-[var(--fg-faint)]">
+          오늘 자동 추천 목록이 비어 있어요.{hasMore ? ' 아래에서 더 받아보세요 🙏' : ' 위에서 기도제목을 추가해보세요 🙏'}
+        </p>
+      )}
 
       {pinned.length > 0 && (
         <section className="space-y-2">
