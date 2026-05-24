@@ -9,6 +9,7 @@ import PlantSVG from '@/features/garden/PlantSVG';
 import TodayGrowth from '@/features/garden/TodayGrowth';
 import { formatKoreanDate, timeOfDay } from '@/lib/dayBoundary';
 import type { DayDoc, TodayTodoDoc } from 'shared/types/firestore';
+import { PLANT_SPECIES } from 'shared/types/firestore';
 import { motion } from 'framer-motion';
 import { Flame, ArrowRight, CheckCircle2, RefreshCw, Sparkles, X, Sunrise } from 'lucide-react';
 import { useComeback } from '@/features/comeback/useComeback';
@@ -261,14 +262,31 @@ export default function Main() {
           </button>
         </div>
         <div
-          className="relative flex-1 flex items-end justify-center gap-2 rounded-[var(--radius)] bg-gradient-to-b from-[#F0F8E6] via-[#DCEBC8] to-[var(--leaf-soft)] py-4 min-h-[140px] overflow-hidden"
+          className="relative flex-1 flex items-end justify-center gap-2 rounded-[var(--radius)] bg-gradient-to-b from-[var(--garden-sky-top)] via-[var(--garden-sky-bottom)] to-[var(--leaf-soft)] py-4 min-h-[140px] overflow-hidden"
         >
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-[#C9DDB0]/60 to-transparent" />
+          {/* 햇살 */}
+          <div
+            className="pointer-events-none absolute -top-6 right-1 z-0 h-20 w-20 rounded-full"
+            style={{ background: 'radial-gradient(circle, var(--garden-sun) 0%, transparent 70%)', opacity: 0.65 }}
+          />
+          {/* 흙 띠 */}
+          <div
+            className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-9 rounded-b-[var(--radius)]"
+            style={{ background: 'linear-gradient(to top, var(--garden-soil-bottom) 0%, var(--garden-soil-top) 55%, transparent 100%)', opacity: 0.45 }}
+          />
           {plants.length === 0 ? (
-            <p className="self-center text-sm text-[var(--fg-faint)]">씨앗을 심어보세요 🌱</p>
+            <p className="relative z-10 self-center text-sm text-[var(--fg-faint)]">씨앗을 심어보세요 🌱</p>
           ) : (
             plants.slice(0, 4).map((p) => (
-              <PlantSVG key={p.id} speciesId={p.speciesId} stage={p.stage} withered={!!p.witheredSince} size={72} />
+              <PlantSVG
+                key={p.id}
+                speciesId={p.speciesId}
+                stage={p.stage}
+                withered={!!p.witheredSince}
+                rarity={PLANT_SPECIES.find((sp) => sp.id === p.speciesId)?.rarity}
+                size={72}
+                className="relative z-10"
+              />
             ))
           )}
         </div>

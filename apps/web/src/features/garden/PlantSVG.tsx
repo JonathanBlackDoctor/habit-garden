@@ -1,19 +1,15 @@
 /**
- * PlantSVG — 종 × stage별 벡터 식물 렌더러
+ * PlantSVG — 종 × stage별 벡터 식물 렌더러 (부드러운 일러스트풍)
  * stage 0: 씨앗, stage 1: 새싹, stage 2: 성장, stage 3: 개화, stage 4+: 만개, stage 5+: 최고
  *
- * 종별 비주얼 분기:
- *  - sprout/herb/sunflower/maple/lotus (기본 5종): 기존 곡선·꽃 차이만
- *  - clover: 4-잎 클로버 (개화 단계)
- *  - rose: 다중 꽃잎 원
- *  - cactus: 굵은 줄기 + 가시
- *  - orchid: 보라색 우아한 꽃잎
- *  - bamboo: 마디가 있는 곧은 줄기
- *  - cosmos: 큰 꽃잎 6개 + 별 반짝
- *  - 연약 전설(crystal_rose/starlight_lily/aurora_orchid/golden_peony/dawn_lily):
- *      그라데이션·다층 꽃잎·애니메이션으로 화려하게
- *  - 희귀 이상은 stage>=3 부터 글로우 효과 (전설은 12px 골드 글로우 + 별 반짝)
+ * 디자인 원칙:
+ *  - 모든 종이 leafGrad/stemGrad/flowerGrad(색 명→암 파생) 로 입체감을 가진다.
+ *  - 줄기는 곡선 path, 잎은 잎 모양 path(중앙맥 포함) 로 자연스럽게.
+ *  - 그라데이션 id 는 useId() 로 인스턴스마다 고유 → 도감/정원 다중 렌더 충돌 방지.
+ *  - 등급 위계는 RARITY_FX 데이터 기반 장식 레이어(글로우·후광·sparkle·궤도 입자)로 단계적 강화.
+ *  - decorative=false (도감 그리드 등) 면 필터·후광·모션을 끄고 그라데이션만 유지(성능).
  */
+import { useId } from 'react';
 import { cn } from '@/lib/utils';
 
 type Rarity = 'basic' | 'common' | 'rare' | 'epic' | 'legendary';
@@ -25,16 +21,69 @@ interface PlantSVGProps {
   size?: number;
   className?: string;
   rarity?: Rarity;
+  /** false 면 글로우·후광·sparkle·흔들림을 끔 (도감 등 다중 렌더 성능용) */
+  decorative?: boolean;
 }
 
-export default function PlantSVG({ speciesId, stage, withered, size = 72, className, rarity = 'basic' }: PlantSVGProps) {
+interface Ctx {
+  gid: (n: string) => string;
+  leafFill: string;
+  stemFill: string;
+  flowerFill: string;
+}
+
+// ── 등급별 장식 escalation ────────────────────────────────
+const RARITY_FX: Record<Rarity, {
+  glowRadius: number; glowOpacity: number;
+  aura: 'none' | 'soft' | 'halo';
+  sparkleCount: number; motes: number; pulse: boolean;
+}> = {
+  basic:     { glowRadius: 0,  glowOpacity: 0,    aura: 'none', sparkleCount: 0, motes: 0, pulse: false },
+  common:    { glowRadius: 0,  glowOpacity: 0,    aura: 'none', sparkleCount: 0, motes: 0, pulse: false },
+  rare:      { glowRadius: 5,  glowOpacity: 0.45, aura: 'soft', sparkleCount: 0, motes: 0, pulse: false },
+  epic:      { glowRadius: 8,  glowOpacity: 0.55, aura: 'soft', sparkleCount: 3, motes: 0, pulse: false },
+  legendary: { glowRadius: 13, glowOpacity: 0.7,  aura: 'halo', sparkleCount: 6, motes: 3, pulse: true },
+};
+
+function hashStr(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
+export default function PlantSVG({
+  speciesId, stage, withered, size = 72, className, rarity = 'basic', decorative = true,
+}: PlantSVGProps) {
+  const uid = useId();
+  const gid = (n: string) => `g${uid.replace(/:/g, '')}-${n}`;
+
   const col = withered ? '#C7B68A' : getColor(speciesId);
   const accent = withered ? '#D1C4A8' : getAccent(speciesId);
   const s = stage;
-  const showGlow = !withered && (rarity === 'rare' || rarity === 'epic' || rarity === 'legendary') && s >= 2;
-  const glowRadius = rarity === 'legendary' ? 12 : rarity === 'epic' ? 8 : 5;
-  // legendary 는 무지개 글로우 (단색 대신 골드 톤)
+  const fx = RARITY_FX[rarity];
+
+  const deco = decorative && !withered;
+  const showGlow = deco && fx.glowRadius > 0 && s >= 2;
   const glowColor = rarity === 'legendary' ? '#FFD44A' : accent;
+  const showAura = deco && fx.aura !== 'none' && s >= 2;
+  const showSparkles = deco && fx.sparkleCount > 0 && s >= 3;
+  const showMotes = deco && fx.motes > 0 && s >= 3;
+
+  const leafFill = withered ? col : `url(#${gid('leaf')})`;
+  const stemFill = withered ? col : `url(#${gid('stem')})`;
+  const flowerFill = withered ? accent : `url(#${gid('flower')})`;
+  const ctx: Ctx = { gid, leafFill, stemFill, flowerFill };
+
+  // idle 흔들림 — 종마다 위상/주기를 달리해 lockstep 방지
+  const h = hashStr(speciesId);
+  const swayStyle = deco && s >= 1
+    ? {
+        transformBox: 'view-box' as const,
+        transformOrigin: '40px 70px',
+        animationDelay: `${(h % 7) * 0.35}s`,
+        animationDuration: `${6 + (h % 4)}s`,
+      }
+    : undefined;
 
   return (
     <svg
@@ -43,58 +92,172 @@ export default function PlantSVG({ speciesId, stage, withered, size = 72, classN
       height={size}
       className={cn('transition-all duration-500', className)}
       aria-label={`${speciesId} stage ${stage}`}
-      style={showGlow ? { filter: `drop-shadow(0 0 ${glowRadius}px ${glowColor})` } : undefined}
+      style={showGlow
+        ? { filter: `drop-shadow(0 0 ${fx.glowRadius}px color-mix(in srgb, ${glowColor} ${Math.round(fx.glowOpacity * 100)}%, transparent))` }
+        : undefined}
     >
-      {/* 화분/흙 */}
-      <ellipse cx="40" cy="74" rx="16" ry="4" fill={withered ? '#D1C4A8' : '#A68B6A'} opacity="0.7" />
+      <defs>
+        {!withered && (
+          <>
+            <linearGradient id={gid('leaf')} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={`color-mix(in srgb, ${col} 66%, white)`} />
+              <stop offset="100%" stopColor={`color-mix(in srgb, ${col} 84%, black)`} />
+            </linearGradient>
+            <linearGradient id={gid('stem')} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={`color-mix(in srgb, ${col} 74%, white)`} />
+              <stop offset="100%" stopColor={`color-mix(in srgb, ${col} 90%, black)`} />
+            </linearGradient>
+            <radialGradient id={gid('flower')} cx="50%" cy="38%" r="62%">
+              <stop offset="0%" stopColor={`color-mix(in srgb, ${accent} 52%, white)`} />
+              <stop offset="58%" stopColor={accent} />
+              <stop offset="100%" stopColor={`color-mix(in srgb, ${accent} 86%, black)`} />
+            </radialGradient>
+          </>
+        )}
+        <radialGradient id={gid('shadow')} cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#2A2E27" stopOpacity="0.32" />
+          <stop offset="65%" stopColor="#2A2E27" stopOpacity="0.13" />
+          <stop offset="100%" stopColor="#2A2E27" stopOpacity="0" />
+        </radialGradient>
+        {showAura && (
+          <radialGradient id={gid('aura')} cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor={glowColor} stopOpacity="0.5" />
+            <stop offset="55%" stopColor={glowColor} stopOpacity="0.22" />
+            <stop offset="100%" stopColor={glowColor} stopOpacity="0" />
+          </radialGradient>
+        )}
+      </defs>
+
+      {/* 그라운드 섀도 — 식물이 땅에 앉은 느낌 */}
+      <ellipse cx="40" cy="74" rx="16" ry="3.4" fill={withered ? '#C7B68A' : `url(#${gid('shadow')})`} opacity={withered ? 0.4 : 1} />
+
+      {/* 후광 (식물 뒤) */}
+      {showAura && renderAura(fx.aura, gid, glowColor, fx.pulse)}
 
       {/* stage 0: 씨앗 */}
       {s === 0 && (
         <ellipse cx="40" cy="68" rx="6" ry="4" fill={withered ? '#D1C4A8' : '#8A6E4B'} />
       )}
 
-      {/* 종별 줄기/잎 모양 — stage 1부터 분기 */}
-      {s >= 1 && renderStemAndLeaves(speciesId, s, col, withered)}
+      {/* 본체 (잔잔한 흔들림) */}
+      <g className={swayStyle ? 'plant-sway' : undefined} style={swayStyle}>
+        {s >= 1 && renderStemAndLeaves(speciesId, s, withered, ctx)}
+        {s >= 3 && renderFlower(speciesId, accent, withered, ctx)}
+        {s >= 4 && renderBloom(speciesId, accent, withered, ctx)}
+        {s >= 5 && (
+          <circle cx="40" cy="18" r="7" fill={withered ? '#D1C4A8' : flowerFill} opacity="0.95" />
+        )}
+      </g>
 
-      {/* 개화 단계 (stage 3+): 종별 꽃 분기 */}
-      {s >= 3 && renderFlower(speciesId, accent, withered)}
+      {/* sparkle (에픽/전설) */}
+      {showSparkles && renderSparkles(fx.sparkleCount, rarity)}
 
-      {/* 만개 단계 (stage 4+): 풍성한 보조 꽃송이 */}
-      {s >= 4 && renderBloom(speciesId, accent, withered)}
-
-      {/* 최고 단계 (stage 5+): 상단 액센트 */}
-      {s >= 5 && (
-        <circle cx="40" cy="18" r="7" fill={withered ? '#D1C4A8' : accent} opacity="0.95" />
-      )}
-
-      {/* 에픽/전설 만개 시 별 반짝 — 전설은 더 화려하게 */}
-      {!withered && (rarity === 'epic' || rarity === 'legendary') && s >= 3 && (
-        <g opacity={rarity === 'legendary' ? 1 : 0.9}>
-          <text x="14" y="22" fontSize="10" fill="#FFD44A">✦</text>
-          <text x="60" y="18" fontSize="8"  fill="#FFB8E8">✦</text>
-          <text x="58" y="50" fontSize="7"  fill="#FFD44A">✧</text>
-          {rarity === 'legendary' && (
-            <>
-              <text x="10" y="50" fontSize="9" fill="#FFB8E8">✦</text>
-              <text x="68" y="35" fontSize="9" fill="#FFD44A">✧</text>
-              <text x="40" y="10" fontSize="7" fill="#FFFFFF">✺</text>
-            </>
-          )}
-        </g>
-      )}
+      {/* 궤도 입자 (전설) */}
+      {showMotes && renderMotes(fx.motes, glowColor)}
     </svg>
   );
 }
 
+// ── 공유 프리미티브 ────────────────────────────────────────
+
+/** 잎 모양 path + 옅은 중앙맥 (small size 가독 고려) */
+function softLeaf(
+  cx: number, cy: number, len: number, width: number, angle: number,
+  fill: string, vein: string, key?: React.Key,
+): React.ReactNode {
+  const tipY = cy - len;
+  const midY = cy - len / 2;
+  const half = width / 2;
+  const d = `M${cx} ${cy} Q${cx - half} ${midY} ${cx} ${tipY} Q${cx + half} ${midY} ${cx} ${cy} Z`;
+  return (
+    <g key={key} transform={`rotate(${angle} ${cx} ${cy})`}>
+      <path d={d} fill={fill} />
+      <path d={`M${cx} ${cy - 1.5} L${cx} ${tipY + 1.5}`} stroke={vein} strokeWidth="0.7" opacity="0.28" fill="none" strokeLinecap="round" />
+    </g>
+  );
+}
+
+/** 곡선 줄기 (직선 line 대체) */
+function curvedStem(
+  fromX: number, fromY: number, toX: number, toY: number,
+  bend: number, width: number, stroke: string, key?: React.Key,
+): React.ReactNode {
+  const midX = (fromX + toX) / 2 + bend;
+  const midY = (fromY + toY) / 2;
+  return (
+    <path key={key} d={`M${fromX} ${fromY} Q${midX} ${midY} ${toX} ${toY}`}
+          stroke={stroke} strokeWidth={width} strokeLinecap="round" fill="none" />
+  );
+}
+
+/** 꽃잎 링 (cosmos/daisy/peony/lily 등 반복 패턴 일반화) */
+function petalRing(
+  count: number, cx: number, cy: number, rx: number, ry: number,
+  pivotY: number, fill: string, opacity = 0.9,
+): React.ReactNode {
+  return Array.from({ length: count }).map((_, i) => {
+    const deg = (360 / count) * i;
+    return (
+      <ellipse key={deg} cx={cx} cy={cy} rx={rx} ry={ry} fill={fill} opacity={opacity}
+               transform={`rotate(${deg} ${cx} ${pivotY})`} />
+    );
+  });
+}
+
+// ── 등급 장식 레이어 ──────────────────────────────────────
+function renderAura(kind: 'none' | 'soft' | 'halo', gid: (n: string) => string, color: string, pulse: boolean): React.ReactNode {
+  if (kind === 'none') return null;
+  return (
+    <g className={pulse ? 'aura-pulse' : undefined}>
+      <circle cx="40" cy="26" r="30" fill={`url(#${gid('aura')})`} />
+      {kind === 'halo' && (
+        <>
+          <circle cx="40" cy="26" r="22" fill="none" stroke={color} strokeWidth="1" opacity="0.4" />
+          <g stroke={color} strokeWidth="1.2" opacity="0.45" strokeLinecap="round">
+            {[0, 45, 90, 135, 180, 225, 270, 315].map((d) => (
+              <line key={d} x1="40" y1="8" x2="40" y2="2" transform={`rotate(${d} 40 26)`} />
+            ))}
+          </g>
+        </>
+      )}
+    </g>
+  );
+}
+
+const SPARKLE_POS: [number, number][] = [[14, 20], [60, 16], [58, 46], [22, 48], [68, 32], [40, 8]];
+function renderSparkles(count: number, rarity: Rarity): React.ReactNode {
+  const color = rarity === 'legendary' ? '#FFF3C0' : '#FFFFFF';
+  return SPARKLE_POS.slice(0, count).map(([x, y], i) => (
+    <g key={i} className="sparkle" style={{ animationDelay: `${i * 0.3}s` }}>
+      <circle cx={x} cy={y} r="1.7" fill={color} />
+    </g>
+  ));
+}
+
+function renderMotes(count: number, color: string): React.ReactNode {
+  const R = 25;
+  return (
+    <g className="halo-rotate" style={{ transformBox: 'view-box', transformOrigin: '40px 26px' }}>
+      {Array.from({ length: count }).map((_, i) => {
+        const rad = ((360 / count) * i * Math.PI) / 180;
+        return (
+          <circle key={i} cx={40 + R * Math.cos(rad)} cy={26 + R * Math.sin(rad)} r="1.8"
+                  fill={color} opacity="0.9" />
+        );
+      })}
+    </g>
+  );
+}
+
 // ── 줄기와 잎 (stage 1~2) ────────────────────────────────
-function renderStemAndLeaves(speciesId: string, stage: number, col: string, withered?: boolean): React.ReactNode {
+function renderStemAndLeaves(speciesId: string, stage: number, withered: boolean | undefined, ctx: Ctx): React.ReactNode {
+  const { leafFill, stemFill } = ctx;
+
   // 선인장: 굵은 줄기 + 가시
   if (speciesId === 'cactus') {
     return (
       <>
-        <rect x="34" y={stage >= 2 ? 36 : 50} width="12" height={stage >= 2 ? 32 : 18} rx="6"
-              fill={col} opacity="0.92" />
-        {/* 가시 */}
+        <rect x="34" y={stage >= 2 ? 36 : 50} width="12" height={stage >= 2 ? 32 : 18} rx="6" fill={leafFill} />
         {!withered && stage >= 2 && (
           <g stroke="#FFFFFF" strokeWidth="0.6" opacity="0.7">
             <line x1="36" y1="42" x2="34" y2="40" />
@@ -105,9 +268,8 @@ function renderStemAndLeaves(speciesId: string, stage: number, col: string, with
             <line x1="44" y1="66" x2="46" y2="64" />
           </g>
         )}
-        {/* 작은 곁가지 */}
         {stage >= 2 && (
-          <rect x="46" y="44" width="8" height="14" rx="4" fill={col} opacity="0.88" />
+          <rect x="46" y="44" width="8" height="14" rx="4" fill={leafFill} opacity="0.92" />
         )}
       </>
     );
@@ -118,32 +280,31 @@ function renderStemAndLeaves(speciesId: string, stage: number, col: string, with
     const stalkTop = stage >= 2 ? 28 : 48;
     return (
       <>
-        <line x1="40" y1="68" x2="40" y2={stalkTop} stroke={col} strokeWidth="4" strokeLinecap="round" />
-        {/* 마디 */}
-        <line x1="34" y1="60" x2="46" y2="60" stroke={col} strokeWidth="1.5" opacity="0.7" />
-        {stage >= 2 && <line x1="34" y1="44" x2="46" y2="44" stroke={col} strokeWidth="1.5" opacity="0.7" />}
+        <line x1="40" y1="68" x2="40" y2={stalkTop} stroke={stemFill} strokeWidth="4" strokeLinecap="round" />
+        <line x1="34" y1="60" x2="46" y2="60" stroke={stemFill} strokeWidth="1.5" opacity="0.7" />
+        {stage >= 2 && <line x1="34" y1="44" x2="46" y2="44" stroke={stemFill} strokeWidth="1.5" opacity="0.7" />}
         {stage >= 2 && (
           <>
-            <ellipse cx="28" cy="38" rx="9" ry="4" fill={col} opacity="0.85" transform="rotate(-30 28 38)" />
-            <ellipse cx="52" cy="36" rx="9" ry="4" fill={col} opacity="0.85" transform="rotate(30 52 36)" />
+            {softLeaf(28, 38, 14, 8, -65, leafFill, stemFill, 'bl')}
+            {softLeaf(52, 36, 14, 8, 65, leafFill, stemFill, 'br')}
           </>
         )}
       </>
     );
   }
 
-  // 생명나무: 굵은 줄기 + 큰 둥근 잎 덩어리 (위로 갈수록 커짐)
+  // 생명나무: 굵은 줄기 + 큰 둥근 잎 덩어리
   if (speciesId === 'tree_of_life') {
     return (
       <>
         <rect x="36" y={stage >= 2 ? 32 : 50} width="8" height={stage >= 2 ? 36 : 18} rx="2"
-              fill="#7C4A1E" opacity="0.95" />
+              fill={withered ? '#C7B68A' : '#7C4A1E'} opacity="0.95" />
         {stage >= 2 && (
           <>
-            <circle cx="40" cy="30" r="14" fill={col} opacity="0.85" />
-            <circle cx="28" cy="38" r="9"  fill={col} opacity="0.78" />
-            <circle cx="52" cy="38" r="9"  fill={col} opacity="0.78" />
-            <circle cx="40" cy="20" r="8"  fill={col} opacity="0.88" />
+            <circle cx="40" cy="30" r="14" fill={leafFill} opacity="0.92" />
+            <circle cx="28" cy="38" r="9" fill={leafFill} opacity="0.82" />
+            <circle cx="52" cy="38" r="9" fill={leafFill} opacity="0.82" />
+            <circle cx="40" cy="20" r="8" fill={leafFill} opacity="0.95" />
           </>
         )}
       </>
@@ -154,12 +315,11 @@ function renderStemAndLeaves(speciesId: string, stage: number, col: string, with
   if (speciesId === 'pine' || speciesId === 'fern') {
     return (
       <>
-        <line x1="40" y1="68" x2="40" y2={stage >= 2 ? 28 : 50}
-              stroke={col} strokeWidth="3" strokeLinecap="round" />
+        {curvedStem(40, 68, 40, stage >= 2 ? 28 : 50, 1.5, 3, stemFill, 'st')}
         {[58, 50, 42, 34].slice(0, stage + 1).map((y, i) => (
           <g key={i}>
-            <line x1="40" y1={y} x2={40 - 12} y2={y - 3} stroke={col} strokeWidth="2.5" strokeLinecap="round" />
-            <line x1="40" y1={y} x2={40 + 12} y2={y - 3} stroke={col} strokeWidth="2.5" strokeLinecap="round" />
+            <line x1="40" y1={y} x2={40 - 12} y2={y - 3} stroke={leafFill} strokeWidth="2.5" strokeLinecap="round" />
+            <line x1="40" y1={y} x2={40 + 12} y2={y - 3} stroke={leafFill} strokeWidth="2.5" strokeLinecap="round" />
           </g>
         ))}
       </>
@@ -170,45 +330,43 @@ function renderStemAndLeaves(speciesId: string, stage: number, col: string, with
   if (speciesId === 'moss') {
     return (
       <>
-        <ellipse cx="40" cy="66" rx="18" ry="5" fill={col} opacity="0.9" />
-        {stage >= 1 && <ellipse cx="32" cy="62" rx="8" ry="4" fill={col} opacity="0.85" />}
-        {stage >= 1 && <ellipse cx="50" cy="62" rx="8" ry="4" fill={col} opacity="0.85" />}
+        <ellipse cx="40" cy="66" rx="18" ry="5" fill={leafFill} opacity="0.92" />
+        {stage >= 1 && <ellipse cx="32" cy="62" rx="8" ry="4" fill={leafFill} opacity="0.85" />}
+        {stage >= 1 && <ellipse cx="50" cy="62" rx="8" ry="4" fill={leafFill} opacity="0.85" />}
       </>
     );
   }
 
-  // 기본 (sprout/sunflower/herb/maple/lotus/clover/rose/orchid/cosmos/등)
+  // 기본 (sprout/sunflower/herb/maple/lotus/clover/rose/orchid/cosmos 등)
+  const topY = stage >= 2 ? 38 : 52;
   return (
     <>
-      <line x1="40" y1="68" x2="40" y2={stage >= 2 ? 38 : 52}
-            stroke={col} strokeWidth={stage >= 2 ? 3.5 : 3} strokeLinecap="round" />
-      <ellipse cx="36" cy="56" rx="7" ry="5" fill={col} opacity="0.85" transform="rotate(-20 36 56)" />
-      <ellipse cx="44" cy="56" rx="7" ry="5" fill={col} opacity="0.85" transform="rotate(20 44 56)" />
-      {stage >= 2 && (
-        <>
-          <ellipse cx="30" cy="48" rx="10" ry="7" fill={col} opacity="0.9" transform="rotate(-25 30 48)" />
-          <ellipse cx="50" cy="48" rx="10" ry="7" fill={col} opacity="0.9" transform="rotate(25 50 48)" />
-          <ellipse cx="38" cy="42" rx="8" ry="6" fill={col} opacity="0.8" />
-        </>
-      )}
+      {curvedStem(40, 69, 40, topY, 2.5, stage >= 2 ? 3.5 : 3, stemFill, 'st')}
+      {softLeaf(40, 60, 13, 9, -54, leafFill, stemFill, 'a')}
+      {softLeaf(40, 60, 13, 9, 54, leafFill, stemFill, 'b')}
+      {stage >= 2 && softLeaf(40, 52, 16, 11, -52, leafFill, stemFill, 'c')}
+      {stage >= 2 && softLeaf(40, 52, 16, 11, 52, leafFill, stemFill, 'd')}
+      {stage >= 2 && softLeaf(40, 47, 14, 10, 0, leafFill, stemFill, 'e')}
     </>
   );
 }
 
 // ── 종별 꽃 (stage 3) ────────────────────────────────────
-function renderFlower(speciesId: string, accent: string, withered?: boolean): React.ReactNode {
+function renderFlower(speciesId: string, accent: string, withered: boolean | undefined, ctx: Ctx): React.ReactNode {
+  const { gid, flowerFill } = ctx;
   const c = withered ? '#C7B68A' : accent;
-  const stem = withered ? '#C7B68A' : '#5D8F3E';
+  const petal = withered ? c : flowerFill;
+  const stem = withered ? '#C7B68A' : ctx.stemFill;
 
   // 클로버: 4-잎 패턴
   if (speciesId === 'clover') {
     return (
       <g>
         <line x1="40" y1="38" x2="40" y2="30" stroke={stem} strokeWidth="2.5" strokeLinecap="round" />
-        <circle cx="32" cy="28" r="6" fill={c} opacity="0.9" />
-        <circle cx="48" cy="28" r="6" fill={c} opacity="0.9" />
-        <circle cx="40" cy="20" r="6" fill={c} opacity="0.9" />
-        <circle cx="40" cy="34" r="5" fill={c} opacity="0.85" />
+        <circle cx="32" cy="28" r="6" fill={petal} opacity="0.9" />
+        <circle cx="48" cy="28" r="6" fill={petal} opacity="0.9" />
+        <circle cx="40" cy="20" r="6" fill={petal} opacity="0.9" />
+        <circle cx="40" cy="34" r="5" fill={petal} opacity="0.85" />
       </g>
     );
   }
@@ -218,9 +376,9 @@ function renderFlower(speciesId: string, accent: string, withered?: boolean): Re
     return (
       <g>
         <line x1="40" y1="38" x2="40" y2="28" stroke={stem} strokeWidth="3" strokeLinecap="round" />
-        <circle cx="40" cy="24" r="10" fill={c} opacity="0.9" />
-        <circle cx="40" cy="24" r="7"  fill={c} opacity="0.7" />
-        <circle cx="40" cy="24" r="4"  fill="#FFFFFF" opacity="0.4" />
+        <circle cx="40" cy="24" r="10" fill={petal} opacity="0.92" />
+        <circle cx="40" cy="24" r="7" fill={petal} opacity="0.7" />
+        <circle cx="40" cy="24" r="4" fill="#FFFFFF" opacity="0.4" />
       </g>
     );
   }
@@ -230,7 +388,7 @@ function renderFlower(speciesId: string, accent: string, withered?: boolean): Re
     return (
       <g>
         <circle cx="40" cy="34" r="4" fill={withered ? '#C7B68A' : '#FFF6D8'} opacity="0.95" />
-        <circle cx="40" cy="34" r="2" fill={c} opacity="0.8" />
+        <circle cx="40" cy="34" r="2" fill={petal} opacity="0.8" />
       </g>
     );
   }
@@ -240,9 +398,9 @@ function renderFlower(speciesId: string, accent: string, withered?: boolean): Re
     return (
       <g>
         <line x1="40" y1="38" x2="40" y2="28" stroke={stem} strokeWidth="3" strokeLinecap="round" />
-        <ellipse cx="34" cy="24" rx="6" ry="9" fill={c} opacity="0.88" transform="rotate(-25 34 24)" />
-        <ellipse cx="46" cy="24" rx="6" ry="9" fill={c} opacity="0.88" transform="rotate(25 46 24)" />
-        <ellipse cx="40" cy="20" rx="5" ry="8" fill={c} opacity="0.92" />
+        <ellipse cx="34" cy="24" rx="6" ry="9" fill={petal} opacity="0.9" transform="rotate(-25 34 24)" />
+        <ellipse cx="46" cy="24" rx="6" ry="9" fill={petal} opacity="0.9" transform="rotate(25 46 24)" />
+        <ellipse cx="40" cy="20" rx="5" ry="8" fill={petal} opacity="0.94" />
         <circle cx="40" cy="26" r="2.5" fill="#FFF6D8" opacity="0.85" />
       </g>
     );
@@ -252,9 +410,9 @@ function renderFlower(speciesId: string, accent: string, withered?: boolean): Re
   if (speciesId === 'bamboo') {
     return (
       <g>
-        <ellipse cx="32" cy="32" rx="8" ry="3.5" fill={c} opacity="0.85" transform="rotate(-25 32 32)" />
-        <ellipse cx="48" cy="30" rx="8" ry="3.5" fill={c} opacity="0.85" transform="rotate(25 48 30)" />
-        <ellipse cx="40" cy="26" rx="7" ry="3" fill={c} opacity="0.9" />
+        <ellipse cx="32" cy="32" rx="8" ry="3.5" fill={petal} opacity="0.85" transform="rotate(-25 32 32)" />
+        <ellipse cx="48" cy="30" rx="8" ry="3.5" fill={petal} opacity="0.85" transform="rotate(25 48 30)" />
+        <ellipse cx="40" cy="26" rx="7" ry="3" fill={petal} opacity="0.9" />
       </g>
     );
   }
@@ -264,10 +422,7 @@ function renderFlower(speciesId: string, accent: string, withered?: boolean): Re
     return (
       <g>
         <line x1="40" y1="38" x2="40" y2="28" stroke={stem} strokeWidth="2.5" strokeLinecap="round" />
-        {[0, 60, 120, 180, 240, 300].map((deg) => (
-          <ellipse key={deg} cx="40" cy="16" rx="3.5" ry="8" fill={c} opacity="0.85"
-                   transform={`rotate(${deg} 40 26)`} />
-        ))}
+        {petalRing(6, 40, 16, 3.5, 8, 26, petal, 0.88)}
         <circle cx="40" cy="26" r="3" fill="#FFD44A" opacity="0.95" />
       </g>
     );
@@ -283,7 +438,7 @@ function renderFlower(speciesId: string, accent: string, withered?: boolean): Re
           <line key={deg} x1="40" y1="24" x2={40 + 9 * Math.cos((deg * Math.PI) / 180)}
                 y2={24 + 9 * Math.sin((deg * Math.PI) / 180)} stroke="#FFFFFF" strokeWidth="1.5" />
         ))}
-        <circle cx="40" cy="24" r="3" fill={c} opacity="0.8" />
+        <circle cx="40" cy="24" r="3" fill={petal} opacity="0.8" />
       </g>
     );
   }
@@ -293,7 +448,7 @@ function renderFlower(speciesId: string, accent: string, withered?: boolean): Re
     return (
       <g>
         <line x1="40" y1="38" x2="40" y2="30" stroke={stem} strokeWidth="3" strokeLinecap="round" />
-        <path d="M30 28 Q30 16 40 14 Q50 16 50 28 Z" fill={c} opacity="0.92" />
+        <path d="M30 28 Q30 16 40 14 Q50 16 50 28 Z" fill={petal} opacity="0.94" />
         <path d="M40 14 Q40 22 35 28 M40 14 Q40 22 45 28" stroke={withered ? '#C7B68A' : '#FFFFFF'} strokeWidth="0.8" opacity="0.4" fill="none" />
       </g>
     );
@@ -304,10 +459,7 @@ function renderFlower(speciesId: string, accent: string, withered?: boolean): Re
     return (
       <g>
         <line x1="40" y1="38" x2="40" y2="28" stroke={stem} strokeWidth="2.5" strokeLinecap="round" />
-        {[0, 72, 144, 216, 288].map((deg) => (
-          <ellipse key={deg} cx="40" cy="18" rx="3" ry="7" fill={c} opacity="0.92"
-                   transform={`rotate(${deg} 40 26)`} />
-        ))}
+        {petalRing(5, 40, 18, 3, 7, 26, petal, 0.92)}
         <circle cx="40" cy="26" r="3" fill="#FFD44A" />
       </g>
     );
@@ -317,9 +469,9 @@ function renderFlower(speciesId: string, accent: string, withered?: boolean): Re
   if (speciesId === 'mint') {
     return (
       <g>
-        <ellipse cx="32" cy="30" rx="6" ry="3" fill={c} opacity="0.88" transform="rotate(-25 32 30)" />
-        <ellipse cx="48" cy="28" rx="6" ry="3" fill={c} opacity="0.88" transform="rotate(25 48 28)" />
-        <ellipse cx="40" cy="22" rx="5" ry="3" fill={c} opacity="0.9" />
+        <ellipse cx="32" cy="30" rx="6" ry="3" fill={petal} opacity="0.88" transform="rotate(-25 32 30)" />
+        <ellipse cx="48" cy="28" rx="6" ry="3" fill={petal} opacity="0.88" transform="rotate(25 48 28)" />
+        <ellipse cx="40" cy="22" rx="5" ry="3" fill={petal} opacity="0.9" />
       </g>
     );
   }
@@ -329,9 +481,9 @@ function renderFlower(speciesId: string, accent: string, withered?: boolean): Re
     return (
       <g>
         <line x1="40" y1="38" x2="40" y2="28" stroke={stem} strokeWidth="3" strokeLinecap="round" />
-        <circle cx="36" cy="24" r="6" fill={c} opacity="0.85" />
-        <circle cx="44" cy="24" r="6" fill={c} opacity="0.85" />
-        <circle cx="40" cy="20" r="6" fill={c} opacity="0.9" />
+        <circle cx="36" cy="24" r="6" fill={petal} opacity="0.85" />
+        <circle cx="44" cy="24" r="6" fill={petal} opacity="0.85" />
+        <circle cx="40" cy="20" r="6" fill={petal} opacity="0.9" />
         <circle cx="40" cy="24" r="3" fill={withered ? '#C7B68A' : '#FFFFFF'} opacity="0.5" />
       </g>
     );
@@ -343,13 +495,13 @@ function renderFlower(speciesId: string, accent: string, withered?: boolean): Re
       <g>
         <line x1="40" y1="38" x2="40" y2="30" stroke={stem} strokeWidth="3" strokeLinecap="round" />
         {[[34, 26], [46, 26], [40, 18], [32, 20], [48, 20], [40, 28]].map(([cx, cy], i) => (
-          <circle key={i} cx={cx} cy={cy} r="3.5" fill={c} opacity="0.85" />
+          <circle key={i} cx={cx} cy={cy} r="3.5" fill={petal} opacity="0.85" />
         ))}
       </g>
     );
   }
 
-  // 반딧불꽃: 빛 점이 박힌 꽃 (작은 점들)
+  // 반딧불꽃: 빛 점이 박힌 꽃
   if (speciesId === 'firefly_flower') {
     return (
       <g>
@@ -364,14 +516,14 @@ function renderFlower(speciesId: string, accent: string, withered?: boolean): Re
     );
   }
 
-  // 무지개붓꽃: 위아래로 흐르는 꽃잎, 그라데이션 느낌
+  // 무지개붓꽃: 위아래로 흐르는 꽃잎
   if (speciesId === 'rainbow_iris') {
     return (
       <g>
         <line x1="40" y1="38" x2="40" y2="28" stroke={stem} strokeWidth="3" strokeLinecap="round" />
-        <ellipse cx="34" cy="24" rx="5" ry="10" fill={withered ? '#C7B68A' : '#FF80A0'} opacity="0.85" transform="rotate(-20 34 24)" />
-        <ellipse cx="46" cy="24" rx="5" ry="10" fill={withered ? '#C7B68A' : '#FFD44A'} opacity="0.85" transform="rotate(20 46 24)" />
-        <ellipse cx="40" cy="18" rx="5" ry="11" fill={withered ? '#C7B68A' : '#80E0FF'} opacity="0.88" />
+        <ellipse cx="34" cy="24" rx="5" ry="10" fill={withered ? '#C7B68A' : '#FF80A0'} opacity="0.88" transform="rotate(-20 34 24)" />
+        <ellipse cx="46" cy="24" rx="5" ry="10" fill={withered ? '#C7B68A' : '#FFD44A'} opacity="0.88" transform="rotate(20 46 24)" />
+        <ellipse cx="40" cy="18" rx="5" ry="11" fill={withered ? '#C7B68A' : '#80E0FF'} opacity="0.9" />
         <circle cx="40" cy="26" r="3" fill={withered ? '#C7B68A' : '#FFFFFF'} opacity="0.7" />
       </g>
     );
@@ -389,26 +541,26 @@ function renderFlower(speciesId: string, accent: string, withered?: boolean): Re
     );
   }
 
-  // 생명나무: 큰 빛 구체 (이미 stemAndLeaves 에서 큰 잎. 여기서 빛만)
+  // 생명나무: 큰 빛 구체
   if (speciesId === 'tree_of_life') {
     return (
       <g>
         <circle cx="40" cy="24" r="6" fill={withered ? '#D1C4A8' : '#FFE066'} opacity="0.95">
-          <animate attributeName="r" values="6;7;6" dur="3s" repeatCount="indefinite" />
+          {!withered && <animate attributeName="r" values="6;7;6" dur="3s" repeatCount="indefinite" />}
         </circle>
         <circle cx="40" cy="24" r="3" fill="#FFFFFF" opacity="0.7" />
       </g>
     );
   }
 
-  // ── 연약 전설 5종 (화려하지만 게을러지면 죽는) ──────────────
+  // ── 연약 전설 5종 (그라데이션·다층 꽃잎) ──────────────────
 
-  // 수정장미: 각진 수정 꽃잎 + 중앙 보석 (핑크→흰빛 그라데이션)
+  // 수정장미
   if (speciesId === 'crystal_rose') {
     return (
       <g>
         <defs>
-          <radialGradient id="grad-crystal-rose" cx="50%" cy="42%" r="65%">
+          <radialGradient id={gid('crystal-rose')} cx="50%" cy="42%" r="65%">
             <stop offset="0%" stopColor="#FFFFFF" />
             <stop offset="50%" stopColor="#FF9AD0" />
             <stop offset="100%" stopColor="#C0418F" />
@@ -417,7 +569,7 @@ function renderFlower(speciesId: string, accent: string, withered?: boolean): Re
         <line x1="40" y1="38" x2="40" y2="30" stroke={stem} strokeWidth="3" strokeLinecap="round" />
         {[0, 45, 90, 135, 180, 225, 270, 315].map((deg) => (
           <polygon key={deg} points="40,8 36,22 40,26 44,22"
-                   fill={withered ? c : 'url(#grad-crystal-rose)'} opacity="0.9"
+                   fill={withered ? c : `url(#${gid('crystal-rose')})`} opacity="0.9"
                    transform={`rotate(${deg} 40 24)`} />
         ))}
         <polygon points="40,18 34,24 40,32 46,24" fill={withered ? '#D1C4A8' : '#FFFFFF'} opacity="0.9" />
@@ -429,12 +581,12 @@ function renderFlower(speciesId: string, accent: string, withered?: boolean): Re
     );
   }
 
-  // 별빛백합: 6장 백합 꽃잎 + 빛나는 별 코어 + 반짝이는 별 입자 (남보라→흰빛)
+  // 별빛백합
   if (speciesId === 'starlight_lily') {
     return (
       <g>
         <defs>
-          <radialGradient id="grad-starlight-lily" cx="50%" cy="45%" r="60%">
+          <radialGradient id={gid('starlight-lily')} cx="50%" cy="45%" r="60%">
             <stop offset="0%" stopColor="#FFFFFF" />
             <stop offset="45%" stopColor="#A9C0FF" />
             <stop offset="100%" stopColor="#4A4F9E" />
@@ -443,7 +595,7 @@ function renderFlower(speciesId: string, accent: string, withered?: boolean): Re
         <line x1="40" y1="38" x2="40" y2="30" stroke={stem} strokeWidth="3" strokeLinecap="round" />
         {[0, 60, 120, 180, 240, 300].map((deg) => (
           <ellipse key={deg} cx="40" cy="14" rx="3.5" ry="11"
-                   fill={withered ? c : 'url(#grad-starlight-lily)'} opacity="0.92"
+                   fill={withered ? c : `url(#${gid('starlight-lily')})`} opacity="0.92"
                    transform={`rotate(${deg} 40 25)`} />
         ))}
         <circle cx="40" cy="25" r="4" fill={withered ? '#D1C4A8' : '#FFE89A'} opacity="0.95" />
@@ -457,23 +609,23 @@ function renderFlower(speciesId: string, accent: string, withered?: boolean): Re
     );
   }
 
-  // 오로라난초: 흐르는 난초 꽃잎 (핑크→보라→시안 오로라 그라데이션)
+  // 오로라난초
   if (speciesId === 'aurora_orchid') {
     return (
       <g>
         <defs>
-          <linearGradient id="grad-aurora-orchid" x1="0%" y1="0%" x2="100%" y2="100%">
+          <linearGradient id={gid('aurora-orchid')} x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor="#FF8AD0" />
             <stop offset="50%" stopColor="#9A7BFF" />
             <stop offset="100%" stopColor="#6FE6E0" />
           </linearGradient>
         </defs>
         <line x1="40" y1="38" x2="40" y2="28" stroke={stem} strokeWidth="3" strokeLinecap="round" />
-        <ellipse cx="30" cy="22" rx="7" ry="11" fill={withered ? c : 'url(#grad-aurora-orchid)'} opacity="0.9" transform="rotate(-30 30 22)" />
-        <ellipse cx="50" cy="22" rx="7" ry="11" fill={withered ? c : 'url(#grad-aurora-orchid)'} opacity="0.9" transform="rotate(30 50 22)" />
-        <ellipse cx="40" cy="16" rx="6" ry="11" fill={withered ? c : 'url(#grad-aurora-orchid)'} opacity="0.92" />
-        <ellipse cx="34" cy="28" rx="5" ry="8" fill={withered ? c : 'url(#grad-aurora-orchid)'} opacity="0.85" transform="rotate(-15 34 28)" />
-        <ellipse cx="46" cy="28" rx="5" ry="8" fill={withered ? c : 'url(#grad-aurora-orchid)'} opacity="0.85" transform="rotate(15 46 28)" />
+        <ellipse cx="30" cy="22" rx="7" ry="11" fill={withered ? c : `url(#${gid('aurora-orchid')})`} opacity="0.9" transform="rotate(-30 30 22)" />
+        <ellipse cx="50" cy="22" rx="7" ry="11" fill={withered ? c : `url(#${gid('aurora-orchid')})`} opacity="0.9" transform="rotate(30 50 22)" />
+        <ellipse cx="40" cy="16" rx="6" ry="11" fill={withered ? c : `url(#${gid('aurora-orchid')})`} opacity="0.92" />
+        <ellipse cx="34" cy="28" rx="5" ry="8" fill={withered ? c : `url(#${gid('aurora-orchid')})`} opacity="0.85" transform="rotate(-15 34 28)" />
+        <ellipse cx="46" cy="28" rx="5" ry="8" fill={withered ? c : `url(#${gid('aurora-orchid')})`} opacity="0.85" transform="rotate(15 46 28)" />
         <circle cx="40" cy="24" r="3" fill={withered ? '#D1C4A8' : '#FFFFFF'} opacity="0.9">
           {!withered && <animate attributeName="opacity" values="0.9;0.4;0.9" dur="2.5s" repeatCount="indefinite" />}
         </circle>
@@ -481,12 +633,12 @@ function renderFlower(speciesId: string, accent: string, withered?: boolean): Re
     );
   }
 
-  // 황금모란: 겹겹 황금 꽃잎 (안팎 2겹) + 밝은 중심
+  // 황금모란
   if (speciesId === 'golden_peony') {
     return (
       <g>
         <defs>
-          <radialGradient id="grad-golden-peony" cx="50%" cy="50%" r="60%">
+          <radialGradient id={gid('golden-peony')} cx="50%" cy="50%" r="60%">
             <stop offset="0%" stopColor="#FFF3C0" />
             <stop offset="55%" stopColor="#FFD24A" />
             <stop offset="100%" stopColor="#E0902A" />
@@ -495,12 +647,12 @@ function renderFlower(speciesId: string, accent: string, withered?: boolean): Re
         <line x1="40" y1="38" x2="40" y2="30" stroke={stem} strokeWidth="3" strokeLinecap="round" />
         {[0, 45, 90, 135, 180, 225, 270, 315].map((deg) => (
           <ellipse key={`o${deg}`} cx="40" cy="14" rx="5" ry="9"
-                   fill={withered ? c : 'url(#grad-golden-peony)'} opacity="0.85"
+                   fill={withered ? c : `url(#${gid('golden-peony')})`} opacity="0.85"
                    transform={`rotate(${deg} 40 24)`} />
         ))}
         {[22, 67, 112, 157, 202, 247, 292, 337].map((deg) => (
           <ellipse key={`i${deg}`} cx="40" cy="18" rx="3.5" ry="6"
-                   fill={withered ? c : 'url(#grad-golden-peony)'} opacity="0.95"
+                   fill={withered ? c : `url(#${gid('golden-peony')})`} opacity="0.95"
                    transform={`rotate(${deg} 40 24)`} />
         ))}
         <circle cx="40" cy="24" r="3.5" fill={withered ? '#D1C4A8' : '#FFF8D8'} opacity="0.95" />
@@ -508,12 +660,12 @@ function renderFlower(speciesId: string, accent: string, withered?: boolean): Re
     );
   }
 
-  // 여명백합: 빛줄기 + 6장 꽃잎 + 맥동하는 빛 코어 (흰→복숭아→장미빛)
+  // 여명백합
   if (speciesId === 'dawn_lily') {
     return (
       <g>
         <defs>
-          <radialGradient id="grad-dawn-lily" cx="50%" cy="45%" r="65%">
+          <radialGradient id={gid('dawn-lily')} cx="50%" cy="45%" r="65%">
             <stop offset="0%" stopColor="#FFFBEA" />
             <stop offset="40%" stopColor="#FFD79A" />
             <stop offset="75%" stopColor="#FF9E7A" />
@@ -532,7 +684,7 @@ function renderFlower(speciesId: string, accent: string, withered?: boolean): Re
         )}
         {[0, 60, 120, 180, 240, 300].map((deg) => (
           <ellipse key={deg} cx="40" cy="15" rx="4" ry="10"
-                   fill={withered ? c : 'url(#grad-dawn-lily)'} opacity="0.92"
+                   fill={withered ? c : `url(#${gid('dawn-lily')})`} opacity="0.92"
                    transform={`rotate(${deg} 40 24)`} />
         ))}
         <circle cx="40" cy="24" r="5" fill={withered ? '#D1C4A8' : '#FFFBEA'} opacity="0.95">
@@ -546,19 +698,17 @@ function renderFlower(speciesId: string, accent: string, withered?: boolean): Re
   return (
     <>
       <line x1="40" y1="38" x2="40" y2="28" stroke={stem} strokeWidth="3" strokeLinecap="round" />
-      <circle cx="40" cy="26" r="8" fill={c} opacity="0.9" />
-      <circle cx="40" cy="26" r="4" fill="white" opacity="0.6" />
+      <circle cx="40" cy="26" r="8" fill={petal} opacity="0.92" />
+      <circle cx="40" cy="26" r="3.5" fill="#FFFFFF" opacity="0.55" />
     </>
   );
 }
 
 // ── 만개 보조 꽃송이 (stage 4+) ────────────────────────────
-function renderBloom(speciesId: string, accent: string, withered?: boolean): React.ReactNode {
-  const c = withered ? '#D1C4A8' : accent;
-  // 만개해도 추가 꽃송이 없는 종: 선인장, 이끼, 민트, 소나무, 고사리, 생명나무, 대나무
+function renderBloom(speciesId: string, accent: string, withered: boolean | undefined, ctx: Ctx): React.ReactNode {
+  const c = withered ? '#D1C4A8' : ctx.flowerFill;
   const NO_BLOOM_OVERLAY = new Set([
     'cactus', 'moss', 'mint', 'pine', 'fern', 'tree_of_life', 'bamboo',
-    // 연약 전설: 자체 디자인이 화려하므로 일반 보조 꽃송이 미적용
     'crystal_rose', 'starlight_lily', 'aurora_orchid', 'golden_peony', 'dawn_lily',
   ]);
   if (NO_BLOOM_OVERLAY.has(speciesId)) return null;
@@ -574,7 +724,6 @@ function renderBloom(speciesId: string, accent: string, withered?: boolean): Rea
 // ── 컬러 맵 ────────────────────────────────────────────────
 function getColor(speciesId: string): string {
   const map: Record<string, string> = {
-    // 기존 11종
     sprout:    '#5D8F3E',
     sunflower: '#6AAB3C',
     herb:      '#4F7A37',
@@ -586,7 +735,6 @@ function getColor(speciesId: string): string {
     orchid:    '#6B4A8C',
     bamboo:    '#5A8C3E',
     cosmos:    '#7A4FA0',
-    // 신규 14종
     dandelion: '#6B8E2E',
     moss:      '#4A6B3A',
     tulip:     '#5A8C4E',
@@ -600,7 +748,6 @@ function getColor(speciesId: string): string {
     rainbow_iris:   '#6B4F8C',
     moonbloom: '#4F5A8C',
     tree_of_life: '#5A3E1E',
-    // 연약 전설 5종 (줄기·잎)
     crystal_rose:   '#5A8C3E',
     starlight_lily: '#4A5E8C',
     aurora_orchid:  '#5A7A8C',
@@ -612,7 +759,6 @@ function getColor(speciesId: string): string {
 
 function getAccent(speciesId: string): string {
   const map: Record<string, string> = {
-    // 기존 11종
     sprout:    '#A8D08D',
     sunflower: '#FFD44A',
     herb:      '#C7E0A8',
@@ -624,7 +770,6 @@ function getAccent(speciesId: string): string {
     orchid:    '#C088E8',
     bamboo:    '#A8D08D',
     cosmos:    '#FFB8E8',
-    // 신규 14종
     dandelion: '#FFE066',
     moss:      '#7AAE6F',
     tulip:     '#E85A6E',
@@ -638,7 +783,6 @@ function getAccent(speciesId: string): string {
     rainbow_iris:   '#FF80FF',
     moonbloom: '#E8E0FF',
     tree_of_life: '#FFD44A',
-    // 연약 전설 5종 (보조 꽃송이·상단 액센트 색)
     crystal_rose:   '#FF8AD0',
     starlight_lily: '#A9C0FF',
     aurora_orchid:  '#9A7BFF',

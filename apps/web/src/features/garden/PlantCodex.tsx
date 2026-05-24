@@ -102,6 +102,7 @@ export default function PlantCodex({ progress }: { progress: ProgressDoc }) {
                   stage={isDiscovered ? Math.max(3, sp.stages - 1) : 2}
                   rarity={sp.rarity}
                   size={42}
+                  decorative={false}
                 />
                 {!isDiscovered && (
                   <div className="absolute inset-0 flex items-center justify-center text-lg font-bold text-[var(--fg-faint)]">

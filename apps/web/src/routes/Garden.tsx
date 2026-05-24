@@ -300,7 +300,7 @@ export default function Garden() {
 
           {/* 계단식 화단 페이저 */}
           <motion.div
-            className="relative overflow-hidden rounded-[var(--radius-lg)] bg-gradient-to-b from-[#E8F5D8] to-[var(--leaf-soft)] p-4 min-h-[240px]"
+            className="relative overflow-hidden rounded-[var(--radius-lg)] bg-gradient-to-b from-[var(--garden-sky-top)] via-[var(--garden-sky-bottom)] to-[var(--leaf-soft)] p-4 min-h-[240px]"
             style={{ boxShadow: 'inset 0 -4px 8px rgba(79,122,55,0.08)' }}
             drag={bedCount > 1 ? 'x' : false}
             dragConstraints={{ left: 0, right: 0 }}
@@ -310,15 +310,73 @@ export default function Garden() {
               else if (info.offset.x > 60 || info.velocity.x > 300) goPage(safePage - 1);
             }}
           >
-            <div className="absolute bottom-0 left-0 right-0 h-8 rounded-b-[var(--radius-lg)] bg-[var(--soil)] opacity-20" />
+            {/* ── 일러스트 배경 레이어 (전부 pointer-events-none, z-0) ── */}
+            {/* 햇살 */}
+            <div
+              className="pointer-events-none absolute -top-8 right-1 z-0 h-28 w-28 rounded-full"
+              style={{ background: 'radial-gradient(circle, var(--garden-sun) 0%, transparent 70%)', opacity: 0.7 }}
+            />
+            {/* 원경 언덕 */}
+            <svg
+              className="pointer-events-none absolute inset-x-0 bottom-7 z-0 h-16 w-full"
+              viewBox="0 0 100 24" preserveAspectRatio="none" aria-hidden
+            >
+              <path d="M0 18 Q22 6 46 14 Q72 22 100 10 L100 24 L0 24 Z" fill="var(--garden-hill)" opacity="0.45" />
+              <path d="M0 22 Q30 12 58 18 Q80 22 100 16 L100 24 L0 24 Z" fill="var(--garden-hill)" opacity="0.6" />
+            </svg>
+            {/* 흙 띠 (그라데이션) */}
+            <div
+              className="pointer-events-none absolute bottom-0 left-0 right-0 z-0 h-14 rounded-b-[var(--radius-lg)]"
+              style={{ background: 'linear-gradient(to top, var(--garden-soil-bottom) 0%, var(--garden-soil-top) 55%, transparent 100%)', opacity: 0.5 }}
+            />
+            {/* 흙 점박이 질감 */}
+            <div
+              className="pointer-events-none absolute bottom-0 left-0 right-0 z-0 h-10 rounded-b-[var(--radius-lg)]"
+              style={{
+                backgroundImage: 'radial-gradient(circle, rgba(60,40,20,0.22) 1px, transparent 1.6px)',
+                backgroundSize: '13px 13px',
+                opacity: 0.4,
+              }}
+            />
+            {/* 떠다니는 빛 입자 */}
+            <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
+              {([
+                { left: '14%', bottom: '22%', s: 5, dx: '10px', dy: '-30px', d: '0s', dur: '8s' },
+                { left: '32%', bottom: '34%', s: 4, dx: '-8px', dy: '-26px', d: '1.4s', dur: '10s' },
+                { left: '54%', bottom: '18%', s: 6, dx: '12px', dy: '-34px', d: '2.6s', dur: '9s' },
+                { left: '72%', bottom: '40%', s: 4, dx: '-6px', dy: '-22px', d: '0.8s', dur: '11s' },
+                { left: '86%', bottom: '26%', s: 5, dx: '8px', dy: '-28px', d: '3.2s', dur: '8.5s' },
+              ] as const).map((m, i) => (
+                <span
+                  key={i}
+                  className="mote absolute rounded-full"
+                  style={{
+                    left: m.left,
+                    bottom: m.bottom,
+                    width: m.s,
+                    height: m.s,
+                    background: 'radial-gradient(circle, rgba(255,247,200,0.9) 0%, rgba(255,247,200,0) 70%)',
+                    animationDelay: m.d,
+                    animationDuration: m.dur,
+                    ['--mote-dx' as string]: m.dx,
+                    ['--mote-dy' as string]: m.dy,
+                  } as React.CSSProperties}
+                />
+              ))}
+            </div>
+            {/* 비네트 */}
+            <div
+              className="pointer-events-none absolute inset-0 z-0 rounded-[var(--radius-lg)]"
+              style={{ boxShadow: 'inset 0 0 38px rgba(42,46,39,0.10)' }}
+            />
 
             {plants.length === 0 ? (
-              <div className="flex flex-col items-center gap-2 text-[var(--fg-faint)] py-8 w-full">
+              <div className="relative z-10 flex flex-col items-center gap-2 text-[var(--fg-faint)] py-8 w-full">
                 <Sprout size={32} className="text-[var(--leaf-soft)]" opacity={0.6} />
                 <p className="text-sm">씨앗을 심어 정원을 시작하세요!</p>
               </div>
             ) : pagePlants.length === 0 ? (
-              <div className="flex flex-col items-center gap-2 text-[var(--fg-faint)] py-8 w-full">
+              <div className="relative z-10 flex flex-col items-center gap-2 text-[var(--fg-faint)] py-8 w-full">
                 <Leaf size={28} className="text-[var(--leaf-soft)]" opacity={0.6} />
                 <p className="text-sm">조건에 맞는 식물이 없어요</p>
               </div>
@@ -330,7 +388,7 @@ export default function Garden() {
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -40 }}
                   transition={{ duration: 0.22 }}
-                  className="flex flex-col items-center gap-1"
+                  className="relative z-10 flex flex-col items-center gap-1"
                 >
                   {/* 계단식 줄: 뒤(원경) → 앞(근경) */}
                   {Array.from({ length: Math.ceil(pagePlants.length / PLANTS_PER_ROW) }).map((_, row, rows) => {
