@@ -483,13 +483,18 @@ function renderFlower(speciesId: string, accent: string, withered: boolean | und
     );
   }
 
-  // 튤립: 잔 모양
+  // 튤립: 잔 모양 (아래 좁고 위 넓은 컵)
   if (speciesId === 'tulip') {
     return (
       <g>
         <line x1="40" y1="38" x2="40" y2="30" stroke={stem} strokeWidth="3" strokeLinecap="round" />
-        <path d="M30 28 Q30 16 40 14 Q50 16 50 28 Z" fill={petal} opacity="0.94" />
-        <path d="M40 14 Q40 22 35 28 M40 14 Q40 22 45 28" stroke={withered ? '#C7B68A' : '#FFFFFF'} strokeWidth="0.8" opacity="0.4" fill="none" />
+        {/* 뒤쪽 꽃잎 (살짝 어둡게) */}
+        <ellipse cx="33" cy="20" rx="6" ry="10" fill={petal} opacity="0.7" transform="rotate(-18 33 20)" />
+        <ellipse cx="47" cy="20" rx="6" ry="10" fill={petal} opacity="0.7" transform="rotate(18 47 20)" />
+        {/* 앞쪽 본체 (컵 형태) */}
+        <path d="M36 30 Q27 22 28 16 Q30 8 40 8 Q50 8 52 16 Q53 22 44 30 Z" fill={petal} opacity="0.94" />
+        {/* 꽃잎 결 */}
+        <path d="M40 8 Q38 18 37 28 M40 8 Q42 18 43 28" stroke={withered ? '#C7B68A' : '#FFFFFF'} strokeWidth="0.8" opacity="0.38" fill="none" strokeLinecap="round" />
       </g>
     );
   }
@@ -790,7 +795,7 @@ function renderBloom(speciesId: string, accent: string, withered: boolean | unde
   const NO_BLOOM_OVERLAY = new Set([
     'cactus', 'moss', 'mint', 'pine', 'fern', 'tree_of_life', 'bamboo',
     'crystal_rose', 'starlight_lily', 'aurora_orchid', 'golden_peony', 'dawn_lily',
-    'sunflower',
+    'sunflower', 'tulip',
   ]);
   if (NO_BLOOM_OVERLAY.has(speciesId)) return null;
   return (
