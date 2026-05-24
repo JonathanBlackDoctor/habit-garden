@@ -18,8 +18,6 @@ interface Props {
 const SCORE_LABELS = ['', '매우 부족', '부족', '보통', '양호', '우수'];
 const BINARY_LABELS = ['미완료', '완료'];
 const MOOD_EMOJIS = ['😣', '😕', '😐', '🙂', '😄'] as const;
-const REFLECTION_DISMISS_MS = 6000;
-
 export default function HabitCard({ habit, check, streak = 0, onScore }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [showReflection, setShowReflection] = useState(false);
@@ -34,7 +32,7 @@ export default function HabitCard({ habit, check, streak = 0, onScore }: Props) 
   // 미달성(점수 입력했지만 임계 미만) → 원인 추적 모드
   const missed = currentScore !== null && currentScore !== undefined && !achieved;
 
-  // 체크 직후 6초 동안 슬라이드업 회고 입력 노출
+  // 체크 직후 회고 입력 노출 (사용자가 저장/닫기 전까지 유지)
   useEffect(() => {
     if (currentScore === null) return;
     const ts = check?.checkedAt
@@ -48,8 +46,6 @@ export default function HabitCard({ habit, check, streak = 0, onScore }: Props) 
     setMood(null);
     setNote('');
     setTags([]);
-    const t = setTimeout(() => setShowReflection(false), REFLECTION_DISMISS_MS);
-    return () => clearTimeout(t);
   }, [currentScore, check?.checkedAt, check?.mood, check?.whyMissed]);
 
   const submitReflection = async () => {
