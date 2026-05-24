@@ -116,6 +116,7 @@ export function useTodayPrayers(prayers: PrayerDoc[], dayDoc: DayDoc | null) {
 
     let pinnedIds: string[];
     let rotationIds: string[];
+    let fromPlan: boolean;
 
     const plan = dayDoc?.prayerPlan;
     if (plan && (plan.pinnedIds || plan.rotationIds)) {
@@ -125,6 +126,7 @@ export function useTodayPrayers(prayers: PrayerDoc[], dayDoc: DayDoc | null) {
       for (const p of active) {
         if (p.pinned && !pinnedIds.includes(p.id)) pinnedIds.push(p.id);
       }
+      fromPlan = true;
     } else {
       // 클라이언트 fallback — 서버가 아직 계산 전이거나 신규
       const now = Date.now();
@@ -139,6 +141,7 @@ export function useTodayPrayers(prayers: PrayerDoc[], dayDoc: DayDoc | null) {
       const res = selectTodayPrayers(inputs, now);
       pinnedIds = res.pinnedIds;
       rotationIds = res.rotationIds;
+      fromPlan = false;
     }
 
     const pinned = pinnedIds.map((id) => byId.get(id)!).filter(Boolean);
@@ -147,7 +150,8 @@ export function useTodayPrayers(prayers: PrayerDoc[], dayDoc: DayDoc | null) {
       .map((id) => byId.get(id)!)
       .filter(Boolean);
 
-    return { pinned, rotation };
+    // fromPlan=false 면 아직 그날 목록이 확정되지 않은 상태 — 호출부에서 영속화한다.
+    return { pinned, rotation, fromPlan, pinnedIds, rotationIds };
   }, [prayers, dayDoc]);
 }
 
@@ -224,6 +228,23 @@ export function usePrayerActions() {
     await setDoc(
       doc(db, 'users', uid, 'days', forDate),
       { prayerPlan: { extraIds: ids }, updatedAt: serverTimestamp() },
+      { merge: true },
+    );
+  };
+
+  /**
+   * 오늘의 목록을 그날 한 번 확정(prayerPlan.pinnedIds/rotationIds 영속화).
+   * 체크 시 lastPrayedAt 이 갱신돼 로테이션이 재계산되면 목록이 흔들려 사라지는 문제를 막는다.
+   * extraIds 등 기존 prayerPlan 필드는 중첩 머지로 보존된다.
+   */
+  const persistTodayPlan = async (forDate: string, pinnedIds: string[], rotationIds: string[]) => {
+    if (!uid) return;
+    await setDoc(
+      doc(db, 'users', uid, 'days', forDate),
+      {
+        prayerPlan: { pinnedIds, rotationIds, generatedAt: serverTimestamp() },
+        updatedAt: serverTimestamp(),
+      },
       { merge: true },
     );
   };
@@ -402,7 +423,7 @@ export function usePrayerActions() {
   };
 
   return {
-    quickAdd, addPrayerGroup, addPrayerTarget, appendTodayExtras, updatePrayer, togglePin, checkPrayer, uncheckPrayer,
+    quickAdd, addPrayerGroup, addPrayerTarget, appendTodayExtras, persistTodayPlan, updatePrayer, togglePin, checkPrayer, uncheckPrayer,
     markAnswered, awaken, removePrayer, removePrayers, updatePrayers, bulkSave, mergePrayers,
   };
 }

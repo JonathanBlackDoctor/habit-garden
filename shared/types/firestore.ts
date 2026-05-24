@@ -47,6 +47,8 @@ export interface DayDoc {
   aiFeedback?: AIFeedback;
   finalized?: boolean;
   prayerPlan?: PrayerPlan;        // 오늘의 기도 목록 (dailyReset이 미리 계산)
+  prayerCheckAwardedIds?: string[]; // 오늘 기도 체크 포인트가 적립된 기도제목 id (체크↔해제 반복 재적립 방지)
+  prayerListCompleted?: boolean;  // 오늘 목록 완료 보너스 지급 여부
   morningBrief?: MorningBrief;    // 매일 06:00 생성되는 개인화 모닝 브리프
   updatedAt: Timestamp;
 }

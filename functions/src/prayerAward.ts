@@ -37,42 +37,63 @@ export const prayerAward = functions
   .onCreate(async (_snap, context) => {
     const { uid, date, prayerId } = context.params as { uid: string; date: string; prayerId: string };
 
-    // 1. prayer 문서 갱신 (per-prayer streak)
-    const prayerRef = db.doc(`users/${uid}/prayers/${prayerId}`);
-    const prayerSnap = await prayerRef.get();
-    if (prayerSnap.exists) {
-      const prayer = prayerSnap.data() as PrayerDoc;
-      let newStreak = 1;
-      const last = prayer.lastPrayedAt as any;
-      if (last && typeof last.toDate === 'function') {
-        const lastDateStr = last.toDate().toISOString().slice(0, 10);
-        // 마지막 기도가 어제 이후이거나 같은 날 범위면 연속으로 간주
-        if (lastDateStr >= prevDate(date)) newStreak = (prayer.streak ?? 0) + 1;
-      }
-      await prayerRef.update({
-        lastPrayedAt: FieldValue.serverTimestamp(),
-        prayCount: FieldValue.increment(1),
-        streak: newStreak,
+    // 멱등 게이트: 같은 기도제목은 하루에 한 번만 적립/갱신.
+    // 체크↔해제를 반복해 onCreate를 재발생시켜도 포인트가 중복 적립되지 않게 한다.
+    const dayRef = db.doc(`users/${uid}/days/${date}`);
+    let firstAwardToday = false;
+    let delta = 0;
+    await db.runTransaction(async (tx) => {
+      const day = (await tx.get(dayRef)).data() as
+        | (DayDoc & { prayerCheckAwardedIds?: string[] })
+        | undefined;
+      const awarded = day?.prayerCheckAwardedIds ?? [];
+      if (awarded.includes(prayerId)) return; // 오늘 이미 적립됨 — 재적립 금지
+
+      firstAwardToday = true;
+      // 하루 상한은 '적립된 기도제목 수' 기준으로 계산 (체크 문서 수 아님)
+      const earnedPrev = Math.min(awarded.length * PRAYER_POINT_EARN.PRAYER_CHECK, PRAYER_DAILY_CHECK_CAP);
+      const earnedNow = Math.min((awarded.length + 1) * PRAYER_POINT_EARN.PRAYER_CHECK, PRAYER_DAILY_CHECK_CAP);
+      delta = earnedNow - earnedPrev;
+
+      tx.set(dayRef, {
+        prayerCheckAwardedIds: FieldValue.arrayUnion(prayerId),
         updatedAt: FieldValue.serverTimestamp(),
-      });
+      }, { merge: true });
+    });
+
+    if (firstAwardToday) {
+      // 1. prayer 문서 갱신 (per-prayer streak) — 최초 1회만
+      const prayerRef = db.doc(`users/${uid}/prayers/${prayerId}`);
+      const prayerSnap = await prayerRef.get();
+      if (prayerSnap.exists) {
+        const prayer = prayerSnap.data() as PrayerDoc;
+        let newStreak = 1;
+        const last = prayer.lastPrayedAt as any;
+        if (last && typeof last.toDate === 'function') {
+          const lastDateStr = last.toDate().toISOString().slice(0, 10);
+          // 마지막 기도가 어제 이후이거나 같은 날 범위면 연속으로 간주
+          if (lastDateStr >= prevDate(date)) newStreak = (prayer.streak ?? 0) + 1;
+        }
+        await prayerRef.update({
+          lastPrayedAt: FieldValue.serverTimestamp(),
+          prayCount: FieldValue.increment(1),
+          streak: newStreak,
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      }
+
+      // 2. 체크 포인트 (하루 상한 적용)
+      if (delta > 0) {
+        await creditPoints(uid, delta, 'prayer_check', `${date}/${prayerId}`);
+        await growRandomPlant(uid, 0.3);  // 정원 자동 성장 (30% 확률, 인플레 방지)
+      }
     }
 
-    // 2. 체크 포인트 (하루 상한 적용)
-    const checksSnap = await db.collection(`users/${uid}/days/${date}/prayerChecks`).get();
-    const n = checksSnap.size;
-    const earnedNow = Math.min(n * PRAYER_POINT_EARN.PRAYER_CHECK, PRAYER_DAILY_CHECK_CAP);
-    const earnedPrev = Math.min((n - 1) * PRAYER_POINT_EARN.PRAYER_CHECK, PRAYER_DAILY_CHECK_CAP);
-    const delta = earnedNow - earnedPrev;
-    if (delta > 0) {
-      await creditPoints(uid, delta, 'prayer_check', `${date}/${prayerId}`);
-      await growRandomPlant(uid, 0.3);  // 정원 자동 성장 (30% 확률, 인플레 방지)
-    }
-
-    // 3. 오늘 목록 전부 완료?
-    await checkDailyListComplete(uid, date, checksSnap.docs.map((d) => d.id));
+    // 3. 오늘 목록 전부 완료? — 체크 상태 기반이라 재체크 시에도 평가(보너스는 1회만).
+    await checkDailyListComplete(uid, date);
   });
 
-async function checkDailyListComplete(uid: string, date: string, checkedIds: string[]) {
+async function checkDailyListComplete(uid: string, date: string) {
   const dayRef = db.doc(`users/${uid}/days/${date}`);
   const daySnap = await dayRef.get();
   const day = daySnap.data() as (DayDoc & { prayerListCompleted?: boolean }) | undefined;
@@ -85,7 +106,8 @@ async function checkDailyListComplete(uid: string, date: string, checkedIds: str
   const listIds = Array.from(new Set([...(plan.pinnedIds ?? []), ...(plan.rotationIds ?? [])]));
   if (listIds.length === 0) return;
 
-  const checkedSet = new Set(checkedIds);
+  const checksSnap = await db.collection(`users/${uid}/days/${date}/prayerChecks`).get();
+  const checkedSet = new Set(checksSnap.docs.map((d) => d.id));
   const allDone = listIds.every((id) => checkedSet.has(id));
   if (!allDone) return;
 
