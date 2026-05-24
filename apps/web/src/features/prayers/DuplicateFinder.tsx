@@ -3,6 +3,7 @@ import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/lib/firebase';
 import type { PrayerDoc } from 'shared/types/firestore';
 import { usePrayerActions } from './usePrayers';
+import { useIsPremium } from '@/lib/features';
 import { Copy, Loader2, Merge } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -11,13 +12,14 @@ interface DupGroup {
   reason: string;
 }
 
-/** AI로 활성 기도제목의 중복을 찾아 병합 제안 (A3) */
+/** AI로 활성 기도제목의 중복을 찾아 병합 제안 (A3) — 승인 사용자 전용 */
 export function DuplicateFinder({
   prayers, onOpen,
 }: {
   prayers: PrayerDoc[];
   onOpen: (p: PrayerDoc) => void;
 }) {
+  const isPremium = useIsPremium();
   const { mergePrayers } = usePrayerActions();
   const [scanning, setScanning] = useState(false);
   const [merging, setMerging] = useState<number | null>(null);
@@ -60,6 +62,8 @@ export function DuplicateFinder({
       setMerging(null);
     }
   };
+
+  if (!isPremium) return null;
 
   return (
     <div className="space-y-2">

@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { signInWithGoogle } from '@/lib/auth';
+import { useState } from 'react';
+import { signInAsGuest, signInWithGoogle } from '@/lib/auth';
 import { useAppStore } from '@/lib/store';
 import { OnboardingInfo } from '@/components/onboarding/OnboardingInfo';
 
@@ -9,6 +10,7 @@ export default function Login() {
   const user = useAppStore((s) => s.user);
   const authLoading = useAppStore((s) => s.authLoading);
   const navigate = useNavigate();
+  const [guestLoading, setGuestLoading] = useState(false);
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -21,6 +23,17 @@ export default function Login() {
       await signInWithGoogle();
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const handleGuest = async () => {
+    if (guestLoading) return;
+    setGuestLoading(true);
+    try {
+      await signInAsGuest();
+    } catch (e) {
+      console.error(e);
+      setGuestLoading(false);
     }
   };
 
@@ -102,6 +115,15 @@ export default function Login() {
             <span className="relative">Google 계정으로 시작하기</span>
           </button>
 
+          {/* 게스트 둘러보기 */}
+          <button
+            onClick={handleGuest}
+            disabled={guestLoading}
+            className="w-full rounded-[var(--radius-lg)] px-6 py-2.5 text-[13.5px] text-[var(--fg-muted)] underline-offset-4 transition-opacity hover:underline active:opacity-70 disabled:opacity-50"
+          >
+            {guestLoading ? '준비 중…' : '가입 없이 둘러보기'}
+          </button>
+
           {/* 안내 카드 */}
           <div className="relative w-full overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border-soft)] bg-[var(--bg-surface)]/80 px-5 py-4 shadow-[var(--shadow-sm)] backdrop-blur-sm">
             <div
@@ -110,9 +132,9 @@ export default function Login() {
               style={{ background: 'linear-gradient(180deg, var(--leaf) 0%, var(--bloom) 100%)' }}
             />
             <div className="space-y-2 text-[12.5px] leading-relaxed text-[var(--fg-muted)]">
-              <p className="text-[var(--fg-primary)]">초대된 분만 사용할 수 있는 비공개 앱입니다.</p>
+              <p className="text-[var(--fg-primary)]">지금 바로 체험해보세요.</p>
               <p>
-                Google 로그인하면 자동으로 가입 신청이 접수돼요. 빠른 승인을 원하시면 아래 이메일로 알려주세요.
+                가입 없이도 습관·정원·기록 기능을 쓸 수 있어요. 가입하면 AI 코치·여러 기기 동기화·푸시 알림이 열리며, 둘러보던 정원은 그대로 유지됩니다.
               </p>
             </div>
           </div>

@@ -12,8 +12,9 @@ import {
   isSoundEnabled,  setSoundEnabled,
   feedback,
 } from '@/lib/feedback';
-import { useFaithEnabled, setFaithEnabled } from '@/lib/features';
+import { useFaithEnabled, setFaithEnabled, useIsGuest, useIsPremium } from '@/lib/features';
 import { usePwaInstall } from '@/lib/pwaInstall';
+import SignupCTA from '@/components/SignupCTA';
 
 const items = [
   { icon: GraduationCap, label: '튜토리얼', to: '/tutorial' },
@@ -32,6 +33,8 @@ export default function More() {
   const [vacationUntil, setVacationUntil] = useState<string | null>(null);
   const [sickDays, setSickDays] = useState<{ month: string; daysUsed: number } | null>(null);
   const faithEnabled = useFaithEnabled();
+  const isGuest = useIsGuest();
+  const isPremium = useIsPremium();
   const { canInstall, isStandalone, isIOS, promptInstall } = usePwaInstall();
 
   useEffect(() => {
@@ -120,7 +123,17 @@ export default function More() {
     <div className="min-h-screen p-4 space-y-2">
       <h2 className="py-2 text-base font-semibold text-[var(--fg-primary)]">더보기</h2>
 
-      {items.map(({ icon: Icon, label, to }) => (
+      {/* 가입 유도 — 게스트/미승인 사용자 */}
+      {!isPremium && (
+        <SignupCTA
+          title={isGuest ? '가입하고 내 정원 지키기' : '승인 대기 중'}
+          desc="AI 코치·주간 인사이트·여러 기기 동기화·푸시 알림이 열려요. 지금까지 가꾼 정원은 그대로 유지됩니다."
+        />
+      )}
+
+      {items
+        .filter((it) => !(isGuest && it.to === '/admin'))
+        .map(({ icon: Icon, label, to }) => (
         <button
           key={to}
           onClick={() => navigate(to)}
@@ -133,13 +146,15 @@ export default function More() {
 
       {/* 피드백 / 알림 설정 (Phase 1-2, 3-1) */}
       <div className="mt-4 rounded-[var(--radius)] bg-[var(--bg-surface)] shadow-[var(--shadow-sm)] divide-y divide-[var(--leaf-soft)]">
-        <ToggleRow
-          icon={<Bell size={18} className="text-[var(--leaf)]" />}
-          label="푸시 알림"
-          desc="시간대별 리마인더 (FCM)"
-          value={push}
-          onToggle={onPushToggle}
-        />
+        {isPremium && (
+          <ToggleRow
+            icon={<Bell size={18} className="text-[var(--leaf)]" />}
+            label="푸시 알림"
+            desc="시간대별 리마인더 (FCM)"
+            value={push}
+            onToggle={onPushToggle}
+          />
+        )}
         <ToggleRow
           icon={<Vibrate size={18} className="text-[var(--leaf)]" />}
           label="햅틱"
@@ -229,11 +244,16 @@ export default function More() {
       )}
 
       <button
-        onClick={() => signOutUser()}
+        onClick={() => {
+          if (isGuest && !window.confirm('게스트로 둘러보는 중이에요. 로그아웃하면 이 기기에서 지금까지 가꾼 정원에 다시 접근할 수 없어요. 계속할까요?')) {
+            return;
+          }
+          signOutUser();
+        }}
         className="flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3.5 text-sm text-red-500 shadow-[var(--shadow-sm)] active:opacity-70 mt-4"
       >
         <LogOut size={18} />
-        로그아웃
+        {isGuest ? '게스트 종료' : '로그아웃'}
       </button>
     </div>
   );

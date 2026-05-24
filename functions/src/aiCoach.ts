@@ -27,6 +27,11 @@ export const aiCoach = functions
       throw new functions.https.HttpsError('unauthenticated', 'Sign in required');
     }
     const uid: string = context.auth.uid;
+    // AI 코치는 승인된 정식 계정 전용 (게스트의 Gemini 호출/비용 차단)
+    const profSnap = await db.doc(`userProfiles/${uid}`).get();
+    if (!profSnap.exists || profSnap.data()?.status !== 'approved') {
+      throw new functions.https.HttpsError('permission-denied', 'Not approved');
+    }
     const mode: Mode = (data?.mode ?? 'daily') as Mode;
     const today = format(toZonedTime(new Date(), KST), 'yyyy-MM-dd');
     const cacheKey = `${today}_${mode}`;

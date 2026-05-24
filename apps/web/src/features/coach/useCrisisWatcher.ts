@@ -1,21 +1,24 @@
 import { useEffect, useRef } from 'react';
 import { useAppStore } from '@/lib/store';
 import { useHabits, useHabitChecks } from '@/features/habits/useHabits';
+import { useIsPremium } from '@/lib/features';
 import { fetchCrisisCoach } from './useAICoach';
 import { toast } from 'sonner';
 
 const FLAG_KEY = 'coach.crisisShown';
 const CRISIS_HOUR = 20;
 
-/** Phase 3-4 — 오후 8시 이후 핵심 습관 미체크 시 1회 위기 메시지. */
+/** Phase 3-4 — 오후 8시 이후 핵심 습관 미체크 시 1회 위기 메시지. (승인 사용자 전용) */
 export function useCrisisWatcher() {
   const date = useAppStore((s) => s.currentDate);
   const habits = useHabits();
   const checks = useHabitChecks(date);
+  const isPremium = useIsPremium();
   const triggered = useRef(false);
 
   useEffect(() => {
     if (triggered.current) return;
+    if (!isPremium) return;
     const flag = localStorage.getItem(FLAG_KEY);
     if (flag === date) return;
 
@@ -39,5 +42,5 @@ export function useCrisisWatcher() {
         });
       })
       .catch(() => {});
-  }, [date, habits, checks]);
+  }, [date, habits, checks, isPremium]);
 }

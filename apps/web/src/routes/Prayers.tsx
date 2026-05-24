@@ -23,7 +23,7 @@ import { Plus, ClipboardList, Search, Heart, ListChecks, Layers, ChevronDown } f
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { Navigate } from 'react-router-dom';
-import { useFaithEnabled } from '@/lib/features';
+import { useFaithEnabled, useIsPremium } from '@/lib/features';
 
 type Segment = 'today' | 'all' | 'answered' | 'dormant';
 const SEGMENTS: { id: Segment; label: string }[] = [
@@ -64,6 +64,7 @@ function PrayersInner() {
   const dayDoc  = useDayDoc(date);
   const groups  = usePrayerGroups();
   const { quickAdd, addPrayerTarget } = usePrayerActions();
+  const isPremium = useIsPremium();
 
   const [seg, setSeg] = useState<Segment>('today');
   const [quick, setQuick] = useState('');
@@ -134,12 +135,14 @@ function PrayersInner() {
             </button>
           ))}
         </div>
-        <button
-          onClick={() => setBulkOpen(true)}
-          className="flex items-center gap-1 rounded-[var(--radius)] border border-[var(--border)] bg-white px-2.5 py-1.5 text-xs text-[var(--fg-muted)]"
-        >
-          <ClipboardList size={14} /> 무더기
-        </button>
+        {isPremium && (
+          <button
+            onClick={() => setBulkOpen(true)}
+            className="flex items-center gap-1 rounded-[var(--radius)] border border-[var(--border)] bg-white px-2.5 py-1.5 text-xs text-[var(--fg-muted)]"
+          >
+            <ClipboardList size={14} /> 무더기
+          </button>
+        )}
       </div>
 
       {/* 본문 */}
@@ -153,7 +156,7 @@ function PrayersInner() {
         open={detailOpen}
         onOpenChange={setDetailOpen}
       />
-      <BulkParse open={bulkOpen} onOpenChange={setBulkOpen} />
+      {isPremium && <BulkParse open={bulkOpen} onOpenChange={setBulkOpen} />}
     </div>
   );
 }

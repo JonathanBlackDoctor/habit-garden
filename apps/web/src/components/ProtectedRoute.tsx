@@ -28,6 +28,9 @@ export default function ProtectedRoute() {
 
   if (!user) return <Navigate to="/login" replace />;
 
+  // 익명 게스트: 프로필 없이 바로 로컬 기능으로 진입.
+  if (user.isAnonymous) return <Outlet />;
+
   // 프로필 문서는 클라이언트 self-create 폴백 또는 ensureUserProfile Cloud Function이 만듭니다.
   // 8초 이상 도착하지 않으면 보안 규칙/네트워크 문제 가능성을 안내합니다.
   if (!profile) {
@@ -67,10 +70,8 @@ export default function ProtectedRoute() {
     );
   }
 
-  if (profile.status === 'pending') {
-    return <Navigate to="/pending" replace />;
-  }
-
+  // 미승인(pending) 정식 계정도 로컬 기능에 진입할 수 있다.
+  // AI·서버 프리미엄 기능은 화면 내부에서 useIsPremium() 으로 게이트한다.
   if (profile.status === 'rejected') {
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-[var(--bg-base)] px-6">
