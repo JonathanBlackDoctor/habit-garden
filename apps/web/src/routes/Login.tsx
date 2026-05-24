@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useState } from 'react';
+import { Sprout } from 'lucide-react';
 import { signInAsGuest, signInWithGoogle } from '@/lib/auth';
 import { useAppStore } from '@/lib/store';
 import { OnboardingInfo } from '@/components/onboarding/OnboardingInfo';
@@ -98,9 +99,29 @@ export default function Login() {
           transition={{ duration: 0.6, delay: 0.18, ease: [0.22, 1, 0.36, 1] }}
           className="mt-10 flex w-full flex-col items-center gap-5"
         >
+          {/* 게스트 둘러보기 — 메인 CTA */}
+          <button
+            onClick={handleGuest}
+            disabled={guestLoading}
+            className="relative flex w-full items-center justify-center gap-2.5 rounded-[var(--radius-lg)] bg-[var(--leaf)] px-6 py-4 text-[16px] font-semibold text-white shadow-[var(--shadow-md)] transition-all duration-200 active:scale-[0.985] active:opacity-90 disabled:opacity-60"
+          >
+            <Sprout size={20} className="relative" />
+            <span className="relative">{guestLoading ? '준비 중…' : '가입 없이 바로 시작하기'}</span>
+          </button>
+          <p className="-mt-2 text-center text-[12px] text-[var(--fg-faint)]">
+            가입 없이 30초 만에 · 습관·정원을 바로 체험해보세요
+          </p>
+
+          {/* 또는 구분선 */}
+          <div className="flex w-full items-center gap-3 py-0.5">
+            <span className="h-px flex-1 bg-[var(--border)]" />
+            <span className="text-[11px] text-[var(--fg-faint)]">또는</span>
+            <span className="h-px flex-1 bg-[var(--border)]" />
+          </div>
+
           <button
             onClick={handleLogin}
-            className="group relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-white px-6 py-3.5 text-[15px] font-medium text-[var(--fg-primary)] shadow-[var(--shadow-md)] transition-all duration-200 active:scale-[0.985] active:opacity-90"
+            className="group relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-white px-6 py-3.5 text-[15px] font-medium text-[var(--fg-primary)] shadow-[var(--shadow-sm)] transition-all duration-200 active:scale-[0.985] active:opacity-90"
           >
             <span
               aria-hidden
@@ -113,15 +134,6 @@ export default function Login() {
               <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
             </svg>
             <span className="relative">Google 계정으로 시작하기</span>
-          </button>
-
-          {/* 게스트 둘러보기 */}
-          <button
-            onClick={handleGuest}
-            disabled={guestLoading}
-            className="w-full rounded-[var(--radius-lg)] px-6 py-2.5 text-[13.5px] text-[var(--fg-muted)] underline-offset-4 transition-opacity hover:underline active:opacity-70 disabled:opacity-50"
-          >
-            {guestLoading ? '준비 중…' : '가입 없이 둘러보기'}
           </button>
 
           {/* 안내 카드 */}
