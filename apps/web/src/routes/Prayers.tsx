@@ -7,7 +7,7 @@ import { useAppStore } from '@/lib/store';
 import type { PrayerDoc, JournalEntryDoc } from 'shared/types/firestore';
 import {
   usePrayers, usePrayerChecks, useDayDoc, useTodayPrayers, usePrayerActions,
-  usePrayerGroups, useLatestWeeklyDigest,
+  usePrayerGroups, usePrayerTargets, useLatestWeeklyDigest,
 } from '@/features/prayers/usePrayers';
 import {
   PrayerCheckCard, PrayerListCard, PrayerDetailDialog, GroupSelect,
@@ -63,7 +63,7 @@ function PrayersInner() {
   const checks  = usePrayerChecks(date);
   const dayDoc  = useDayDoc(date);
   const groups  = usePrayerGroups();
-  const { quickAdd } = usePrayerActions();
+  const { quickAdd, addPrayerTarget } = usePrayerActions();
 
   const [seg, setSeg] = useState<Segment>('today');
   const [quick, setQuick] = useState('');
@@ -83,7 +83,9 @@ function PrayersInner() {
     if (!quick.trim()) return;
     const parsed = parseQuickAdd(quick);
     const group = parsed.group ?? lastGroup;
-    await quickAdd({ title: parsed.title, group, priority: parsed.priority });
+    const target = parsed.target ?? '나 자신';
+    if (parsed.target) await addPrayerTarget(parsed.target);
+    await quickAdd({ title: parsed.title, group, target, priority: parsed.priority });
     if (parsed.group) setLastGroup(parsed.group);
     setQuick('');
   };
@@ -279,8 +281,10 @@ function TodayView({
 // ── 전체 (필터·검색·모임칩) ────────────────────────────────
 function AllView({ prayers, onOpen }: { prayers: PrayerDoc[]; onOpen: (p: PrayerDoc) => void }) {
   const knownGroups = usePrayerGroups();
+  const knownTargets = usePrayerTargets();
   const [search, setSearch] = useState('');
   const [grp, setGrp] = useState<string | 'all'>('all');
+  const [tgt, setTgt] = useState<string | 'all'>('all');
   const sel = usePrayerSelection();
 
   const active = prayers.filter((p) => p.status === 'active');
@@ -291,11 +295,18 @@ function AllView({ prayers, onOpen }: { prayers: PrayerDoc[]; onOpen: (p: Prayer
     return Array.from(new Set([...knownGroups, ...used]));
   }, [knownGroups, active]);
 
+  // 알려진 대상 + 실제 사용 중인 대상 합집합
+  const targets = useMemo(() => {
+    const used = active.map((p) => p.target || '나 자신');
+    return Array.from(new Set([...knownTargets, ...used]));
+  }, [knownTargets, active]);
+
   const filtered = active.filter((p) => {
     if (grp !== 'all' && (p.group || '개인') !== grp) return false;
+    if (tgt !== 'all' && (p.target || '나 자신') !== tgt) return false;
     if (search.trim()) {
       const q = search.trim().toLowerCase();
-      const hay = `${p.title} ${p.group ?? ''} ${(p.tags ?? []).join(' ')}`.toLowerCase();
+      const hay = `${p.title} ${p.group ?? ''} ${p.target ?? ''} ${(p.tags ?? []).join(' ')}`.toLowerCase();
       if (!hay.includes(q)) return false;
     }
     return true;
@@ -323,10 +334,19 @@ function AllView({ prayers, onOpen }: { prayers: PrayerDoc[]; onOpen: (p: Prayer
         />
       </div>
 
-      <div className="flex gap-1.5 overflow-x-auto pb-1">
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+        <span className="shrink-0 text-[10px] text-[var(--fg-faint)]">모임</span>
         <Chip active={grp === 'all'} onClick={() => setGrp('all')}>전체</Chip>
         {groups.map((g) => (
           <Chip key={g} active={grp === g} onClick={() => setGrp(g)}>{g}</Chip>
+        ))}
+      </div>
+
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+        <span className="shrink-0 text-[10px] text-[var(--fg-faint)]">대상</span>
+        <Chip active={tgt === 'all'} onClick={() => setTgt('all')}>전체</Chip>
+        {targets.map((t) => (
+          <Chip key={t} active={tgt === t} onClick={() => setTgt(t)}>{t}</Chip>
         ))}
       </div>
 

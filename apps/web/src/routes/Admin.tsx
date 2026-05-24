@@ -106,6 +106,7 @@ export default function Admin() {
         await setDoc(ref, {
           id: ref.id,
           group: seed.group,
+          target: seed.target,
           receivedAt: now,
           title: seed.title,
           body: seed.body,
@@ -137,11 +138,12 @@ export default function Admin() {
       let migrated = 0;
       for (const d of snap.docs) {
         const data = d.data() as any;
-        if (data.group) continue; // 이미 신규 스키마
+        if (data.group && data.target) continue; // 이미 신규 스키마(모임+대상)
         const now = serverTimestamp();
         await setDoc(d.ref, {
           id: d.id,
           group: catToGroup(data.category),
+          target: data.target ?? data.personName ?? '나 자신',
           receivedAt: data.receivedAt ?? data.createdAt ?? now,
           title: data.title ?? '(제목 없음)',
           body: data.body,

@@ -3,7 +3,7 @@ import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/lib/firebase';
 import type { PrayerPriority } from 'shared/types/firestore';
 import { PRAYER_PRIORITY_LABELS } from 'shared/types/firestore';
-import { usePrayerActions, usePrayerGroups } from './usePrayers';
+import { usePrayerActions, usePrayerGroups, usePrayerTargets } from './usePrayers';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { Loader2, AlertTriangle, Wand2 } from 'lucide-react';
@@ -13,6 +13,7 @@ interface ParsedItem {
   title: string;
   body?: string;
   group: string;
+  target: string;
   priority: PrayerPriority;
   confidence?: number;
   include: boolean;          // 검토 체크
@@ -28,6 +29,7 @@ export default function BulkParse({
   onOpenChange: (v: boolean) => void;
 }) {
   const groups = usePrayerGroups();
+  const targets = usePrayerTargets();
   const { bulkSave } = usePrayerActions();
   const [raw, setRaw] = useState('');
   const [batchGroup, setBatchGroup] = useState<string>(groups[0] ?? '개인');
@@ -55,6 +57,7 @@ export default function BulkParse({
         title: it.title ?? '',
         body: it.body ?? '',
         group: batchGroup,
+        target: (typeof it.target === 'string' && it.target.trim()) ? it.target.trim() : '나 자신',
         priority: batchPriority,
         confidence: typeof it.confidence === 'number' ? it.confidence : undefined,
         include: true,
@@ -93,6 +96,7 @@ export default function BulkParse({
           title: it.title,
           body: it.body,
           group: it.group,
+          target: it.target,
           priority: it.priority,
         })),
       );
@@ -217,6 +221,11 @@ export default function BulkParse({
                   <div className="flex flex-wrap items-center gap-1.5 pl-6">
                     <select value={it.group} onChange={(e) => patch(idx, { group: e.target.value })} className={SELECT_CLS}>
                       {groups.map((g) => <option key={g} value={g}>{g}</option>)}
+                    </select>
+                    <select value={it.target} onChange={(e) => patch(idx, { target: e.target.value })} className={SELECT_CLS}>
+                      {(targets.includes(it.target) ? targets : [it.target, ...targets]).map((t) => (
+                        <option key={t} value={t}>🙏 {t}</option>
+                      ))}
                     </select>
                     <select value={it.priority} onChange={(e) => patch(idx, { priority: e.target.value as PrayerPriority })} className={SELECT_CLS}>
                       {(['high','mid','low'] as PrayerPriority[]).map((p) => (
