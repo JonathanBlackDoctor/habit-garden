@@ -758,6 +758,7 @@ function renderBloom(speciesId: string, accent: string, withered: boolean | unde
   const NO_BLOOM_OVERLAY = new Set([
     'cactus', 'moss', 'mint', 'pine', 'fern', 'tree_of_life', 'bamboo',
     'crystal_rose', 'starlight_lily', 'aurora_orchid', 'golden_peony', 'dawn_lily',
+    'sunflower',
   ]);
   if (NO_BLOOM_OVERLAY.has(speciesId)) return null;
   return (
