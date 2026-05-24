@@ -169,10 +169,11 @@ export default function Admin() {
       await setDoc(doc(db, 'users', uid, 'progress', 'main'), {
         level: 0,
         xpInLevel: 0,
+        globalStreak: 0,
         updatedAt: serverTimestamp(),
       }, { merge: true });
       useAppStore.getState().resetCombo();
-      toast('✅ 레벨과 콤보를 0으로 초기화했습니다.');
+      toast('✅ 레벨, 콤보, 연속 일수를 0으로 초기화했습니다.');
     } catch (e: any) {
       toast.error(`초기화 실패: ${e?.message ?? '오류'}`);
     }
@@ -282,7 +283,7 @@ export default function Admin() {
         <section className="card p-4 space-y-3">
           <h3 className="text-sm font-medium text-[var(--fg-primary)]">내 계정 초기화</h3>
           <p className="text-xs text-[var(--fg-muted)]">
-            내 레벨과 콤보를 0으로 초기화합니다.
+            내 레벨, 연속 일수, 콤보를 0으로 초기화합니다.
           </p>
           <Button
             onClick={resetProgress}
@@ -290,7 +291,7 @@ export default function Admin() {
             className="w-full gap-2"
           >
             <RotateCcw size={15} />
-            레벨 · 콤보 초기화 (→ 0)
+            레벨 · 연속 · 콤보 초기화 (→ 0)
           </Button>
         </section>
       )}
