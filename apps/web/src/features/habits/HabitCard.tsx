@@ -18,8 +18,6 @@ interface Props {
 const SCORE_LABELS = ['', '매우 부족', '부족', '보통', '양호', '우수'];
 const BINARY_LABELS = ['미완료', '완료'];
 const MOOD_EMOJIS = ['😣', '😕', '😐', '🙂', '😄'] as const;
-const REFLECTION_DISMISS_MS = 6000;
-
 export default function HabitCard({ habit, check, streak = 0, onScore }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [showReflection, setShowReflection] = useState(false);
@@ -33,8 +31,10 @@ export default function HabitCard({ habit, check, streak = 0, onScore }: Props) 
   const achieved = check?.achieved ?? false;
   // 미달성(점수 입력했지만 임계 미만) → 원인 추적 모드
   const missed = currentScore !== null && currentScore !== undefined && !achieved;
+  // 점수는 입력됐지만 아직 회고를 저장하지 않은 상태
+  const canReflect = currentScore !== null && !check?.mood && !check?.whyMissed;
 
-  // 체크 직후 6초 동안 슬라이드업 회고 입력 노출
+  // 점수가 새로 변경되면 폼 초기화 (자동 오픈 없음)
   useEffect(() => {
     if (currentScore === null) return;
     const ts = check?.checkedAt
@@ -42,15 +42,11 @@ export default function HabitCard({ habit, check, streak = 0, onScore }: Props) 
       : Date.now();
     if (lastCheckedRef.current === ts) return;
     lastCheckedRef.current = ts;
-    // 이미 mood/원인 이 저장돼 있으면 노출 안 함
-    if (check?.mood || check?.whyMissed) return;
-    setShowReflection(true);
+    setShowReflection(false);
     setMood(null);
     setNote('');
     setTags([]);
-    const t = setTimeout(() => setShowReflection(false), REFLECTION_DISMISS_MS);
-    return () => clearTimeout(t);
-  }, [currentScore, check?.checkedAt, check?.mood, check?.whyMissed]);
+  }, [currentScore, check?.checkedAt]);
 
   const submitReflection = async () => {
     if (mood === null && !note.trim() && tags.length === 0) {
@@ -181,7 +177,15 @@ export default function HabitCard({ habit, check, streak = 0, onScore }: Props) 
         )}
       </AnimatePresence>
 
-      {/* 데일리 한 줄 회고 (Phase 2-4) */}
+      {/* 데일리 한 줄 회고 — 접힌 토글 or 펼쳐진 패널 */}
+      {canReflect && !showReflection && (
+        <button
+          onClick={() => setShowReflection(true)}
+          className="mt-2 w-full text-left text-[10px] text-[var(--fg-faint)] hover:text-[var(--fg-muted)] transition-colors"
+        >
+          {missed ? '왜 못 했을까? 짧게 남기기 ▾' : '오늘 이 습관 평가 남기기 ▾'}
+        </button>
+      )}
       <AnimatePresence>
         {showReflection && (
           <motion.div
