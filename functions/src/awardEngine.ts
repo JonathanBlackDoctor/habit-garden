@@ -6,11 +6,14 @@
  *  3. progress 문서 갱신
  *  4. 배지 조건 확인 → 신규 배지 발급
  *
- * 중복 방지:
- *  - days/{date}.habitBasePointsMax: { [habitId]: number }
- *    오늘 각 습관에서 산정된 기본 포인트 최댓값을 추적.
- *    score를 낮췄다 높여도 이미 지급된 최댓값 초과분만 지급.
- *  - days/{date}.habitPointsToday: 하루 총 습관 포인트 (상한 적용)
+ * 포인트 정산 방식:
+ *  - days/{date}.habitBasePointsCurrent: { [habitId]: number }
+ *    오늘 각 습관의 현재 기본 포인트를 추적.
+ *    score 변경 시 (현재 - 이전) delta를 지급/삭감.
+ *    같은 score 반복 클릭 → delta=0 → 변화 없음.
+ *    score 상향 → 양수 delta → 지급.
+ *    score 하향 → 음수 delta → 삭감.
+ *  - days/{date}.habitPointsToday: 하루 누적 순 지급량 (양수 delta에만 상한 적용)
  */
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
@@ -50,43 +53,49 @@ export const awardEngine = functions
     const prog = progSnap.exists ? (progSnap.data() as ProgressDoc) : null;
     const inComeback = !!(prog?.comebackUntil && prog.comebackUntil >= date);
 
-    // 오늘 이 습관에서 지금까지 산정된 기본 포인트 최댓값을 추적하는 트랜잭션
-    // - 5점→1점→5점 반복 등으로 delta>0이 반복 발생하는 문제 방지
-    // - 하루 상한(HABIT_DAILY_CHECK_CAP)도 원자적으로 적용
     const dayRef = db.doc(`users/${uid}/days/${date}`);
-    let cappedDelta = 0;
+    let finalDelta = 0;
     let shouldGrow = false;
 
     await db.runTransaction(async (tx) => {
       const daySnap = await tx.get(dayRef);
       const dayData = daySnap.data() ?? {};
 
-      const basePointsMap: Record<string, number> = dayData.habitBasePointsMax ?? {};
-      const prevBase = basePointsMap[habitId] ?? 0;
+      const currentMap: Record<string, number> = dayData.habitBasePointsCurrent ?? {};
+      const prevBase = currentMap[habitId] ?? 0;
       const currBase = pointsForCheck(habit.weight, habit.scoreMode, after.score);
 
-      // 이전 최댓값 초과분만 신규 지급 대상
-      const rawDelta = Math.max(0, currBase - prevBase);
-      if (rawDelta <= 0) return;
+      // score 변경이 없으면 무시
+      if (currBase === prevBase) return;
+
+      const rawDelta = currBase - prevBase; // 양수=지급, 음수=삭감
 
       // Comeback Mode ×2
-      const earnedDelta = inComeback ? rawDelta * 2 : rawDelta;
+      const multipliedDelta = inComeback ? rawDelta * 2 : rawDelta;
 
-      // 하루 상한 적용
+      // 양수(지급)일 때만 하루 상한 적용 — 삭감은 항상 그대로 반영
+      let cappedDelta: number;
       const earnedToday: number = dayData.habitPointsToday ?? 0;
-      const remaining = Math.max(0, HABIT_DAILY_CHECK_CAP - earnedToday);
-      cappedDelta = Math.min(earnedDelta, remaining);
-      if (cappedDelta <= 0) return;
+      if (multipliedDelta > 0) {
+        const remaining = Math.max(0, HABIT_DAILY_CHECK_CAP - earnedToday);
+        cappedDelta = Math.min(multipliedDelta, remaining);
+      } else {
+        cappedDelta = multipliedDelta;
+      }
 
-      shouldGrow = !!after.achieved;
+      if (cappedDelta === 0) return;
+
+      finalDelta = cappedDelta;
+      shouldGrow = !!after.achieved && rawDelta > 0;
+
       tx.set(dayRef, {
-        habitBasePointsMax: { ...basePointsMap, [habitId]: currBase },
+        habitBasePointsCurrent: { ...currentMap, [habitId]: currBase },
         habitPointsToday: earnedToday + cappedDelta,
         updatedAt: FieldValue.serverTimestamp(),
       }, { merge: true });
     });
 
-    if (cappedDelta <= 0) {
+    if (finalDelta === 0) {
       await updateDayScore(uid, date);
       return;
     }
@@ -95,7 +104,7 @@ export const awardEngine = functions
       ? (after.achieved ? 'habit_achieved_comeback' : 'habit_partial_comeback')
       : (after.achieved ? 'habit_achieved' : 'habit_partial');
 
-    await creditPoints(uid, cappedDelta, reason, habitId);
+    await creditPoints(uid, finalDelta, reason, habitId);
     await updateDayScore(uid, date);
     await checkBadges(uid);
     if (shouldGrow) await growRandomPlant(uid);  // 정원 자동 성장
