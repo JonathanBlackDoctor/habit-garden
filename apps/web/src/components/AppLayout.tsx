@@ -17,8 +17,10 @@ export default function AppLayout() {
         position="bottom-center"
         richColors
         closeButton
+        swipeDirections={['left', 'right']}
         offset="calc(72px + env(safe-area-inset-bottom))"
         toastOptions={{
+          closeButtonAriaLabel: '알림 닫기',
           style: { background: 'var(--bloom-soft)', border: '1px solid var(--bloom)', color: 'var(--bloom)' },
         }}
       />

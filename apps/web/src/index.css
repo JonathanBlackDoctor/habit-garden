@@ -85,17 +85,35 @@
   --normal-text: var(--bloom) !important;
 }
 
-/* 닫기 버튼 크게 — 한 번에 쉽게 닫히도록 */
-[data-sonner-toast] [data-close-button] {
-  width: 26px;
-  height: 26px;
-  top: 8px;
-  left: 8px;
-  background: var(--bloom-soft);
-  border-color: var(--bloom);
-  color: var(--bloom);
+/* 우측 큰 '닫기' 버튼 — 좌우 스와이프로도 닫을 수 있음 */
+[data-sonner-toast][data-styled='true'] {
+  padding-right: 76px;
 }
-[data-sonner-toast] [data-close-button] svg {
-  width: 16px;
-  height: 16px;
+[data-sonner-toast][data-styled='true'] [data-close-button] {
+  left: unset;
+  right: 10px;
+  top: 50%;
+  bottom: auto;
+  width: 56px;
+  height: calc(100% - 16px);
+  min-height: 40px;
+  transform: translateY(-50%);
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  color: #1f2937;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  opacity: 1;
+}
+[data-sonner-toast][data-styled='true'] [data-close-button] svg {
+  display: none;
+}
+[data-sonner-toast][data-styled='true'] [data-close-button]::after {
+  content: '닫기';
+}
+[data-sonner-toast][data-styled='true']:hover [data-close-button]:hover {
+  background: #f3f4f6;
+  border-color: rgba(0, 0, 0, 0.2);
 }
