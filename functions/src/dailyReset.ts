@@ -116,8 +116,10 @@ async function processUserDay(uid: string, today: string, yesterday: string): Pr
       .collection(`users/${uid}/days/${yesterday}/habitChecks`)
       .get();
 
-    const total    = checks.size;
-    const achieved = checks.docs.filter((d) => d.data().achieved).length;
+    // 의도적 건너뛰기(score=null)는 분모에서 제외 — 스트릭 보호
+    const scored   = checks.docs.filter((d) => d.data().score !== null);
+    const total    = scored.length;
+    const achieved = scored.filter((d) => d.data().achieved).length;
     success  = total > 0 && achieved / total >= 0.6;
 
     if (!success) {

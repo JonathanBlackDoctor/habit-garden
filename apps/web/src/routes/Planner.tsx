@@ -8,7 +8,7 @@ import { useAppStore } from '@/lib/store';
 import type { TodayTodoDoc, LongTodoDoc } from 'shared/types/firestore';
 import { Plus, ChevronLeft, Trash2, CalendarDays, Pencil, Check, X, Undo2, Archive } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { differenceInCalendarDays } from 'date-fns';
+import { differenceInCalendarDays, addDays, parseISO, format } from 'date-fns';
 
 type Priority = LongTodoDoc['priority'];
 
@@ -29,9 +29,7 @@ export default function Planner() {
   const date   = useAppStore((s) => s.currentDate);
   const navigate = useNavigate();
 
-  // ── 오늘 할 일 ──
-  const [todos, setTodos] = useState<TodayTodoDoc[]>([]);
-  const [input, setInput] = useState('');
+  const tomorrow = format(addDays(parseISO(date), 1), 'yyyy-MM-dd');
 
   // ── 장기 할 일 ──
   const [longTodos, setLongTodos] = useState<LongTodoDoc[]>([]);
@@ -43,17 +41,6 @@ export default function Planner() {
   useEffect(() => {
     if (!uid) return;
     const q = query(
-      collection(db, 'users', uid, 'days', date, 'todayTodos'),
-      orderBy('id')
-    );
-    return onSnapshot(q, (snap) => {
-      setTodos(snap.docs.map((d) => ({ ...(d.data() as TodayTodoDoc), id: d.id })));
-    });
-  }, [uid, date]);
-
-  useEffect(() => {
-    if (!uid) return;
-    const q = query(
       collection(db, 'users', uid, 'longTodos'),
       orderBy('createdAt', 'desc')
     );
@@ -61,22 +48,6 @@ export default function Planner() {
       setLongTodos(snap.docs.map((d) => ({ ...(d.data() as LongTodoDoc), id: d.id })));
     });
   }, [uid]);
-
-  const add = async () => {
-    if (!uid || !input.trim()) return;
-    const id = Date.now().toString();
-    await addDoc(collection(db, 'users', uid, 'days', date, 'todayTodos'), {
-      id, title: input.trim(), done: false,
-    });
-    setInput('');
-  };
-
-  const toggle = async (todo: TodayTodoDoc) => {
-    if (!uid) return;
-    await updateDoc(doc(db, 'users', uid, 'days', date, 'todayTodos', todo.id), {
-      done: !todo.done,
-    });
-  };
 
   const addLong = async () => {
     if (!uid || !longInput.trim()) return;
@@ -122,46 +93,29 @@ export default function Planner() {
         <h2 className="text-base font-semibold text-[var(--fg-primary)]">플래너</h2>
       </div>
 
-      {/* ───────── 오늘 할 일 ───────── */}
-      <section className="space-y-3">
-        <h3 className="text-sm font-semibold text-[var(--fg-primary)]">오늘 할 일</h3>
-
-        <div className="flex gap-2">
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && add()}
-            placeholder="할 일 추가…"
-            className="flex-1 rounded-[var(--radius)] border border-[var(--border)] bg-white px-4 py-2.5 text-sm outline-none focus:border-[var(--leaf)]"
-          />
-          <button
-            onClick={add}
-            className="flex items-center justify-center rounded-[var(--radius)] bg-[var(--leaf)] px-3 text-white"
-          >
-            <Plus size={18} />
-          </button>
-        </div>
-
-        <div className="space-y-2">
-          {todos.length === 0 && (
-            <p className="text-center text-sm text-[var(--fg-faint)] py-6">오늘의 할 일을 추가해보세요.</p>
-          )}
-          {todos.map((todo) => (
-            <button
-              key={todo.id}
-              onClick={() => toggle(todo)}
-              className="flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3 text-left shadow-[var(--shadow-sm)]"
-            >
-              <div className={`h-5 w-5 shrink-0 rounded-full border-2 flex items-center justify-center transition-colors ${todo.done ? 'border-[var(--leaf)] bg-[var(--leaf)]' : 'border-[var(--border)]'}`}>
-                {todo.done && <span className="text-white text-xs">✓</span>}
+      {/* ───────── 장기 목표 요약 ───────── */}
+      {activeLong.length > 0 && (
+        <section className="space-y-2">
+          <h3 className="text-sm font-semibold text-[var(--fg-primary)]">진행 중 장기 목표</h3>
+          <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+            {activeLong.map((t) => (
+              <div
+                key={t.id}
+                className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium ${PRIORITY_META[t.priority].cls}`}
+              >
+                <span className="max-w-[10rem] truncate">{t.title}</span>
+                {t.deadline && (
+                  <span className="tabular-nums opacity-70">{dDayLabel(t.deadline)}</span>
+                )}
               </div>
-              <span className={`text-sm ${todo.done ? 'line-through text-[var(--fg-faint)]' : 'text-[var(--fg-primary)]'}`}>
-                {todo.title}
-              </span>
-            </button>
-          ))}
-        </div>
-      </section>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ───────── 오늘 / 내일 할 일 ───────── */}
+      <DayTodoList uid={uid} date={date} title="오늘 할 일" emptyHint="오늘의 할 일을 추가해보세요." />
+      <DayTodoList uid={uid} date={tomorrow} title="내일 할 일" emptyHint="내일 할 일을 미리 적어두세요." />
 
       <div className="border-t border-[var(--border-soft)]" />
 
@@ -246,6 +200,87 @@ export default function Planner() {
         )}
       </section>
     </div>
+  );
+}
+
+function DayTodoList({
+  uid, date, title, emptyHint,
+}: {
+  uid: string | null;
+  date: string;
+  title: string;
+  emptyHint: string;
+}) {
+  const [todos, setTodos] = useState<TodayTodoDoc[]>([]);
+  const [input, setInput] = useState('');
+
+  useEffect(() => {
+    if (!uid) return;
+    const q = query(
+      collection(db, 'users', uid, 'days', date, 'todayTodos'),
+      orderBy('id')
+    );
+    return onSnapshot(q, (snap) => {
+      setTodos(snap.docs.map((d) => ({ ...(d.data() as TodayTodoDoc), id: d.id })));
+    });
+  }, [uid, date]);
+
+  const add = async () => {
+    if (!uid || !input.trim()) return;
+    const id = Date.now().toString();
+    await addDoc(collection(db, 'users', uid, 'days', date, 'todayTodos'), {
+      id, title: input.trim(), done: false,
+    });
+    setInput('');
+  };
+
+  const toggle = async (todo: TodayTodoDoc) => {
+    if (!uid) return;
+    await updateDoc(doc(db, 'users', uid, 'days', date, 'todayTodos', todo.id), {
+      done: !todo.done,
+    });
+  };
+
+  return (
+    <section className="space-y-3">
+      <h3 className="text-sm font-semibold text-[var(--fg-primary)]">{title}</h3>
+
+      <div className="flex gap-2">
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && add()}
+          placeholder="할 일 추가…"
+          className="flex-1 rounded-[var(--radius)] border border-[var(--border)] bg-white px-4 py-2.5 text-sm outline-none focus:border-[var(--leaf)]"
+        />
+        <button
+          onClick={add}
+          className="flex items-center justify-center rounded-[var(--radius)] bg-[var(--leaf)] px-3 text-white"
+        >
+          <Plus size={18} />
+        </button>
+      </div>
+
+      <div className="space-y-2">
+        {todos.length === 0 && (
+          <p className="text-center text-sm text-[var(--fg-faint)] py-6">{emptyHint}</p>
+        )}
+        {todos.map((todo) => (
+          <button
+            key={todo.id}
+            onClick={() => toggle(todo)}
+            className="flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3 text-left shadow-[var(--shadow-sm)]"
+          >
+            <div className={`h-5 w-5 shrink-0 rounded-full border-2 flex items-center justify-center transition-colors ${todo.done ? 'border-[var(--leaf)] bg-[var(--leaf)]' : 'border-[var(--border)]'}`}>
+              {todo.done && <span className="text-white text-xs">✓</span>}
+            </div>
+            <span className={`text-sm ${todo.done ? 'line-through text-[var(--fg-faint)]' : 'text-[var(--fg-primary)]'}`}>
+              {todo.title}
+            </span>
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }
 

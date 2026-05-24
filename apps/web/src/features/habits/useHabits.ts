@@ -81,11 +81,12 @@ export function useSaveHabitCheck(dateOverride?: string) {
       return;
     }
 
-    const { bumpCombo, resetCombo, triggerCelebration, tryRewardHabit } = useAppStore.getState();
+    const { bumpCombo, triggerCelebration, tryRewardHabit } = useAppStore.getState();
 
     if (score === null) {
-      // pass — 콤보 끊김
-      resetCombo();
+      // 의도적 건너뛰기 — 중립 처리: 콤보 유지, 스트릭 영향 없음
+      feedback('check');
+      toast('건너뜀', { description: habit.title });
       return;
     }
 
