@@ -403,6 +403,9 @@ export const PRAYER_POINT_EARN = {
 // 하루 기도 체크 포인트 상한 (인플레이션 방지)
 export const PRAYER_DAILY_CHECK_CAP = 30;
 
+// 하루 습관 체크 포인트 상한 (수백 개 습관 생성 악용 방지)
+export const HABIT_DAILY_CHECK_CAP = 300;
+
 // 오늘의 기도 로테이션 목록 상한 N
 export const PRAYER_ROTATION_LIMIT = 9;
 

@@ -11,6 +11,7 @@ import * as admin from 'firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import {
   POINT_EARN,
+  HABIT_DAILY_CHECK_CAP,
   BADGE_DEFS,
   type HabitDoc,
   type HabitCheckDoc,
@@ -63,7 +64,27 @@ export const awardEngine = functions
       ? (after.achieved ? 'habit_achieved_comeback' : 'habit_partial_comeback')
       : (after.achieved ? 'habit_achieved' : 'habit_partial');
 
-    await creditPoints(uid, finalDelta, reason, habitId);
+    // 하루 습관 포인트 상한 적용 (트랜잭션으로 원자적 처리)
+    const dayRef = db.doc(`users/${uid}/days/${date}`);
+    let cappedDelta = 0;
+    await db.runTransaction(async (tx) => {
+      const daySnap = await tx.get(dayRef);
+      const earnedToday: number = daySnap.data()?.habitPointsToday ?? 0;
+      const remaining = Math.max(0, HABIT_DAILY_CHECK_CAP - earnedToday);
+      cappedDelta = Math.min(finalDelta, remaining);
+      if (cappedDelta <= 0) return;
+      tx.set(dayRef, {
+        habitPointsToday: earnedToday + cappedDelta,
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+    });
+
+    if (cappedDelta <= 0) {
+      await updateDayScore(uid, date);
+      return;
+    }
+
+    await creditPoints(uid, cappedDelta, reason, habitId);
     await updateDayScore(uid, date);
     await checkBadges(uid);
     if (after.achieved) await growRandomPlant(uid);  // 정원 자동 성장
