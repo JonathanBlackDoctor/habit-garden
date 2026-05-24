@@ -308,5 +308,30 @@ export function useGardenActions() {
     }
   };
 
-  return { plantSeed, waterPlant, unlockSpecies, harvestPlant };
+  const digUpPlant = async (plantId: string) => {
+    if (!uid || !progress) return;
+    const plant = progress.gardenState.plants.find((p) => p.id === plantId);
+    if (!plant) return;
+    const species = PLANT_SPECIES.find((s) => s.id === plant.speciesId);
+
+    const newPlants = progress.gardenState.plants.filter((p) => p.id !== plantId);
+    const prevStats = progress.gardenStats ?? {};
+
+    try {
+      await setDoc(doc(db, 'users', uid, 'progress', 'main'), {
+        gardenState: { ...progress.gardenState, plants: newPlants },
+        gardenStats: {
+          ...prevStats,
+          plantsLost: (prevStats.plantsLost ?? 0) + 1,
+        },
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+
+      toast(`🪴 ${species?.name ?? '식물'}을(를) 파냈습니다.`);
+    } catch (e) {
+      toast.error('저장 실패: ' + (e as Error).message);
+    }
+  };
+
+  return { plantSeed, waterPlant, unlockSpecies, harvestPlant, digUpPlant };
 }
