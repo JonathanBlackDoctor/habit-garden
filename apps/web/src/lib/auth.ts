@@ -19,7 +19,7 @@ import { auth, db } from './firebase';
 import { useAppStore } from './store';
 import type { UserProfileDoc, UserSettingsDoc } from 'shared/types/firestore';
 import { exportGuestData, importGuestData } from './migrate';
-import { seedDefaultHabits } from './seed';
+import { seedGuestHabits } from './seed';
 
 export const OWNER_UID = 'XMgQWlM1wtM62hIheTH4sKGDNuC2';
 
@@ -52,7 +52,7 @@ export async function signInAsGuest(): Promise<void> {
   await setPersistence(auth, browserLocalPersistence).catch(() => {});
   const cred = await signInAnonymously(auth);
   // 신규 게스트 계정에 기본 습관을 1회 시딩 (빈 화면 방지)
-  await seedDefaultHabits(cred.user.uid).catch((e) =>
+  await seedGuestHabits(cred.user.uid).catch((e) =>
     console.error('guest habit seed failed', e),
   );
 }

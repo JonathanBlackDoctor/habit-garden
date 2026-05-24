@@ -572,6 +572,13 @@ export const SEED_HABITS: Omit<HabitDoc, 'id'>[] = [
   { title: '청소',           weight: 5,  timeOfDay: 'evening',   order: 7, scoreMode: 'binary', achieveThreshold: 1, iconName: 'sparkles',      active: true },
 ];
 
+// ── 게스트(둘러보기) 시드 습관 — 운동·청소·스마트폰 절제만 노출 ──
+export const GUEST_SEED_HABITS: Omit<HabitDoc, 'id'>[] = [
+  { title: '스마트폰 절제', weight: 9, timeOfDay: 'anytime', order: 0, scoreMode: 'scaled', achieveThreshold: 3, iconName: 'smartphone', active: true, description: '<2h=5, 2-3h=4, 3-4h=3, 4-5h=2, 5h+=1' },
+  { title: '운동',          weight: 7, timeOfDay: 'morning', order: 1, scoreMode: 'binary', achieveThreshold: 1, iconName: 'dumbbell',   active: true },
+  { title: '청소',          weight: 5, timeOfDay: 'evening', order: 2, scoreMode: 'binary', achieveThreshold: 1, iconName: 'sparkles',   active: true },
+];
+
 // ── 시드 기도제목 데이터 ──────────────────────────────────
 export type PrayerSeed = Pick<PrayerDoc, 'group' | 'target' | 'title' | 'priority'> & {
   body?: string;
