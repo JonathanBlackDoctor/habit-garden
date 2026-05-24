@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
-  collection, onSnapshot, query, orderBy, doc, setDoc, serverTimestamp,
+  collection, onSnapshot, query, orderBy, doc, setDoc, serverTimestamp, limit,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
@@ -41,6 +41,72 @@ export function useHabitChecks(date: string) {
   }, [uid, date]);
 
   return checks;
+}
+
+/**
+ * 서버(awardEngine)가 pointLedger에 기록한 실제 적립 결과를 구독해 토스트로 표시.
+ * 클라이언트 추정치(델타 계산) 대신 서버 확정값을 사용하므로
+ * Comeback Mode 배수, 일일 상한 등이 모두 정확하게 반영된다.
+ */
+export function useAwardToast(habits: HabitDoc[]) {
+  const uid = useAppStore((s) => s.uid);
+
+  // 구독이 재설정되지 않도록 habits 맵을 ref로 관리
+  const habitsMapRef = useRef<Record<string, HabitDoc>>({});
+  useEffect(() => {
+    const m: Record<string, HabitDoc> = {};
+    habits.forEach((h) => { m[h.id] = h; });
+    habitsMapRef.current = m;
+  }, [habits]);
+
+  useEffect(() => {
+    if (!uid) return;
+
+    const seenIds = new Set<string>();
+    let initialized = false;
+
+    const q = query(
+      collection(db, 'users', uid, 'pointLedger'),
+      orderBy('createdAt', 'desc'),
+      limit(5),
+    );
+
+    return onSnapshot(q, (snap) => {
+      if (!initialized) {
+        // 초기 스냅샷: 기존 항목은 seen 처리만 (토스트 없음)
+        snap.docs.forEach((d) => seenIds.add(d.id));
+        initialized = true;
+        return;
+      }
+
+      snap.docChanges().forEach((change) => {
+        if (change.type !== 'added') return;
+        if (seenIds.has(change.doc.id)) return;
+        seenIds.add(change.doc.id);
+
+        const { delta, reason, refId } = change.doc.data() as {
+          delta: number;
+          reason: string;
+          refId?: string;
+        };
+
+        const habitReasons = [
+          'habit_achieved', 'habit_partial',
+          'habit_achieved_comeback', 'habit_partial_comeback',
+        ];
+        if (!habitReasons.includes(reason)) return;
+        if (!delta || delta <= 0) return;
+
+        const habit = refId ? habitsMapRef.current[refId] : undefined;
+        const title = habit?.title ?? '습관';
+        const isAchieved = reason.includes('achieved');
+
+        toast(`✦ +${delta}P`, {
+          description: isAchieved ? `${title} 달성` : `${title} · 시도 인정`,
+        });
+      });
+    });
+  }, [uid]);
 }
 
 export function useSaveHabitCheck(dateOverride?: string) {
@@ -93,47 +159,27 @@ export function useSaveHabitCheck(dateOverride?: string) {
     const isFirstCheck = prevScore === null;
     const perfect = habit.scoreMode === 'scaled' && score === 5;
 
-    // 서버가 실제 지급할 델타 (같은 습관 하루 중 점수 변경 시 차이만 반영)
-    const basePts = pointsForCheck(habit.weight, habit.scoreMode, score);
-    const prevBasePts = prevScore !== null
-      ? pointsForCheck(habit.weight, habit.scoreMode, prevScore)
-      : 0;
-    const delta = basePts - prevBasePts;
-
     if (achieved) {
       let combo = 0;
-      let comboBonus = 0;
       if (isFirstCheck) {
         combo = bumpCombo();
-        comboBonus = combo >= 3 ? combo : 0;
       }
-      const displayPts = delta + comboBonus;
 
       feedback(perfect ? 'perfect' : 'achieve');
       if (isFirstCheck && combo >= 3) feedback('combo');
 
-      if (displayPts > 0) {
-        toast(`✦ +${displayPts}P`, {
-          description:
-            comboBonus > 0
-              ? `${habit.title} 달성 · 🔥${combo} 콤보 +${comboBonus}`
-              : `${habit.title} 달성`,
-        });
-      }
-
+      // 포인트 토스트는 useAwardToast가 서버 확정값으로 표시
+      // celebration overlay는 즉각 피드백용으로 클라이언트에서 발동
       if (perfect && isFirstCheck) {
+        const basePts = pointsForCheck(habit.weight, habit.scoreMode, score);
         triggerCelebration('perfect', {
           title: habit.title,
-          points: displayPts,
-          detail: comboBonus > 0 ? `🔥 ${combo} 콤보` : undefined,
+          points: basePts,
         });
       }
     } else {
-      // 부분 점수 — 작은 토스트, 콤보는 끊지 않음
+      // 부분 점수 — 소리만, 포인트 토스트는 useAwardToast가 처리
       feedback('check');
-      if (delta > 0) {
-        toast(`✦ +${delta}P`, { description: `${habit.title} · 시도 인정` });
-      }
     }
   };
 }

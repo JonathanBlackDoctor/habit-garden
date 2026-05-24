@@ -5,7 +5,7 @@ import { Pencil, Check, Plus, Settings } from 'lucide-react';
 import { toast } from 'sonner';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
-import { useHabits, useHabitChecks, useSaveHabitCheck } from '@/features/habits/useHabits';
+import { useHabits, useHabitChecks, useSaveHabitCheck, useAwardToast } from '@/features/habits/useHabits';
 import HabitCard from '@/features/habits/HabitCard';
 import HabitEditRow from '@/features/habits/HabitEditRow';
 import PastDateBanner from '@/components/PastDateBanner';
@@ -59,6 +59,7 @@ export default function Habits() {
   const habits = useHabits({ includeInactive: editMode });
   const checks = useHabitChecks(date);
   const save   = useSaveHabitCheck(isPast ? date : undefined);
+  useAwardToast(habits);
 
   const groups = groupByTime(habits);
   const activeHabits   = habits.filter((h) => h.active);
