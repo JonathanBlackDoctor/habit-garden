@@ -10,8 +10,7 @@ import { subDays, format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { callGeminiWithRetry, GEMINI_MODEL } from './geminiUtil';
-import type { PrayerDoc, PrayerCategory } from '../../shared/types/firestore';
-import { PRAYER_CATEGORY_LABELS } from '../../shared/types/firestore';
+import type { PrayerDoc } from '../../shared/types/firestore';
 
 const db = admin.firestore();
 const KST = 'Asia/Seoul';
@@ -69,24 +68,22 @@ async function processUserWeekly(uid: string, nowKst: Date): Promise<void> {
   // 활동이 전혀 없으면 회고를 만들지 않는다 (스팸 방지)
   if (totalChecks === 0 && answeredItems.length === 0) return;
 
-  // 4) prayer 메타 → 인물·카테고리 집계
+  // 4) prayer 메타 → 모임 집계
   const ids = Object.keys(checkCounts);
   const prayerDocs = await Promise.all(ids.map((id) => db.doc(`users/${uid}/prayers/${id}`).get()));
-  const byPerson: Record<string, number> = {};
-  const byCategory: Record<string, number> = {};
+  const byGroup: Record<string, number> = {};
   for (const ds of prayerDocs) {
     if (!ds.exists) continue;
     const p = ds.data() as PrayerDoc;
     const c = checkCounts[ds.id] ?? 0;
-    const name = p.personName || '이름 없음';
-    byPerson[name] = (byPerson[name] ?? 0) + c;
-    byCategory[p.category] = (byCategory[p.category] ?? 0) + c;
+    const g = p.group || '개인';
+    byGroup[g] = (byGroup[g] ?? 0) + c;
   }
-  const topPersons = Object.entries(byPerson)
+  const topGroups = Object.entries(byGroup)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5)
-    .map(([personName, count]) => ({ personName, count }));
-  const topCategory = (Object.entries(byCategory).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'other') as PrayerCategory;
+    .map(([group, count]) => ({ group, count }));
+  const topGroup = topGroups[0]?.group ?? '개인';
 
   // 5) 잊혀가는 기도 (활성·고정 아님·7일 이상 미체크) 상위 3
   const activeSnap = await db.collection(`users/${uid}/prayers`).where('status', '==', 'active').get();
@@ -101,7 +98,7 @@ async function processUserWeekly(uid: string, nowKst: Date): Promise<void> {
     .filter((x) => x.daysSince >= 7)
     .sort((a, b) => b.daysSince - a.daysSince)
     .slice(0, 3)
-    .map((x) => ({ title: x.p.title, personName: x.p.personName, daysSince: x.daysSince }));
+    .map((x) => ({ title: x.p.title, daysSince: x.daysSince }));
 
   // 6) Gemini 한 줄 격려 (실패 시 기본 문구)
   let encouragement = '이번 주도 묵묵히 기도의 자리를 지켰어요. 그 걸음을 주님이 기억하십니다.';
@@ -120,16 +117,15 @@ async function processUserWeekly(uid: string, nowKst: Date): Promise<void> {
       });
       const prompt = `이번 주 기도 데이터:
 - 총 기도 체크: ${totalChecks}회
-- 가장 많이 기도한 대상: ${topPersons[0]?.personName ?? '없음'}
-- 가장 집중한 영역: ${PRAYER_CATEGORY_LABELS[topCategory]}
+- 가장 많이 기도한 모임: ${topGroup}
 - 응답된 기도: ${answeredItems.length}건
 - 잊혀가는 기도: ${forgottenWarning.length}건
 
 위 데이터를 인용하며 3~4문장(250~450자)으로 격려하라.
 구성:
-1) 이번 주 기도의 결을 데이터로 짧게 묘사(체크 횟수·집중 대상·영역).
+1) 이번 주 기도의 결을 데이터로 짧게 묘사(체크 횟수·집중 모임).
 2) 응답된 기도가 있으면 그 의미, 없으면 꾸준함 자체의 의미를 한 줄.
-3) 잊혀가는 기도가 있으면 비난 없이 다음 주 한 명을 다시 떠올리도록 권유.
+3) 잊혀가는 기도가 있으면 비난 없이 다음 주 다시 떠올리도록 권유.
 4) 다음 한 주를 향한 짧은 한 줄 권면.`;
       const res = await callGeminiWithRetry(() => model.generateContent(prompt));
       const t = res.response.text().trim();
@@ -145,12 +141,11 @@ async function processUserWeekly(uid: string, nowKst: Date): Promise<void> {
     weekStart: admin.firestore.Timestamp.fromDate(weekStartDate),
     weekEnd: FieldValue.serverTimestamp(),
     totalChecks,
-    topPersons,
-    topCategory,
+    topGroups,
+    topGroup,
     answeredCount: answeredItems.length,
     answeredItems: answeredItems.slice(0, 5).map((p) => ({
       title: p.title,
-      personName: p.personName,
       answerNote: p.answerNote ?? '',
     })),
     forgottenWarning,

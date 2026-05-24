@@ -86,7 +86,7 @@ export function DuplicateFinder({
                   onClick={() => onOpen(p)}
                   className="block w-full truncate rounded bg-white px-2 py-1 text-left text-xs text-[var(--fg-primary)]"
                 >
-                  {p.personName && <span className="text-[var(--fg-faint)]">{p.personName} · </span>}
+                  {p.group && <span className="text-[var(--fg-faint)]">{p.group} · </span>}
                   {p.title}
                 </button>
               );

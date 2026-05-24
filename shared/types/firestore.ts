@@ -30,6 +30,7 @@ export interface UserSettingsDoc {
   features: {
     faith: boolean;          // 경건·기도제목 메뉴 표시 여부
   };
+  prayerGroups?: string[];   // 기도제목을 받은 모임 목록 (직접 추가 가능). 미설정 시 기본값 사용
   updatedAt: Timestamp;
 }
 
@@ -170,32 +171,19 @@ export interface JournalEntryDoc {
 }
 
 // ── 기도제목 시스템 ───────────────────────────────────────
-export type PrayerCategory = 'self' | 'family' | 'church' | 'ministry' | 'friend' | 'other';
 export type PrayerStatus   = 'active' | 'answered' | 'dormant';   // 활성 / 응답됨 / 잠든
 export type PrayerPriority  = 'high' | 'mid' | 'low';
 export type PrayerSource    = 'quick' | 'manual' | 'bulk_ai';
 
-// 기도 대상자 — users/{uid}/people/{personId}
-export interface PrayerPersonDoc {
-  id: string;
-  name: string;                 // 표시 이름
-  aliases?: string[];           // 다른 표기(별명 등) — AI 중복 매칭용
-  relation: PrayerCategory;     // 기본 분류
-  note?: string;                // 메모(관계, 배경)
-  activeCount: number;          // 활성 기도제목 수 (denormalized)
-  answeredCount: number;        // 응답된 기도제목 수
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-}
+// 기도제목을 받은 모임 — 사용자가 직접 추가 가능. 미설정 시 이 기본값 사용
+export const DEFAULT_PRAYER_GROUPS = ['교회', 'CMF', '개인'] as const;
 
 // 기도제목 — users/{uid}/prayers/{prayerId}
 export interface PrayerDoc {
   id: string;
 
   // ── 정리 기준 ──────────────────────────────
-  personId?: string;            // 대상자 링크 (없을 수 있음)
-  personName: string;           // 표시·검색용 (비정규화)
-  category: PrayerCategory;     // 분류
+  group: string;                // 받은 모임 (교회/CMF/개인 …)
   receivedAt: Timestamp;        // 받은 날짜
 
   // ── 내용 ───────────────────────────────────
@@ -235,11 +223,11 @@ export interface PrayerWeeklyDigestDoc {
   weekStart: Timestamp;
   weekEnd: Timestamp;
   totalChecks: number;
-  topPersons: { personName: string; count: number }[];
-  topCategory: PrayerCategory;
+  topGroups: { group: string; count: number }[];
+  topGroup: string;
   answeredCount: number;
-  answeredItems: { title: string; personName: string; answerNote?: string }[];
-  forgottenWarning: { title: string; personName: string; daysSince: number }[];
+  answeredItems: { title: string; answerNote?: string }[];
+  forgottenWarning: { title: string; daysSince: number }[];
   oneLineEncouragement: string;       // AI 생성 격려 두 문장
   generatedAt: Timestamp;
 }
@@ -415,16 +403,6 @@ export const PRAYER_ROTATION_DEFAULTS: Record<
   low:  { baseInterval: 10, dormantThreshold: 45,  weight: 1 },
 };
 
-// 기도 분류 라벨 (UI 표시용)
-export const PRAYER_CATEGORY_LABELS: Record<PrayerCategory, string> = {
-  self:     '자신',
-  family:   '가족',
-  church:   '교회',
-  ministry: '사역',
-  friend:   '지인',
-  other:    '기타',
-};
-
 // ── 식물 종 ───────────────────────────────────────────────
 // 종별 특성 (passive abilities) — 게임 루프 다양성 위한 트레잇
 export type PlantTrait =
@@ -566,19 +544,18 @@ export const SEED_HABITS: Omit<HabitDoc, 'id'>[] = [
 ];
 
 // ── 시드 기도제목 데이터 ──────────────────────────────────
-export type PrayerSeed = Pick<PrayerDoc, 'category' | 'title' | 'priority'> & {
-  personName?: string;
+export type PrayerSeed = Pick<PrayerDoc, 'group' | 'title' | 'priority'> & {
   body?: string;
   pinned?: boolean;
 };
 
 export const SEED_PRAYERS: PrayerSeed[] = [
-  { category: 'self',     title: '말씀과 기도로 하루를 시작하기',   priority: 'high', pinned: true,  body: '매일 아침 QT와 기도로 하나님과 동행하기' },
-  { category: 'self',     title: '미디어 절제와 마음의 절제',       priority: 'mid',  body: '스마트폰·숏츠 사용을 줄이고 집중력 회복' },
-  { category: 'family',   title: '가족의 건강과 믿음',              priority: 'high', personName: '가족', body: '부모님의 건강과 온 가족의 신앙 성장' },
-  { category: 'church',   title: '교회 공동체와 주일 예배',         priority: 'mid',  body: '함께 예배하는 지체들과 교회의 부흥' },
-  { category: 'ministry', title: '맡은 사역을 충성되게',            priority: 'mid',  body: '섬기는 자리에서 지혜와 사랑으로 감당하기' },
-  { category: 'friend',   title: '친구·지인의 구원과 회복',         priority: 'low',  personName: '친구', body: '아직 주님을 모르는 친구들을 위한 중보' },
+  { group: '개인', title: '말씀과 기도로 하루를 시작하기',   priority: 'high', pinned: true,  body: '매일 아침 QT와 기도로 하나님과 동행하기' },
+  { group: '개인', title: '미디어 절제와 마음의 절제',       priority: 'mid',  body: '스마트폰·숏츠 사용을 줄이고 집중력 회복' },
+  { group: '개인', title: '가족의 건강과 믿음',              priority: 'high', body: '부모님의 건강과 온 가족의 신앙 성장' },
+  { group: '교회', title: '교회 공동체와 주일 예배',         priority: 'mid',  body: '함께 예배하는 지체들과 교회의 부흥' },
+  { group: 'CMF',  title: '맡은 사역을 충성되게',            priority: 'mid',  body: '섬기는 자리에서 지혜와 사랑으로 감당하기' },
+  { group: '개인', title: '친구·지인의 구원과 회복',         priority: 'low',  body: '아직 주님을 모르는 친구들을 위한 중보' },
 ];
 
 // 기도 우선순위 라벨 (UI 표시용)
