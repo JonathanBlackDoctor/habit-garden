@@ -311,6 +311,8 @@ function AllView({ prayers, onOpen }: { prayers: PrayerDoc[]; onOpen: (p: Prayer
 
   return (
     <div className="space-y-3">
+      {sel.selectMode && <BulkActionBar ids={[...sel.selectedIds]} onDone={sel.exit} />}
+
       <div className="flex items-center gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-white px-3 py-2">
         <Search size={15} className="text-[var(--fg-faint)]" />
         <input
@@ -353,8 +355,6 @@ function AllView({ prayers, onOpen }: { prayers: PrayerDoc[]; onOpen: (p: Prayer
           ))}
         </div>
       )}
-
-      {sel.selectMode && <BulkActionBar ids={[...sel.selectedIds]} onDone={sel.exit} />}
     </div>
   );
 }
@@ -364,6 +364,7 @@ function ListView({ prayers, empty, onOpen }: { prayers: PrayerDoc[]; empty: str
   if (prayers.length === 0) return <EmptyState text={empty} />;
   return (
     <div className="space-y-2">
+      {sel.selectMode && <BulkActionBar ids={[...sel.selectedIds]} onDone={sel.exit} />}
       <SelectToolbar count={prayers.length} sel={sel} allIds={prayers.map((p) => p.id)} />
       {prayers.map((p) => (
         <PrayerListCard
@@ -375,7 +376,6 @@ function ListView({ prayers, empty, onOpen }: { prayers: PrayerDoc[]; empty: str
           onToggleSelect={() => sel.toggle(p.id)}
         />
       ))}
-      {sel.selectMode && <BulkActionBar ids={[...sel.selectedIds]} onDone={sel.exit} />}
     </div>
   );
 }
