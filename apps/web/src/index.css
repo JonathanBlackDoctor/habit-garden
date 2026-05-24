@@ -22,6 +22,14 @@
     --sky-soft:    #E6F1FB;
     --wither:      #C7B68A;
 
+    /* ── 정원 씬 (일러스트 배경) ── */
+    --garden-sky-top:    #CDEBF6;
+    --garden-sky-bottom: #EAF6DA;
+    --garden-sun:        #FFF1C2;
+    --garden-hill:       #BFE0A0;
+    --garden-soil-top:   #A98559;
+    --garden-soil-bottom:#7C5C38;
+
     --border:      #DDE5D0;
     --border-soft: #EAF0E0;
 
@@ -75,6 +83,42 @@
   /* ── 탭바 안전 영역 ── */
   .tab-bar-safe {
     padding-bottom: max(env(safe-area-inset-bottom), 8px);
+  }
+}
+
+/* ── 정원 idle 모션 키프레임 ── */
+@keyframes plant-sway {
+  0%, 100% { transform: rotate(-1.3deg); }
+  50%      { transform: rotate(1.3deg); }
+}
+@keyframes mote-drift {
+  0%   { transform: translate(0, 0); opacity: 0; }
+  15%  { opacity: 0.7; }
+  85%  { opacity: 0.5; }
+  100% { transform: translate(var(--mote-dx, 12px), var(--mote-dy, -26px)); opacity: 0; }
+}
+@keyframes aura-pulse {
+  0%, 100% { opacity: var(--aura-min, 0.35); transform: scale(0.96); }
+  50%      { opacity: var(--aura-max, 0.6);  transform: scale(1.04); }
+}
+@keyframes halo-rotate {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes sparkle-twinkle {
+  0%, 100% { opacity: 1;   transform: scale(1); }
+  50%      { opacity: 0.2; transform: scale(0.6); }
+}
+
+.plant-sway   { animation: plant-sway 7s var(--ease-out) infinite; }
+.mote         { animation: mote-drift 9s linear infinite; }
+.aura-pulse   { animation: aura-pulse 3s var(--ease-out) infinite; transform-box: fill-box; transform-origin: center; }
+.halo-rotate  { animation: halo-rotate 16s linear infinite; transform-box: fill-box; transform-origin: center; }
+.sparkle      { animation: sparkle-twinkle 1.9s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+
+@media (prefers-reduced-motion: reduce) {
+  .plant-sway, .mote, .aura-pulse, .halo-rotate, .sparkle {
+    animation: none !important;
   }
 }
 
