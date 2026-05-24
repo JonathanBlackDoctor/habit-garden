@@ -28,6 +28,13 @@ interface AppState {
   bumpCombo: () => number;
   resetCombo: () => void;
 
+  // ── 하루 1회 보상 게이트 ──
+  // 오늘 이미 보상 피드백(포인트 토스트·콤보·셀러브레이션)을 준 습관 id.
+  // 서버가 포인트 중복 지급을 막지만, 클라이언트 연출도 하루 한 번만 나오게 한다.
+  rewardedHabitIds: Record<string, true>;
+  /** 아직 오늘 보상하지 않은 습관이면 표시 후 true 반환, 이미 보상했으면 false. */
+  tryRewardHabit: (habitId: string) => boolean;
+
   // ── 셀러브레이션 트리거 (Phase 1-1) ──
   celebrationKind: 'perfect' | 'streak7' | 'levelup' | null;
   celebrationPayload?: { title: string; points: number; detail?: string };
@@ -40,7 +47,7 @@ interface AppState {
 
 export const useAppStore = create<AppState>((set, get) => ({
   currentDate:     plannerDate(),
-  setCurrentDate:  (date) => set({ currentDate: date }),
+  setCurrentDate:  (date) => set({ currentDate: date, rewardedHabitIds: {} }),
   uid:             null,
   setUid:          (uid) => set({ uid }),
   user:            null,
@@ -65,6 +72,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     return next;
   },
   resetCombo: () => set({ currentCombo: 0, lastCheckAt: 0 }),
+
+  rewardedHabitIds: {},
+  tryRewardHabit: (habitId) => {
+    if (get().rewardedHabitIds[habitId]) return false;
+    set((s) => ({ rewardedHabitIds: { ...s.rewardedHabitIds, [habitId]: true } }));
+    return true;
+  },
 
   celebrationKind:    null,
   celebrationPayload: undefined,
