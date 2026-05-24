@@ -49,10 +49,16 @@ export function useSaveHabitCheck(dateOverride?: string) {
   const date = dateOverride ?? storeDate;
   const isPastEdit = !!dateOverride && dateOverride !== storeDate;
 
-  return async (habit: HabitDoc, score: number | null) => {
+  return async (habit: HabitDoc, score: number | null, prevCheck?: HabitCheckDoc | null) => {
     if (!uid) return;
+
+    const prevScore = prevCheck?.score ?? null;
+
+    // 같은 점수 재클릭: no-op
+    if (prevScore === score) return;
+
     const achieved = score !== null && score >= habit.achieveThreshold;
-    const check: HabitCheckDoc = {
+    const checkDoc: HabitCheckDoc = {
       habitId: habit.id,
       score,
       achieved,
@@ -60,7 +66,7 @@ export function useSaveHabitCheck(dateOverride?: string) {
     };
     await setDoc(
       doc(db, 'users', uid, 'days', date, 'habitChecks', habit.id),
-      check
+      checkDoc
     );
 
     if (isPastEdit) {
@@ -83,36 +89,50 @@ export function useSaveHabitCheck(dateOverride?: string) {
       return;
     }
 
+    // 오늘 처음 실제 점수를 입력하는 경우만 콤보 카운트
+    const isFirstCheck = prevScore === null;
     const perfect = habit.scoreMode === 'scaled' && score === 5;
+
+    // 서버가 실제 지급할 델타 (같은 습관 하루 중 점수 변경 시 차이만 반영)
     const basePts = pointsForCheck(habit.weight, habit.scoreMode, score);
+    const prevBasePts = prevScore !== null
+      ? pointsForCheck(habit.weight, habit.scoreMode, prevScore)
+      : 0;
+    const delta = basePts - prevBasePts;
 
     if (achieved) {
-      const combo = bumpCombo();
-      const comboBonus = combo >= 3 ? combo : 0;
-      const totalPts = basePts + comboBonus;
+      let combo = 0;
+      let comboBonus = 0;
+      if (isFirstCheck) {
+        combo = bumpCombo();
+        comboBonus = combo >= 3 ? combo : 0;
+      }
+      const displayPts = delta + comboBonus;
 
       feedback(perfect ? 'perfect' : 'achieve');
-      if (combo >= 3) feedback('combo');
+      if (isFirstCheck && combo >= 3) feedback('combo');
 
-      toast(`✦ +${totalPts}P`, {
-        description:
-          comboBonus > 0
-            ? `${habit.title} 달성 · 🔥${combo} 콤보 +${comboBonus}`
-            : `${habit.title} 달성`,
-      });
+      if (displayPts > 0) {
+        toast(`✦ +${displayPts}P`, {
+          description:
+            comboBonus > 0
+              ? `${habit.title} 달성 · 🔥${combo} 콤보 +${comboBonus}`
+              : `${habit.title} 달성`,
+        });
+      }
 
-      if (perfect) {
+      if (perfect && isFirstCheck) {
         triggerCelebration('perfect', {
           title: habit.title,
-          points: totalPts,
+          points: displayPts,
           detail: comboBonus > 0 ? `🔥 ${combo} 콤보` : undefined,
         });
       }
     } else {
       // 부분 점수 — 작은 토스트, 콤보는 끊지 않음
       feedback('check');
-      if (basePts > 0) {
-        toast(`✦ +${basePts}P`, { description: `${habit.title} · 시도 인정` });
+      if (delta > 0) {
+        toast(`✦ +${delta}P`, { description: `${habit.title} · 시도 인정` });
       }
     }
   };

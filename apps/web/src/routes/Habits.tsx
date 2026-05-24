@@ -176,7 +176,7 @@ export default function Habits() {
                   key={habit.id}
                   habit={habit}
                   check={checks[habit.id]}
-                  onScore={(score) => save(habit, score)}
+                  onScore={(score) => save(habit, score, checks[habit.id])}
                 />
               )
             ))}
