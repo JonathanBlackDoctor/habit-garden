@@ -144,7 +144,7 @@ export default function Habits() {
         return (
           <section
             key={tod}
-            className="space-y-2 rounded-[var(--radius-lg)] p-3 transition-all"
+            className="space-y-1.5 rounded-[var(--radius-lg)] p-2.5 transition-all"
             style={{
               background: bg,
               boxShadow: isNow ? '0 0 0 2px var(--leaf-soft)' : undefined,
