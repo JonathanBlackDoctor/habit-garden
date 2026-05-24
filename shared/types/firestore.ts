@@ -42,6 +42,7 @@ export interface DayDoc {
   condition: ConditionData;
   reflection?: ReflectionData;
   dayScore?: number;              // 습관 가중평균 (0-100)
+  successAwarded?: boolean;       // 오늘 '성공한 날' 보너스·스트릭이 지급됐는지 (체크↔해제 반복 시 중복 적립·스트릭 폭증 방지)
   pointsEarned?: number;
   streakSnapshot?: number;
   aiFeedback?: AIFeedback;

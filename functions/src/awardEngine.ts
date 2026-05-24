@@ -211,6 +211,19 @@ async function updateDayScore(uid: string, date: string) {
 }
 
 async function handleSuccessDay(uid: string, date: string) {
+  const dayRef = db.doc(`users/${uid}/days/${date}`);
+
+  // 멱등 게이트: '성공한 날' 보너스·스트릭은 하루에 한 번만 지급.
+  // 습관 체크↔해제·점수 변경으로 트리거가 재발생해도 daily_success 중복 적립과
+  // globalStreak 폭증이 일어나지 않게 한다.
+  const firstSuccessToday = await db.runTransaction(async (tx) => {
+    const day = (await tx.get(dayRef)).data() ?? {};
+    if (day.successAwarded) return false;
+    tx.set(dayRef, { successAwarded: true, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    return true;
+  });
+  if (!firstSuccessToday) return;
+
   const progressRef = db.doc(`users/${uid}/progress/main`);
   const snap = await progressRef.get();
   const progress = snap.exists ? (snap.data() as ProgressDoc) : null;
