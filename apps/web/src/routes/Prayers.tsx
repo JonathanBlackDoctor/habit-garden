@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   collection, addDoc, onSnapshot, query, orderBy, serverTimestamp,
 } from 'firebase/firestore';
@@ -179,9 +179,20 @@ function TodayView({
   onOpen: (p: PrayerDoc) => void;
   date: string;
 }) {
-  const { checkPrayer, uncheckPrayer, appendTodayExtras } = usePrayerActions();
-  const { pinned, rotation } = useTodayPrayers(prayers, dayDoc);
+  const { checkPrayer, uncheckPrayer, appendTodayExtras, persistTodayPlan } = usePrayerActions();
+  const { pinned, rotation, fromPlan, pinnedIds, rotationIds } = useTodayPrayers(prayers, dayDoc);
   const digest = useLatestWeeklyDigest();
+
+  // 오늘의 목록을 그날 한 번 확정 — 기도 체크로 lastPrayedAt 이 바뀌어도 목록이 흔들리지 않게.
+  // 빈 계산은 영속화하지 않는다(prayers 로딩 전 빈 배열로 하루가 잠기는 것을 방지).
+  const planPersistedFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (fromPlan) return;
+    if (pinnedIds.length + rotationIds.length === 0) return;
+    if (planPersistedFor.current === date) return;
+    planPersistedFor.current = date;
+    void persistTodayPlan(date, pinnedIds, rotationIds);
+  }, [fromPlan, date, pinnedIds, rotationIds, persistTodayPlan]);
   // '더 받기' 결과는 DayDoc.prayerPlan.extraIds 에 영속화 — 탭 전환·새로고침에도 유지
   const extraIds = useMemo(() => dayDoc?.prayerPlan?.extraIds ?? [], [dayDoc]);
 
