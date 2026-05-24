@@ -110,7 +110,7 @@ function PrayersInner() {
         <VoiceInputButton
           onTranscript={(t) => setQuick((prev) => (prev ? `${prev} ${t}` : t))}
         />
-        <GroupSelect value={lastGroup} onChange={setLastGroup} className="text-xs" />
+        <GroupSelect value={lastGroup} onChange={setLastGroup} className="w-20 shrink-0 px-1.5 text-xs" />
         <button
           onClick={submitQuick}
           className="flex shrink-0 items-center justify-center rounded-[var(--radius)] bg-[var(--leaf)] px-3 text-white"

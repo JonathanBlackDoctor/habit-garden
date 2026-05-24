@@ -117,9 +117,10 @@ export function useTodayPrayers(prayers: PrayerDoc[], dayDoc: DayDoc | null) {
     let pinnedIds: string[];
     let rotationIds: string[];
 
-    if (dayDoc?.prayerPlan) {
-      pinnedIds = dayDoc.prayerPlan.pinnedIds.filter((id) => byId.has(id));
-      rotationIds = dayDoc.prayerPlan.rotationIds.filter((id) => byId.has(id));
+    const plan = dayDoc?.prayerPlan;
+    if (plan && (plan.pinnedIds || plan.rotationIds)) {
+      pinnedIds = (plan.pinnedIds ?? []).filter((id) => byId.has(id));
+      rotationIds = (plan.rotationIds ?? []).filter((id) => byId.has(id));
       // 계획 생성 이후 추가된 고정 항목도 즉시 반영
       for (const p of active) {
         if (p.pinned && !pinnedIds.includes(p.id)) pinnedIds.push(p.id);
