@@ -19,7 +19,7 @@ import { DuplicateFinder } from '@/features/prayers/DuplicateFinder';
 import { WeeklyDigestCard } from '@/features/prayers/WeeklyDigestCard';
 import { parseQuickAdd } from '@/features/prayers/parseQuickAdd';
 import { selectMorePrayers, type RotationInput } from 'shared/prayerRotation';
-import { Plus, ClipboardList, Search, Heart, ListChecks, Layers } from 'lucide-react';
+import { Plus, ClipboardList, Search, Heart, ListChecks, Layers, ChevronDown } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { Navigate } from 'react-router-dom';
@@ -444,13 +444,21 @@ function BatchGroupPanel({
   batches: Batch[];
   onSelectBatch: (ids: string[]) => void;
 }) {
+  const [open, setOpen] = useState(false);
   if (batches.length === 0) return null;
   return (
     <section className="space-y-1.5">
-      <h3 className="flex items-center gap-1 px-1 text-xs font-medium text-[var(--fg-muted)]">
-        <Layers size={13} /> 무더기 묶음
-      </h3>
-      {batches.map((b) => (
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center gap-1 px-1 text-xs font-medium text-[var(--fg-muted)]"
+      >
+        <Layers size={13} /> 무더기 묶음 ({batches.length})
+        <ChevronDown
+          size={14}
+          className={cn('ml-auto transition-transform', open && 'rotate-180')}
+        />
+      </button>
+      {open && batches.map((b) => (
         <div key={b.batchId} className="card flex items-center gap-2 p-3">
           <div className="min-w-0 flex-1">
             <p className="text-sm text-[var(--fg-primary)]">
