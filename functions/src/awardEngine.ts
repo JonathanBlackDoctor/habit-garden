@@ -30,16 +30,27 @@ export const awardEngine = functions
   .onWrite(async (change, context) => {
     const { uid, date, habitId } = context.params;
 
+    const before = change.before.exists ? (change.before.data() as HabitCheckDoc) : null;
     const after = change.after.exists ? (change.after.data() as HabitCheckDoc) : null;
     if (!after || after.score === null) return;
+
+    // 점수가 변경되지 않으면 포인트 중복 지급 방지
+    if (before && before.score === after.score) {
+      await updateDayScore(uid, date);
+      return;
+    }
 
     // 습관 정의 로드
     const habitSnap = await db.doc(`users/${uid}/habits/${habitId}`).get();
     if (!habitSnap.exists) return;
     const habit = habitSnap.data() as HabitDoc;
 
-    // 포인트 계산 — 부분 점수 인정 (Phase 4-4)
-    const delta = pointsForCheck(habit.weight, habit.scoreMode, after.score);
+    // 포인트 계산 — 이전 점수와의 차이분만 지급 (부분 점수 인정, Phase 4-4)
+    const newPoints = pointsForCheck(habit.weight, habit.scoreMode, after.score);
+    const oldPoints = before && before.score !== null
+      ? pointsForCheck(habit.weight, habit.scoreMode, before.score)
+      : 0;
+    const delta = newPoints - oldPoints;
     if (delta <= 0) return;
 
     // Comeback Mode (Phase 4-5) — 활성화 기간이면 ×2
