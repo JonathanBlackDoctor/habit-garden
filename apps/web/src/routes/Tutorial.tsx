@@ -188,6 +188,10 @@ export default function Tutorial() {
                   <li>· bloomer — 매일 자동 성장 (레전더리 전용)</li>
                   <li>· streakSync — 기도 스트릭 연동 시 수확 +50%</li>
                 </ul>
+                <p className="ml-3 mt-1 text-[var(--fg-faint)]">
+                  ※ 일부 레전더리(수정장미·별빛백합·오로라난초·황금모란·여명백합)는 훨씬 화려한 대신
+                  매우 연약합니다. 하루라도 성실하지 못한 날이 쌓이면 시들고, 끝내 영영 사라질 수 있어요.
+                </p>
               </DetailBlock>
               <DetailBlock title="정원 생기 (Vitality)">
                 정원 전체 컨디션을 0~100으로 표현합니다. healer 특성 식물을 수확하면 회복돼요.
