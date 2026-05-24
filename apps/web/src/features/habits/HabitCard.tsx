@@ -86,10 +86,6 @@ export default function HabitCard({ habit, check, streak = 0, onScore }: Props) 
           onClick={() => setExpanded(!expanded)}
           className="flex flex-1 items-center gap-2 text-left"
         >
-          {/* 가중치 뱃지 */}
-          <span className="shrink-0 rounded-full bg-[var(--leaf-soft)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--leaf)] tabular-nums">
-            W{habit.weight}
-          </span>
           <span className="flex-1 text-sm font-medium text-[var(--fg-primary)]">{habit.title}</span>
         </button>
 
