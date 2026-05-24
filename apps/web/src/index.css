@@ -85,35 +85,38 @@
   --normal-text: var(--bloom) !important;
 }
 
-/* 우측 큰 '닫기' 버튼 — 좌우 스와이프로도 닫을 수 있음 */
+/* 알림 안쪽 우측의 '닫기' 알약 버튼 (좌우 스와이프로도 닫힘)
+   sonner 기본 스타일/richColors 규칙을 확실히 덮기 위해 !important 사용 */
 [data-sonner-toast][data-styled='true'] {
-  padding-right: 76px;
+  padding-right: 80px !important;
 }
 [data-sonner-toast][data-styled='true'] [data-close-button] {
-  left: unset;
-  right: 10px;
-  top: 50%;
-  bottom: auto;
-  width: 56px;
-  height: calc(100% - 16px);
-  min-height: 40px;
-  transform: translateY(-50%);
-  border-radius: 10px;
-  background: #ffffff;
-  border: 1px solid rgba(0, 0, 0, 0.12);
-  color: #1f2937;
-  font-size: 14px;
+  left: auto !important;
+  right: 12px !important;
+  top: 50% !important;
+  bottom: auto !important;
+  transform: translateY(-50%) !important;
+  width: auto !important;
+  height: auto !important;
+  min-height: 0 !important;
+  padding: 7px 14px !important;
+  border-radius: 9999px !important;
+  background: color-mix(in srgb, currentColor 10%, transparent) !important;
+  border: 1.5px solid currentColor !important;
+  color: inherit !important;
+  opacity: 1 !important;
+  font-size: 13px;
   font-weight: 700;
   line-height: 1;
-  opacity: 1;
+  cursor: pointer;
+  transition: background 150ms ease;
 }
 [data-sonner-toast][data-styled='true'] [data-close-button] svg {
-  display: none;
+  display: none !important;
 }
 [data-sonner-toast][data-styled='true'] [data-close-button]::after {
   content: '닫기';
 }
-[data-sonner-toast][data-styled='true']:hover [data-close-button]:hover {
-  background: #f3f4f6;
-  border-color: rgba(0, 0, 0, 0.2);
+[data-sonner-toast][data-styled='true'] [data-close-button]:hover {
+  background: color-mix(in srgb, currentColor 22%, transparent) !important;
 }
