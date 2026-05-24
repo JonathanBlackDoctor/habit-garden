@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { doc, setDoc, serverTimestamp, collection, addDoc, onSnapshot } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, collection, addDoc, onSnapshot, runTransaction } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import { useProgress } from '@/features/garden/useGarden';
 import { currentSeason, seasonInstanceId } from './seasons';
-import type { DayDoc } from 'shared/types/firestore';
+import type { DayDoc, ProgressDoc } from 'shared/types/firestore';
 import { motion } from 'framer-motion';
 import { feedback } from '@/lib/feedback';
 import { toast } from 'sonner';
@@ -50,49 +50,56 @@ export default function SeasonCard() {
     return recentDays.filter((d) => d.date >= start && (d.dayScore ?? 0) >= 50).length;
   }, [recentDays, today]);
 
-  // 보상 자동 지급
+  // 보상 자동 지급 — 트랜잭션으로 보상 단계별 1회만.
+  // rewardsClaimed를 서버 커밋값 기준으로 원자적으로 검사·갱신하므로,
+  // days 구독 재계산이나 빠른 재렌더로 effect가 여러 번 떠도 중복 적립되지 않는다.
   useEffect(() => {
     if (!uid || !progress?.seasonProgress) return;
-    const claimed = new Set(progress.seasonProgress.rewardsClaimed);
-    const pending = season.tiers.filter((t) => total >= t.at && !claimed.has(t.rewardId));
-    if (pending.length === 0) return;
+    const claimedNow = new Set(progress.seasonProgress.rewardsClaimed);
+    if (!season.tiers.some((t) => total >= t.at && !claimedNow.has(t.rewardId))) return;
 
+    const progressRef = doc(db, 'users', uid, 'progress', 'main');
     (async () => {
-      let bonusPts = 0;
-      const newClaimed = [...progress.seasonProgress!.rewardsClaimed];
-      for (const t of pending) {
-        newClaimed.push(t.rewardId);
-        bonusPts += 50; // 보상 단계당 50P 보너스
+      const awarded = await runTransaction(db, async (tx) => {
+        const p = (await tx.get(progressRef)).data() as ProgressDoc | undefined;
+        const sp = p?.seasonProgress;
+        if (!sp || sp.seasonId !== instanceId) return [];
+        const claimed = new Set(sp.rewardsClaimed);
+        const pending = season.tiers.filter((t) => total >= t.at && !claimed.has(t.rewardId));
+        if (pending.length === 0) return [];
+
+        const bonusPts = pending.length * 50; // 보상 단계당 50P
+        tx.set(progressRef, {
+          seasonProgress: {
+            seasonId: instanceId,
+            totalChecks: total,
+            rewardsClaimed: [...sp.rewardsClaimed, ...pending.map((t) => t.rewardId)],
+          },
+          spendablePoints: (p?.spendablePoints ?? 0) + bonusPts,
+          totalPoints: (p?.totalPoints ?? 0) + bonusPts,
+          gardenState: {
+            ...p?.gardenState,
+            decorations: [
+              ...(p?.gardenState?.decorations ?? []),
+              ...pending.map((t) => t.rewardId),
+            ],
+          },
+          updatedAt: serverTimestamp(),
+        }, { merge: true });
+        return pending;
+      }).catch(() => [] as typeof season.tiers);
+
+      if (awarded.length === 0) return;
+
+      for (const t of awarded) {
         await addDoc(collection(db, 'users', uid, 'pointLedger'), {
           delta: 50,
           reason: `season_${season.id}_${t.rewardId}`,
           createdAt: serverTimestamp() as any,
-        });
+        }).catch(() => {});
       }
-      await setDoc(
-        doc(db, 'users', uid, 'progress', 'main'),
-        {
-          seasonProgress: {
-            seasonId: instanceId,
-            totalChecks: total,
-            rewardsClaimed: newClaimed,
-          },
-          spendablePoints: (progress.spendablePoints ?? 0) + bonusPts,
-          totalPoints: (progress.totalPoints ?? 0) + bonusPts,
-          // 보상 장식 추가
-          gardenState: {
-            ...progress.gardenState,
-            decorations: [
-              ...(progress.gardenState?.decorations ?? []),
-              ...pending.map((t) => t.rewardId),
-            ],
-          },
-          updatedAt: serverTimestamp() as any,
-        },
-        { merge: true },
-      );
       feedback('levelup');
-      toast(`${season.emoji} ${pending[0].title} 획득! +${bonusPts}P`, { duration: 6000 });
+      toast(`${season.emoji} ${awarded[0].title} 획득! +${awarded.length * 50}P`, { duration: 6000 });
     })();
   }, [uid, total, season, instanceId]);
 
