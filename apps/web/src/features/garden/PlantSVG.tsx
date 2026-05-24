@@ -460,17 +460,25 @@ function renderFlower(speciesId: string, accent: string, withered: boolean | und
     );
   }
 
-  // 민들레: 흰 솜털 (씨앗 머리)
+  // 민들레: 노란 꽃잎 (활짝 핀 민들레)
   if (speciesId === 'dandelion') {
+    const dandelionYellow = withered ? '#C7B68A' : '#FFD700';
+    const dandelionCenter = withered ? '#C7B68A' : '#FFA500';
     return (
       <g>
         <line x1="40" y1="38" x2="40" y2="30" stroke={stem} strokeWidth="2.5" strokeLinecap="round" />
-        <circle cx="40" cy="24" r="10" fill="#FFFFFF" opacity="0.9" />
-        {[0, 45, 90, 135, 180, 225, 270, 315].map((deg) => (
-          <line key={deg} x1="40" y1="24" x2={40 + 9 * Math.cos((deg * Math.PI) / 180)}
-                y2={24 + 9 * Math.sin((deg * Math.PI) / 180)} stroke="#FFFFFF" strokeWidth="1.5" />
+        {[0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330].map((deg) => (
+          <ellipse
+            key={deg}
+            cx={40 + 7 * Math.cos(((deg - 90) * Math.PI) / 180)}
+            cy={24 + 7 * Math.sin(((deg - 90) * Math.PI) / 180)}
+            rx="2.5" ry="5"
+            fill={dandelionYellow}
+            opacity="0.92"
+            transform={`rotate(${deg} ${40 + 7 * Math.cos(((deg - 90) * Math.PI) / 180)} ${24 + 7 * Math.sin(((deg - 90) * Math.PI) / 180)})`}
+          />
         ))}
-        <circle cx="40" cy="24" r="3" fill={petal} opacity="0.8" />
+        <circle cx="40" cy="24" r="4" fill={dandelionCenter} opacity="0.95" />
       </g>
     );
   }
@@ -726,7 +734,47 @@ function renderFlower(speciesId: string, accent: string, withered: boolean | und
     );
   }
 
-  // 기본: 단일 꽃 (sprout/sunflower/herb/maple/lotus 등)
+  // 해바라기: 넓은 노란 꽃잎 + 진한 갈색 중심
+  if (speciesId === 'sunflower') {
+    const petalColor = withered ? '#C7B68A' : '#FFD700';
+    const petalInner = withered ? '#B8A87A' : '#FFC200';
+    const centerColor = withered ? '#8B7A5A' : '#5C3317';
+    const centerInner = withered ? '#7A6A4A' : '#3D2009';
+    return (
+      <g>
+        <line x1="40" y1="38" x2="40" y2="27" stroke={stem} strokeWidth="3" strokeLinecap="round" />
+        {[0, 22.5, 45, 67.5, 90, 112.5, 135, 157.5, 180, 202.5, 225, 247.5, 270, 292.5, 315, 337.5].map((deg) => (
+          <ellipse
+            key={deg}
+            cx={40 + 10 * Math.cos(((deg - 90) * Math.PI) / 180)}
+            cy={26 + 10 * Math.sin(((deg - 90) * Math.PI) / 180)}
+            rx="2" ry="6"
+            fill={petalColor}
+            opacity="0.92"
+            transform={`rotate(${deg} ${40 + 10 * Math.cos(((deg - 90) * Math.PI) / 180)} ${26 + 10 * Math.sin(((deg - 90) * Math.PI) / 180)})`}
+          />
+        ))}
+        {[11.25, 33.75, 56.25, 78.75, 101.25, 123.75, 146.25, 168.75, 191.25, 213.75, 236.25, 258.75, 281.25, 303.75, 326.25, 348.75].map((deg) => (
+          <ellipse
+            key={`inner-${deg}`}
+            cx={40 + 8 * Math.cos(((deg - 90) * Math.PI) / 180)}
+            cy={26 + 8 * Math.sin(((deg - 90) * Math.PI) / 180)}
+            rx="1.5" ry="4.5"
+            fill={petalInner}
+            opacity="0.75"
+            transform={`rotate(${deg} ${40 + 8 * Math.cos(((deg - 90) * Math.PI) / 180)} ${26 + 8 * Math.sin(((deg - 90) * Math.PI) / 180)})`}
+          />
+        ))}
+        <circle cx="40" cy="26" r="6" fill={centerColor} opacity="0.97" />
+        <circle cx="40" cy="26" r="4" fill={centerInner} opacity="0.85" />
+        {[[38, 24], [42, 24], [38, 28], [42, 28], [40, 22], [40, 30]].map(([cx, cy], i) => (
+          <circle key={i} cx={cx} cy={cy} r="0.7" fill="#C8A87A" opacity="0.6" />
+        ))}
+      </g>
+    );
+  }
+
+  // 기본: 단일 꽃 (sprout/herb/maple/lotus 등)
   return (
     <>
       <line x1="40" y1="38" x2="40" y2="28" stroke={stem} strokeWidth="3" strokeLinecap="round" />
