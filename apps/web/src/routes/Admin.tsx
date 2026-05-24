@@ -10,7 +10,7 @@ import { SEED_PRAYERS } from 'shared/types/firestore';
 import type { HabitDoc, UserProfileDoc } from 'shared/types/firestore';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { ChevronLeft, Trash2, Leaf, HandHeart, Check, X } from 'lucide-react';
+import { ChevronLeft, Trash2, Leaf, HandHeart, Check, X, RotateCcw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { isOwner } from '@/lib/auth';
@@ -162,6 +162,22 @@ export default function Admin() {
     }
   };
 
+  const resetProgress = async () => {
+    if (!uid || !isOwner(uid)) return;
+    if (!confirm('내 계정의 레벨과 콤보를 0으로 초기화하시겠습니까?')) return;
+    try {
+      await setDoc(doc(db, 'users', uid, 'progress', 'main'), {
+        level: 0,
+        xpInLevel: 0,
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+      useAppStore.getState().resetCombo();
+      toast('✅ 레벨과 콤보를 0으로 초기화했습니다.');
+    } catch (e: any) {
+      toast.error(`초기화 실패: ${e?.message ?? '오류'}`);
+    }
+  };
+
   const toggleActive = async (habit: HabitDoc) => {
     if (!uid) return;
     await updateDoc(doc(db, 'users', uid, 'habits', habit.id), {
@@ -258,6 +274,24 @@ export default function Admin() {
               ))}
             </div>
           </div>
+        </section>
+      )}
+
+      {/* 내 계정 초기화 (owner 전용) */}
+      {showAdminControls && (
+        <section className="card p-4 space-y-3">
+          <h3 className="text-sm font-medium text-[var(--fg-primary)]">내 계정 초기화</h3>
+          <p className="text-xs text-[var(--fg-muted)]">
+            내 레벨과 콤보를 0으로 초기화합니다.
+          </p>
+          <Button
+            onClick={resetProgress}
+            variant="secondary"
+            className="w-full gap-2"
+          >
+            <RotateCcw size={15} />
+            레벨 · 콤보 초기화 (→ 0)
+          </Button>
         </section>
       )}
 
