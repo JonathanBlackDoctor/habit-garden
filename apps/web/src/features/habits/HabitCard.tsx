@@ -202,7 +202,7 @@ export default function HabitCard({ habit, check, streak = 0, onScore }: Props) 
                   나중에
                 </button>
               </div>
-              <div className="flex gap-1.5">
+              <div className="flex justify-between">
                 {MOOD_EMOJIS.map((emoji, i) => {
                   const m = (i + 1) as 1 | 2 | 3 | 4 | 5;
                   return (
@@ -220,12 +220,14 @@ export default function HabitCard({ habit, check, streak = 0, onScore }: Props) 
                     </button>
                   );
                 })}
+              </div>
+              <div className="flex gap-1.5">
                 <input
                   type="text"
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   placeholder={missed ? '원인 (예: 늦잠, 약속, 피곤)' : '한 줄 메모 (선택)'}
-                  className="ml-1 flex-1 rounded-[var(--radius-sm)] border border-transparent bg-white px-2 py-1 text-xs placeholder:text-[var(--fg-faint)] focus:border-[var(--leaf)] focus:outline-none"
+                  className="flex-1 rounded-[var(--radius-sm)] border border-transparent bg-white px-2 py-1 text-xs placeholder:text-[var(--fg-faint)] focus:border-[var(--leaf)] focus:outline-none"
                   onKeyDown={(e) => { if (e.key === 'Enter') submitReflection(); }}
                   maxLength={80}
                 />
