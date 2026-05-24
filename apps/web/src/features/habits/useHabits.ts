@@ -81,24 +81,29 @@ export function useSaveHabitCheck(dateOverride?: string) {
       return;
     }
 
-    const { bumpCombo, resetCombo, triggerCelebration, tryRewardHabit } = useAppStore.getState();
+    const { bumpCombo, triggerCelebration, tryRewardHabit } = useAppStore.getState();
 
-    if (score === null) resetCombo(); // 패스/완료해제 — 콤보 끊김
+    if (score === null) {
+      // 의도적 건너뛰기 — 중립 처리: 콤보 유지, 포인트·스트릭 영향 없음
+      feedback('check');
+      toast('건너뜀', { description: habit.title });
+      return;
+    }
 
     // 서버 정산과 동일한 델타: 현재 점수 포인트 − 이전 점수 포인트
-    const basePts = score === null ? 0 : pointsForCheck(habit.weight, habit.scoreMode, score);
+    const basePts = pointsForCheck(habit.weight, habit.scoreMode, score);
     const prevBasePts = prevScore === null ? 0 : pointsForCheck(habit.weight, habit.scoreMode, prevScore);
     const delta = basePts - prevBasePts;
 
-    // 포인트 감소 — 점수 하향 또는 완료/달성 해제
+    // 포인트 감소 — 점수 하향 또는 완료 해제(이진 모드 미완료)
     if (delta < 0) {
-      const downReason = score === null ? '기록 취소' : basePts === 0 ? '완료 해제' : '점수 하향';
+      const downReason = basePts === 0 ? '완료 해제' : '점수 하향';
       feedback('check');
       toast(`✦ ${delta}P`, { description: `${habit.title} · ${downReason}` });
       return;
     }
 
-    if (delta === 0) return; // 변화 없음 (예: 미완료 ↔ 패스)
+    if (delta === 0) return; // 변화 없음
 
     // delta > 0 — 점수 상향 또는 첫 체크.
     // 콤보·셀러브레이션은 한 습관당 하루 한 번만(rewardedHabitIds 게이트), 포인트 토스트는 매 상승마다.

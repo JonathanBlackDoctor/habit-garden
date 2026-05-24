@@ -29,6 +29,8 @@ export default function HabitCard({ habit, check, streak = 0, onScore }: Props) 
   const lastCheckedRef = useRef<number | null>(null);
   const currentScore = check?.score ?? null;
   const achieved = check?.achieved ?? false;
+  // 의도적 건너뛰기: 체크 문서는 있으나 점수가 null (미기록과 구분)
+  const skipped = currentScore === null && check !== undefined;
   // 미달성(점수 입력했지만 임계 미만) → 원인 추적 모드
   const missed = currentScore !== null && currentScore !== undefined && !achieved;
   // 점수는 입력됐지만 아직 회고를 저장하지 않은 상태
@@ -89,6 +91,13 @@ export default function HabitCard({ habit, check, streak = 0, onScore }: Props) 
           <span className="flex-1 text-sm font-medium text-[var(--fg-primary)]">{habit.title}</span>
         </button>
 
+        {/* 건너뜀 뱃지 */}
+        {skipped && (
+          <span className="shrink-0 rounded-full bg-[var(--bg-base)] px-2 py-0.5 text-[10px] font-medium text-[var(--fg-muted)]">
+            건너뜀
+          </span>
+        )}
+
         {/* 스트릭 */}
         {streak > 0 && (
           <span className="flex items-center gap-0.5 text-xs text-[var(--bloom)] tabular-nums">
@@ -102,8 +111,8 @@ export default function HabitCard({ habit, check, streak = 0, onScore }: Props) 
           onClick={() => onScore(null)}
           className={cn(
             'rounded-full p-1 transition-colors',
-            currentScore === null && check !== undefined
-              ? 'text-[var(--fg-faint)]'
+            skipped
+              ? 'bg-[var(--bg-base)] text-[var(--fg-muted)]'
               : 'text-[var(--fg-faint)] hover:text-[var(--fg-muted)]'
           )}
           title="건너뜀"
@@ -284,7 +293,7 @@ function HabitStreakCalendar({ habitId, threshold }: { habitId: string; threshol
           let bg = 'var(--leaf-soft)';
           let title = `${d} · 미체크`;
           if (c) {
-            if (c.score === null) { bg = '#D7D2C0'; title = `${d} · 패스`; }
+            if (c.score === null) { bg = '#D7D2C0'; title = `${d} · 건너뜀`; }
             else if (c.score >= threshold) {
               const ratio = Math.min(c.score / 5, 1);
               const intensity = Math.round(80 + ratio * 80);

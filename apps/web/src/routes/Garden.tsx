@@ -536,9 +536,9 @@ export default function Garden() {
             </div>
             <div className="flex-1">
               <p className="text-sm font-medium text-[var(--fg-primary)]">스트릭 보호 토큰</p>
-              <p className="text-xs text-[var(--fg-muted)] tabular-nums">보유 {freeze.count}개 · 1개={freeze.price}P</p>
+              <p className="text-xs text-[var(--fg-muted)] tabular-nums">보유 {freeze.count}개 · 사용 {freeze.price}P</p>
             </div>
-            <Button size="sm" variant="secondary" onClick={freeze.buyOne}>구매</Button>
+            <Button size="sm" variant="secondary" onClick={freeze.useOne} disabled={freeze.count <= 0}>사용</Button>
           </div>
         </>
       )}
