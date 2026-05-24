@@ -81,6 +81,9 @@ export default function More() {
       toast.error('이번 달 아픔 데이를 이미 사용했어요');
       return;
     }
+    if (!window.confirm('오늘 아픔 데이를 사용할까요?\n이번 달 1회만 사용할 수 있으며, 오늘 하루 스트릭이 보호됩니다.')) {
+      return;
+    }
     await setDoc(doc(db, 'users', uid, 'progress', 'main'), {
       sickDays: { month, daysUsed: usedThisMonth + 1 },
       vacationUntil: today,   // 오늘 하루 스트릭 보호
