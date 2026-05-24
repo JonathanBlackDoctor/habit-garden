@@ -5,6 +5,7 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { callGeminiWithRetry, throwIfRateLimit, GEMINI_MODEL } from './geminiUtil';
 import type { PrayerDoc } from '../../shared/types/firestore';
 
 const REGION = 'asia-northeast3';
@@ -37,7 +38,7 @@ const RESPONSE_SCHEMA = {
 
 export const findDuplicatePrayers = functions
   .region(REGION)
-  .runWith({ secrets: ['GEMINI_API_KEY'] })
+  .runWith({ secrets: ['GEMINI_API_KEY'], timeoutSeconds: 300 })
   .https
   .onCall(async (_data, context) => {
     if (!context.auth) {
@@ -53,7 +54,7 @@ export const findDuplicatePrayers = functions
     const snap = await db.collection(`users/${uid}/prayers`).where('status', '==', 'active').get();
     const items = snap.docs.slice(0, MAX_ITEMS).map((d) => {
       const p = d.data() as PrayerDoc;
-      return { id: d.id, personName: p.personName ?? '', title: p.title ?? '', body: p.body ?? '' };
+      return { id: d.id, group: p.group ?? '', title: p.title ?? '', body: p.body ?? '' };
     });
     if (items.length < 2) return { groups: [] };
 
@@ -62,7 +63,7 @@ export const findDuplicatePrayers = functions
 
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash',
+      model: GEMINI_MODEL,
       systemInstruction: SYS_INSTRUCTION,
       generationConfig: {
         responseMimeType: 'application/json',
@@ -71,15 +72,25 @@ export const findDuplicatePrayers = functions
     });
 
     const list = items
-      .map((it) => `- [${it.id}] (${it.personName || '?'}) ${it.title}${it.body ? ' / ' + it.body : ''}`)
+      .map((it) => `- [${it.id}] (${it.group || '?'}) ${it.title}${it.body ? ' / ' + it.body : ''}`)
       .join('\n');
 
+    // 1) Gemini 호출 — 네트워크/모델/키 오류는 구체 사유와 함께 노출
+    let text: string;
     try {
       const chat = model.startChat();
-      const res = await chat.sendMessage(`다음 활성 기도제목들에서 중복 그룹을 찾아라:\n${list}`);
-      const text = res.response.text().replace(/```json|```/g, '').trim();
-      const parsed = JSON.parse(text);
+      const res = await callGeminiWithRetry(() => chat.sendMessage(`다음 활성 기도제목들에서 중복 그룹을 찾아라:\n${list}`));
+      text = res.response.text().replace(/```json|```/g, '').trim();
+    } catch (e) {
+      console.error('findDuplicatePrayers gemini error', e);
+      throwIfRateLimit(e);
+      const reason = (e as any)?.message ? String((e as any).message).slice(0, 200) : '알 수 없는 오류';
+      throw new functions.https.HttpsError('internal', `AI 호출 실패: ${reason}`);
+    }
 
+    // 2) 파싱 — Gemini가 유효한 JSON/그룹을 못 주면 '중복 없음'으로 우아하게 처리
+    try {
+      const parsed = JSON.parse(text);
       const validIds = new Set(items.map((i) => i.id));
       const groups = (Array.isArray(parsed?.groups) ? parsed.groups : [])
         .map((g: any) => ({
@@ -91,7 +102,7 @@ export const findDuplicatePrayers = functions
 
       return { groups };
     } catch (e) {
-      console.error('findDuplicatePrayers error', e);
-      throw new functions.https.HttpsError('internal', '중복 분석에 실패했습니다.');
+      console.error('findDuplicatePrayers parse error', e, 'raw:', text.slice(0, 500));
+      return { groups: [] };
     }
   });

@@ -1,21 +1,11 @@
-import type { PrayerCategory, PrayerPriority } from 'shared/types/firestore';
+import type { PrayerPriority } from 'shared/types/firestore';
 
 export interface QuickParseResult {
   title: string;
-  category?: PrayerCategory;
+  group?: string;
+  target?: string;
   priority?: PrayerPriority;
-  personName?: string;
 }
-
-// #토큰 → 카테고리 (영문 키 + 한글 라벨 모두 허용)
-const CATEGORY_TOKENS: Record<string, PrayerCategory> = {
-  self: 'self', 자신: 'self', 나: 'self',
-  family: 'family', 가족: 'family',
-  church: 'church', 교회: 'church',
-  ministry: 'ministry', 사역: 'ministry',
-  friend: 'friend', 지인: 'friend', 친구: 'friend',
-  other: 'other', 기타: 'other',
-};
 
 // 단독 토큰 → 우선순위 (사용자 약식 입력용)
 const PRIORITY_TOKENS: Record<string, PrayerPriority> = {
@@ -26,8 +16,8 @@ const PRIORITY_TOKENS: Record<string, PrayerPriority> = {
 
 /**
  * 한 줄 자연어 입력을 파싱한다.
- *  - `#가족` / `#family` → 카테고리
- *  - `@엄마` → 대상자
+ *  - `#교회` / `#CMF` 등 → 받은 모임 (해시태그 뒤 문자열을 그대로 사용)
+ *  - `@엄마` / `@나` 등 → 기도 대상 (요청자/나 자신)
  *  - 단독 `high`/`높음`/`!!` 등 → 우선순위
  *  - 나머지 단어 → 제목
  *
@@ -40,15 +30,13 @@ export function parseQuickAdd(input: string): QuickParseResult {
   for (const raw of input.trim().split(/\s+/)) {
     if (!raw) continue;
 
-    if (raw.startsWith('#')) {
-      const key = raw.slice(1).toLowerCase();
-      if (key in CATEGORY_TOKENS) { result.category = CATEGORY_TOKENS[key]; continue; }
-      titleWords.push(raw.slice(1));   // 알 수 없는 해시태그는 # 떼고 제목에 포함
+    if (raw.startsWith('#') && raw.length > 1) {
+      result.group = raw.slice(1);
       continue;
     }
 
     if (raw.startsWith('@') && raw.length > 1) {
-      result.personName = raw.slice(1);
+      result.target = raw.slice(1);
       continue;
     }
 

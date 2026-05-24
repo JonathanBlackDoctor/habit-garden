@@ -86,3 +86,23 @@ export function selectTodayPrayers(
 
   return { pinnedIds, rotationIds };
 }
+
+/**
+ * "오늘 기도 더 받기" — 오늘 목록(excludeIds)에 없는 활성 항목 중
+ * 가장 오래 기도하지 않은(dueScore 높은) 순으로 count개를 추가 선정한다.
+ * dueScore < 1 (아직 주기 전)인 항목도 포함한다.
+ */
+export function selectMorePrayers(
+  activeItems: RotationInput[],
+  excludeIds: Iterable<string>,
+  todayMs: number,
+  count: number
+): string[] {
+  const excluded = new Set(excludeIds);
+  return activeItems
+    .filter((it) => !it.pinned && !excluded.has(it.id))
+    .map((it) => ({ id: it.id, score: dueScore(it, todayMs) }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, Math.max(0, count))
+    .map((c) => c.id);
+}

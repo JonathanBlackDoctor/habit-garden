@@ -100,8 +100,8 @@ export default function Admin() {
         const now = serverTimestamp();
         await setDoc(ref, {
           id: ref.id,
-          personName: seed.personName ?? '',
-          category: seed.category,
+          group: seed.group,
+          target: seed.target,
           receivedAt: now,
           title: seed.title,
           body: seed.body,
@@ -123,31 +123,32 @@ export default function Admin() {
     }
   };
 
-  // 기존 PrayerDoc({active, category, ...}) → 신규 스키마(status, personName, ...) 변환
+  // 기존 PrayerDoc(category/personName, …) → 신규 스키마(group) 변환
   const migratePrayers = async () => {
     if (!uid || migrating) return;
     setMigrating(true);
     try {
       const snap = await getDocs(collection(db, 'users', uid, 'prayers'));
+      const catToGroup = (c?: string) => (c === 'church' ? '교회' : c === 'ministry' ? 'CMF' : '개인');
       let migrated = 0;
       for (const d of snap.docs) {
         const data = d.data() as any;
-        if (data.status) continue; // 이미 신규 스키마
+        if (data.group && data.target) continue; // 이미 신규 스키마(모임+대상)
         const now = serverTimestamp();
         await setDoc(d.ref, {
           id: d.id,
-          personName: data.personName ?? '',
-          category: data.category ?? 'other',
-          receivedAt: data.createdAt ?? now,
+          group: catToGroup(data.category),
+          target: data.target ?? data.personName ?? '나 자신',
+          receivedAt: data.receivedAt ?? data.createdAt ?? now,
           title: data.title ?? '(제목 없음)',
           body: data.body,
           priority: data.priority ?? 'mid',
-          pinned: false,
-          status: data.active === false ? 'dormant' : 'active',
-          prayCount: 0,
-          streak: 0,
+          pinned: data.pinned ?? false,
+          status: data.status ?? (data.active === false ? 'dormant' : 'active'),
+          prayCount: data.prayCount ?? 0,
+          streak: data.streak ?? 0,
           rotationDays: data.rotationDays,
-          source: 'manual',
+          source: data.source ?? 'manual',
           createdAt: data.createdAt ?? now,
           updatedAt: now,
         }, { merge: true });

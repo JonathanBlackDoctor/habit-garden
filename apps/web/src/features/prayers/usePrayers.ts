@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   collection, onSnapshot, query, orderBy, doc, getDoc, setDoc, updateDoc, deleteDoc,
-  addDoc, serverTimestamp, increment, limit, Timestamp,
+  serverTimestamp, limit, Timestamp, writeBatch,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import type {
-  PrayerDoc, PrayerPersonDoc, PrayerCheckDoc, DayDoc,
-  PrayerCategory, PrayerPriority, PrayerWeeklyDigestDoc,
+  PrayerDoc, PrayerCheckDoc, DayDoc,
+  PrayerPriority, PrayerWeeklyDigestDoc,
 } from 'shared/types/firestore';
+import { DEFAULT_PRAYER_GROUPS, DEFAULT_PRAYER_TARGETS } from 'shared/types/firestore';
 import { selectTodayPrayers, type RotationInput } from 'shared/prayerRotation';
 import { plannerDate } from '@/lib/dayBoundary';
 import { toast } from 'sonner';
@@ -29,19 +30,24 @@ export function usePrayers() {
   return prayers;
 }
 
-export function usePeople() {
-  const uid = useAppStore((s) => s.uid);
-  const [people, setPeople] = useState<PrayerPersonDoc[]>([]);
+/** 기도제목을 받은 모임 목록 — 설정에 저장된 사용자 목록 + 기본값 */
+export function usePrayerGroups(): string[] {
+  const settings = useAppStore((s) => s.settings);
+  return useMemo(() => {
+    const custom = settings?.prayerGroups ?? [];
+    const merged = [...DEFAULT_PRAYER_GROUPS, ...custom];
+    return Array.from(new Set(merged.map((g) => g.trim()).filter(Boolean)));
+  }, [settings?.prayerGroups]);
+}
 
-  useEffect(() => {
-    if (!uid) return;
-    const q = query(collection(db, 'users', uid, 'people'), orderBy('name'));
-    return onSnapshot(q, (snap) => {
-      setPeople(snap.docs.map((d) => d.data() as PrayerPersonDoc));
-    });
-  }, [uid]);
-
-  return people;
+/** 기도 대상(요청자/나 자신) 목록 — 설정에 저장된 사용자 목록 + 기본값 */
+export function usePrayerTargets(): string[] {
+  const settings = useAppStore((s) => s.settings);
+  return useMemo(() => {
+    const custom = settings?.prayerTargets ?? [];
+    const merged = [...DEFAULT_PRAYER_TARGETS, ...custom];
+    return Array.from(new Set(merged.map((t) => t.trim()).filter(Boolean)));
+  }, [settings?.prayerTargets]);
 }
 
 export function usePrayerChecks(date: string) {
@@ -147,10 +153,9 @@ export function useTodayPrayers(prayers: PrayerDoc[], dayDoc: DayDoc | null) {
 // ── 액션 ──────────────────────────────────────────────────
 export interface QuickAddInput {
   title: string;
-  category?: PrayerCategory;
+  group?: string;
+  target?: string;
   priority?: PrayerPriority;
-  personName?: string;
-  personId?: string;
   body?: string;
   pinned?: boolean;
 }
@@ -166,9 +171,8 @@ export function usePrayerActions() {
     const now = serverTimestamp();
     const prayer: any = {
       id: ref.id,
-      personId:   input.personId,
-      personName: (input.personName ?? '').trim(),
-      category:   input.category ?? 'other',
+      group:      (input.group ?? '개인').trim() || '개인',
+      target:     (input.target ?? '나 자신').trim() || '나 자신',
       receivedAt: now,
       title:      input.title.trim(),
       body:       input.body?.trim() || undefined,
@@ -182,12 +186,35 @@ export function usePrayerActions() {
       updatedAt:  now,
     };
     await setDoc(ref, prayer);
-    if (input.personId) {
-      await updateDoc(doc(db, 'users', uid, 'people', input.personId), {
-        activeCount: increment(1), updatedAt: now,
-      }).catch(() => {});
-    }
     return ref.id;
+  };
+
+  /** 모임 목록에 새 모임 추가 (settings/main 에 누적) */
+  const addPrayerGroup = async (name: string) => {
+    if (!uid) return;
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const existing = useAppStore.getState().settings?.prayerGroups ?? [];
+    if (existing.includes(trimmed) || DEFAULT_PRAYER_GROUPS.includes(trimmed as any)) return;
+    await setDoc(
+      doc(db, 'users', uid, 'settings', 'main'),
+      { prayerGroups: [...existing, trimmed], updatedAt: serverTimestamp() },
+      { merge: true },
+    );
+  };
+
+  /** 대상 목록에 새 대상 추가 (settings/main 에 누적) */
+  const addPrayerTarget = async (name: string) => {
+    if (!uid) return;
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const existing = useAppStore.getState().settings?.prayerTargets ?? [];
+    if (existing.includes(trimmed) || DEFAULT_PRAYER_TARGETS.includes(trimmed as any)) return;
+    await setDoc(
+      doc(db, 'users', uid, 'settings', 'main'),
+      { prayerTargets: [...existing, trimmed], updatedAt: serverTimestamp() },
+      { merge: true },
+    );
   };
 
   /** 기존 기도제목 부분 수정 */
@@ -232,11 +259,6 @@ export function usePrayerActions() {
       answerNote: answerNote.trim() || undefined,
       updatedAt: now,
     } as any);
-    if (p.personId) {
-      await updateDoc(doc(db, 'users', uid, 'people', p.personId), {
-        activeCount: increment(-1), answeredCount: increment(1), updatedAt: now,
-      }).catch(() => {});
-    }
     toast(`✨ 응답 기록 — ${p.title}`);
   };
 
@@ -256,60 +278,45 @@ export function usePrayerActions() {
   const removePrayer = async (p: PrayerDoc) => {
     if (!uid) return;
     await deleteDoc(doc(db, 'users', uid, 'prayers', p.id));
-    if (p.personId && p.status === 'active') {
-      await updateDoc(doc(db, 'users', uid, 'people', p.personId), {
-        activeCount: increment(-1), updatedAt: serverTimestamp(),
-      }).catch(() => {});
+  };
+
+  /** 여러 기도제목 일괄 삭제 */
+  const removePrayers = async (ids: string[]) => {
+    if (!uid || ids.length === 0) return;
+    const batch = writeBatch(db);
+    for (const id of ids) {
+      batch.delete(doc(db, 'users', uid, 'prayers', id));
     }
+    await batch.commit();
+    toast(`🗑️ ${ids.length}개를 삭제했어요`);
   };
 
-  /** 대상자 찾거나 생성 (이름 기준) */
-  const ensurePerson = async (
-    name: string,
-    relation: PrayerCategory,
-    existing: PrayerPersonDoc[]
-  ): Promise<string | undefined> => {
-    if (!uid) return undefined;
-    const trimmed = name.trim();
-    if (!trimmed) return undefined;
-    const found = existing.find(
-      (p) => p.name === trimmed || (p.aliases ?? []).includes(trimmed)
-    );
-    if (found) return found.id;
-    const ref = doc(collection(db, 'users', uid, 'people'));
+  /** 여러 기도제목 일괄 부분 수정 (모임/우선순위/고정 등) */
+  const updatePrayers = async (ids: string[], patch: Partial<PrayerDoc>) => {
+    if (!uid || ids.length === 0) return;
+    const batch = writeBatch(db);
+    for (const id of ids) {
+      batch.update(doc(db, 'users', uid, 'prayers', id), {
+        ...patch, updatedAt: serverTimestamp(),
+      } as any);
+    }
+    await batch.commit();
+    toast(`✏️ ${ids.length}개를 수정했어요`);
+  };
+
+  /** AI 검토 후 일괄 저장 — 같은 batchId로 묶어 원자적 저장 */
+  const bulkSave = async (items: QuickAddInput[]): Promise<number> => {
+    if (!uid || items.length === 0) return 0;
+    const batch = writeBatch(db);
+    const batchId = doc(collection(db, 'users', uid, 'prayers')).id;
     const now = serverTimestamp();
-    await setDoc(ref, {
-      id: ref.id, name: trimmed, relation,
-      activeCount: 0, answeredCount: 0,
-      createdAt: now, updatedAt: now,
-    } as any);
-    return ref.id;
-  };
-
-  /** AI 검토 후 일괄 저장 */
-  const bulkSave = async (
-    items: QuickAddInput[],
-    people: PrayerPersonDoc[]
-  ): Promise<number> => {
-    if (!uid) return 0;
     let saved = 0;
-    // 사람 캐시 (이번 저장 중 새로 만든 사람도 재사용)
-    const cache = [...people];
     for (const item of items) {
-      let personId = item.personId;
-      if (!personId && item.personName?.trim()) {
-        personId = await ensurePerson(item.personName, item.category ?? 'other', cache);
-        if (personId && !cache.find((c) => c.id === personId)) {
-          cache.push({ id: personId, name: item.personName.trim() } as PrayerPersonDoc);
-        }
-      }
       const ref = doc(collection(db, 'users', uid, 'prayers'));
-      const now = serverTimestamp();
-      await setDoc(ref, {
+      batch.set(ref, {
         id: ref.id,
-        personId,
-        personName: (item.personName ?? '').trim(),
-        category: item.category ?? 'other',
+        group: (item.group ?? '개인').trim() || '개인',
+        target: (item.target ?? '나 자신').trim() || '나 자신',
         receivedAt: now,
         title: item.title.trim(),
         body: item.body?.trim() || undefined,
@@ -319,15 +326,25 @@ export function usePrayerActions() {
         prayCount: 0,
         streak: 0,
         source: 'bulk_ai',
+        batchId,
         createdAt: now,
         updatedAt: now,
       } as any);
-      if (personId) {
-        await updateDoc(doc(db, 'users', uid, 'people', personId), {
-          activeCount: increment(1), updatedAt: now,
-        }).catch(() => {});
-      }
       saved++;
+    }
+    await batch.commit();
+    // AI가 추출한 새 대상을 대상 목록에 1회 병합 저장
+    const existing = useAppStore.getState().settings?.prayerTargets ?? [];
+    const known = new Set([...DEFAULT_PRAYER_TARGETS, ...existing]);
+    const newTargets = Array.from(
+      new Set(items.map((it) => (it.target ?? '').trim()).filter((t) => t && !known.has(t)))
+    );
+    if (newTargets.length > 0) {
+      await setDoc(
+        doc(db, 'users', uid, 'settings', 'main'),
+        { prayerTargets: [...existing, ...newTargets], updatedAt: serverTimestamp() },
+        { merge: true },
+      ).catch(() => {});
     }
     return saved;
   };
@@ -369,18 +386,13 @@ export function usePrayerActions() {
 
     for (const d of rest) {
       await deleteDoc(doc(db, 'users', uid, 'prayers', d.id));
-      if (d.personId && d.status === 'active') {
-        await updateDoc(doc(db, 'users', uid, 'people', d.personId), {
-          activeCount: increment(-1), updatedAt: now,
-        }).catch(() => {});
-      }
     }
     toast(`🔗 ${docs.length}개를 하나로 합쳤어요`);
   };
 
   return {
-    quickAdd, updatePrayer, togglePin, checkPrayer, uncheckPrayer,
-    markAnswered, awaken, removePrayer, ensurePerson, bulkSave, mergePrayers,
+    quickAdd, addPrayerGroup, addPrayerTarget, updatePrayer, togglePin, checkPrayer, uncheckPrayer,
+    markAnswered, awaken, removePrayer, removePrayers, updatePrayers, bulkSave, mergePrayers,
   };
 }
 

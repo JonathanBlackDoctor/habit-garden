@@ -1,10 +1,8 @@
 import { motion } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
 import type { PrayerWeeklyDigestDoc } from 'shared/types/firestore';
-import { PRAYER_CATEGORY_LABELS } from 'shared/types/firestore';
 
 export function WeeklyDigestCard({ digest }: { digest: PrayerWeeklyDigestDoc }) {
-  const top = digest.topPersons[0];
   return (
     <motion.div
       initial={{ opacity: 0, y: -6 }}
@@ -19,8 +17,7 @@ export function WeeklyDigestCard({ digest }: { digest: PrayerWeeklyDigestDoc }) 
       </p>
       <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-[var(--fg-muted)]">
         <span>총 {digest.totalChecks}회 기도</span>
-        {top && <span>가장 많이: {top.personName}</span>}
-        <span>집중 영역: {PRAYER_CATEGORY_LABELS[digest.topCategory]}</span>
+        <span>집중 모임: {digest.topGroup}</span>
         {digest.answeredCount > 0 && (
           <span className="text-[var(--leaf)]">응답 {digest.answeredCount}건 ✨</span>
         )}
