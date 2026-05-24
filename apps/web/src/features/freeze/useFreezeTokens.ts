@@ -1,63 +1,63 @@
-import { collection, onSnapshot, doc, setDoc, addDoc, serverTimestamp, getDoc } from 'firebase/firestore';
-import { useEffect, useState } from 'react';
+import { collection, doc, setDoc, addDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import { useProgress } from '@/features/garden/useGarden';
-import type { HabitStreakData } from 'shared/types/firestore';
+import type { PlantInstance } from 'shared/types/firestore';
+import { PLANT_SPECIES } from 'shared/types/firestore';
 import { toast } from 'sonner';
 
-const FREEZE_PRICE = 50;
+const MIN_FREEZE_PRICE = 10;
 
-/**
- * Phase 4-3 — Freeze 토큰 합계/구매/소모.
- * 각 습관의 users/{uid}/habits/{id}/streakMeta/state 문서에 freezeTokens 가 존재.
- * 글로벌 합산은 클라이언트에서 합산 — 가짜 단순 모델.
- */
+// 현재 보유 식물들의 스트릭 의존도를 기반으로 토큰 사용 비용 계산.
+// streak-sensitive 특성을 가진 식물일수록, 그리고 성장 단계가 높을수록 보호 가치가 높아져 비용 증가.
+function calcFreezePrice(plants: PlantInstance[], prayerStreak: number): number {
+  let bonus = 0;
+
+  for (const plant of plants) {
+    const species = PLANT_SPECIES.find(s => s.id === plant.speciesId);
+    if (!species?.trait) continue;
+
+    const maxStage = (species.stages ?? 4) - 1;
+    const stageRatio = maxStage > 0 ? plant.stage / maxStage : 0;
+    const { trait } = species;
+
+    if (trait.kind === 'brittle') {
+      // 하루 실패로 즉사 — 현재 단계 수확량 전액 위험
+      bonus += Math.round(species.harvestYield * stageRatio);
+    } else if (trait.kind === 'fragile') {
+      // 실패→시듦→죽음 — 절반 위험
+      bonus += Math.round(species.harvestYield * stageRatio * 0.5);
+    } else if (trait.kind === 'regress') {
+      // 실패마다 단계 퇴보 — 40% 위험
+      bonus += Math.round(species.harvestYield * stageRatio * 0.4);
+    } else if (trait.kind === 'waning') {
+      // graceDays 연속 실패 시 죽음 — 30% 위험
+      bonus += Math.round(species.harvestYield * stageRatio * 0.3);
+    } else if (trait.kind === 'radiant') {
+      // 만개 후 실패 즉사 — 만개 상태일 때만 위험
+      if (plant.stage >= maxStage) {
+        bonus += Math.round(species.harvestYield * 0.8);
+      }
+    } else if (trait.kind === 'streakSync' && prayerStreak > 0) {
+      // 기도 스트릭 활성 중인 streakSync 식물 — 수확 보너스 50% 손실 위험
+      bonus += Math.round(species.harvestYield * 0.5 * stageRatio);
+    }
+  }
+
+  return MIN_FREEZE_PRICE + bonus;
+}
+
 export function useFreezeTokens() {
   const uid = useAppStore((s) => s.uid);
   const progress = useProgress();
-  const [byHabit, setByHabit] = useState<Record<string, HabitStreakData>>({});
 
-  useEffect(() => {
-    if (!uid) return;
-    return onSnapshot(collection(db, 'users', uid, 'habits'), () => {
-      // streakMeta 는 별도 서브컬렉션 — 합산을 단순화하기 위해 habits 변화로만 트리거하고
-      // 실제 구독은 그대로 두지 않음. 첫 출시 단계에서는 progress 의 전역 카운터 1개만 운영.
-    });
-  }, [uid]);
-
-  const total = Object.values(byHabit).reduce((acc, s) => acc + (s.freezeTokens ?? 0), 0);
-
-  const buyOne = async () => {
-    if (!uid || !progress) return;
-    if (progress.spendablePoints < FREEZE_PRICE) {
-      toast.error(`포인트 부족 (필요 ${FREEZE_PRICE}P)`);
-      return;
-    }
-    // 글로벌 토큰: progress.gardenState.decorations 대신 별도 필드 — 단순화를 위해
-    // ProgressDoc 에 freezeTokens 필드를 옵셔널로 누적.
-    const ref = doc(db, 'users', uid, 'progress', 'main');
-    const snap = await getDoc(ref);
-    const existing = snap.exists() ? (snap.data() as any).freezeTokens ?? 0 : 0;
-    await setDoc(
-      ref,
-      {
-        spendablePoints: progress.spendablePoints - FREEZE_PRICE,
-        freezeTokens: existing + 1,
-        updatedAt: serverTimestamp() as any,
-      },
-      { merge: true },
-    );
-    await addDoc(collection(db, 'users', uid, 'pointLedger'), {
-      delta: -FREEZE_PRICE,
-      reason: 'spend_freeze_token',
-      createdAt: serverTimestamp() as any,
-    });
-    toast('🧊 Freeze 토큰 1개 획득');
-  };
+  const plants = progress?.gardenState?.plants ?? [];
+  const prayerStreak = (progress as any)?.prayerStreak ?? 0;
+  const price = calcFreezePrice(plants, prayerStreak);
+  const count = (progress as any)?.freezeTokens ?? 0;
 
   const useOne = async () => {
-    if (!uid) return false;
+    if (!uid || !progress) return false;
     const ref = doc(db, 'users', uid, 'progress', 'main');
     const snap = await getDoc(ref);
     const existing = snap.exists() ? (snap.data() as any).freezeTokens ?? 0 : 0;
@@ -65,17 +65,27 @@ export function useFreezeTokens() {
       toast.error('Freeze 토큰이 없어요');
       return false;
     }
+    if (progress.spendablePoints < price) {
+      toast.error(`포인트 부족 (필요 ${price}P)`);
+      return false;
+    }
     await setDoc(
       ref,
-      { freezeTokens: existing - 1, updatedAt: serverTimestamp() as any },
+      {
+        freezeTokens: existing - 1,
+        spendablePoints: progress.spendablePoints - price,
+        updatedAt: serverTimestamp() as any,
+      },
       { merge: true },
     );
+    await addDoc(collection(db, 'users', uid, 'pointLedger'), {
+      delta: -price,
+      reason: 'use_freeze_token',
+      createdAt: serverTimestamp() as any,
+    });
     toast('🧊 토큰을 사용했어요. 스트릭이 유지됩니다.');
     return true;
   };
 
-  // progress.freezeTokens 우선, 없으면 byHabit 합계
-  const globalCount = (progress as any)?.freezeTokens ?? total;
-
-  return { count: globalCount, buyOne, useOne, price: FREEZE_PRICE };
+  return { count, useOne, price };
 }
