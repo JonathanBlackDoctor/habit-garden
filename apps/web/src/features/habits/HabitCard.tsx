@@ -72,7 +72,7 @@ export default function HabitCard({ habit, check, streak = 0, onScore }: Props) 
   return (
     <div
       className={cn(
-        'card p-3 transition-all',
+        'card px-3 py-2 transition-all',
         achieved && 'border border-[var(--leaf-soft)] bg-[var(--leaf-soft)]/40'
       )}
     >
@@ -113,7 +113,7 @@ export default function HabitCard({ habit, check, streak = 0, onScore }: Props) 
       </div>
 
       {/* 점수 입력 */}
-      <div className="mt-2">
+      <div className="mt-1.5">
         {habit.scoreMode === 'scaled' ? (
           <div className="flex gap-1.5">
             {[1, 2, 3, 4, 5].map((s) => (
@@ -121,7 +121,7 @@ export default function HabitCard({ habit, check, streak = 0, onScore }: Props) 
                 key={s}
                 onClick={() => onScore(s)}
                 className={cn(
-                  'flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium transition-all',
+                  'flex h-7 w-7 items-center justify-center rounded-full text-sm font-medium transition-all',
                   currentScore === s
                     ? 'bg-[var(--leaf)] text-white scale-110'
                     : currentScore !== null && currentScore > s
@@ -145,7 +145,7 @@ export default function HabitCard({ habit, check, streak = 0, onScore }: Props) 
                 key={s}
                 onClick={() => onScore(s)}
                 className={cn(
-                  'flex-1 rounded-[var(--radius-sm)] py-1.5 text-sm font-medium transition-colors',
+                  'flex-1 rounded-[var(--radius-sm)] py-1 text-sm font-medium transition-colors',
                   currentScore === s
                     ? s === 1
                       ? 'bg-[var(--leaf)] text-white'
@@ -167,7 +167,7 @@ export default function HabitCard({ habit, check, streak = 0, onScore }: Props) 
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className="mt-2 overflow-hidden space-y-2"
+            className="mt-1.5 overflow-hidden space-y-2"
           >
             {habit.description && (
               <p className="text-xs text-[var(--fg-muted)]">{habit.description}</p>
@@ -181,7 +181,7 @@ export default function HabitCard({ habit, check, streak = 0, onScore }: Props) 
       {canReflect && !showReflection && (
         <button
           onClick={() => setShowReflection(true)}
-          className="mt-2 w-full text-left text-[10px] text-[var(--fg-faint)] hover:text-[var(--fg-muted)] transition-colors"
+          className="mt-1 w-full text-left text-[10px] text-[var(--fg-faint)] hover:text-[var(--fg-muted)] transition-colors"
         >
           {missed ? '왜 못 했을까? 짧게 남기기 ▾' : '오늘 이 습관 평가 남기기 ▾'}
         </button>
@@ -192,7 +192,7 @@ export default function HabitCard({ habit, check, streak = 0, onScore }: Props) 
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className="mt-2 overflow-hidden"
+            className="mt-1.5 overflow-hidden"
           >
             <div className="rounded-[var(--radius-sm)] bg-[var(--bg-base)] p-2.5 space-y-2">
               <div className="flex items-center justify-between gap-2">
