@@ -27,11 +27,24 @@ describe('parseQuickAdd', () => {
     expect(parseQuickAdd('취업 낮음').priority).toBe('low');
   });
 
-  it('복합 입력 — 모임+우선순위+제목', () => {
-    const r = parseQuickAdd('#교회 청년부 부흥 high');
+  it('@대상 인식', () => {
+    const r = parseQuickAdd('@엄마 건강 회복');
+    expect(r.target).toBe('엄마');
+    expect(r.title).toBe('건강 회복');
+  });
+
+  it('복합 입력 — 모임+대상+우선순위+제목', () => {
+    const r = parseQuickAdd('#교회 @청년부 부흥 high');
     expect(r.group).toBe('교회');
+    expect(r.target).toBe('청년부');
     expect(r.priority).toBe('high');
-    expect(r.title).toBe('청년부 부흥');
+    expect(r.title).toBe('부흥');
+  });
+
+  it('@ 만 있으면 대상으로 보지 않는다', () => {
+    const r = parseQuickAdd('@ 기도');
+    expect(r.target).toBeUndefined();
+    expect(r.title).toContain('기도');
   });
 
   it('토큰만 입력되면 원문을 제목으로 보존', () => {

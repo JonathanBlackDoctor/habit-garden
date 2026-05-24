@@ -31,6 +31,7 @@ export interface UserSettingsDoc {
     faith: boolean;          // 경건·기도제목 메뉴 표시 여부
   };
   prayerGroups?: string[];   // 기도제목을 받은 모임 목록 (직접 추가 가능). 미설정 시 기본값 사용
+  prayerTargets?: string[];  // 기도 대상(요청자/나 자신) 목록 (직접 추가 가능). 미설정 시 기본값 사용
   updatedAt: Timestamp;
 }
 
@@ -178,12 +179,16 @@ export type PrayerSource    = 'quick' | 'manual' | 'bulk_ai';
 // 기도제목을 받은 모임 — 사용자가 직접 추가 가능. 미설정 시 이 기본값 사용
 export const DEFAULT_PRAYER_GROUPS = ['교회', 'CMF', '개인'] as const;
 
+// 기도 대상(요청자/나 자신) — 사용자가 직접 추가 가능. 미설정 시 이 기본값 사용
+export const DEFAULT_PRAYER_TARGETS = ['나 자신'] as const;
+
 // 기도제목 — users/{uid}/prayers/{prayerId}
 export interface PrayerDoc {
   id: string;
 
   // ── 정리 기준 ──────────────────────────────
   group: string;                // 받은 모임 (교회/CMF/개인 …)
+  target: string;               // 기도 대상 (요청한 사람 / 나 자신)
   receivedAt: Timestamp;        // 받은 날짜
 
   // ── 내용 ───────────────────────────────────
@@ -545,18 +550,18 @@ export const SEED_HABITS: Omit<HabitDoc, 'id'>[] = [
 ];
 
 // ── 시드 기도제목 데이터 ──────────────────────────────────
-export type PrayerSeed = Pick<PrayerDoc, 'group' | 'title' | 'priority'> & {
+export type PrayerSeed = Pick<PrayerDoc, 'group' | 'target' | 'title' | 'priority'> & {
   body?: string;
   pinned?: boolean;
 };
 
 export const SEED_PRAYERS: PrayerSeed[] = [
-  { group: '개인', title: '말씀과 기도로 하루를 시작하기',   priority: 'high', pinned: true,  body: '매일 아침 QT와 기도로 하나님과 동행하기' },
-  { group: '개인', title: '미디어 절제와 마음의 절제',       priority: 'mid',  body: '스마트폰·숏츠 사용을 줄이고 집중력 회복' },
-  { group: '개인', title: '가족의 건강과 믿음',              priority: 'high', body: '부모님의 건강과 온 가족의 신앙 성장' },
-  { group: '교회', title: '교회 공동체와 주일 예배',         priority: 'mid',  body: '함께 예배하는 지체들과 교회의 부흥' },
-  { group: 'CMF',  title: '맡은 사역을 충성되게',            priority: 'mid',  body: '섬기는 자리에서 지혜와 사랑으로 감당하기' },
-  { group: '개인', title: '친구·지인의 구원과 회복',         priority: 'low',  body: '아직 주님을 모르는 친구들을 위한 중보' },
+  { group: '개인', target: '나 자신', title: '말씀과 기도로 하루를 시작하기',   priority: 'high', pinned: true,  body: '매일 아침 QT와 기도로 하나님과 동행하기' },
+  { group: '개인', target: '나 자신', title: '미디어 절제와 마음의 절제',       priority: 'mid',  body: '스마트폰·숏츠 사용을 줄이고 집중력 회복' },
+  { group: '개인', target: '가족',     title: '가족의 건강과 믿음',              priority: 'high', body: '부모님의 건강과 온 가족의 신앙 성장' },
+  { group: '교회', target: '교회 공동체', title: '교회 공동체와 주일 예배',      priority: 'mid',  body: '함께 예배하는 지체들과 교회의 부흥' },
+  { group: 'CMF',  target: '나 자신', title: '맡은 사역을 충성되게',            priority: 'mid',  body: '섬기는 자리에서 지혜와 사랑으로 감당하기' },
+  { group: '개인', target: '친구',     title: '친구·지인의 구원과 회복',         priority: 'low',  body: '아직 주님을 모르는 친구들을 위한 중보' },
 ];
 
 // 기도 우선순위 라벨 (UI 표시용)

@@ -3,6 +3,7 @@ import type { PrayerPriority } from 'shared/types/firestore';
 export interface QuickParseResult {
   title: string;
   group?: string;
+  target?: string;
   priority?: PrayerPriority;
 }
 
@@ -16,6 +17,7 @@ const PRIORITY_TOKENS: Record<string, PrayerPriority> = {
 /**
  * 한 줄 자연어 입력을 파싱한다.
  *  - `#교회` / `#CMF` 등 → 받은 모임 (해시태그 뒤 문자열을 그대로 사용)
+ *  - `@엄마` / `@나` 등 → 기도 대상 (요청자/나 자신)
  *  - 단독 `high`/`높음`/`!!` 등 → 우선순위
  *  - 나머지 단어 → 제목
  *
@@ -30,6 +32,11 @@ export function parseQuickAdd(input: string): QuickParseResult {
 
     if (raw.startsWith('#') && raw.length > 1) {
       result.group = raw.slice(1);
+      continue;
+    }
+
+    if (raw.startsWith('@') && raw.length > 1) {
+      result.target = raw.slice(1);
       continue;
     }
 

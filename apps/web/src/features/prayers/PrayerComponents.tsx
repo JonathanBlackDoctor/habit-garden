@@ -3,7 +3,7 @@ import { Timestamp } from 'firebase/firestore';
 import type { PrayerDoc, PrayerPriority } from 'shared/types/firestore';
 import { PRAYER_PRIORITY_LABELS } from 'shared/types/firestore';
 import { PRAYER_ROTATION_DEFAULTS } from 'shared/types/firestore';
-import { usePrayerActions, usePrayerGroups } from './usePrayers';
+import { usePrayerActions, usePrayerGroups, usePrayerTargets } from './usePrayers';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Check, Pin, Sparkles, Moon, Trash2, Flame, Pencil, Layers, Link2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -80,6 +80,9 @@ export function PrayerCheckCard({
         </div>
         <div className="mt-0.5 flex items-center gap-1.5">
           <GroupBadge group={prayer.group} />
+          {prayer.target && (
+            <span className="truncate text-[11px] text-[var(--fg-muted)]">🙏 {prayer.target}</span>
+          )}
           {prayer.streak > 1 && (
             <span className="flex items-center gap-0.5 text-[10px] text-[var(--bloom)]">
               <Flame size={10} />{prayer.streak}
@@ -109,6 +112,9 @@ export function PrayerListCard({
       </div>
       <div className="mt-1 flex flex-wrap items-center gap-1.5">
         <GroupBadge group={prayer.group} />
+        {prayer.target && (
+          <span className="text-[11px] text-[var(--fg-muted)]">🙏 {prayer.target}</span>
+        )}
         {prayer.batchId && (
           <span className="flex items-center gap-0.5 rounded-full bg-[var(--bg-base)] px-1.5 py-0.5 text-[10px] text-[var(--fg-muted)]">
             <Layers size={9} /> 무더기
@@ -377,6 +383,36 @@ export function GroupSelect({
   );
 }
 
+export function TargetSelect({
+  value, onChange, className,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  className?: string;
+}) {
+  const targets = usePrayerTargets();
+  const { addPrayerTarget } = usePrayerActions();
+  const options = targets.includes(value) || !value ? targets : [value, ...targets];
+
+  return (
+    <select
+      className={cn(SELECT_CLS, className)}
+      value={value || (targets[0] ?? '나 자신')}
+      onChange={async (e) => {
+        if (e.target.value === '__new__') {
+          const name = window.prompt('새 기도 대상 이름')?.trim();
+          if (name) { await addPrayerTarget(name); onChange(name); }
+          return;
+        }
+        onChange(e.target.value);
+      }}
+    >
+      {options.map((t) => <option key={t} value={t}>{t}</option>)}
+      <option value="__new__">+ 새 대상 추가…</option>
+    </select>
+  );
+}
+
 // ── 상세/편집 다이얼로그 ────────────────────────────────────
 export function PrayerDetailDialog({
   prayer, open, onOpenChange,
@@ -414,6 +450,7 @@ export function PrayerDetailDialog({
           <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-2">
               <GroupBadge group={prayer.group} />
+              {prayer.target && <span className="text-xs text-[var(--fg-muted)]">🙏 {prayer.target}</span>}
               <span className="text-xs text-[var(--fg-muted)]">{PRAYER_PRIORITY_LABELS[prayer.priority]}</span>
               <span className="text-xs text-[var(--fg-faint)]">· {prayer.prayCount}회 기도</span>
               {tsToLabel(prayer.receivedAt) && (
@@ -535,6 +572,15 @@ export function PrayerDetailDialog({
                 </select>
               </label>
             </div>
+
+            <label className="block space-y-1">
+              <span className="text-xs text-[var(--fg-muted)]">기도 대상</span>
+              <TargetSelect
+                className="w-full"
+                value={prayer.target}
+                onChange={(t) => updatePrayer(prayer.id, { target: t })}
+              />
+            </label>
 
             <div className="grid grid-cols-2 gap-2">
               <label className="space-y-1">
