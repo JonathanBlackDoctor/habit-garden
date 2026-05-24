@@ -84,3 +84,18 @@
   --normal-border: var(--bloom) !important;
   --normal-text: var(--bloom) !important;
 }
+
+/* 닫기 버튼 크게 — 한 번에 쉽게 닫히도록 */
+[data-sonner-toast] [data-close-button] {
+  width: 26px;
+  height: 26px;
+  top: 8px;
+  left: 8px;
+  background: var(--bloom-soft);
+  border-color: var(--bloom);
+  color: var(--bloom);
+}
+[data-sonner-toast] [data-close-button] svg {
+  width: 16px;
+  height: 16px;
+}

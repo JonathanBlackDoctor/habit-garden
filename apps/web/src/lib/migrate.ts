@@ -7,6 +7,7 @@ export interface GuestSnapshot {
   habits: DocMap;
   prayers: DocMap;
   people: DocMap;
+  longTodos: DocMap;
   days: Record<string, { data: any; subs: Record<string, DocMap> }>;
   progress: any | null;
   settings: any | null;
@@ -19,10 +20,11 @@ const DAY_SUBS = ['habitChecks', 'prayerChecks', 'todayTodos', 'gratitudes'] as 
  * 반드시 아직 그 게스트로 인증된 상태에서 호출해야 한다(보안규칙: 본인 데이터만 read).
  */
 export async function exportGuestData(uid: string): Promise<GuestSnapshot> {
-  const [habits, prayers, people] = await Promise.all([
+  const [habits, prayers, people, longTodos] = await Promise.all([
     readCollection(`users/${uid}/habits`),
     readCollection(`users/${uid}/prayers`),
     readCollection(`users/${uid}/people`),
+    readCollection(`users/${uid}/longTodos`),
   ]);
 
   const days: GuestSnapshot['days'] = {};
@@ -44,6 +46,7 @@ export async function exportGuestData(uid: string): Promise<GuestSnapshot> {
     habits,
     prayers,
     people,
+    longTodos,
     days,
     progress: progressSnap.exists() ? progressSnap.data() : null,
     settings: settingsSnap.exists() ? settingsSnap.data() : null,
@@ -58,6 +61,7 @@ export async function importGuestData(toUid: string, snap: GuestSnapshot): Promi
   await writeCollection(`users/${toUid}/habits`, snap.habits);
   await writeCollection(`users/${toUid}/prayers`, snap.prayers);
   await writeCollection(`users/${toUid}/people`, snap.people);
+  await writeCollection(`users/${toUid}/longTodos`, snap.longTodos);
 
   for (const [date, day] of Object.entries(snap.days)) {
     await setDoc(doc(db, 'users', toUid, 'days', date), day.data, { merge: true });
