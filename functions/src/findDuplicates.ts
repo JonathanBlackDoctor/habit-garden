@@ -54,7 +54,7 @@ export const findDuplicatePrayers = functions
     const snap = await db.collection(`users/${uid}/prayers`).where('status', '==', 'active').get();
     const items = snap.docs.slice(0, MAX_ITEMS).map((d) => {
       const p = d.data() as PrayerDoc;
-      return { id: d.id, personName: p.personName ?? '', title: p.title ?? '', body: p.body ?? '' };
+      return { id: d.id, group: p.group ?? '', title: p.title ?? '', body: p.body ?? '' };
     });
     if (items.length < 2) return { groups: [] };
 
@@ -72,7 +72,7 @@ export const findDuplicatePrayers = functions
     });
 
     const list = items
-      .map((it) => `- [${it.id}] (${it.personName || '?'}) ${it.title}${it.body ? ' / ' + it.body : ''}`)
+      .map((it) => `- [${it.id}] (${it.group || '?'}) ${it.title}${it.body ? ' / ' + it.body : ''}`)
       .join('\n');
 
     try {
