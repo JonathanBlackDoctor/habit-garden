@@ -54,8 +54,9 @@ export function useSaveHabitCheck(dateOverride?: string) {
 
     const prevScore = prevCheck?.score ?? null;
 
-    // 같은 점수 재클릭: no-op
-    if (prevScore === score) return;
+    // 같은 상태 재클릭: no-op. 단, 기록이 이미 있을 때만 —
+    // 미기록(prevCheck 없음)에서 건너뛰기(score=null)는 새 기록으로 저장돼야 함
+    if (prevCheck != null && prevScore === score) return;
 
     const achieved = score !== null && score >= habit.achieveThreshold;
     const checkDoc: HabitCheckDoc = {
