@@ -11,7 +11,7 @@ import {
 } from '@/features/prayers/usePrayers';
 import {
   PrayerCheckCard, PrayerListCard, PrayerDetailDialog, GroupSelect,
-  usePrayerSelection, BulkActionBar,
+  usePrayerSelection, BulkActionBar, AddPrayerDialog,
 } from '@/features/prayers/PrayerComponents';
 import BulkParse from '@/features/prayers/BulkParse';
 import { VoiceInputButton } from '@/features/prayers/VoiceInput';
@@ -19,7 +19,7 @@ import { DuplicateFinder } from '@/features/prayers/DuplicateFinder';
 import { WeeklyDigestCard } from '@/features/prayers/WeeklyDigestCard';
 import { parseQuickAdd } from '@/features/prayers/parseQuickAdd';
 import { selectMorePrayers, type RotationInput } from 'shared/prayerRotation';
-import { Plus, ClipboardList, Search, Heart, ListChecks, Layers, ChevronDown } from 'lucide-react';
+import { Plus, ClipboardList, Search, Heart, ListChecks, Layers, ChevronDown, Pencil } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { Navigate } from 'react-router-dom';
@@ -70,6 +70,7 @@ function PrayersInner() {
   const [quick, setQuick] = useState('');
   const [lastGroup, setLastGroup] = useState<string>(groups[0] ?? '개인');
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
   const [selected, setSelected] = useState<PrayerDoc | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
@@ -135,6 +136,12 @@ function PrayersInner() {
             </button>
           ))}
         </div>
+        <button
+          onClick={() => setAddOpen(true)}
+          className="flex items-center gap-1 rounded-[var(--radius)] border border-[var(--border)] bg-white px-2.5 py-1.5 text-xs text-[var(--fg-muted)]"
+        >
+          <Pencil size={14} /> 자세히
+        </button>
         {isPremium && (
           <button
             onClick={() => setBulkOpen(true)}
@@ -156,6 +163,7 @@ function PrayersInner() {
         open={detailOpen}
         onOpenChange={setDetailOpen}
       />
+      <AddPrayerDialog open={addOpen} onOpenChange={setAddOpen} initialTitle={quick} />
       {isPremium && <BulkParse open={bulkOpen} onOpenChange={setBulkOpen} />}
     </div>
   );
@@ -171,10 +179,11 @@ function TodayView({
   onOpen: (p: PrayerDoc) => void;
   date: string;
 }) {
-  const { checkPrayer, uncheckPrayer } = usePrayerActions();
+  const { checkPrayer, uncheckPrayer, appendTodayExtras } = usePrayerActions();
   const { pinned, rotation } = useTodayPrayers(prayers, dayDoc);
   const digest = useLatestWeeklyDigest();
-  const [extraIds, setExtraIds] = useState<string[]>([]);
+  // '더 받기' 결과는 DayDoc.prayerPlan.extraIds 에 영속화 — 탭 전환·새로고침에도 유지
+  const extraIds = useMemo(() => dayDoc?.prayerPlan?.extraIds ?? [], [dayDoc]);
 
   const active = useMemo(() => prayers.filter((p) => p.status === 'active'), [prayers]);
   const byId = useMemo(() => new Map(active.map((p) => [p.id, p] as const)), [active]);
@@ -194,7 +203,7 @@ function TodayView({
     const exclude = new Set([...planIds, ...extraIds]);
     const next = selectMorePrayers(toInputs(active), exclude, Date.now(), MORE_BATCH);
     if (next.length === 0) return;
-    setExtraIds((prev) => [...prev, ...next]);
+    void appendTodayExtras(date, [...extraIds, ...next]);
   };
 
   const hasMore = active.some((p) => !p.pinned && !planIds.has(p.id) && !extraIds.includes(p.id));

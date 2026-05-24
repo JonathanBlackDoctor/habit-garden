@@ -217,6 +217,16 @@ export function usePrayerActions() {
     );
   };
 
+  /** '오늘 기도 더 받기' — 그날 DayDoc.prayerPlan.extraIds 에 영속화(중첩 머지) */
+  const appendTodayExtras = async (forDate: string, ids: string[]) => {
+    if (!uid) return;
+    await setDoc(
+      doc(db, 'users', uid, 'days', forDate),
+      { prayerPlan: { extraIds: ids }, updatedAt: serverTimestamp() },
+      { merge: true },
+    );
+  };
+
   /** 기존 기도제목 부분 수정 */
   const updatePrayer = async (id: string, patch: Partial<PrayerDoc>) => {
     if (!uid) return;
@@ -391,7 +401,7 @@ export function usePrayerActions() {
   };
 
   return {
-    quickAdd, addPrayerGroup, addPrayerTarget, updatePrayer, togglePin, checkPrayer, uncheckPrayer,
+    quickAdd, addPrayerGroup, addPrayerTarget, appendTodayExtras, updatePrayer, togglePin, checkPrayer, uncheckPrayer,
     markAnswered, awaken, removePrayer, removePrayers, updatePrayers, bulkSave, mergePrayers,
   };
 }
