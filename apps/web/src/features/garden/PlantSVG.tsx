@@ -42,7 +42,7 @@ const RARITY_FX: Record<Rarity, {
   common:    { glowRadius: 0,  glowOpacity: 0,    aura: 'none', sparkleCount: 0, motes: 0, pulse: false },
   rare:      { glowRadius: 5,  glowOpacity: 0.45, aura: 'soft', sparkleCount: 0, motes: 0, pulse: false },
   epic:      { glowRadius: 8,  glowOpacity: 0.55, aura: 'soft', sparkleCount: 3, motes: 0, pulse: false },
-  legendary: { glowRadius: 13, glowOpacity: 0.7,  aura: 'halo', sparkleCount: 6, motes: 3, pulse: true },
+  legendary: { glowRadius: 15, glowOpacity: 0.78, aura: 'halo', sparkleCount: 8, motes: 5, pulse: true },
 };
 
 function hashStr(s: string): number {
@@ -99,11 +99,11 @@ export default function PlantSVG({
       <defs>
         {!withered && (
           <>
-            <linearGradient id={gid('leaf')} x1="0" y1="0" x2="0" y2="1">
+            <linearGradient id={gid('leaf')} gradientUnits="userSpaceOnUse" x1="40" y1="6" x2="40" y2="72">
               <stop offset="0%" stopColor={`color-mix(in srgb, ${col} 66%, white)`} />
               <stop offset="100%" stopColor={`color-mix(in srgb, ${col} 84%, black)`} />
             </linearGradient>
-            <linearGradient id={gid('stem')} x1="0" y1="0" x2="0" y2="1">
+            <linearGradient id={gid('stem')} gradientUnits="userSpaceOnUse" x1="40" y1="6" x2="40" y2="72">
               <stop offset="0%" stopColor={`color-mix(in srgb, ${col} 74%, white)`} />
               <stop offset="100%" stopColor={`color-mix(in srgb, ${col} 90%, black)`} />
             </linearGradient>
@@ -205,47 +205,79 @@ function petalRing(
 }
 
 // ── 등급 장식 레이어 ──────────────────────────────────────
+const HALO_ORIGIN = { transformBox: 'view-box' as const, transformOrigin: '40px 26px' };
+
 function renderAura(kind: 'none' | 'soft' | 'halo', gid: (n: string) => string, color: string, pulse: boolean): React.ReactNode {
   if (kind === 'none') return null;
+
+  // rare/epic: 단순 후광
+  if (kind === 'soft') {
+    return <circle cx="40" cy="26" r="30" fill={`url(#${gid('aura')})`} className={pulse ? 'aura-pulse' : undefined} />;
+  }
+
+  // legendary: 맥동 후광 + 회전 광선 버스트(서로 반대로 도는 2겹) + 광륜
   return (
-    <g className={pulse ? 'aura-pulse' : undefined}>
-      <circle cx="40" cy="26" r="30" fill={`url(#${gid('aura')})`} />
-      {kind === 'halo' && (
-        <>
-          <circle cx="40" cy="26" r="22" fill="none" stroke={color} strokeWidth="1" opacity="0.4" />
-          <g stroke={color} strokeWidth="1.2" opacity="0.45" strokeLinecap="round">
-            {[0, 45, 90, 135, 180, 225, 270, 315].map((d) => (
-              <line key={d} x1="40" y1="8" x2="40" y2="2" transform={`rotate(${d} 40 26)`} />
-            ))}
-          </g>
-        </>
-      )}
-    </g>
+    <>
+      <circle cx="40" cy="26" r="34" fill={`url(#${gid('aura')})`} className="aura-pulse" />
+      {/* 긴 광선 (느리게 회전) */}
+      <g className="halo-rotate" style={HALO_ORIGIN}>
+        <g stroke={color} strokeWidth="1.5" opacity="0.5" strokeLinecap="round">
+          {[0, 45, 90, 135, 180, 225, 270, 315].map((d) => (
+            <line key={d} x1="40" y1="8" x2="40" y2="0" transform={`rotate(${d} 40 26)`} />
+          ))}
+        </g>
+      </g>
+      {/* 짧은 광선 (반대로, 더 느리게) */}
+      <g className="halo-rotate" style={{ ...HALO_ORIGIN, animationDirection: 'reverse', animationDuration: '24s' }}>
+        <g stroke={color} strokeWidth="1" opacity="0.35" strokeLinecap="round">
+          {[22, 67, 112, 157, 202, 247, 292, 337].map((d) => (
+            <line key={d} x1="40" y1="12" x2="40" y2="6" transform={`rotate(${d} 40 26)`} />
+          ))}
+        </g>
+      </g>
+      <circle cx="40" cy="26" r="22" fill="none" stroke={color} strokeWidth="1" opacity="0.45" className="aura-pulse" />
+    </>
   );
 }
 
-const SPARKLE_POS: [number, number][] = [[14, 20], [60, 16], [58, 46], [22, 48], [68, 32], [40, 8]];
+// 4-점 별 (원점 기준) — 전설 sparkle 용
+const STAR4 = 'M0,-3.4 L0.9,-0.9 L3.4,0 L0.9,0.9 L0,3.4 L-0.9,0.9 L-3.4,0 L-0.9,-0.9 Z';
+const SPARKLE_POS: [number, number][] = [
+  [14, 20], [60, 16], [58, 46], [22, 48], [68, 32], [12, 38], [70, 52], [40, 7],
+];
 function renderSparkles(count: number, rarity: Rarity): React.ReactNode {
-  const color = rarity === 'legendary' ? '#FFF3C0' : '#FFFFFF';
+  const legendary = rarity === 'legendary';
+  const color = legendary ? '#FFF3C0' : '#FFFFFF';
   return SPARKLE_POS.slice(0, count).map(([x, y], i) => (
-    <g key={i} className="sparkle" style={{ animationDelay: `${i * 0.3}s` }}>
-      <circle cx={x} cy={y} r="1.7" fill={color} />
+    <g key={i} className="sparkle" style={{ animationDelay: `${i * 0.28}s` }}>
+      {legendary
+        ? <path d={STAR4} fill={color} transform={`translate(${x} ${y}) scale(${0.85 + (i % 3) * 0.3})`} />
+        : <circle cx={x} cy={y} r="1.7" fill={color} />}
     </g>
   ));
 }
 
-function renderMotes(count: number, color: string): React.ReactNode {
-  const R = 25;
+function moteRing(n: number, R: number, color: string, reverse?: boolean): React.ReactNode {
   return (
-    <g className="halo-rotate" style={{ transformBox: 'view-box', transformOrigin: '40px 26px' }}>
-      {Array.from({ length: count }).map((_, i) => {
-        const rad = ((360 / count) * i * Math.PI) / 180;
+    <g className="halo-rotate" style={reverse ? { ...HALO_ORIGIN, animationDirection: 'reverse', animationDuration: '22s' } : HALO_ORIGIN}>
+      {Array.from({ length: n }).map((_, i) => {
+        const rad = ((360 / n) * i * Math.PI) / 180;
         return (
-          <circle key={i} cx={40 + R * Math.cos(rad)} cy={26 + R * Math.sin(rad)} r="1.8"
+          <circle key={i} cx={40 + R * Math.cos(rad)} cy={26 + R * Math.sin(rad)} r={reverse ? 1.4 : 1.9}
                   fill={color} opacity="0.9" />
         );
       })}
     </g>
+  );
+}
+
+function renderMotes(count: number, color: string): React.ReactNode {
+  // 바깥 궤도 + 안쪽 역방향 궤도 2겹
+  return (
+    <>
+      {moteRing(count, 27, color)}
+      {moteRing(Math.max(2, count - 2), 17, '#FFFFFF', true)}
+    </>
   );
 }
 
