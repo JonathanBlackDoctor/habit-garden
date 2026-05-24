@@ -44,7 +44,7 @@ function calcFreezePrice(plants: PlantInstance[], prayerStreak: number): number 
     }
   }
 
-  return MIN_FREEZE_PRICE + bonus;
+  return (MIN_FREEZE_PRICE + bonus) * 2;
 }
 
 export function useFreezeTokens() {
