@@ -5,6 +5,12 @@
  *  2. pointLedger 기록
  *  3. progress 문서 갱신
  *  4. 배지 조건 확인 → 신규 배지 발급
+ *
+ * 중복 방지:
+ *  - days/{date}.habitBasePointsMax: { [habitId]: number }
+ *    오늘 각 습관에서 산정된 기본 포인트 최댓값을 추적.
+ *    score를 낮췄다 높여도 이미 지급된 최댓값 초과분만 지급.
+ *  - days/{date}.habitPointsToday: 하루 총 습관 포인트 (상한 적용)
  */
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
@@ -31,49 +37,50 @@ export const awardEngine = functions
   .onWrite(async (change, context) => {
     const { uid, date, habitId } = context.params;
 
-    const before = change.before.exists ? (change.before.data() as HabitCheckDoc) : null;
     const after = change.after.exists ? (change.after.data() as HabitCheckDoc) : null;
     if (!after || after.score === null) return;
-
-    // 점수가 변경되지 않으면 포인트 중복 지급 방지
-    if (before && before.score === after.score) {
-      await updateDayScore(uid, date);
-      return;
-    }
 
     // 습관 정의 로드
     const habitSnap = await db.doc(`users/${uid}/habits/${habitId}`).get();
     if (!habitSnap.exists) return;
     const habit = habitSnap.data() as HabitDoc;
 
-    // 포인트 계산 — 이전 점수와의 차이분만 지급 (부분 점수 인정, Phase 4-4)
-    const newPoints = pointsForCheck(habit.weight, habit.scoreMode, after.score);
-    const oldPoints = before && before.score !== null
-      ? pointsForCheck(habit.weight, habit.scoreMode, before.score)
-      : 0;
-    const delta = newPoints - oldPoints;
-    if (delta <= 0) return;
-
-    // Comeback Mode (Phase 4-5) — 활성화 기간이면 ×2
+    // Comeback Mode 여부 사전 확인 (트랜잭션 외부에서 읽어도 무방)
     const progSnap = await db.doc(`users/${uid}/progress/main`).get();
     const prog = progSnap.exists ? (progSnap.data() as ProgressDoc) : null;
-    const today = date;
-    const inComeback = prog?.comebackUntil && prog.comebackUntil >= today;
-    const finalDelta = inComeback ? delta * 2 : delta;
-    const reason = inComeback
-      ? (after.achieved ? 'habit_achieved_comeback' : 'habit_partial_comeback')
-      : (after.achieved ? 'habit_achieved' : 'habit_partial');
+    const inComeback = !!(prog?.comebackUntil && prog.comebackUntil >= date);
 
-    // 하루 습관 포인트 상한 적용 (트랜잭션으로 원자적 처리)
+    // 오늘 이 습관에서 지금까지 산정된 기본 포인트 최댓값을 추적하는 트랜잭션
+    // - 5점→1점→5점 반복 등으로 delta>0이 반복 발생하는 문제 방지
+    // - 하루 상한(HABIT_DAILY_CHECK_CAP)도 원자적으로 적용
     const dayRef = db.doc(`users/${uid}/days/${date}`);
     let cappedDelta = 0;
+    let shouldGrow = false;
+
     await db.runTransaction(async (tx) => {
       const daySnap = await tx.get(dayRef);
-      const earnedToday: number = daySnap.data()?.habitPointsToday ?? 0;
+      const dayData = daySnap.data() ?? {};
+
+      const basePointsMap: Record<string, number> = dayData.habitBasePointsMax ?? {};
+      const prevBase = basePointsMap[habitId] ?? 0;
+      const currBase = pointsForCheck(habit.weight, habit.scoreMode, after.score);
+
+      // 이전 최댓값 초과분만 신규 지급 대상
+      const rawDelta = Math.max(0, currBase - prevBase);
+      if (rawDelta <= 0) return;
+
+      // Comeback Mode ×2
+      const earnedDelta = inComeback ? rawDelta * 2 : rawDelta;
+
+      // 하루 상한 적용
+      const earnedToday: number = dayData.habitPointsToday ?? 0;
       const remaining = Math.max(0, HABIT_DAILY_CHECK_CAP - earnedToday);
-      cappedDelta = Math.min(finalDelta, remaining);
+      cappedDelta = Math.min(earnedDelta, remaining);
       if (cappedDelta <= 0) return;
+
+      shouldGrow = !!after.achieved;
       tx.set(dayRef, {
+        habitBasePointsMax: { ...basePointsMap, [habitId]: currBase },
         habitPointsToday: earnedToday + cappedDelta,
         updatedAt: FieldValue.serverTimestamp(),
       }, { merge: true });
@@ -84,11 +91,15 @@ export const awardEngine = functions
       return;
     }
 
+    const reason = inComeback
+      ? (after.achieved ? 'habit_achieved_comeback' : 'habit_partial_comeback')
+      : (after.achieved ? 'habit_achieved' : 'habit_partial');
+
     await creditPoints(uid, cappedDelta, reason, habitId);
     await updateDayScore(uid, date);
     await checkBadges(uid);
-    if (after.achieved) await growRandomPlant(uid);  // 정원 자동 성장
-    void POINT_EARN; // 미사용 경고 방지 (HABIT_BONUS_PERFECT 는 pointsForCheck 안에 통합됨)
+    if (shouldGrow) await growRandomPlant(uid);  // 정원 자동 성장
+    void POINT_EARN; // 미사용 경고 방지
   });
 
 // ── 회고 작성 감지 (days 문서 onUpdate) ───────────────────────────────────
