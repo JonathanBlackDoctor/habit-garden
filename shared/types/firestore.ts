@@ -374,6 +374,9 @@ export const POINT_PRICES = {
   HARVEST_BONUS_LEGENDARY: 100,   // 전설 수확 시 추가 (위에 누적)
 } as const;
 
+export const PLANTS_PER_BED = 8;   // 화단 한 페이지에 보이는 식물 수
+export const PLANTS_PER_ROW = 4;   // 계단식 한 줄당 식물 수 (8개 = 2줄)
+
 // 등급별 일일 수확 (만개 식물 → spendablePoints 자동 가산) 기본값
 export const DAILY_YIELD_BY_RARITY: Record<'basic' | 'common' | 'rare' | 'epic' | 'legendary', number> = {
   basic: 2, common: 4, rare: 6, epic: 10, legendary: 15,

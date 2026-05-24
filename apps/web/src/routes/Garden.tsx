@@ -1,12 +1,12 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useProgress, useGardenActions } from '@/features/garden/useGarden';
 import PlantSVG from '@/features/garden/PlantSVG';
 import PlantCodex from '@/features/garden/PlantCodex';
-import { PLANT_SPECIES, POINT_PRICES, DAILY_YIELD_BY_RARITY } from 'shared/types/firestore';
+import { PLANT_SPECIES, POINT_PRICES, DAILY_YIELD_BY_RARITY, PLANTS_PER_BED, PLANTS_PER_ROW } from 'shared/types/firestore';
 import type { PlantInstance, PlantSpecies } from 'shared/types/firestore';
 import { Button } from '@/components/ui/button';
-import { Leaf, Droplets, Lock, Sprout, Snowflake, Wheat, BookOpen, Sparkles } from 'lucide-react';
+import { Leaf, Droplets, Lock, Sprout, Snowflake, Wheat, BookOpen, Sparkles, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFreezeTokens } from '@/features/freeze/useFreezeTokens';
 
@@ -56,6 +56,31 @@ function traitLabel(t?: PlantSpecies['trait']): string | null {
 
 type Tab = 'garden' | 'shop' | 'codex';
 
+type SortKey = 'planted_desc' | 'planted_asc' | 'rarity' | 'stage' | 'species' | 'name';
+type FilterKey = 'all' | 'bloom' | 'withered';
+
+const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+  { key: 'planted_desc', label: '최신순' },
+  { key: 'planted_asc',  label: '오래된순' },
+  { key: 'rarity',       label: '등급순' },
+  { key: 'stage',        label: '성장순' },
+  { key: 'species',      label: '종류별' },
+  { key: 'name',         label: '이름순' },
+];
+
+const FILTER_OPTIONS: { key: FilterKey; label: string }[] = [
+  { key: 'all',      label: '전체' },
+  { key: 'bloom',    label: '만개' },
+  { key: 'withered', label: '시듦' },
+];
+
+const speciesOf = (id: string) => PLANT_SPECIES.find((s) => s.id === id);
+const maxStageOf = (id: string) => (speciesOf(id)?.stages ?? 4) - 1;
+const plantedMillis = (p: PlantInstance) => {
+  const t = p.plantedAt as { toMillis?: () => number; seconds?: number } | undefined;
+  return t?.toMillis?.() ?? (t?.seconds ?? 0) * 1000;
+};
+
 export default function Garden() {
   const progress = useProgress();
   const { plantSeed, waterPlant, unlockSpecies, harvestPlant } = useGardenActions();
@@ -63,6 +88,102 @@ export default function Garden() {
   const [selected, setSelected] = useState<PlantInstance | null>(null);
   const [tab, setTab] = useState<Tab>('garden');
   const [waterFx, setWaterFx] = useState<{ id: string; key: number } | null>(null);
+  const [bedPage, setBedPage] = useState(0);
+  const [sortKey, setSortKey] = useState<SortKey>('planted_desc');
+  const [filter, setFilter] = useState<FilterKey>('all');
+
+  const allPlants = progress?.gardenState.plants ?? [];
+
+  // 정렬 → 필터 (원본 불변)
+  const arranged = useMemo(() => {
+    const filtered = allPlants.filter((p) => {
+      if (filter === 'bloom') return p.stage >= maxStageOf(p.speciesId);
+      if (filter === 'withered') return !!p.witheredSince;
+      return true;
+    });
+    const sorted = [...filtered];
+    switch (sortKey) {
+      case 'planted_desc': sorted.sort((a, b) => plantedMillis(b) - plantedMillis(a)); break;
+      case 'planted_asc':  sorted.sort((a, b) => plantedMillis(a) - plantedMillis(b)); break;
+      case 'rarity': sorted.sort((a, b) =>
+        (RARITY_ORDER[speciesOf(b.speciesId)?.rarity ?? 'basic'] - RARITY_ORDER[speciesOf(a.speciesId)?.rarity ?? 'basic'])
+        || (b.stage - a.stage)); break;
+      case 'stage': sorted.sort((a, b) => b.stage - a.stage); break;
+      case 'name': sorted.sort((a, b) =>
+        (speciesOf(a.speciesId)?.name ?? a.speciesId).localeCompare(speciesOf(b.speciesId)?.name ?? b.speciesId, 'ko')); break;
+      case 'species': sorted.sort((a, b) => {
+        const sa = speciesOf(a.speciesId), sb = speciesOf(b.speciesId);
+        return (RARITY_ORDER[sa?.rarity ?? 'basic'] - RARITY_ORDER[sb?.rarity ?? 'basic'])
+          || (sa?.name ?? a.speciesId).localeCompare(sb?.name ?? b.speciesId, 'ko')
+          || (b.stage - a.stage);
+      }); break;
+    }
+    return sorted;
+  }, [allPlants, sortKey, filter]);
+
+  const bedCount = Math.max(1, Math.ceil(arranged.length / PLANTS_PER_BED));
+  const safePage = Math.min(bedPage, bedCount - 1);
+  const pagePlants = arranged.slice(safePage * PLANTS_PER_BED, safePage * PLANTS_PER_BED + PLANTS_PER_BED);
+
+  // 페이지 범위 보정
+  useEffect(() => { if (bedPage > bedCount - 1) setBedPage(bedCount - 1); }, [bedCount, bedPage]);
+
+  // 정렬/필터/페이지 변경 시 선택 해제
+  const changeSort = (k: SortKey) => { setSortKey(k); setSelected(null); setBedPage(0); };
+  const changeFilter = (k: FilterKey) => { setFilter(k); setSelected(null); setBedPage(0); };
+  const goPage = (n: number) => { setBedPage(Math.max(0, Math.min(bedCount - 1, n))); setSelected(null); };
+
+  const renderPlant = (plant: PlantInstance) => {
+    const isSelected = selected?.id === plant.id;
+    const sp = speciesOf(plant.speciesId);
+    const isFull = plant.stage >= maxStageOf(plant.speciesId);
+    const isWatering = waterFx?.id === plant.id;
+    return (
+      <motion.button
+        key={plant.id}
+        whileTap={{ scale: 0.95 }}
+        animate={isWatering
+          ? { scale: [isSelected ? 1.08 : 1, 1.18, isSelected ? 1.08 : 1] }
+          : { scale: isSelected ? 1.08 : 1 }}
+        transition={isWatering ? { duration: 0.5 } : undefined}
+        onClick={() => setSelected(isSelected ? null : plant)}
+        className={cn(
+          'flex flex-col items-center gap-1 rounded-lg p-1 transition-all relative',
+          isSelected && 'ring-2 ring-[var(--leaf)] ring-offset-1',
+        )}
+      >
+        <PlantSVG
+          speciesId={plant.speciesId}
+          stage={plant.stage}
+          withered={!!plant.witheredSince}
+          rarity={sp?.rarity}
+          size={68}
+        />
+        <span className="text-[10px] text-[var(--fg-muted)] tabular-nums">Lv{plant.stage}</span>
+        {isFull && sp && !plant.witheredSince && (
+          <span className="absolute -top-1 -right-1 rounded-full bg-[#FFD44A] px-1.5 py-0.5 text-[8px] font-bold text-[#5A3E1E] tabular-nums">
+            +{sp.dailyYield ?? DAILY_YIELD_BY_RARITY[sp.rarity]}/일
+          </span>
+        )}
+        <AnimatePresence>
+          {isWatering && (
+            <motion.span
+              key={waterFx!.key}
+              initial={{ opacity: 0, y: 0, scale: 0.8 }}
+              animate={{ opacity: 1, y: -28, scale: 1 }}
+              exit={{ opacity: 0, y: -40 }}
+              transition={{ duration: 1.0, ease: 'easeOut' }}
+              onAnimationComplete={() => setWaterFx(null)}
+              className="pointer-events-none absolute -top-2 left-1/2 -translate-x-1/2 rounded-full bg-[#E5F0F8] px-2 py-0.5 text-[10px] font-semibold text-[#3A6EA5] shadow-sm whitespace-nowrap"
+              aria-hidden
+            >
+              💧 +1Lv
+            </motion.span>
+          )}
+        </AnimatePresence>
+      </motion.button>
+    );
+  };
 
   if (!progress) {
     return (
@@ -142,73 +263,136 @@ export default function Garden() {
       {/* 정원 탭 */}
       {tab === 'garden' && (
         <>
-          <div
-            className="relative rounded-[var(--radius-lg)] bg-gradient-to-b from-[#E8F5D8] to-[var(--leaf-soft)] p-4 min-h-[240px] flex flex-wrap items-end gap-3 justify-center"
+          {/* 정렬·필터 바 */}
+          {plants.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex gap-1 rounded-full bg-[var(--leaf-soft)]/60 p-0.5">
+                {FILTER_OPTIONS.map(({ key, label }) => (
+                  <button
+                    key={key}
+                    onClick={() => changeFilter(key)}
+                    className={cn(
+                      'rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors',
+                      filter === key
+                        ? 'bg-white text-[var(--leaf-strong,var(--leaf))] shadow-sm'
+                        : 'text-[var(--fg-muted)]',
+                    )}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <select
+                value={sortKey}
+                onChange={(e) => changeSort(e.target.value as SortKey)}
+                className="rounded-full border border-[var(--leaf-soft)] bg-white px-2.5 py-1 text-[11px] font-medium text-[var(--fg-muted)]"
+                aria-label="정렬 기준"
+              >
+                {SORT_OPTIONS.map(({ key, label }) => (
+                  <option key={key} value={key}>{label}</option>
+                ))}
+              </select>
+              <span className="ml-auto text-[11px] text-[var(--fg-faint)] tabular-nums">
+                🌱 {plants.length}그루 · {bedCount}화단
+              </span>
+            </div>
+          )}
+
+          {/* 계단식 화단 페이저 */}
+          <motion.div
+            className="relative overflow-hidden rounded-[var(--radius-lg)] bg-gradient-to-b from-[#E8F5D8] to-[var(--leaf-soft)] p-4 min-h-[240px]"
             style={{ boxShadow: 'inset 0 -4px 8px rgba(79,122,55,0.08)' }}
+            drag={bedCount > 1 ? 'x' : false}
+            dragConstraints={{ left: 0, right: 0 }}
+            dragElastic={0.2}
+            onDragEnd={(_, info) => {
+              if (info.offset.x < -60 || info.velocity.x < -300) goPage(safePage + 1);
+              else if (info.offset.x > 60 || info.velocity.x > 300) goPage(safePage - 1);
+            }}
           >
             <div className="absolute bottom-0 left-0 right-0 h-8 rounded-b-[var(--radius-lg)] bg-[var(--soil)] opacity-20" />
 
-            {plants.length === 0 && (
+            {plants.length === 0 ? (
               <div className="flex flex-col items-center gap-2 text-[var(--fg-faint)] py-8 w-full">
                 <Sprout size={32} className="text-[var(--leaf-soft)]" opacity={0.6} />
                 <p className="text-sm">씨앗을 심어 정원을 시작하세요!</p>
               </div>
-            )}
-
-            {plants.map((plant) => {
-              const isSelected = selected?.id === plant.id;
-              const sp = PLANT_SPECIES.find((s) => s.id === plant.speciesId);
-              const maxStage = (sp?.stages ?? 4) - 1;
-              const isFull = plant.stage >= maxStage;
-              const isWatering = waterFx?.id === plant.id;
-              return (
-                <motion.button
-                  key={plant.id}
-                  whileTap={{ scale: 0.95 }}
-                  animate={isWatering
-                    ? { scale: [isSelected ? 1.08 : 1, 1.18, isSelected ? 1.08 : 1] }
-                    : { scale: isSelected ? 1.08 : 1 }}
-                  transition={isWatering ? { duration: 0.5 } : undefined}
-                  onClick={() => setSelected(isSelected ? null : plant)}
-                  className={cn(
-                    'flex flex-col items-center gap-1 rounded-lg p-1 transition-all relative',
-                    isSelected && 'ring-2 ring-[var(--leaf)] ring-offset-1',
-                  )}
+            ) : pagePlants.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 text-[var(--fg-faint)] py-8 w-full">
+                <Leaf size={28} className="text-[var(--leaf-soft)]" opacity={0.6} />
+                <p className="text-sm">조건에 맞는 식물이 없어요</p>
+              </div>
+            ) : (
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={safePage}
+                  initial={{ opacity: 0, x: 40 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -40 }}
+                  transition={{ duration: 0.22 }}
+                  className="flex flex-col items-center gap-1"
                 >
-                  <PlantSVG
-                    speciesId={plant.speciesId}
-                    stage={plant.stage}
-                    withered={!!plant.witheredSince}
-                    rarity={sp?.rarity}
-                    size={68}
-                  />
-                  <span className="text-[10px] text-[var(--fg-muted)] tabular-nums">Lv{plant.stage}</span>
-                  {/* 만개 식물에는 일일 yield 표시 */}
-                  {isFull && sp && !plant.witheredSince && (
-                    <span className="absolute -top-1 -right-1 rounded-full bg-[#FFD44A] px-1.5 py-0.5 text-[8px] font-bold text-[#5A3E1E] tabular-nums">
-                      +{sp.dailyYield ?? DAILY_YIELD_BY_RARITY[sp.rarity]}/일
-                    </span>
-                  )}
-                  <AnimatePresence>
-                    {isWatering && (
-                      <motion.span
-                        key={waterFx!.key}
-                        initial={{ opacity: 0, y: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, y: -28, scale: 1 }}
-                        exit={{ opacity: 0, y: -40 }}
-                        transition={{ duration: 1.0, ease: 'easeOut' }}
-                        onAnimationComplete={() => setWaterFx(null)}
-                        className="pointer-events-none absolute -top-2 left-1/2 -translate-x-1/2 rounded-full bg-[#E5F0F8] px-2 py-0.5 text-[10px] font-semibold text-[#3A6EA5] shadow-sm whitespace-nowrap"
-                        aria-hidden
+                  {/* 계단식 줄: 뒤(원경) → 앞(근경) */}
+                  {Array.from({ length: Math.ceil(pagePlants.length / PLANTS_PER_ROW) }).map((_, row, rows) => {
+                    const rowPlants = pagePlants.slice(row * PLANTS_PER_ROW, row * PLANTS_PER_ROW + PLANTS_PER_ROW);
+                    const depth = rows.length - 1 - row; // 위쪽 줄일수록 깊음
+                    const scale = 1 - depth * 0.15;
+                    const opacity = 1 - depth * 0.15;
+                    return (
+                      <div
+                        key={row}
+                        className="relative flex items-end justify-center gap-3"
+                        style={{
+                          transform: `scale(${scale})`,
+                          opacity,
+                          zIndex: row + 1,
+                          marginTop: row === 0 ? 0 : -10,
+                        }}
                       >
-                        💧 +1Lv
-                      </motion.span>
+                        <div className="pointer-events-none absolute bottom-0 left-2 right-2 h-2 rounded-full bg-[var(--soil)] opacity-25" />
+                        {rowPlants.map(renderPlant)}
+                      </div>
+                    );
+                  })}
+                </motion.div>
+              </AnimatePresence>
+            )}
+          </motion.div>
+
+          {/* 페이지 인디케이터 */}
+          {bedCount > 1 && (
+            <div className="flex items-center justify-center gap-3">
+              <button
+                onClick={() => goPage(safePage - 1)}
+                disabled={safePage === 0}
+                className="text-[var(--fg-muted)] disabled:opacity-30"
+                aria-label="이전 화단"
+              >
+                <ChevronLeft size={18} />
+              </button>
+              <div className="flex items-center gap-1.5">
+                {Array.from({ length: bedCount }).map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => goPage(i)}
+                    aria-label={`${i + 1}번 화단`}
+                    className={cn(
+                      'h-2 rounded-full transition-all',
+                      i === safePage ? 'w-5 bg-[var(--leaf)]' : 'w-2 bg-[var(--leaf-soft)]',
                     )}
-                  </AnimatePresence>
-                </motion.button>
-              );
-            })}
-          </div>
+                  />
+                ))}
+              </div>
+              <button
+                onClick={() => goPage(safePage + 1)}
+                disabled={safePage === bedCount - 1}
+                className="text-[var(--fg-muted)] disabled:opacity-30"
+                aria-label="다음 화단"
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
+          )}
 
           {/* 선택된 식물 액션 */}
           {selected && (
