@@ -1,5 +1,5 @@
 /**
- * PlantSVG — 11종 × stage별 벡터 식물 렌더러
+ * PlantSVG — 종 × stage별 벡터 식물 렌더러
  * stage 0: 씨앗, stage 1: 새싹, stage 2: 성장, stage 3: 개화, stage 4+: 만개, stage 5+: 최고
  *
  * 종별 비주얼 분기:
@@ -10,7 +10,9 @@
  *  - orchid: 보라색 우아한 꽃잎
  *  - bamboo: 마디가 있는 곧은 줄기
  *  - cosmos: 큰 꽃잎 6개 + 별 반짝
- *  - 희귀 이상은 stage>=3 부터 글로우 효과
+ *  - 연약 전설(crystal_rose/starlight_lily/aurora_orchid/golden_peony/dawn_lily):
+ *      그라데이션·다층 꽃잎·애니메이션으로 화려하게
+ *  - 희귀 이상은 stage>=3 부터 글로우 효과 (전설은 12px 골드 글로우 + 별 반짝)
  */
 import { cn } from '@/lib/utils';
 
@@ -399,18 +401,143 @@ function renderFlower(speciesId: string, accent: string, withered?: boolean): Re
     );
   }
 
-  // 기도백합: 6장 꽃잎 + 중앙 십자
-  if (speciesId === 'prayer_lily') {
+  // ── 연약 전설 5종 (화려하지만 게을러지면 죽는) ──────────────
+
+  // 수정장미: 각진 수정 꽃잎 + 중앙 보석 (핑크→흰빛 그라데이션)
+  if (speciesId === 'crystal_rose') {
     return (
       <g>
-        <line x1="40" y1="38" x2="40" y2="28" stroke={stem} strokeWidth="3" strokeLinecap="round" />
-        {[0, 60, 120, 180, 240, 300].map((deg) => (
-          <ellipse key={deg} cx="40" cy="18" rx="3" ry="9" fill={c} opacity="0.92"
-                   transform={`rotate(${deg} 40 26)`} />
+        <defs>
+          <radialGradient id="grad-crystal-rose" cx="50%" cy="42%" r="65%">
+            <stop offset="0%" stopColor="#FFFFFF" />
+            <stop offset="50%" stopColor="#FF9AD0" />
+            <stop offset="100%" stopColor="#C0418F" />
+          </radialGradient>
+        </defs>
+        <line x1="40" y1="38" x2="40" y2="30" stroke={stem} strokeWidth="3" strokeLinecap="round" />
+        {[0, 45, 90, 135, 180, 225, 270, 315].map((deg) => (
+          <polygon key={deg} points="40,8 36,22 40,26 44,22"
+                   fill={withered ? c : 'url(#grad-crystal-rose)'} opacity="0.9"
+                   transform={`rotate(${deg} 40 24)`} />
         ))}
-        {/* 중앙 십자 */}
-        <line x1="40" y1="22" x2="40" y2="30" stroke={withered ? '#A89878' : '#FFD44A'} strokeWidth="1.4" strokeLinecap="round" />
-        <line x1="36" y1="26" x2="44" y2="26" stroke={withered ? '#A89878' : '#FFD44A'} strokeWidth="1.4" strokeLinecap="round" />
+        <polygon points="40,18 34,24 40,32 46,24" fill={withered ? '#D1C4A8' : '#FFFFFF'} opacity="0.9" />
+        <polygon points="40,20 37,24 40,29 43,24" fill={withered ? c : '#FF6FB5'} opacity="0.85" />
+        <circle cx="40" cy="24" r="2" fill={withered ? '#D1C4A8' : '#FFFFFF'}>
+          {!withered && <animate attributeName="opacity" values="1;0.4;1" dur="2.2s" repeatCount="indefinite" />}
+        </circle>
+      </g>
+    );
+  }
+
+  // 별빛백합: 6장 백합 꽃잎 + 빛나는 별 코어 + 반짝이는 별 입자 (남보라→흰빛)
+  if (speciesId === 'starlight_lily') {
+    return (
+      <g>
+        <defs>
+          <radialGradient id="grad-starlight-lily" cx="50%" cy="45%" r="60%">
+            <stop offset="0%" stopColor="#FFFFFF" />
+            <stop offset="45%" stopColor="#A9C0FF" />
+            <stop offset="100%" stopColor="#4A4F9E" />
+          </radialGradient>
+        </defs>
+        <line x1="40" y1="38" x2="40" y2="30" stroke={stem} strokeWidth="3" strokeLinecap="round" />
+        {[0, 60, 120, 180, 240, 300].map((deg) => (
+          <ellipse key={deg} cx="40" cy="14" rx="3.5" ry="11"
+                   fill={withered ? c : 'url(#grad-starlight-lily)'} opacity="0.92"
+                   transform={`rotate(${deg} 40 25)`} />
+        ))}
+        <circle cx="40" cy="25" r="4" fill={withered ? '#D1C4A8' : '#FFE89A'} opacity="0.95" />
+        <circle cx="40" cy="25" r="1.6" fill={withered ? '#C7B68A' : '#FFFFFF'} />
+        {!withered && [[28, 16], [52, 16], [40, 8]].map(([cx, cy], i) => (
+          <circle key={i} cx={cx} cy={cy} r="1.2" fill="#FFFFFF">
+            <animate attributeName="opacity" values="1;0.2;1" dur="1.8s" begin={`${i * 0.4}s`} repeatCount="indefinite" />
+          </circle>
+        ))}
+      </g>
+    );
+  }
+
+  // 오로라난초: 흐르는 난초 꽃잎 (핑크→보라→시안 오로라 그라데이션)
+  if (speciesId === 'aurora_orchid') {
+    return (
+      <g>
+        <defs>
+          <linearGradient id="grad-aurora-orchid" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#FF8AD0" />
+            <stop offset="50%" stopColor="#9A7BFF" />
+            <stop offset="100%" stopColor="#6FE6E0" />
+          </linearGradient>
+        </defs>
+        <line x1="40" y1="38" x2="40" y2="28" stroke={stem} strokeWidth="3" strokeLinecap="round" />
+        <ellipse cx="30" cy="22" rx="7" ry="11" fill={withered ? c : 'url(#grad-aurora-orchid)'} opacity="0.9" transform="rotate(-30 30 22)" />
+        <ellipse cx="50" cy="22" rx="7" ry="11" fill={withered ? c : 'url(#grad-aurora-orchid)'} opacity="0.9" transform="rotate(30 50 22)" />
+        <ellipse cx="40" cy="16" rx="6" ry="11" fill={withered ? c : 'url(#grad-aurora-orchid)'} opacity="0.92" />
+        <ellipse cx="34" cy="28" rx="5" ry="8" fill={withered ? c : 'url(#grad-aurora-orchid)'} opacity="0.85" transform="rotate(-15 34 28)" />
+        <ellipse cx="46" cy="28" rx="5" ry="8" fill={withered ? c : 'url(#grad-aurora-orchid)'} opacity="0.85" transform="rotate(15 46 28)" />
+        <circle cx="40" cy="24" r="3" fill={withered ? '#D1C4A8' : '#FFFFFF'} opacity="0.9">
+          {!withered && <animate attributeName="opacity" values="0.9;0.4;0.9" dur="2.5s" repeatCount="indefinite" />}
+        </circle>
+      </g>
+    );
+  }
+
+  // 황금모란: 겹겹 황금 꽃잎 (안팎 2겹) + 밝은 중심
+  if (speciesId === 'golden_peony') {
+    return (
+      <g>
+        <defs>
+          <radialGradient id="grad-golden-peony" cx="50%" cy="50%" r="60%">
+            <stop offset="0%" stopColor="#FFF3C0" />
+            <stop offset="55%" stopColor="#FFD24A" />
+            <stop offset="100%" stopColor="#E0902A" />
+          </radialGradient>
+        </defs>
+        <line x1="40" y1="38" x2="40" y2="30" stroke={stem} strokeWidth="3" strokeLinecap="round" />
+        {[0, 45, 90, 135, 180, 225, 270, 315].map((deg) => (
+          <ellipse key={`o${deg}`} cx="40" cy="14" rx="5" ry="9"
+                   fill={withered ? c : 'url(#grad-golden-peony)'} opacity="0.85"
+                   transform={`rotate(${deg} 40 24)`} />
+        ))}
+        {[22, 67, 112, 157, 202, 247, 292, 337].map((deg) => (
+          <ellipse key={`i${deg}`} cx="40" cy="18" rx="3.5" ry="6"
+                   fill={withered ? c : 'url(#grad-golden-peony)'} opacity="0.95"
+                   transform={`rotate(${deg} 40 24)`} />
+        ))}
+        <circle cx="40" cy="24" r="3.5" fill={withered ? '#D1C4A8' : '#FFF8D8'} opacity="0.95" />
+      </g>
+    );
+  }
+
+  // 여명백합: 빛줄기 + 6장 꽃잎 + 맥동하는 빛 코어 (흰→복숭아→장미빛)
+  if (speciesId === 'dawn_lily') {
+    return (
+      <g>
+        <defs>
+          <radialGradient id="grad-dawn-lily" cx="50%" cy="45%" r="65%">
+            <stop offset="0%" stopColor="#FFFBEA" />
+            <stop offset="40%" stopColor="#FFD79A" />
+            <stop offset="75%" stopColor="#FF9E7A" />
+            <stop offset="100%" stopColor="#F2728C" />
+          </radialGradient>
+        </defs>
+        <line x1="40" y1="38" x2="40" y2="30" stroke={stem} strokeWidth="3" strokeLinecap="round" />
+        {!withered && (
+          <g stroke="#FFE6A8" strokeWidth="1" opacity="0.7">
+            {[0, 45, 90, 135, 180, 225, 270, 315].map((deg) => (
+              <line key={deg} x1="40" y1="24" x2="40" y2="6" transform={`rotate(${deg} 40 24)`}>
+                <animate attributeName="opacity" values="0.7;0.15;0.7" dur="3s" begin={`${(deg / 360).toFixed(2)}s`} repeatCount="indefinite" />
+              </line>
+            ))}
+          </g>
+        )}
+        {[0, 60, 120, 180, 240, 300].map((deg) => (
+          <ellipse key={deg} cx="40" cy="15" rx="4" ry="10"
+                   fill={withered ? c : 'url(#grad-dawn-lily)'} opacity="0.92"
+                   transform={`rotate(${deg} 40 24)`} />
+        ))}
+        <circle cx="40" cy="24" r="5" fill={withered ? '#D1C4A8' : '#FFFBEA'} opacity="0.95">
+          {!withered && <animate attributeName="r" values="5;6;5" dur="2.8s" repeatCount="indefinite" />}
+        </circle>
       </g>
     );
   }
@@ -429,7 +556,11 @@ function renderFlower(speciesId: string, accent: string, withered?: boolean): Re
 function renderBloom(speciesId: string, accent: string, withered?: boolean): React.ReactNode {
   const c = withered ? '#D1C4A8' : accent;
   // 만개해도 추가 꽃송이 없는 종: 선인장, 이끼, 민트, 소나무, 고사리, 생명나무, 대나무
-  const NO_BLOOM_OVERLAY = new Set(['cactus', 'moss', 'mint', 'pine', 'fern', 'tree_of_life', 'bamboo']);
+  const NO_BLOOM_OVERLAY = new Set([
+    'cactus', 'moss', 'mint', 'pine', 'fern', 'tree_of_life', 'bamboo',
+    // 연약 전설: 자체 디자인이 화려하므로 일반 보조 꽃송이 미적용
+    'crystal_rose', 'starlight_lily', 'aurora_orchid', 'golden_peony', 'dawn_lily',
+  ]);
   if (NO_BLOOM_OVERLAY.has(speciesId)) return null;
   return (
     <>
@@ -469,7 +600,12 @@ function getColor(speciesId: string): string {
     rainbow_iris:   '#6B4F8C',
     moonbloom: '#4F5A8C',
     tree_of_life: '#5A3E1E',
-    prayer_lily:  '#7A8C9E',
+    // 연약 전설 5종 (줄기·잎)
+    crystal_rose:   '#5A8C3E',
+    starlight_lily: '#4A5E8C',
+    aurora_orchid:  '#5A7A8C',
+    golden_peony:   '#5A8C3E',
+    dawn_lily:      '#6A8C4E',
   };
   return map[speciesId] ?? '#4F7A37';
 }
@@ -502,7 +638,12 @@ function getAccent(speciesId: string): string {
     rainbow_iris:   '#FF80FF',
     moonbloom: '#E8E0FF',
     tree_of_life: '#FFD44A',
-    prayer_lily:  '#FFFFFF',
+    // 연약 전설 5종 (보조 꽃송이·상단 액센트 색)
+    crystal_rose:   '#FF8AD0',
+    starlight_lily: '#A9C0FF',
+    aurora_orchid:  '#9A7BFF',
+    golden_peony:   '#FFD24A',
+    dawn_lily:      '#FF9E7A',
   };
   return map[speciesId] ?? '#A8D08D';
 }

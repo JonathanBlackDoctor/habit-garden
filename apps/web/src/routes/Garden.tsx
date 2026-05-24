@@ -46,6 +46,11 @@ function traitLabel(t?: PlantSpecies['trait']): string | null {
     case 'healer':     return `🪷 만개 시 생기 +${t.heal}`;
     case 'streakSync': return '✨ 기도 연속 시 수확 +50%';
     case 'bloomer':    return '🌳 매일 자동 성장 (확실)';
+    case 'brittle':    return '💎 거른 날 즉시 사라짐 (물 회복 불가)';
+    case 'fragile':    return '✨ 거르면 시들고, 이어 거르면 죽음';
+    case 'waning':     return `🌌 ${t.graceDays}일 연속 거르면 죽음`;
+    case 'regress':    return '🏵️ 거른 날마다 한 단계 시듦';
+    case 'radiant':    return '🌅 만개 후 거르면 즉시 죽음';
   }
 }
 

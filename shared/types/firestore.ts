@@ -303,6 +303,7 @@ export interface GardenStats {
   consecutiveHealthyDays?: number;            // 정원 생기≥80 연속일
   passiveYieldTotal?: number;                 // 누적 일일 자동 P
   starBoostBonus?: number;                    // ★3 종 누계로 인한 종합 효율 메타 (정보용)
+  plantsLost?: number;                        // 게을러져 죽은(영구 제거된) 식물 누적 수
 }
 
 // ── 시즌 진행 상태 ──────────────────────────────────────
@@ -325,6 +326,7 @@ export interface PlantInstance {
   stage: number;                  // 0=씨앗 … N=만개
   plantedAt: Timestamp;
   witheredSince?: Timestamp;
+  neglectStreak?: number;         // 연속 실패(게으른)일 수 — 연약 전설 trait 에서 사용
 }
 
 // users/{uid}/badges/{badgeId}
@@ -421,7 +423,13 @@ export type PlantTrait =
   | { kind: 'fast' }                 // health>80 일 때 dailyReset 시 stage +1
   | { kind: 'healer'; heal: number } // 만개 시 정원 health +heal
   | { kind: 'streakSync' }           // 기도 streak>0 일 때 만개 시각효과 + 수확 +50%
-  | { kind: 'bloomer' };             // 매일 자동 성장 (health 무관, 100% 확률) — legendary 전용
+  | { kind: 'bloomer' }              // 매일 자동 성장 (health 무관, 100% 확률) — legendary 전용
+  // ── 연약 전설 (화려하지만 게을러지면 죽는) ──
+  | { kind: 'brittle' }                    // 실패한 날 1회로 즉시 죽음(제거). 물로 회복 불가.
+  | { kind: 'fragile' }                    // 실패→시듦, 시든 채 또 실패→죽음. 물/성공으로 회복.
+  | { kind: 'waning'; graceDays: number }  // graceDays 연속 실패 시 죽음. 성공하면 카운터 리셋.
+  | { kind: 'regress' }                    // 실패한 날마다 stage−1, stage 0에서 또 실패→죽음.
+  | { kind: 'radiant' };                   // 평소 시들지 않음. 만개(최고 stage) 후 실패하면 즉시 죽음.
 
 export interface PlantSpecies {
   id: string;
@@ -485,10 +493,19 @@ export const PLANT_SPECIES: PlantSpecies[] = [
     trait: { kind: 'healer', heal: 15 }, description: '🌙 만개 시 정원 생기 +15.' },
 
   // ── 전설 (legendary) ────────────────────────────────────
+  // 생명나무: 안전한 자동성장 전설 (변경 없음). 그 외 전설은 화려하지만 게을러지면 죽는다.
   { id: 'tree_of_life', name: '생명나무', rarity: 'legendary', unlockCost: 2500, seedCost: 200, stages: 8, harvestYield: 450, dailyYield: 15,
     trait: { kind: 'bloomer' }, description: '🌳 매일 자동 성장. 8단계 만에 만개하는 영광의 나무.' },
-  { id: 'prayer_lily', name: '기도백합', rarity: 'legendary', unlockCost: 3500, seedCost: 250, stages: 7, harvestYield: 600, dailyYield: 20,
-    trait: { kind: 'streakSync' }, description: '🕊️ 기도와 함께 자라는 신성한 꽃. 수확 +50%.' },
+  { id: 'crystal_rose', name: '수정장미', rarity: 'legendary', unlockCost: 4000, seedCost: 280, stages: 6, harvestYield: 820, dailyYield: 28,
+    trait: { kind: 'brittle' }, description: '💎 단 하루도 거를 수 없는 수정 장미. 거른 날 즉시 스러진다. 최고 수확.' },
+  { id: 'starlight_lily', name: '별빛백합', rarity: 'legendary', unlockCost: 3200, seedCost: 240, stages: 7, harvestYield: 600, dailyYield: 20,
+    trait: { kind: 'fragile' }, description: '✨ 별빛을 머금은 백합. 거른 날 시들고, 이어 거르면 죽는다.' },
+  { id: 'aurora_orchid', name: '오로라난초', rarity: 'legendary', unlockCost: 3000, seedCost: 230, stages: 6, harvestYield: 560, dailyYield: 18,
+    trait: { kind: 'waning', graceDays: 3 }, description: '🌌 오로라빛 난초. 사흘 연속 거르면 끝내 죽는다.' },
+  { id: 'golden_peony', name: '황금모란', rarity: 'legendary', unlockCost: 3400, seedCost: 250, stages: 7, harvestYield: 640, dailyYield: 22,
+    trait: { kind: 'regress' }, description: '🏵️ 황금빛 모란. 거른 날마다 한 단계씩 시들어 사라진다.' },
+  { id: 'dawn_lily', name: '여명백합', rarity: 'legendary', unlockCost: 3800, seedCost: 270, stages: 8, harvestYield: 760, dailyYield: 26,
+    trait: { kind: 'radiant' }, description: '🌅 여명처럼 빛나는 백합. 만개의 영광을 게을러지면 한순간에 잃는다.' },
 ];
 
 // ── 배지 정의 ─────────────────────────────────────────────

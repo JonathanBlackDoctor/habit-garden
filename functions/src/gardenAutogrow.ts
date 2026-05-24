@@ -20,6 +20,9 @@ import {
 
 const db = admin.firestore();
 
+// 연약 전설 trait — 게을러진 날 시듦/죽음을 자체 처리하므로 일반 시들기 후보에서 제외한다.
+const FRAGILE_TRAIT_KINDS = new Set(['brittle', 'fragile', 'waning', 'regress', 'radiant']);
+
 function speciesOf(id: string): PlantSpecies | undefined {
   return PLANT_SPECIES.find((s) => s.id === id);
 }
@@ -153,11 +156,15 @@ export async function processDailyGarden(uid: string, yesterdaySuccess: boolean)
     health = Math.max(0, health - 10);
   }
 
-  // 4) 시들기 후보 (health 낮을 때 + hardy 면역)
+  // 4) 시들기 후보 (health 낮을 때 + hardy 면역 + 연약 전설은 자체 처리하므로 제외)
   if (health <= 50 && plants.length > 0) {
     const candidates = plants
       .map((p, idx) => ({ p, idx, sp: speciesOf(p.speciesId) }))
-      .filter(({ p, sp }) => !p.witheredSince && sp?.trait?.kind !== 'hardy');
+      .filter(({ p, sp }) =>
+        !p.witheredSince &&
+        sp?.trait?.kind !== 'hardy' &&
+        !(sp?.trait && FRAGILE_TRAIT_KINDS.has(sp.trait.kind)),
+      );
     if (candidates.length > 0) {
       candidates.sort((a, b) => a.p.stage - b.p.stage);
       const target = candidates[0].idx;
@@ -165,6 +172,56 @@ export async function processDailyGarden(uid: string, yesterdaySuccess: boolean)
         idx === target ? { ...p, witheredSince: admin.firestore.Timestamp.now() as any } : p,
       );
     }
+  }
+
+  // 4.5) 연약 전설 trait: 게으른 날 시듦/죽음, 성실한 날 회복
+  //   화려한 대신 매일 성실하지 않으면 쉽게 죽는다(영구 제거). 식물마다 방식이 다르다.
+  let plantsLost = 0;
+  plants = plants.flatMap((p): PlantInstance[] => {
+    const sp = speciesOf(p.speciesId);
+    const kind = sp?.trait?.kind;
+    if (!kind || !FRAGILE_TRAIT_KINDS.has(kind)) return [p];
+    const max = (sp!.stages ?? 4) - 1;
+
+    if (yesterdaySuccess) {
+      // 성실한 하루: 카운터 리셋 + 회복 (radiant 는 시들지 않으므로 그대로)
+      const recovered: PlantInstance = { ...p, neglectStreak: 0 };
+      if (kind !== 'radiant') recovered.witheredSince = undefined;
+      return [recovered];
+    }
+
+    // 게으른 하루
+    const neglectStreak = (p.neglectStreak ?? 0) + 1;
+    const now = admin.firestore.Timestamp.now() as any;
+    switch (kind) {
+      case 'brittle':
+        // 단 하루도 못 거른다 → 즉시 죽음
+        plantsLost++;
+        return [];
+      case 'fragile':
+        // 시든 채 또 거르면 죽음, 아니면 시듦
+        if (p.witheredSince) { plantsLost++; return []; }
+        return [{ ...p, neglectStreak, witheredSince: now }];
+      case 'waning': {
+        // graceDays 연속 거르면 죽음
+        const grace = (sp!.trait as { kind: 'waning'; graceDays: number }).graceDays;
+        if (neglectStreak >= grace) { plantsLost++; return []; }
+        return [{ ...p, neglectStreak, witheredSince: now }];
+      }
+      case 'regress':
+        // 거른 날마다 한 단계 시듦, stage 0 에서 또 거르면 죽음
+        if (p.stage <= 0) { plantsLost++; return []; }
+        return [{ ...p, neglectStreak, stage: p.stage - 1, witheredSince: now }];
+      case 'radiant':
+        // 평소 시들지 않음. 만개(최고 stage)의 영광을 거르면 즉시 죽음
+        if (p.stage >= max) { plantsLost++; return []; }
+        return [{ ...p, neglectStreak }];
+      default:
+        return [p];
+    }
+  });
+  if (plantsLost > 0) {
+    stats.plantsLost = (stats.plantsLost ?? 0) + plantsLost;
   }
 
   // 5) 스트릭 보너스 시드 (7일 배수)
