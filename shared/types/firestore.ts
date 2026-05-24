@@ -46,6 +46,7 @@ export interface DayDoc {
   streakSnapshot?: number;
   aiFeedback?: AIFeedback;
   finalized?: boolean;
+  habitCheckAwardedIds?: string[]; // 오늘 습관 보상이 지급된 습관 id (점수 변경·체크↔해제 반복 시 중복 보상 방지)
   prayerPlan?: PrayerPlan;        // 오늘의 기도 목록 (dailyReset이 미리 계산)
   prayerCheckAwardedIds?: string[]; // 오늘 기도 체크 포인트가 적립된 기도제목 id (체크↔해제 반복 재적립 방지)
   prayerListCompleted?: boolean;  // 오늘 목록 완료 보너스 지급 여부

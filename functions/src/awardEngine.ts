@@ -6,14 +6,12 @@
  *  3. progress 문서 갱신
  *  4. 배지 조건 확인 → 신규 배지 발급
  *
- * 포인트 정산 방식:
- *  - days/{date}.habitBasePointsCurrent: { [habitId]: number }
- *    오늘 각 습관의 현재 기본 포인트를 추적.
- *    score 변경 시 (현재 - 이전) delta를 지급/삭감.
- *    같은 score 반복 클릭 → delta=0 → 변화 없음.
- *    score 상향 → 양수 delta → 지급.
- *    score 하향 → 음수 delta → 삭감.
- *  - days/{date}.habitPointsToday: 하루 누적 순 지급량 (양수 delta에만 상한 적용)
+ * 포인트 정산 방식 (하루 1회 보상):
+ *  - days/{date}.habitCheckAwardedIds: string[]
+ *    오늘 보상이 지급된 습관 id 목록. 멱등 게이트 역할.
+ *    한 습관은 하루에 한 번만 보상(포인트·콤보·정원성장)을 받는다.
+ *    점수 변경(1↔5)이나 체크↔해제 반복으로 트리거가 재발생해도 중복 지급 없음.
+ *  - days/{date}.habitPointsToday: 하루 누적 지급량 (하루 상한 적용)
  */
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
@@ -61,35 +59,28 @@ export const awardEngine = functions
       const daySnap = await tx.get(dayRef);
       const dayData = daySnap.data() ?? {};
 
-      const currentMap: Record<string, number> = dayData.habitBasePointsCurrent ?? {};
-      const prevBase = currentMap[habitId] ?? 0;
-      const currBase = pointsForCheck(habit.weight, habit.scoreMode, after.score);
+      // 멱등 게이트: 한 습관의 보상은 하루에 한 번만 지급.
+      // 점수 변경(1↔5) 또는 체크↔해제 반복으로 트리거가 재발생해도 중복 적립·콤보 없음.
+      const awarded: string[] = dayData.habitCheckAwardedIds ?? [];
+      if (awarded.includes(habitId)) return; // 오늘 이미 지급됨
 
-      // score 변경이 없으면 무시
-      if (currBase === prevBase) return;
-
-      const rawDelta = currBase - prevBase; // 양수=지급, 음수=삭감
+      const base = pointsForCheck(habit.weight, habit.scoreMode, after.score);
+      // 보상이 없는 입력(예: 이진 모드 미완료 score=0)은 잠그지 않아 이후 완료 시 1회 지급되게 한다.
+      if (base <= 0) return;
 
       // Comeback Mode ×2
-      const multipliedDelta = inComeback ? rawDelta * 2 : rawDelta;
+      const multiplied = inComeback ? base * 2 : base;
 
-      // 양수(지급)일 때만 하루 상한 적용 — 삭감은 항상 그대로 반영
-      let cappedDelta: number;
+      // 하루 상한 적용
       const earnedToday: number = dayData.habitPointsToday ?? 0;
-      if (multipliedDelta > 0) {
-        const remaining = Math.max(0, HABIT_DAILY_CHECK_CAP - earnedToday);
-        cappedDelta = Math.min(multipliedDelta, remaining);
-      } else {
-        cappedDelta = multipliedDelta;
-      }
-
-      if (cappedDelta === 0) return;
+      const remaining = Math.max(0, HABIT_DAILY_CHECK_CAP - earnedToday);
+      const cappedDelta = Math.min(multiplied, remaining);
 
       finalDelta = cappedDelta;
-      shouldGrow = !!after.achieved && rawDelta > 0;
+      shouldGrow = !!after.achieved;
 
       tx.set(dayRef, {
-        habitBasePointsCurrent: { ...currentMap, [habitId]: currBase },
+        habitCheckAwardedIds: FieldValue.arrayUnion(habitId),
         habitPointsToday: earnedToday + cappedDelta,
         updatedAt: FieldValue.serverTimestamp(),
       }, { merge: true });
