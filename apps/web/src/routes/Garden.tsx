@@ -329,16 +329,7 @@ export default function Garden() {
               className="pointer-events-none absolute bottom-0 left-0 right-0 z-0 h-14 rounded-b-[var(--radius-lg)]"
               style={{ background: 'linear-gradient(to top, var(--garden-soil-bottom) 0%, var(--garden-soil-top) 55%, transparent 100%)', opacity: 0.5 }}
             />
-            {/* 흙 점박이 질감 */}
-            <div
-              className="pointer-events-none absolute bottom-0 left-0 right-0 z-0 h-10 rounded-b-[var(--radius-lg)]"
-              style={{
-                backgroundImage: 'radial-gradient(circle, rgba(60,40,20,0.22) 1px, transparent 1.6px)',
-                backgroundSize: '13px 13px',
-                opacity: 0.4,
-              }}
-            />
-            {/* 떠다니는 빛 입자 */}
+{/* 떠다니는 빛 입자 */}
             <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
               {([
                 { left: '14%', bottom: '22%', s: 5, dx: '10px', dy: '-30px', d: '0s', dur: '8s' },
