@@ -6,7 +6,7 @@ import PlantCodex from '@/features/garden/PlantCodex';
 import { PLANT_SPECIES, POINT_PRICES, DAILY_YIELD_BY_RARITY, PLANTS_PER_BED, PLANTS_PER_ROW } from 'shared/types/firestore';
 import type { PlantInstance, PlantSpecies } from 'shared/types/firestore';
 import { Button } from '@/components/ui/button';
-import { Leaf, Droplets, Lock, Sprout, Snowflake, Wheat, BookOpen, Sparkles, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Leaf, Droplets, Lock, Sprout, Snowflake, Wheat, BookOpen, Sparkles, ChevronLeft, ChevronRight, Shovel } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFreezeTokens } from '@/features/freeze/useFreezeTokens';
 
@@ -83,7 +83,7 @@ const plantedMillis = (p: PlantInstance) => {
 
 export default function Garden() {
   const progress = useProgress();
-  const { plantSeed, waterPlant, unlockSpecies, harvestPlant } = useGardenActions();
+  const { plantSeed, waterPlant, unlockSpecies, harvestPlant, digUpPlant } = useGardenActions();
   const freeze = useFreezeTokens();
   const [selected, setSelected] = useState<PlantInstance | null>(null);
   const [tab, setTab] = useState<Tab>('garden');
@@ -514,6 +514,15 @@ export default function Garden() {
                         물주기 ({POINT_PRICES.WATER}P)
                       </Button>
                     )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => { await digUpPlant(selected.id); setSelected(null); }}
+                      className="w-full gap-2 border-[#D9544A]/40 text-[#A83A30] hover:bg-[#FEF2F2] hover:border-[#D9544A]"
+                    >
+                      <Shovel size={15} />
+                      파내기
+                    </Button>
                   </>
                 );
               })()}
