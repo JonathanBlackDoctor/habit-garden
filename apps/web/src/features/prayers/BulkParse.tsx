@@ -31,6 +31,7 @@ export default function BulkParse({
   const { bulkSave } = usePrayerActions();
   const [raw, setRaw] = useState('');
   const [batchGroup, setBatchGroup] = useState<string>(groups[0] ?? '개인');
+  const [batchPriority, setBatchPriority] = useState<PrayerPriority>('mid');
   const [parsing, setParsing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [items, setItems] = useState<ParsedItem[] | null>(null);
@@ -54,7 +55,7 @@ export default function BulkParse({
         title: it.title ?? '',
         body: it.body ?? '',
         group: batchGroup,
-        priority: (it.priority ?? 'mid') as PrayerPriority,
+        priority: batchPriority,
         confidence: typeof it.confidence === 'number' ? it.confidence : undefined,
         include: true,
       })));
@@ -73,6 +74,12 @@ export default function BulkParse({
   const applyGroupToAll = (g: string) => {
     setBatchGroup(g);
     setItems((prev) => prev ? prev.map((it) => ({ ...it, group: g })) : prev);
+  };
+
+  // 전체 중요도 일괄 적용
+  const applyPriorityToAll = (p: PrayerPriority) => {
+    setBatchPriority(p);
+    setItems((prev) => prev ? prev.map((it) => ({ ...it, priority: p })) : prev);
   };
 
   const save = async () => {
@@ -113,16 +120,30 @@ export default function BulkParse({
             <p className="text-xs text-[var(--fg-muted)]">
               카톡·메모 등에서 받은 기도제목 덩어리를 그대로 붙여넣으면 AI가 사람별로 한 항목씩 묶어 정리합니다.
             </p>
-            <label className="flex items-center gap-2 text-xs text-[var(--fg-muted)]">
-              받은 모임
-              <select
-                value={batchGroup}
-                onChange={(e) => setBatchGroup(e.target.value)}
-                className={SELECT_CLS}
-              >
-                {groups.map((g) => <option key={g} value={g}>{g}</option>)}
-              </select>
-            </label>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <label className="flex items-center gap-2 text-xs text-[var(--fg-muted)]">
+                받은 모임
+                <select
+                  value={batchGroup}
+                  onChange={(e) => setBatchGroup(e.target.value)}
+                  className={SELECT_CLS}
+                >
+                  {groups.map((g) => <option key={g} value={g}>{g}</option>)}
+                </select>
+              </label>
+              <label className="flex items-center gap-2 text-xs text-[var(--fg-muted)]">
+                중요도
+                <select
+                  value={batchPriority}
+                  onChange={(e) => setBatchPriority(e.target.value as PrayerPriority)}
+                  className={SELECT_CLS}
+                >
+                  {(['high','mid','low'] as PrayerPriority[]).map((p) => (
+                    <option key={p} value={p}>{PRAYER_PRIORITY_LABELS[p]}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
             <textarea
               value={raw}
               onChange={(e) => setRaw(e.target.value)}
@@ -144,16 +165,30 @@ export default function BulkParse({
               <p className="text-xs text-[var(--fg-muted)]">
                 {items.length}개 항목을 찾았습니다. 검토 후 저장하세요.
               </p>
-              <label className="flex items-center gap-1 text-[11px] text-[var(--fg-muted)]">
-                전체 모임
-                <select
-                  value={batchGroup}
-                  onChange={(e) => applyGroupToAll(e.target.value)}
-                  className={SELECT_CLS}
-                >
-                  {groups.map((g) => <option key={g} value={g}>{g}</option>)}
-                </select>
-              </label>
+              <div className="flex items-center gap-2">
+                <label className="flex items-center gap-1 text-[11px] text-[var(--fg-muted)]">
+                  전체 모임
+                  <select
+                    value={batchGroup}
+                    onChange={(e) => applyGroupToAll(e.target.value)}
+                    className={SELECT_CLS}
+                  >
+                    {groups.map((g) => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                </label>
+                <label className="flex items-center gap-1 text-[11px] text-[var(--fg-muted)]">
+                  전체 중요도
+                  <select
+                    value={batchPriority}
+                    onChange={(e) => applyPriorityToAll(e.target.value as PrayerPriority)}
+                    className={SELECT_CLS}
+                  >
+                    {(['high','mid','low'] as PrayerPriority[]).map((p) => (
+                      <option key={p} value={p}>{PRAYER_PRIORITY_LABELS[p]}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
             </div>
             {items.map((it, idx) => {
               const lowConf = it.confidence !== undefined && it.confidence < 0.5;
