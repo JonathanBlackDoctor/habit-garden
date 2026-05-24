@@ -275,10 +275,11 @@ export function usePrayerActions() {
     toast(`🙏 ${p.title}`, { description: '오늘 기도했어요 (+2P)' });
   };
 
-  /** 체크 취소 */
-  const uncheckPrayer = async (prayerId: string) => {
+  /** 체크 취소 — prayerChecks 삭제 (포인트 삭감은 prayerAward 함수) */
+  const uncheckPrayer = async (p: PrayerDoc) => {
     if (!uid) return;
-    await deleteDoc(doc(db, 'users', uid, 'days', date, 'prayerChecks', prayerId));
+    await deleteDoc(doc(db, 'users', uid, 'days', date, 'prayerChecks', p.id));
+    toast(`🙏 ${p.title}`, { description: '기도 취소 (−2P)' });
   };
 
   /** 응답 기록 → 응답 보관함으로 이동 */

@@ -47,9 +47,10 @@ export interface DayDoc {
   streakSnapshot?: number;
   aiFeedback?: AIFeedback;
   finalized?: boolean;
-  habitCheckAwardedIds?: string[]; // 오늘 습관 보상이 지급된 습관 id (점수 변경·체크↔해제 반복 시 중복 보상 방지)
+  habitBasePointsCurrent?: { [habitId: string]: number }; // 오늘 각 습관의 현재 기본 포인트. (현재-이전) 델타만 지급/삭감해 점수 변경·완료해제가 포인트에 반영되게 한다.
   prayerPlan?: PrayerPlan;        // 오늘의 기도 목록 (dailyReset이 미리 계산)
-  prayerCheckAwardedIds?: string[]; // 오늘 기도 체크 포인트가 적립된 기도제목 id (체크↔해제 반복 재적립 방지)
+  prayerCheckAwardedIds?: string[]; // 오늘 기도 체크 포인트가 현재 적립돼 있는 기도제목 id (체크 시 추가, 해제 시 제거 → 해제하면 그만큼 삭감)
+  prayerCountedIds?: string[];    // 오늘 기도 카운트·스트릭이 반영된 기도제목 id (영구; 체크↔해제 반복 시 prayCount/스트릭 폭증 방지)
   prayerListCompleted?: boolean;  // 오늘 목록 완료 보너스 지급 여부
   morningBrief?: MorningBrief;    // 매일 06:00 생성되는 개인화 모닝 브리프
   updatedAt: Timestamp;

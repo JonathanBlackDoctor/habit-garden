@@ -254,7 +254,7 @@ function TodayView({
           {pinned.map((p) => (
             <PrayerCheckCard
               key={p.id} prayer={p} checked={!!checks[p.id]}
-              onCheck={() => checkPrayer(p)} onUncheck={() => uncheckPrayer(p.id)}
+              onCheck={() => checkPrayer(p)} onUncheck={() => uncheckPrayer(p)}
               onOpen={() => onOpen(p)}
             />
           ))}
@@ -267,7 +267,7 @@ function TodayView({
           {rotation.map((p) => (
             <PrayerCheckCard
               key={p.id} prayer={p} checked={!!checks[p.id]}
-              onCheck={() => checkPrayer(p)} onUncheck={() => uncheckPrayer(p.id)}
+              onCheck={() => checkPrayer(p)} onUncheck={() => uncheckPrayer(p)}
               onOpen={() => onOpen(p)}
             />
           ))}
@@ -280,7 +280,7 @@ function TodayView({
           {extra.map((p) => (
             <PrayerCheckCard
               key={p.id} prayer={p} checked={!!checks[p.id]}
-              onCheck={() => checkPrayer(p)} onUncheck={() => uncheckPrayer(p.id)}
+              onCheck={() => checkPrayer(p)} onUncheck={() => uncheckPrayer(p)}
               onOpen={() => onOpen(p)}
             />
           ))}

@@ -29,68 +29,94 @@ function prevDate(dateStr: string): string {
   return d.toISOString().slice(0, 10);
 }
 
-// ── A. 기도 체크 트리거 ─────────────────────────────────────
+// ── A. 기도 체크/해제 트리거 ─────────────────────────────────
 export const prayerAward = functions
   .region(REGION)
   .firestore
   .document('users/{uid}/days/{date}/prayerChecks/{prayerId}')
-  .onCreate(async (_snap, context) => {
+  .onWrite(async (change, context) => {
     const { uid, date, prayerId } = context.params as { uid: string; date: string; prayerId: string };
 
-    // 멱등 게이트: 같은 기도제목은 하루에 한 번만 적립/갱신.
-    // 체크↔해제를 반복해 onCreate를 재발생시켜도 포인트가 중복 적립되지 않게 한다.
+    const existedBefore = change.before.exists;
+    const existsAfter = change.after.exists;
+    if (existedBefore === existsAfter) return; // 생성/삭제 전이가 아니면(단순 업데이트) 무시
+    const isCheck = existsAfter;               // true=체크(생성), false=해제(삭제)
+
+    // 포인트는 prayerCheckAwardedIds(현재 적립 집합)에 추가/제거하며 델타로 정산한다.
+    //  - 체크: 집합에 없으면 +PRAYER_CHECK(상한 적용) 후 추가
+    //  - 해제: 집합에 있으면 -PRAYER_CHECK 후 제거 → 해제하면 그만큼 삭감
+    // prayCount·스트릭은 prayerCountedIds(영구 집합)로 게이트해 체크↔해제 반복 시 폭증을 막는다.
     const dayRef = db.doc(`users/${uid}/days/${date}`);
-    let firstAwardToday = false;
-    let delta = 0;
+    let pointsDelta = 0;
+    let firstCountToday = false;
+
     await db.runTransaction(async (tx) => {
       const day = (await tx.get(dayRef)).data() as
-        | (DayDoc & { prayerCheckAwardedIds?: string[] })
+        | (DayDoc & { prayerCheckAwardedIds?: string[]; prayerCountedIds?: string[] })
         | undefined;
       const awarded = day?.prayerCheckAwardedIds ?? [];
-      if (awarded.includes(prayerId)) return; // 오늘 이미 적립됨 — 재적립 금지
+      const counted = day?.prayerCountedIds ?? [];
+      const isAwarded = awarded.includes(prayerId);
 
-      firstAwardToday = true;
-      // 하루 상한은 '적립된 기도제목 수' 기준으로 계산 (체크 문서 수 아님)
-      const earnedPrev = Math.min(awarded.length * PRAYER_POINT_EARN.PRAYER_CHECK, PRAYER_DAILY_CHECK_CAP);
-      const earnedNow = Math.min((awarded.length + 1) * PRAYER_POINT_EARN.PRAYER_CHECK, PRAYER_DAILY_CHECK_CAP);
-      delta = earnedNow - earnedPrev;
-
-      tx.set(dayRef, {
-        prayerCheckAwardedIds: FieldValue.arrayUnion(prayerId),
-        updatedAt: FieldValue.serverTimestamp(),
-      }, { merge: true });
+      if (isCheck) {
+        const patch: any = { updatedAt: FieldValue.serverTimestamp() };
+        if (!isAwarded) {
+          // 하루 상한은 '적립된 기도제목 수' 기준
+          const earnedPrev = Math.min(awarded.length * PRAYER_POINT_EARN.PRAYER_CHECK, PRAYER_DAILY_CHECK_CAP);
+          const earnedNow = Math.min((awarded.length + 1) * PRAYER_POINT_EARN.PRAYER_CHECK, PRAYER_DAILY_CHECK_CAP);
+          pointsDelta = earnedNow - earnedPrev;
+          patch.prayerCheckAwardedIds = FieldValue.arrayUnion(prayerId);
+        }
+        firstCountToday = !counted.includes(prayerId);
+        if (firstCountToday) patch.prayerCountedIds = FieldValue.arrayUnion(prayerId);
+        tx.set(dayRef, patch, { merge: true });
+      } else if (isAwarded) {
+        // 해제 — 적립돼 있던 경우만 삭감
+        const earnedPrev = Math.min(awarded.length * PRAYER_POINT_EARN.PRAYER_CHECK, PRAYER_DAILY_CHECK_CAP);
+        const earnedNow = Math.min((awarded.length - 1) * PRAYER_POINT_EARN.PRAYER_CHECK, PRAYER_DAILY_CHECK_CAP);
+        pointsDelta = earnedNow - earnedPrev; // 음수
+        tx.set(dayRef, {
+          prayerCheckAwardedIds: FieldValue.arrayRemove(prayerId),
+          updatedAt: FieldValue.serverTimestamp(),
+        }, { merge: true });
+      }
     });
 
-    if (firstAwardToday) {
-      // 1. prayer 문서 갱신 (per-prayer streak) — 최초 1회만
-      const prayerRef = db.doc(`users/${uid}/prayers/${prayerId}`);
-      const prayerSnap = await prayerRef.get();
-      if (prayerSnap.exists) {
-        const prayer = prayerSnap.data() as PrayerDoc;
-        let newStreak = 1;
-        const last = prayer.lastPrayedAt as any;
-        if (last && typeof last.toDate === 'function') {
-          const lastDateStr = last.toDate().toISOString().slice(0, 10);
-          // 마지막 기도가 어제 이후이거나 같은 날 범위면 연속으로 간주
-          if (lastDateStr >= prevDate(date)) newStreak = (prayer.streak ?? 0) + 1;
+    if (isCheck) {
+      // 1. prayer 문서 갱신 (per-prayer streak) — 오늘 최초 1회만(영구 게이트)
+      if (firstCountToday) {
+        const prayerRef = db.doc(`users/${uid}/prayers/${prayerId}`);
+        const prayerSnap = await prayerRef.get();
+        if (prayerSnap.exists) {
+          const prayer = prayerSnap.data() as PrayerDoc;
+          let newStreak = 1;
+          const last = prayer.lastPrayedAt as any;
+          if (last && typeof last.toDate === 'function') {
+            const lastDateStr = last.toDate().toISOString().slice(0, 10);
+            // 마지막 기도가 어제 이후이거나 같은 날 범위면 연속으로 간주
+            if (lastDateStr >= prevDate(date)) newStreak = (prayer.streak ?? 0) + 1;
+          }
+          await prayerRef.update({
+            lastPrayedAt: FieldValue.serverTimestamp(),
+            prayCount: FieldValue.increment(1),
+            streak: newStreak,
+            updatedAt: FieldValue.serverTimestamp(),
+          });
         }
-        await prayerRef.update({
-          lastPrayedAt: FieldValue.serverTimestamp(),
-          prayCount: FieldValue.increment(1),
-          streak: newStreak,
-          updatedAt: FieldValue.serverTimestamp(),
-        });
       }
 
       // 2. 체크 포인트 (하루 상한 적용)
-      if (delta > 0) {
-        await creditPoints(uid, delta, 'prayer_check', `${date}/${prayerId}`);
+      if (pointsDelta > 0) {
+        await creditPoints(uid, pointsDelta, 'prayer_check', `${date}/${prayerId}`);
         await growRandomPlant(uid, 0.3);  // 정원 자동 성장 (30% 확률, 인플레 방지)
       }
-    }
 
-    // 3. 오늘 목록 전부 완료? — 체크 상태 기반이라 재체크 시에도 평가(보너스는 1회만).
-    await checkDailyListComplete(uid, date);
+      // 3. 오늘 목록 전부 완료? — 보너스는 1회만(prayerListCompleted 게이트).
+      await checkDailyListComplete(uid, date);
+    } else if (pointsDelta < 0) {
+      // 해제 — 적립됐던 포인트만큼 삭감 (목록 완료 보너스·스트릭은 되돌리지 않음)
+      await creditPoints(uid, pointsDelta, 'prayer_uncheck', `${date}/${prayerId}`);
+    }
   });
 
 async function checkDailyListComplete(uid: string, date: string) {

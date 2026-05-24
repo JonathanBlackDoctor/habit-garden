@@ -83,36 +83,39 @@ export function useSaveHabitCheck(dateOverride?: string) {
 
     const { bumpCombo, resetCombo, triggerCelebration, tryRewardHabit } = useAppStore.getState();
 
-    if (score === null) {
-      // pass — 콤보 끊김
-      resetCombo();
-      return;
-    }
+    if (score === null) resetCombo(); // 패스/완료해제 — 콤보 끊김
 
-    const basePts = pointsForCheck(habit.weight, habit.scoreMode, score);
+    // 서버 정산과 동일한 델타: 현재 점수 포인트 − 이전 점수 포인트
+    const basePts = score === null ? 0 : pointsForCheck(habit.weight, habit.scoreMode, score);
+    const prevBasePts = prevScore === null ? 0 : pointsForCheck(habit.weight, habit.scoreMode, prevScore);
+    const delta = basePts - prevBasePts;
 
-    // 보상 없는 입력(예: 이진 모드 미완료 score=0)은 게이트를 소비하지 않음
-    if (basePts <= 0) {
+    // 포인트 감소 — 점수 하향 또는 완료/달성 해제
+    if (delta < 0) {
+      const downReason = score === null ? '기록 취소' : basePts === 0 ? '완료 해제' : '점수 하향';
       feedback('check');
+      toast(`✦ ${delta}P`, { description: `${habit.title} · ${downReason}` });
       return;
     }
 
-    // 보상 연출(포인트 토스트·콤보·셀러브레이션)은 한 습관당 하루 한 번.
-    // 점수 변경(1↔5)·체크↔해제 반복 시에는 추가 보상이 나오지 않는다.
-    if (!tryRewardHabit(habit.id)) {
-      feedback('check');
-      return;
-    }
+    if (delta === 0) return; // 변화 없음 (예: 미완료 ↔ 패스)
 
+    // delta > 0 — 점수 상향 또는 첫 체크.
+    // 콤보·셀러브레이션은 한 습관당 하루 한 번만(rewardedHabitIds 게이트), 포인트 토스트는 매 상승마다.
+    const firstRewardToday = tryRewardHabit(habit.id);
     const perfect = habit.scoreMode === 'scaled' && score === 5;
 
     if (achieved) {
-      const combo = bumpCombo();
-      const comboBonus = combo >= 3 ? combo : 0;
-      const displayPts = basePts + comboBonus;
+      let combo = 0;
+      let comboBonus = 0;
+      if (firstRewardToday) {
+        combo = bumpCombo();
+        comboBonus = combo >= 3 ? combo : 0;
+      }
+      const displayPts = delta + comboBonus;
 
       feedback(perfect ? 'perfect' : 'achieve');
-      if (combo >= 3) feedback('combo');
+      if (firstRewardToday && combo >= 3) feedback('combo');
 
       toast(`✦ +${displayPts}P`, {
         description:
@@ -121,7 +124,7 @@ export function useSaveHabitCheck(dateOverride?: string) {
             : `${habit.title} 달성`,
       });
 
-      if (perfect) {
+      if (perfect && firstRewardToday) {
         triggerCelebration('perfect', {
           title: habit.title,
           points: displayPts,
@@ -131,7 +134,7 @@ export function useSaveHabitCheck(dateOverride?: string) {
     } else {
       // 부분 점수 — 작은 토스트, 콤보는 끊지 않음
       feedback('check');
-      toast(`✦ +${basePts}P`, { description: `${habit.title} · 시도 인정` });
+      toast(`✦ +${delta}P`, { description: `${habit.title} · 시도 인정` });
     }
   };
 }
