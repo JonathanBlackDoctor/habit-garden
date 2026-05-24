@@ -41,7 +41,6 @@ export const awardEngine = functions
     const { uid, date, habitId } = context.params;
 
     const after = change.after.exists ? (change.after.data() as HabitCheckDoc) : null;
-    const afterScore = after ? after.score : null;
 
     // 습관 정의 로드
     const habitSnap = await db.doc(`users/${uid}/habits/${habitId}`).get();
@@ -50,10 +49,11 @@ export const awardEngine = functions
 
     // score=null(건너뛰기) 또는 문서 삭제 → 중립 처리: 포인트 변화 없음(삭감 안 함).
     // 점수 하향(예: 5→1)이나 이진 모드 완료해제(1→0)는 아래 델타 정산에서 삭감된다.
-    if (afterScore === null) {
+    if (!after || after.score === null) {
       await updateDayScore(uid, date);
       return;
     }
+    const afterScore = after.score; // 이 시점부터 non-null
 
     // Comeback Mode 여부 사전 확인 (트랜잭션 외부에서 읽어도 무방)
     const progSnap = await db.doc(`users/${uid}/progress/main`).get();
