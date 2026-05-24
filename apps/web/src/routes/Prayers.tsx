@@ -11,6 +11,7 @@ import {
 } from '@/features/prayers/usePrayers';
 import {
   PrayerCheckCard, PrayerListCard, PrayerDetailDialog, GroupSelect,
+  usePrayerSelection, BulkActionBar,
 } from '@/features/prayers/PrayerComponents';
 import BulkParse from '@/features/prayers/BulkParse';
 import { VoiceInputButton } from '@/features/prayers/VoiceInput';
@@ -18,7 +19,7 @@ import { DuplicateFinder } from '@/features/prayers/DuplicateFinder';
 import { WeeklyDigestCard } from '@/features/prayers/WeeklyDigestCard';
 import { parseQuickAdd } from '@/features/prayers/parseQuickAdd';
 import { selectMorePrayers, type RotationInput } from 'shared/prayerRotation';
-import { Plus, ClipboardList, Search, Heart } from 'lucide-react';
+import { Plus, ClipboardList, Search, Heart, ListChecks, Layers } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { Navigate } from 'react-router-dom';
@@ -280,6 +281,7 @@ function AllView({ prayers, onOpen }: { prayers: PrayerDoc[]; onOpen: (p: Prayer
   const knownGroups = usePrayerGroups();
   const [search, setSearch] = useState('');
   const [grp, setGrp] = useState<string | 'all'>('all');
+  const sel = usePrayerSelection();
 
   const active = prayers.filter((p) => p.status === 'active');
 
@@ -298,6 +300,14 @@ function AllView({ prayers, onOpen }: { prayers: PrayerDoc[]; onOpen: (p: Prayer
     }
     return true;
   });
+
+  // 무더기 묶음 — batchId별 그룹화 (2개 이상)
+  const batches = useMemo(() => groupByBatch(active), [active]);
+
+  const selectBatch = (ids: string[]) => {
+    sel.setSelectMode(true);
+    sel.selectAll(ids);
+  };
 
   return (
     <div className="space-y-3">
@@ -318,26 +328,147 @@ function AllView({ prayers, onOpen }: { prayers: PrayerDoc[]; onOpen: (p: Prayer
         ))}
       </div>
 
-      <DuplicateFinder prayers={active} onOpen={onOpen} />
+      {!sel.selectMode && <BatchGroupPanel batches={batches} onSelectBatch={selectBatch} />}
+
+      {!sel.selectMode && <DuplicateFinder prayers={active} onOpen={onOpen} />}
 
       {filtered.length === 0 ? (
         <EmptyState text="조건에 맞는 기도제목이 없습니다." />
       ) : (
         <div className="space-y-2">
-          <p className="px-1 text-[11px] text-[var(--fg-faint)]">{filtered.length}개</p>
-          {filtered.map((p) => <PrayerListCard key={p.id} prayer={p} onOpen={() => onOpen(p)} />)}
+          <SelectToolbar
+            count={filtered.length}
+            sel={sel}
+            allIds={filtered.map((p) => p.id)}
+          />
+          {filtered.map((p) => (
+            <PrayerListCard
+              key={p.id}
+              prayer={p}
+              onOpen={() => onOpen(p)}
+              selectMode={sel.selectMode}
+              selected={sel.isSelected(p.id)}
+              onToggleSelect={() => sel.toggle(p.id)}
+            />
+          ))}
         </div>
       )}
+
+      {sel.selectMode && <BulkActionBar ids={[...sel.selectedIds]} onDone={sel.exit} />}
     </div>
   );
 }
 
 function ListView({ prayers, empty, onOpen }: { prayers: PrayerDoc[]; empty: string; onOpen: (p: PrayerDoc) => void }) {
+  const sel = usePrayerSelection();
   if (prayers.length === 0) return <EmptyState text={empty} />;
   return (
     <div className="space-y-2">
-      {prayers.map((p) => <PrayerListCard key={p.id} prayer={p} onOpen={() => onOpen(p)} />)}
+      <SelectToolbar count={prayers.length} sel={sel} allIds={prayers.map((p) => p.id)} />
+      {prayers.map((p) => (
+        <PrayerListCard
+          key={p.id}
+          prayer={p}
+          onOpen={() => onOpen(p)}
+          selectMode={sel.selectMode}
+          selected={sel.isSelected(p.id)}
+          onToggleSelect={() => sel.toggle(p.id)}
+        />
+      ))}
+      {sel.selectMode && <BulkActionBar ids={[...sel.selectedIds]} onDone={sel.exit} />}
     </div>
+  );
+}
+
+// ── 선택 모드 툴바 (선택 진입 / 전체 선택) ─────────────────
+function SelectToolbar({
+  count, sel, allIds,
+}: {
+  count: number;
+  sel: ReturnType<typeof usePrayerSelection>;
+  allIds: string[];
+}) {
+  const allSelected = allIds.length > 0 && allIds.every((id) => sel.isSelected(id));
+  return (
+    <div className="flex items-center justify-between px-1">
+      <p className="text-[11px] text-[var(--fg-faint)]">{count}개</p>
+      {sel.selectMode ? (
+        <button
+          onClick={() => (allSelected ? sel.clear() : sel.selectAll(allIds))}
+          className="text-[11px] font-medium text-[var(--leaf)]"
+        >
+          {allSelected ? '선택 해제' : '전체 선택'}
+        </button>
+      ) : (
+        <button
+          onClick={() => sel.setSelectMode(true)}
+          className="flex items-center gap-1 text-[11px] font-medium text-[var(--fg-muted)]"
+        >
+          <ListChecks size={13} /> 선택
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ── 무더기 묶음 패널 ───────────────────────────────────────
+type Batch = { batchId: string; items: PrayerDoc[]; receivedLabel: string };
+
+function groupByBatch(prayers: PrayerDoc[]): Batch[] {
+  const map = new Map<string, PrayerDoc[]>();
+  for (const p of prayers) {
+    if (!p.batchId) continue;
+    const arr = map.get(p.batchId);
+    if (arr) arr.push(p); else map.set(p.batchId, [p]);
+  }
+  const batches: Batch[] = [];
+  for (const [batchId, items] of map) {
+    if (items.length < 2) continue;
+    const ms = (items[0].receivedAt as any)?.toMillis?.();
+    const d = ms ? new Date(ms) : null;
+    const receivedLabel = d ? `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()}` : '';
+    batches.push({ batchId, items, receivedLabel });
+  }
+  // 최근 받은 묶음 먼저
+  batches.sort((a, b) => {
+    const am = (a.items[0].receivedAt as any)?.toMillis?.() ?? 0;
+    const bm = (b.items[0].receivedAt as any)?.toMillis?.() ?? 0;
+    return bm - am;
+  });
+  return batches;
+}
+
+function BatchGroupPanel({
+  batches, onSelectBatch,
+}: {
+  batches: Batch[];
+  onSelectBatch: (ids: string[]) => void;
+}) {
+  if (batches.length === 0) return null;
+  return (
+    <section className="space-y-1.5">
+      <h3 className="flex items-center gap-1 px-1 text-xs font-medium text-[var(--fg-muted)]">
+        <Layers size={13} /> 무더기 묶음
+      </h3>
+      {batches.map((b) => (
+        <div key={b.batchId} className="card flex items-center gap-2 p-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm text-[var(--fg-primary)]">
+              {b.items.length}개 묶음{b.receivedLabel && ` · ${b.receivedLabel} 받음`}
+            </p>
+            <p className="mt-0.5 truncate text-[11px] text-[var(--fg-faint)]">
+              {b.items.map((p) => p.title).join(', ')}
+            </p>
+          </div>
+          <button
+            onClick={() => onSelectBatch(b.items.map((p) => p.id))}
+            className="shrink-0 rounded-[var(--radius)] bg-[var(--bg-base)] px-2.5 py-1.5 text-xs text-[var(--fg-muted)]"
+          >
+            이 묶음 선택
+          </button>
+        </div>
+      ))}
+    </section>
   );
 }
 

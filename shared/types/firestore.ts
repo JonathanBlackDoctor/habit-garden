@@ -207,6 +207,7 @@ export interface PrayerDoc {
 
   // ── 출처·메타 ──────────────────────────────
   source: PrayerSource;
+  batchId?: string;             // 무더기 저장 시 같은 묶음 식별 (신규 저장분부터)
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
