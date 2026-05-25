@@ -100,9 +100,8 @@ export default function HabitCard({ habit, check, streak = 0, isNow = false, onS
         status === 'todo' &&
           'border-l-4 border-[var(--leaf)] shadow-[var(--shadow-sm)]',
         status === 'todo' && isNow && 'aura-pulse ring-1 ring-[var(--leaf)]/40',
-        status === 'achieved' && 'border border-[var(--leaf-soft)] bg-[var(--leaf-soft)]/40 opacity-60',
-        status === 'skipped' && 'bg-[var(--bg-base)]/60 opacity-60',
-        status === 'missed' && 'opacity-80'
+        status === 'achieved' && 'border border-[var(--leaf-soft)] bg-[var(--leaf-soft)]/40',
+        status === 'skipped' && 'bg-[var(--bg-base)]/60'
       )}
     >
       {/* 마이크로 보상 — 달성 순간 1회성 필 + 스파클 */}
