@@ -6,7 +6,7 @@
  *
  * 규칙:
  *  - scaled(1~5):
- *      score=1 → weight × 0.4 (반올림, 최소 1)
+ *      score=1 → 0 (미이행으로 간주, 보상 없음)
  *      score=2 → weight × 0.8
  *      score=3 → weight × 1.5 (achieve 임계 가정)
  *      score=4 → weight × 2
@@ -41,6 +41,8 @@ export function pointsForCheck(
   }
   // scaled
   const s = Math.max(1, Math.min(5, Math.round(score))) as 1 | 2 | 3 | 4 | 5;
+  // 5점 척도 1점("매우 부족")은 미이행으로 간주 — 보상 없음
+  if (s === 1) return 0;
   const mul = SCALED_MULTIPLIER[s];
   let pts = Math.round(weight * mul);
   if (s === 5) pts += PERFECT_BONUS;
