@@ -60,7 +60,7 @@ function traitLabel(t?: PlantSpecies['trait']): string | null {
       const eff = t.effect === 'xp' ? `매일 +${t.amount} XP`
         : t.effect === 'vitality' ? `매일 정원 생기 +${t.amount}`
         : '다른 식물 죽음 매일 1회 방지';
-      return `🌌 ${eff} · 유지비 ${t.upkeep}P/일 · 하루 거르면 즉사`;
+      return `🌌 ${eff} · 매일 자람 · 유지비 ${t.upkeep}P/일 · 하루 거르면 즉사`;
     }
   }
 }
@@ -590,7 +590,7 @@ export default function Garden() {
                       )}
                       {sp.rarity === 'transcendent' && sp.trait?.kind === 'transcendent' ? (
                         <p className="text-[10px] text-[#8B5CF6] font-medium tabular-nums">
-                          ⚠️ 수익 없음 · 유지비 {sp.trait.upkeep}P/일 · 하루 거르면 즉사 · 거두면 씨앗값 {seedCost}P 환급
+                          ⚠️ 유지비 {sp.trait.upkeep}P/일 · 하루 거르면 즉사 · 매일 자라 만개 · 만개 수확 +{sp.harvestYield ?? 0}P
                         </p>
                       ) : (
                         <p className="text-[10px] text-[var(--fg-faint)] tabular-nums">

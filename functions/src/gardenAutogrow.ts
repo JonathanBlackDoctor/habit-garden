@@ -126,6 +126,10 @@ export async function processDailyGarden(
     if (sp.trait?.kind === 'bloomer') {
       return { ...p, stage: p.stage + 1, witheredSince: undefined };
     }
+    // transcendent (초월): 살아있으면 매일 한 단계씩 자라 만개에 이른다 (health 무관)
+    if (sp.trait?.kind === 'transcendent') {
+      return { ...p, stage: p.stage + 1, witheredSince: undefined };
+    }
     // fast (대나무·민트·등): health>80 일 때 +1
     if (sp.trait?.kind === 'fast' && health > 80) {
       return { ...p, stage: p.stage + 1, witheredSince: undefined };

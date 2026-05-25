@@ -523,18 +523,19 @@ export const PLANT_SPECIES: PlantSpecies[] = [
     trait: { kind: 'radiant' }, description: '🌅 여명처럼 빛나는 백합. 만개의 영광을 게을러지면 한순간에 잃는다.' },
 
   // ── 초월 (transcendent) ──────────────────────────────────
-  // 포인트 수익이 전혀 없고(0), 매일 유지비가 빠져나가며, 하루라도 거르면 즉시 스러진다.
+  // 일일 자동 수익(dailyYield)은 없다(0). 매일 유지비가 빠져나가며, 하루라도 거르면 즉시 스러진다.
   // 해금·심기 비용이 어마어마하다. 그 대가로 가장 황홀한 비주얼과 종별 소폭 보조 효과를 준다.
-  // 수확 시 심기 비용(seedCost)만큼만 환급된다(해금비·누적 유지비는 환급 없음).
-  { id: 'celestial_tree', name: '천상수', rarity: 'transcendent', unlockCost: 12000, seedCost: 1500, stages: 7, harvestYield: 0, dailyYield: 0,
+  // 살아있으면 매일 한 단계씩 자라 만개하고, 만개해 거두면 씨앗값(seedCost)만큼의 수익이 난다
+  // (해금비·누적 유지비는 회수되지 않으므로 여전히 큰 손해).
+  { id: 'celestial_tree', name: '천상수', rarity: 'transcendent', unlockCost: 12000, seedCost: 1500, stages: 7, harvestYield: 1500, dailyYield: 0,
     trait: { kind: 'transcendent', upkeep: 30, effect: 'xp', amount: 2 },
-    description: '🌟 천상에 뿌리내린 빛의 나무. 살아있는 동안 매일 +2 XP. 유지비 30P/일, 하루만 거르면 스러진다.' },
-  { id: 'eternal_bloom', name: '영겁화', rarity: 'transcendent', unlockCost: 12000, seedCost: 1500, stages: 6, harvestYield: 0, dailyYield: 0,
+    description: '🌟 천상에 뿌리내린 빛의 나무. 매일 자라며 살아있는 동안 +2 XP. 유지비 30P/일, 하루만 거르면 스러진다. 만개 수확 시 1500P.' },
+  { id: 'eternal_bloom', name: '영겁화', rarity: 'transcendent', unlockCost: 12000, seedCost: 1500, stages: 6, harvestYield: 1500, dailyYield: 0,
     trait: { kind: 'transcendent', upkeep: 30, effect: 'vitality', amount: 1 },
-    description: '🌹 영겁을 피어 있는 오로라빛 꽃. 살아있는 동안 매일 정원 생기 +1. 유지비 30P/일, 하루만 거르면 스러진다.' },
-  { id: 'galaxy_lily', name: '은하백합', rarity: 'transcendent', unlockCost: 12000, seedCost: 1500, stages: 6, harvestYield: 0, dailyYield: 0,
+    description: '🌹 영겁을 피어 있는 오로라빛 꽃. 매일 자라며 정원 생기 +1. 유지비 30P/일, 하루만 거르면 스러진다. 만개 수확 시 1500P.' },
+  { id: 'galaxy_lily', name: '은하백합', rarity: 'transcendent', unlockCost: 12000, seedCost: 1500, stages: 6, harvestYield: 1500, dailyYield: 0,
     trait: { kind: 'transcendent', upkeep: 30, effect: 'guardian', amount: 1 },
-    description: '🌌 은하를 머금은 백합. 살아있는 동안 다른 식물 하나의 죽음을 매일 1회 막아준다. 유지비 30P/일, 하루만 거르면 스러진다.' },
+    description: '🌌 은하를 머금은 백합. 매일 자라며 다른 식물 하나의 죽음을 매일 1회 막아준다. 유지비 30P/일, 하루만 거르면 스러진다. 만개 수확 시 1500P.' },
 ];
 
 // 도감/컬렉션 완성 기준 종 수 — 초월(transcendent)은 별도 프레스티지 티어로 제외.
