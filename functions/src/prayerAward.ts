@@ -19,6 +19,7 @@ import {
   type ProgressDoc,
 } from '../../shared/types/firestore';
 import { growRandomPlant, bumpGardenHealth } from './gardenAutogrow';
+import { applyLevelUps } from './levelEngine';
 
 const db = admin.firestore();
 const REGION = 'asia-northeast3';
@@ -209,6 +210,9 @@ async function creditPoints(uid: string, delta: number, reason: string, refId?: 
     updatedAt:        FieldValue.serverTimestamp(),
   }, { merge: true });
   await batch.commit();
+
+  // 기도로 쌓인 XP도 레벨업·보상 검사 대상
+  await applyLevelUps(uid);
 }
 
 async function grantPrayerStreakBadges(uid: string, streak: number) {

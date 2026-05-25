@@ -17,6 +17,7 @@ import {
   type PlantSpecies,
   type GardenStats,
 } from '../../shared/types/firestore';
+import { applyLevelUps } from './levelEngine';
 
 const db = admin.firestore();
 
@@ -320,6 +321,11 @@ export async function processDailyGarden(
     patch.totalPoints = FieldValue.increment(passiveYield);
   }
   await ref.set(patch, { merge: true });
+
+  // 9.5) beauty·초월 트레잇 XP로 레벨 기준을 넘었으면 레벨업·보상 처리
+  if (xpBumped) {
+    await applyLevelUps(uid);
+  }
 
   // 10) passive yield ledger
   if (passiveYield > 0) {

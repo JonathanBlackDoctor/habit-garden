@@ -408,6 +408,14 @@ export const PRAYER_POINT_EARN = {
   PRAYER_ANSWERED:     30,   // 응답 기록 시 (간증 작성 권장)
 } as const;
 
+// ── 레벨업 보상 (레벨업 1회마다 지급) ─────────────────────
+export const LEVELUP_REWARD = {
+  BASE_POINTS:      50,      // 레벨업 1회당 기본 포인트
+  POINTS_PER_LEVEL: 10,      // 도달 레벨에 비례한 추가 포인트
+  SEED_SPECIES:     'sprout', // 보상으로 심어 주는 씨앗 종
+  MAX_PLANTS:       30,      // 정원 식물 상한 — 가득 차면 씨앗 대신 포인트만
+} as const;
+
 // 하루 기도 체크 포인트 상한 (인플레이션 방지)
 export const PRAYER_DAILY_CHECK_CAP = 30;
 
