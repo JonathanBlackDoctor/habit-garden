@@ -4,7 +4,8 @@ import { useProgress, useGardenActions, isWateredToday } from '@/features/garden
 import PlantSVG from '@/features/garden/PlantSVG';
 import PlantCodex from '@/features/garden/PlantCodex';
 import TranscendAtmosphere from '@/features/garden/TranscendAtmosphere';
-import { PLANT_SPECIES, POINT_PRICES, DAILY_YIELD_BY_RARITY, PLANTS_PER_BED, PLANTS_PER_ROW, CODEX_SPECIES_COUNT, MAX_BEDS } from 'shared/types/firestore';
+import { PLANT_SPECIES, POINT_PRICES, DAILY_YIELD_BY_RARITY, PLANTS_PER_BED, PLANTS_PER_ROW, CODEX_SPECIES_COUNT, MAX_BEDS, DAILY_PLANT_LIMIT } from 'shared/types/firestore';
+import { getGameDayKST } from '@/features/garden/useGarden';
 import type { PlantInstance, PlantSpecies } from 'shared/types/firestore';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
@@ -239,6 +240,11 @@ export default function Garden() {
   const vibe = healthVibe(gardenState.health ?? 100);
   const autogrowToday = progress.gardenStats?.autogrowToday ?? 0;
   const codexCount = progress.gardenStats?.codexEntries?.length ?? 0;
+
+  const gameDay = getGameDayKST();
+  const prevPlantDate = progress.gardenStats?.dailyDirectPlantsDate ?? '';
+  const todayPlanted = prevPlantDate === gameDay ? (progress.gardenStats?.dailyDirectPlants ?? 0) : 0;
+  const plantLimitReached = todayPlanted >= DAILY_PLANT_LIMIT;
 
   return (
     <div className="min-h-screen p-4 space-y-4 pb-8">
@@ -632,11 +638,29 @@ export default function Garden() {
       {/* 상점 탭 */}
       {tab === 'shop' && (
         <div className="card p-4 space-y-3">
-          <h3 className="text-sm font-semibold text-[var(--fg-primary)]">씨앗 심기 / 식물 해금</h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-[var(--fg-primary)]">씨앗 심기 / 식물 해금</h3>
+            <div className={cn(
+              'flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold tabular-nums',
+              plantLimitReached
+                ? 'bg-[#FEF2F2] text-[#A83A30]'
+                : todayPlanted >= DAILY_PLANT_LIMIT - 1
+                  ? 'bg-[#FFF8E1] text-[#A07A1E]'
+                  : 'bg-[var(--leaf-soft)] text-[var(--leaf-strong,var(--leaf))]',
+            )}>
+              <Sprout size={11} />
+              오늘 심기 {todayPlanted}/{DAILY_PLANT_LIMIT}
+            </div>
+          </div>
           <p className="text-[11px] text-[var(--fg-faint)] leading-relaxed">
             물주기 비용 {POINT_PRICES.WATER}P · 희귀+{POINT_PRICES.HARVEST_BONUS_RARE} · 에픽+{POINT_PRICES.HARVEST_BONUS_RARE + POINT_PRICES.HARVEST_BONUS_EPIC} · 전설+{POINT_PRICES.HARVEST_BONUS_RARE + POINT_PRICES.HARVEST_BONUS_EPIC + POINT_PRICES.HARVEST_BONUS_LEGENDARY} 수확 보너스.<br />
-            만개 식물은 매일 자동 P 생성. 심을 때 10% 확률로 한 등급 위 씨앗 발견 (lucky 종은 15%).
+            만개 식물은 매일 자동 P 생성. 심을 때 10% 확률로 한 등급 위 씨앗 발견 (lucky 종은 15%). 레벨업 보상 씨앗은 한도에 포함되지 않습니다.
           </p>
+          {plantLimitReached && (
+            <p className="text-[11px] text-[#A83A30] font-medium">
+              오늘 직접 심기 {DAILY_PLANT_LIMIT}회 한도에 도달했습니다. 내일 04:00에 초기화됩니다.
+            </p>
+          )}
           {gardenState.plants.length >= MAX_BEDS * PLANTS_PER_BED && (
             <p className="text-[11px] text-amber-600 font-medium">
               화단이 가득 찼습니다. (최대 {MAX_BEDS}개 · {MAX_BEDS * PLANTS_PER_BED}칸) 식물을 수확하거나 캐내면 새로 심을 수 있어요.
@@ -675,8 +699,8 @@ export default function Garden() {
                       )}
                     </div>
                     {unlocked ? (
-                      <Button size="sm" variant="secondary" onClick={() => plantSeed(sp.id)} disabled={isFull}>
-                        심기 ({seedCost}P)
+                      <Button size="sm" variant="secondary" onClick={() => plantSeed(sp.id)} disabled={isFull || plantLimitReached}>
+                        {plantLimitReached ? '한도 초과' : `심기 (${seedCost}P)`}
                       </Button>
                     ) : (
                       <Button size="sm" variant="outline" onClick={() => unlockSpecies(sp.id)} className="gap-1">

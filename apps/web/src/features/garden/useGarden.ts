@@ -3,8 +3,25 @@ import { doc, onSnapshot, setDoc, serverTimestamp, collection, addDoc, Timestamp
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import type { ProgressDoc, PlantInstance } from 'shared/types/firestore';
-import { PLANT_SPECIES, POINT_PRICES, CODEX_SPECIES_COUNT, MAX_BEDS, PLANTS_PER_BED } from 'shared/types/firestore';
+import { PLANT_SPECIES, POINT_PRICES, CODEX_SPECIES_COUNT, MAX_BEDS, PLANTS_PER_BED, DAILY_PLANT_LIMIT } from 'shared/types/firestore';
 import { toast } from 'sonner';
+
+// 현재 게임일을 'YYYY-MM-DD'(KST 04:00 기준)로 반환한다.
+export function getGameDayKST(): string {
+  const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+  const RESET_HOUR_MS = 4 * 60 * 60 * 1000;
+  const DAY_MS = 24 * 60 * 60 * 1000;
+
+  const nowKST = Date.now() + KST_OFFSET_MS;
+  const msSinceMidnightKST = nowKST % DAY_MS;
+  // 04:00 이전이면 전날 게임일
+  const adjustedKST = msSinceMidnightKST >= RESET_HOUR_MS ? nowKST : nowKST - DAY_MS;
+  const d = new Date(adjustedKST);
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
 
 // 게임 하루는 04:00 KST 기준으로 리셋된다.
 export function isWateredToday(wateredAt: { toMillis(): number }): boolean {
@@ -102,6 +119,16 @@ export function useGardenActions() {
       toast.error(`화단은 최대 ${MAX_BEDS}개(${MAX_BEDS * PLANTS_PER_BED}칸)까지만 사용할 수 있습니다.`);
       return;
     }
+    // 일일 직접 심기 한도 (레벨업 보상 씨앗은 이 카운터를 사용하지 않음)
+    const gameDay = getGameDayKST();
+    const prevStats = progress.gardenStats ?? {};
+    const prevPlantDate = prevStats.dailyDirectPlantsDate ?? '';
+    const todayPlanted = prevPlantDate === gameDay ? (prevStats.dailyDirectPlants ?? 0) : 0;
+    if (todayPlanted >= DAILY_PLANT_LIMIT) {
+      toast.error(`오늘 직접 심기는 ${DAILY_PLANT_LIMIT}회까지입니다. (${todayPlanted}/${DAILY_PLANT_LIMIT}) 내일 04:00에 초기화됩니다.`);
+      return;
+    }
+
     const cost = baseSpecies.seedCost ?? POINT_PRICES.SEED;
     if (progress.spendablePoints < cost) {
       toast.error(`포인트가 부족합니다. (필요: ${cost}P)`);
@@ -137,7 +164,6 @@ export function useGardenActions() {
     };
 
     // 도감 갱신 — finalSpecies 도 codex 에 자동 등록 (초월은 별도 티어이므로 제외)
-    const prevStats = progress.gardenStats ?? {};
     const prevCodex = prevStats.codexEntries ?? [];
     const nextCodex = (finalSpecies.rarity === 'transcendent' || prevCodex.includes(finalSpecies.id))
       ? prevCodex : [...prevCodex, finalSpecies.id];
@@ -146,6 +172,9 @@ export function useGardenActions() {
     const nextUnlockedSpecies = (upgraded && !unlocked.includes(finalSpecies.id))
       ? [...unlocked, finalSpecies.id]
       : unlocked;
+
+    const nextTodayPlanted = todayPlanted + 1;
+    const remaining = DAILY_PLANT_LIMIT - nextTodayPlanted;
 
     const newPlants = [...progress.gardenState.plants, newPlant];
     try {
@@ -156,6 +185,8 @@ export function useGardenActions() {
           ...prevStats,
           codexEntries: nextCodex,
           rareDropsTriggered: nextRareDrops,
+          dailyDirectPlants: nextTodayPlanted,
+          dailyDirectPlantsDate: gameDay,
         },
         updatedAt: serverTimestamp(),
       }, { merge: true });
@@ -165,12 +196,13 @@ export function useGardenActions() {
         createdAt: serverTimestamp(),
       });
 
+      const countMsg = remaining > 0 ? ` · 오늘 ${remaining}회 남음` : ' · 오늘 마지막!';
       if (upgraded) {
-        toast(`🌟 희귀 씨앗 발견! ${finalSpecies.name} 가 자랐어요! (-${cost}P)`);
+        toast(`🌟 희귀 씨앗 발견! ${finalSpecies.name} 가 자랐어요! (-${cost}P)${countMsg}`);
       } else if (luckyStart) {
-        toast(`🍀 ${finalSpecies.name} — 행운! 새싹부터 시작! (-${cost}P)`);
+        toast(`🍀 ${finalSpecies.name} — 행운! 새싹부터 시작! (-${cost}P)${countMsg}`);
       } else {
-        toast(`🌱 ${finalSpecies.name} 씨앗을 심었습니다! (-${cost}P)`);
+        toast(`🌱 ${finalSpecies.name} 씨앗을 심었습니다! (-${cost}P)${countMsg}`);
       }
     } catch (e) {
       toast.error('저장 실패: ' + (e as Error).message);

@@ -308,6 +308,8 @@ export interface GardenStats {
   passiveYieldTotal?: number;                 // 누적 일일 자동 P
   starBoostBonus?: number;                    // ★3 종 누계로 인한 종합 효율 메타 (정보용)
   plantsLost?: number;                        // 게을러져 죽은(영구 제거된) 식물 누적 수
+  dailyDirectPlants?: number;                 // 오늘 직접 심기 횟수 (04:00 KST 리셋)
+  dailyDirectPlantsDate?: string;             // 'YYYY-MM-DD' 게임일 기준
 }
 
 // ── 시즌 진행 상태 ──────────────────────────────────────
@@ -420,6 +422,9 @@ export const LEVELUP_REWARD = {
   SEED_SPECIES:        'sprout',   // 기본 보상 씨앗
   MILESTONE_SEED_SPECIES: 'clover', // 큰 보상 씨앗 (미해금 시 sprout 로 대체)
 } as const;
+
+// 하루 직접 심기 상한 (레벨업 보상 씨앗은 제외)
+export const DAILY_PLANT_LIMIT = 5;
 
 // 하루 기도 체크 포인트 상한 (인플레이션 방지)
 export const PRAYER_DAILY_CHECK_CAP = 30;
