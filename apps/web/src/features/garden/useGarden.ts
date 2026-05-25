@@ -108,7 +108,7 @@ export function useGardenActions() {
       return;
     }
 
-    // 희귀 씨앗 드롭: 같은 해금 종 중 한 등급 위로 교체.
+    // 희귀 씨앗 드롭: 전체 식물 풀에서 한 등급 위 종으로 교체.
     // 무지개붓꽃 등 lucky 트레잇 종은 드롭 확률 1.5×.
     const unlocked = progress.gardenState.unlockedSpecies;
     const rarityRank: Record<string, number> = { basic: 0, common: 1, rare: 2, epic: 3, legendary: 4 };
@@ -118,7 +118,7 @@ export function useGardenActions() {
     if (Math.random() < dropChance) {
       const targetRank = rarityRank[baseSpecies.rarity] + 1;
       const candidates = PLANT_SPECIES.filter(
-        (s) => unlocked.includes(s.id) && rarityRank[s.rarity] === targetRank,
+        (s) => rarityRank[s.rarity] === targetRank,
       );
       if (candidates.length > 0) {
         finalSpecies = candidates[Math.floor(Math.random() * candidates.length)];
@@ -142,12 +142,16 @@ export function useGardenActions() {
     const nextCodex = (finalSpecies.rarity === 'transcendent' || prevCodex.includes(finalSpecies.id))
       ? prevCodex : [...prevCodex, finalSpecies.id];
     const nextRareDrops = (prevStats.rareDropsTriggered ?? 0) + (upgraded ? 1 : 0);
+    // 드롭으로 처음 발견한 종은 자동 해금 (이후 직접 심을 수 있도록)
+    const nextUnlockedSpecies = (upgraded && !unlocked.includes(finalSpecies.id))
+      ? [...unlocked, finalSpecies.id]
+      : unlocked;
 
     const newPlants = [...progress.gardenState.plants, newPlant];
     try {
       await setDoc(doc(db, 'users', uid, 'progress', 'main'), {
         spendablePoints: progress.spendablePoints - cost,
-        gardenState: { ...progress.gardenState, plants: newPlants },
+        gardenState: { ...progress.gardenState, plants: newPlants, unlockedSpecies: nextUnlockedSpecies },
         gardenStats: {
           ...prevStats,
           codexEntries: nextCodex,

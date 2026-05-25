@@ -44,7 +44,7 @@ export async function applyLevelUps(uid: string): Promise<LevelUpResult> {
     const startLevel = progress.level ?? 1;
     const startXp    = progress.xpInLevel ?? 0;
     const plants: PlantInstance[] = [...(progress.gardenState?.plants ?? [])];
-    const unlocked = progress.gardenState?.unlockedSpecies ?? [];
+    const unlocked = [...(progress.gardenState?.unlockedSpecies ?? [])];
 
     // 보상 규칙은 shared/lib/levelRewards 에 일원화 — 클라이언트 레벨업 창과 동일 계산.
     const prog = resolveLevelUps(startLevel, startXp);
@@ -57,10 +57,13 @@ export async function applyLevelUps(uid: string): Promise<LevelUpResult> {
     // 씨앗 지급은 정원 자리 상한·마일스톤 씨앗 종 같은 서버 사정이 있어 여기서 처리한다.
     for (const step of prog.steps) {
       if (!step.seed || plants.length >= MAX_GARDEN_PLANTS) continue;
-      const seedSpecies =
-        step.milestone && unlocked.includes(LEVELUP_REWARD.MILESTONE_SEED_SPECIES)
-          ? LEVELUP_REWARD.MILESTONE_SEED_SPECIES
-          : LEVELUP_REWARD.SEED_SPECIES;
+      const seedSpecies = step.milestone
+        ? LEVELUP_REWARD.MILESTONE_SEED_SPECIES
+        : LEVELUP_REWARD.SEED_SPECIES;
+      // 마일스톤 보상으로 처음 받는 종은 자동 해금 (이후 직접 심을 수 있도록)
+      if (step.milestone && !unlocked.includes(LEVELUP_REWARD.MILESTONE_SEED_SPECIES)) {
+        unlocked.push(LEVELUP_REWARD.MILESTONE_SEED_SPECIES);
+      }
       plants.push({
         id: `levelup-${step.level}-${Date.now()}`,
         speciesId: seedSpecies,
@@ -82,7 +85,7 @@ export async function applyLevelUps(uid: string): Promise<LevelUpResult> {
       patch.totalPoints     = FieldValue.increment(pointsAwarded);
     }
     if (seedsAwarded > 0) {
-      patch.gardenState = { ...progress.gardenState, plants };
+      patch.gardenState = { ...progress.gardenState, plants, unlockedSpecies: unlocked };
     }
     tx.set(ref, patch, { merge: true });
 
