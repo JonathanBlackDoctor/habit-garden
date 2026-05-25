@@ -7,6 +7,7 @@ import { useProgress } from '@/features/garden/useGarden';
 import { BADGE_DEFS } from 'shared/types/firestore';
 import type { BadgeDoc, DayDoc } from 'shared/types/firestore';
 import { xpForLevel } from '@/lib/utils';
+import BloomBadge from '@/components/BloomBadge';
 import { plannerDate } from '@/lib/dayBoundary';
 import { Flame, Star, Award } from 'lucide-react';
 import HabitHeatmap from '@/features/stats/HabitHeatmap';
@@ -61,9 +62,12 @@ export default function Progress() {
       {/* 레벨 카드 */}
       <div className="card p-4 space-y-3">
         <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs text-[var(--fg-muted)]">레벨</p>
-            <p className="text-2xl font-bold text-[var(--leaf)] tabular-nums">Lv.{level}</p>
+          <div className="flex items-center gap-3">
+            <BloomBadge level={level} size={48} />
+            <div>
+              <p className="text-xs text-[var(--fg-muted)]">레벨</p>
+              <p className="text-2xl font-bold text-[var(--leaf)] tabular-nums">Lv.{level}</p>
+            </div>
           </div>
           <div className="text-right">
             <p className="text-xs text-[var(--fg-muted)]">포인트</p>

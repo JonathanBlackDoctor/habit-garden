@@ -8,6 +8,8 @@ import { useProgress } from '@/features/garden/useGarden';
 import PlantSVG from '@/features/garden/PlantSVG';
 import TodayGrowth from '@/features/garden/TodayGrowth';
 import { formatKoreanDate, timeOfDay } from '@/lib/dayBoundary';
+import { xpForLevel } from '@/lib/utils';
+import BloomBadge from '@/components/BloomBadge';
 import type { DayDoc, TodayTodoDoc } from 'shared/types/firestore';
 import { PLANT_SPECIES } from 'shared/types/firestore';
 import { motion } from 'framer-motion';
@@ -59,6 +61,8 @@ export default function Main() {
   const spendable     = progress?.spendablePoints ?? 0;
   const streak        = progress?.globalStreak ?? 0;
   const level         = progress?.level ?? 1;
+  const xpInLevel     = progress?.xpInLevel ?? 0;
+  const xpNeeded      = xpForLevel(level);
   const health        = progress?.gardenState?.health ?? 100;
   const plants        = progress?.gardenState?.plants ?? [];
   const hasReflection = !!dayDoc?.reflection;
@@ -90,16 +94,28 @@ export default function Main() {
           <path d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66.95-2.3c.48.17.98.3 1.49.39C18 19 22 14 22 7c0-1.72-.22-3.24-.6-4.6C19.5 1.4 17 1 14 1 9 1 5 4 5 9c0 4 4 7 12 7-1.5-2-3.5-3.5-6-4z"/>
         </svg>
         <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs opacity-80">{formatKoreanDate(date)}</p>
-            <p className="text-lg font-semibold leading-tight">
-              Lv.{level}
-              {streak > 0 && (
-                <span className="ml-2 text-sm opacity-90">
-                  🔥{streak}일
-                </span>
-              )}
-            </p>
+          <div className="flex items-center gap-2.5">
+            <BloomBadge level={level} size={34} />
+            <div>
+              <p className="text-xs opacity-80">{formatKoreanDate(date)}</p>
+              <p className="text-lg font-semibold leading-tight">
+                Lv.{level}
+                {streak > 0 && (
+                  <span className="ml-2 text-sm opacity-90">
+                    🔥{streak}일
+                  </span>
+                )}
+              </p>
+              <div className="mt-1 flex items-center gap-1.5">
+                <div className="h-1.5 w-24 overflow-hidden rounded-full bg-white/25">
+                  <div
+                    className="h-full rounded-full bg-white transition-all"
+                    style={{ width: `${Math.min((xpInLevel / xpNeeded) * 100, 100)}%` }}
+                  />
+                </div>
+                <span className="text-[10px] tabular-nums opacity-80">{xpInLevel}/{xpNeeded}</span>
+              </div>
+            </div>
           </div>
           <div className="flex items-start gap-2">
             <div className="text-right">
