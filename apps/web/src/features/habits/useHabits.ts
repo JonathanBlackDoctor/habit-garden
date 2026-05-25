@@ -108,7 +108,14 @@ export function useSaveHabitCheck(dateOverride?: string) {
       return;
     }
 
-    if (delta === 0) return; // 변화 없음
+    if (delta === 0) {
+      // 점수는 기록됐지만 보상 없음 (5점 척도 1점, 완료형 미완료 등) — 가벼운 확인만
+      if (basePts === 0 && score !== null) {
+        feedback('check');
+        toast('기록됨', { description: `${habit.title} · 보상 없음` });
+      }
+      return; // 변화 없음
+    }
 
     // delta > 0 — 점수 상향 또는 첫 체크.
     // 콤보·셀러브레이션은 한 습관당 하루 한 번만(rewardedHabitIds 게이트), 포인트 토스트는 매 상승마다.
