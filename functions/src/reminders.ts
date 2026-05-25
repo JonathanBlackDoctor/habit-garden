@@ -69,14 +69,20 @@ async function processUser(uid: string, hour: number, today: string): Promise<vo
   try {
     await admin.messaging().sendEachForMulticast({
       tokens,
-      notification: { title, body },
+      // data-only: 표시는 서비스워커가 전담한다(중복 알림/액션버튼 누락 방지).
       data: {
+        title,
+        body,
         tod: tod ?? 'anytime',
         date: today,
         action: 'habit_reminder',
         habitIds: unchecked.map((h) => h.id).join(','),
+        link: '/habit-garden/#/habits',
       },
-      webpush: { fcmOptions: { link: '/habit-garden/#/habits' } },
+      webpush: {
+        fcmOptions: { link: '/habit-garden/#/habits' },
+        headers: { Urgency: 'high' },
+      },
     });
   } catch (e) {
     console.error(`FCM send error for ${uid}:`, e);

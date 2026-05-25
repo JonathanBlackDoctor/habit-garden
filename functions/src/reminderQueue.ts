@@ -70,12 +70,19 @@ async function processUser(uid: string, today: string, nowMs: number): Promise<v
         try {
           await admin.messaging().sendEachForMulticast({
             tokens,
-            notification: {
+            // data-only: 표시는 서비스워커가 전담한다.
+            data: {
               title: `⏰ 다시 알림 — ${pending.length}개`,
               body: `${titles.slice(0, 2).join(', ')}${pending.length > 2 ? ` 외 ${pending.length - 2}개` : ''}`,
+              date: today,
+              action: 'habit_reminder',
+              habitIds: pending.join(','),
+              link: '/habit-garden/#/habits',
             },
-            data: { date: today, action: 'habit_reminder', habitIds: pending.join(',') },
-            webpush: { fcmOptions: { link: '/habit-garden/#/habits' } },
+            webpush: {
+              fcmOptions: { link: '/habit-garden/#/habits' },
+              headers: { Urgency: 'high' },
+            },
           });
         } catch (e) {
           console.error(`flushReminderQueue FCM error for ${uid}:`, e);
