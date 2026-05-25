@@ -3,8 +3,7 @@ import {
   collection, onSnapshot, updateDoc, deleteDoc, doc, setDoc, getDocs,
   serverTimestamp, query, orderBy, where,
 } from 'firebase/firestore';
-import { httpsCallable } from 'firebase/functions';
-import { db, functions } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import { SEED_PRAYERS } from 'shared/types/firestore';
 import type { HabitDoc, UserProfileDoc } from 'shared/types/firestore';
@@ -115,8 +114,11 @@ export default function Admin() {
     if (actingUid) return;
     setActingUid(targetUid);
     try {
-      const call = httpsCallable(functions, 'approveUser');
-      await call({ targetUid, action });
+      await updateDoc(doc(db, 'userProfiles', targetUid), {
+        status: action === 'approve' ? 'approved' : 'rejected',
+        approvedAt: serverTimestamp(),
+        approvedBy: uid,
+      });
       toast(action === 'approve' ? '✅ 승인했습니다.' : '🚫 거절했습니다.');
     } catch (e: any) {
       toast.error(`처리 실패: ${e?.message ?? '오류'}`);
@@ -130,8 +132,11 @@ export default function Admin() {
     if (!confirm('이 사용자의 접근을 거절(차단)하시겠습니까?')) return;
     setActingUid(targetUid);
     try {
-      const call = httpsCallable(functions, 'approveUser');
-      await call({ targetUid, action: 'reject' });
+      await updateDoc(doc(db, 'userProfiles', targetUid), {
+        status: 'rejected',
+        approvedAt: serverTimestamp(),
+        approvedBy: uid,
+      });
       toast('🚫 접근을 차단했습니다.');
     } catch (e: any) {
       toast.error(`처리 실패: ${e?.message ?? '오류'}`);
