@@ -182,13 +182,14 @@ export async function processDailyGarden(
       if (budget < trait.upkeep) { plantsLost++; continue; }
       // 게으른 하루(보호 안 됨) → 즉시 죽음 (유지비 차감 없음)
       if (!yesterdaySuccess && !protectedDay) { plantsLost++; continue; }
-      // 생존: 유지비 차감 + 고유 효과 적용
+      // 생존: 유지비 차감 + 일일 경험치(유지비에 상응) + 종별 고유 보조 효과
       budget -= trait.upkeep;
       totalUpkeep += trait.upkeep;
-      if (trait.effect === 'xp') {
-        xpInLevel += trait.amount;
+      if (trait.dailyXp > 0) {
+        xpInLevel += trait.dailyXp;
         xpBumped = true;
-      } else if (trait.effect === 'vitality') {
+      }
+      if (trait.effect === 'vitality') {
         health = Math.min(100, health + trait.amount);
       } else if (trait.effect === 'guardian') {
         guardianSlots += trait.amount;
