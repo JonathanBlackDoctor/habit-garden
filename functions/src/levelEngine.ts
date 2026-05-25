@@ -9,6 +9,7 @@ import * as admin from 'firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import {
   LEVELUP_REWARD,
+  MAX_GARDEN_PLANTS,
   type ProgressDoc,
   type PlantInstance,
 } from '../../shared/types/firestore';
@@ -43,22 +44,38 @@ export async function applyLevelUps(uid: string): Promise<LevelUpResult> {
     let level = progress.level ?? 1;
     let xp    = progress.xpInLevel ?? 0;
     const plants: PlantInstance[] = [...(progress.gardenState?.plants ?? [])];
+    const unlocked = progress.gardenState?.unlockedSpecies ?? [];
 
     let levelsGained  = 0;
     let pointsAwarded  = 0;
     let seedsAwarded  = 0;
 
     // 여러 레벨을 한꺼번에 채웠을 수 있으므로 가능한 만큼 반복 처리한다.
+    // 보상: 홀수 레벨 → 씨앗, 짝수 레벨 → 포인트, 5레벨 단위 → 큰 보상(포인트+씨앗).
     let needed = xpForLevel(level);
     while (xp >= needed) {
       xp    -= needed;
       level += 1;
       levelsGained += 1;
-      pointsAwarded += LEVELUP_REWARD.BASE_POINTS + LEVELUP_REWARD.POINTS_PER_LEVEL * level;
-      if (plants.length < LEVELUP_REWARD.MAX_PLANTS) {
+
+      const milestone = level % LEVELUP_REWARD.MILESTONE_EVERY === 0;
+      let giveSeed          = level % 2 === 1;        // 홀수 레벨 → 씨앗
+      let seedSpecies: string = LEVELUP_REWARD.SEED_SPECIES;
+      if (level % 2 === 0) {                          // 짝수 레벨 → 포인트
+        pointsAwarded += LEVELUP_REWARD.EVEN_BASE_POINTS + LEVELUP_REWARD.EVEN_POINTS_PER_LEVEL * level;
+      }
+      if (milestone) {                                // 5레벨마다 큰 보상 (포인트 + 씨앗)
+        pointsAwarded += LEVELUP_REWARD.MILESTONE_BASE_POINTS + LEVELUP_REWARD.MILESTONE_POINTS_PER_LEVEL * level;
+        giveSeed = true;
+        if (unlocked.includes(LEVELUP_REWARD.MILESTONE_SEED_SPECIES)) {
+          seedSpecies = LEVELUP_REWARD.MILESTONE_SEED_SPECIES;
+        }
+      }
+
+      if (giveSeed && plants.length < MAX_GARDEN_PLANTS) {
         plants.push({
           id: `levelup-${level}-${Date.now()}`,
-          speciesId: LEVELUP_REWARD.SEED_SPECIES,
+          speciesId: seedSpecies,
           stage: 0,
           plantedAt: admin.firestore.Timestamp.now() as any,
         });
