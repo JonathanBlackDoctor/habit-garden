@@ -205,27 +205,50 @@ export default function Main() {
         transition={{ delay: 0.08 }}
         className="grid grid-cols-2 gap-3"
       >
-        {/* 할 일 */}
-        <button
-          onClick={() => navigate('/planner')}
-          className="card p-3 text-left space-y-1"
-        >
-          <p className="text-xs font-medium text-[var(--fg-muted)]">할 일</p>
-          {todos.length === 0 ? (
-            <p className="text-xs text-[var(--fg-faint)]">없음</p>
-          ) : (
-            <>
-              <p className="text-sm tabular-nums text-[var(--fg-primary)]">
-                {todos.filter((t) => t.done).length}/{todos.length} 완료
-              </p>
-              {todos.slice(0, 2).map((t) => (
-                <p key={t.id} className="text-xs text-[var(--fg-muted)] truncate">
-                  {t.done ? '✓' : '□'} {t.title}
-                </p>
-              ))}
-            </>
-          )}
-        </button>
+        {/* 할 일 — 미완료(미이행) 강조 */}
+        {(() => {
+          const remaining = todos.filter((t) => !t.done);
+          const total = todos.length;
+          const allDone = total > 0 && remaining.length === 0;
+          return (
+            <button
+              onClick={() => navigate('/planner')}
+              className={`p-3 text-left space-y-1 rounded-[var(--radius)] shadow-[var(--shadow-sm)] ${
+                remaining.length > 0
+                  ? 'bg-[var(--bloom-soft)] ring-1 ring-[var(--bloom)]/25'
+                  : 'bg-[var(--bg-surface)]'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium text-[var(--fg-muted)]">할 일</p>
+                {remaining.length > 0 && (
+                  <span className="rounded-full bg-[var(--bloom)] px-1.5 py-0.5 text-[10px] font-semibold text-white tabular-nums">
+                    {remaining.length}개 남음
+                  </span>
+                )}
+              </div>
+              {total === 0 ? (
+                <p className="text-xs text-[var(--fg-faint)]">없음</p>
+              ) : allDone ? (
+                <div className="flex items-center gap-1 text-[var(--leaf)]">
+                  <CheckCircle2 size={14} />
+                  <span className="text-xs">오늘 할 일 완수 🌿</span>
+                </div>
+              ) : (
+                <>
+                  {remaining.slice(0, 3).map((t) => (
+                    <p key={t.id} className="text-xs text-[var(--fg-primary)] truncate">
+                      □ {t.title}
+                    </p>
+                  ))}
+                  {remaining.length > 3 && (
+                    <p className="text-[11px] text-[var(--fg-muted)]">+{remaining.length - 3}개 더</p>
+                  )}
+                </>
+              )}
+            </button>
+          );
+        })()}
 
         {/* 회고 */}
         <button
