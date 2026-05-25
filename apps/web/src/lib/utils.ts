@@ -5,11 +5,7 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-/** 레벨 n에 필요한 누적 XP. level 0은 100 XP로 고정. */
-export function xpForLevel(level: number): number {
-  if (level <= 0) return 100;
-  return Math.floor(100 * Math.pow(level, 1.5));
-}
+export { xpForLevel } from 'shared/lib/xpLevel';
 
 /** 가중평균 dayScore 계산. pass(null)는 분모에서 제외 */
 export function calcDayScore(

@@ -27,6 +27,7 @@ import {
   type ProgressDoc,
 } from '../../shared/types/firestore';
 import { pointsForCheck } from '../../shared/lib/habitPoints';
+import { xpForLevel } from '../../shared/lib/xpLevel';
 import { growRandomPlant } from './gardenAutogrow';
 
 const db = admin.firestore();
@@ -179,7 +180,7 @@ async function checkLevelUp(uid: string) {
   const progress = snap.data() as ProgressDoc;
   const level    = progress.level ?? 1;
   const xp       = progress.xpInLevel ?? 0;
-  const needed   = Math.floor(100 * Math.pow(level, 1.5));
+  const needed   = xpForLevel(level);
 
   if (xp >= needed) {
     await ref.update({
