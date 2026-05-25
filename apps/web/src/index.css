@@ -148,6 +148,64 @@
   animation: transcend-ambient 6s var(--ease-out) infinite;
 }
 
+/* 테마 하늘 크로스페이드 (식물 보유/제거 시 부드럽게) */
+.transcend-sky {
+  transition: opacity 0.9s var(--ease-out), background 0.9s var(--ease-out);
+}
+
+/* 천상수 — 황금 광기둥 */
+@keyframes light-pillar {
+  0%, 100% { opacity: 0.30; transform: translateX(0) scaleY(1); }
+  50%      { opacity: 0.62; transform: translateX(6px) scaleY(1.04); }
+}
+.transcend-pillar {
+  transform-origin: top center;
+  filter: blur(3px);
+  mix-blend-mode: screen;
+  animation: light-pillar 8s var(--ease-out) infinite;
+}
+
+/* 영겁화 — 꽃잎 비 */
+@keyframes petal-fall {
+  0%   { transform: translateY(-12px) rotate(0deg);   opacity: 0; }
+  12%  { opacity: 0.85; }
+  88%  { opacity: 0.6; }
+  100% { transform: translateY(260px) rotate(320deg); opacity: 0; }
+}
+.transcend-petal {
+  width: 9px;
+  height: 7px;
+  border-radius: 60% 60% 60% 0 / 70% 70% 50% 50%;
+  opacity: 0;
+  animation: petal-fall 10s linear infinite;
+}
+
+/* 은하백합 — 별빛 트윙클 */
+@keyframes star-twinkle {
+  0%, 100% { opacity: 0.15; transform: scale(0.7); }
+  50%      { opacity: 0.95; transform: scale(1.25); }
+}
+.transcend-star {
+  box-shadow: 0 0 3px rgba(255,255,255,0.9);
+  animation: star-twinkle 4s ease-in-out infinite;
+}
+
+/* 은하백합 — 유성 */
+@keyframes shooting-star {
+  0%       { transform: translate(0, 0) rotate(28deg); opacity: 0; }
+  3%       { opacity: 0.9; }
+  14%      { transform: translate(160px, 86px) rotate(28deg); opacity: 0; }
+  100%     { transform: translate(160px, 86px) rotate(28deg); opacity: 0; }
+}
+.transcend-shoot {
+  width: 60px;
+  height: 1.5px;
+  border-radius: 2px;
+  background: linear-gradient(to right, transparent, rgba(255,255,255,0.95));
+  opacity: 0;
+  animation: shooting-star 8s ease-in infinite;
+}
+
 /* ── 레벨 배지(Bloom) 모션 ── */
 @keyframes bv2-bl-spin  { from { transform: rotate(0deg); }   to { transform: rotate(360deg); } }
 @keyframes bv2-bl-spinR { from { transform: rotate(360deg); } to { transform: rotate(0deg); } }
@@ -173,6 +231,7 @@
 @media (prefers-reduced-motion: reduce) {
   .plant-sway, .mote, .aura-pulse, .halo-rotate, .sparkle,
   .transcend-chip, .transcend-ambient,
+  .transcend-pillar, .transcend-petal, .transcend-star, .transcend-shoot,
   .bv2-bl-spin, .bv2-bl-spinR, .bv2-bl-breath, .bv2-bl-core, .bv2-bl-bloom, .bv2-tw, .bv2-halo {
     animation: none !important;
   }

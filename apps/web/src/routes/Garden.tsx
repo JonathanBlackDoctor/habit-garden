@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useProgress, useGardenActions } from '@/features/garden/useGarden';
 import PlantSVG from '@/features/garden/PlantSVG';
 import PlantCodex from '@/features/garden/PlantCodex';
+import TranscendAtmosphere from '@/features/garden/TranscendAtmosphere';
 import { PLANT_SPECIES, POINT_PRICES, DAILY_YIELD_BY_RARITY, PLANTS_PER_BED, PLANTS_PER_ROW, CODEX_SPECIES_COUNT, MAX_BEDS } from 'shared/types/firestore';
 import type { PlantInstance, PlantSpecies } from 'shared/types/firestore';
 import { Button } from '@/components/ui/button';
@@ -218,7 +219,16 @@ export default function Garden() {
   const vibe = healthVibe(gardenState.health ?? 100);
   const autogrowToday = progress.gardenStats?.autogrowToday ?? 0;
   const codexCount = progress.gardenStats?.codexEntries?.length ?? 0;
-  const hasTranscendent = plants.some((p) => TRANSCENDENT_IDS.has(p.speciesId));
+  // 활성 초월 식물: 비시듦 + stage>=3 (성장/만개 시에만 대기 효과 기여)
+  const activeTranscend = new Set(
+    plants
+      .filter((p) => !p.witheredSince && p.stage >= 3 && TRANSCENDENT_IDS.has(p.speciesId))
+      .map((p) => p.speciesId),
+  );
+  const hasCelestial = activeTranscend.has('celestial_tree');
+  const hasEternal = activeTranscend.has('eternal_bloom');
+  const hasGalaxy = activeTranscend.has('galaxy_lily');
+  const activeTranscendCount = activeTranscend.size;
 
   return (
     <div className="min-h-screen p-4 space-y-4 pb-8">
@@ -337,10 +347,13 @@ export default function Garden() {
               className="pointer-events-none absolute -top-8 right-1 z-0 h-28 w-28 rounded-full"
               style={{ background: 'radial-gradient(circle, var(--garden-sun) 0%, transparent 70%)', opacity: 0.7 }}
             />
-            {/* 초월 식물 보유 시 정원 전역 오로라 앰비언트 (공통 시각 효과) */}
-            {hasTranscendent && (
-              <div className="transcend-ambient pointer-events-none absolute inset-0 z-0 rounded-[var(--radius-lg)]" aria-hidden />
-            )}
+            {/* 초월 식물별 정원 대기 효과 (테마 하늘·광기둥·꽃잎비·별빛) */}
+            <TranscendAtmosphere
+              hasCelestial={hasCelestial}
+              hasEternal={hasEternal}
+              hasGalaxy={hasGalaxy}
+              activeCount={activeTranscendCount}
+            />
             {/* 원경 언덕 */}
             <svg
               className="pointer-events-none absolute inset-x-0 bottom-7 z-0 h-16 w-full"
