@@ -353,6 +353,14 @@ const frontPlants = [
 ];
 const frontRow = `<g>${rowShadow(frontBaseY, frontScale, 1)}${cols4.map((x, i) => frontPlants[i](x)).join('')}</g>`;
 
+// ── 제목·문구 (Pretendard) ─────────────────────────────────
+const cxC = PX + PW / 2;
+const text = `
+  <g font-family="Pretendard, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" text-anchor="middle">
+    <text x="${cxC}" y="${PY + 150}" font-size="96" font-weight="800" fill="${T.fg}" letter-spacing="-2">습관 정원</text>
+    <text x="${cxC}" y="${PY + 208}" font-size="32" font-weight="500" fill="${darken(T.leaf, 88)}">매일의 작은 습관이 모여 꽃을 피웁니다</text>
+  </g>`;
+
 // ── 합성 ──────────────────────────────────────────────────
 const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
   <defs>${defs}</defs>
@@ -366,6 +374,7 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" 
     ${motes}
     ${backRow}
     ${frontRow}
+    ${text}
     <rect x="${PX}" y="${PY}" width="${PW}" height="${PH}" rx="${PR}" fill="none" stroke="#2A2E27" stroke-opacity="0.10" stroke-width="38"/>
   </g>
 </svg>`;
