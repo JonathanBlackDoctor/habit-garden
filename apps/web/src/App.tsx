@@ -48,6 +48,7 @@ export default function App() {
             closeButton
             swipeDirections={['left', 'right']}
             offset="calc(96px + env(safe-area-inset-bottom))"
+            mobileOffset="calc(96px + env(safe-area-inset-bottom))"
             toastOptions={{
               closeButtonAriaLabel: '알림 닫기',
               onDismiss: () => toast.dismiss(),
