@@ -1,46 +1,43 @@
-/* Firebase Cloud Messaging Service Worker (Phase 3-1).
- * vite-plugin-pwa 가 selfDestroying 모드라 /habit-garden/sw.js 와 충돌 안 함.
- * 이 파일은 /habit-garden/firebase-messaging-sw.js 로 서빙된다 (public/ 정적 복사).
+/* Firebase Cloud Messaging Service Worker.
+ * 아래 initializeApp 의 config 플레이스홀더는 빌드 시 vite 플러그인('fcm-sw-config') /
+ * dev 미들웨어가 실제 config(JSON)로 치환한다. 클라이언트 공개값이라 비밀이 아니다.
+ *
+ * 핵심: 서비스워커는 유휴 시 종료됐다가 푸시 도착 시 cold start 로 깨어난다.
+ * 그 시점엔 열린 페이지가 없어 postMessage 로 config 를 받을 수 없으므로,
+ * 반드시 최상단에서 동기적으로 Firebase 를 초기화해야 백그라운드 푸시가 표시된다.
  */
 /* eslint-disable */
 importScripts('https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js');
 
-// 빌드 시 env 가 SW 에 주입되지 않으므로 메인 스레드가 postMessage 로 config 를 전달한다.
-// 초기에 비어있어도 swap-once 패턴으로 동작.
-let app;
-let messaging;
+firebase.initializeApp(__FIREBASE_MESSAGING_CONFIG__);
+const messaging = firebase.messaging();
 
-self.addEventListener('message', (event) => {
-  if (event.data?.type !== 'FCM_INIT' || app) return;
-  app = firebase.initializeApp(event.data.config);
-  messaging = firebase.messaging();
-  messaging.onBackgroundMessage((payload) => {
-    const title = payload.notification?.title ?? '오늘의 한 걸음';
-    const body  = payload.notification?.body  ?? '';
-    const data  = payload.data || {};
-    const isHabitReminder = data.action === 'habit_reminder';
-    self.registration.showNotification(title, {
-      body,
-      icon: '/habit-garden/icons/icon-192.png',
-      badge: '/habit-garden/icons/icon-192.png',
-      data,
-      tag: data.action || 'habit-reminder',
-      renotify: true,
-      requireInteraction: true,
-      vibrate: [200, 100, 200],
-      actions: isHabitReminder
-        ? [
-            { action: 'check_all', title: '✓ 전부 완료' },
-            { action: 'snooze_1h', title: '⏰ 1시간 뒤' },
-          ]
-        : [],
-    });
+// 서버는 data-only 페이로드를 보낸다(중복 표시 방지). 표시는 여기서 전담.
+messaging.onBackgroundMessage((payload) => {
+  const data = payload.data || {};
+  const title = data.title || '오늘의 한 걸음';
+  const body = data.body || '';
+  const isHabitReminder = data.action === 'habit_reminder';
+  self.registration.showNotification(title, {
+    body,
+    icon: '/habit-garden/icons/icon-192.png',
+    badge: '/habit-garden/icons/icon-192.png',
+    data,
+    tag: data.action || 'habit-reminder',
+    renotify: true,
+    requireInteraction: true,
+    vibrate: [200, 100, 200],
+    actions: isHabitReminder
+      ? [
+          { action: 'check_all', title: '✓ 전부 완료' },
+          { action: 'snooze_1h', title: '⏰ 1시간 뒤' },
+        ]
+      : [],
   });
 });
 
 // PWA 설치 기준(installability) 충족용 no-op fetch 핸들러.
-// 캐싱은 하지 않고 네트워크로 그대로 통과시킴.
 self.addEventListener('fetch', () => {});
 
 self.addEventListener('install', () => self.skipWaiting());

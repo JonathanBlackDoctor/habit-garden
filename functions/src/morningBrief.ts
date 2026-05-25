@@ -80,12 +80,18 @@ async function processUser(uid: string, today: string, yesterday: string, recent
     if (tokens.length > 0) {
       await admin.messaging().sendEachForMulticast({
         tokens,
-        notification: {
+        // data-only: 표시는 서비스워커가 전담한다.
+        data: {
           title: '☀️ 오늘의 브리프',
           body: top3.map((h) => h.title).join(' · '),
+          date: today,
+          action: 'morning_brief',
+          link: '/habit-garden/',
         },
-        data: { date: today, action: 'morning_brief' },
-        webpush: { fcmOptions: { link: '/habit-garden/' } },
+        webpush: {
+          fcmOptions: { link: '/habit-garden/' },
+          headers: { Urgency: 'high' },
+        },
       });
     }
   } catch (e) {

@@ -57,9 +57,7 @@ export async function enablePushNotifications(uid: string): Promise<string | nul
   const reg = await navigator.serviceWorker.register(SW_URL, { scope: '/habit-garden/' });
   await navigator.serviceWorker.ready;
 
-  // SW 에 config 전달
-  reg.active?.postMessage({ type: 'FCM_INIT', config: firebaseConfig });
-
+  // SW 는 빌드 시 주입된 config 로 최상단에서 스스로 초기화한다(cold start 대응).
   const messaging = getMessaging(app);
   const token = await getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
   if (!token) return null;
@@ -80,10 +78,11 @@ export async function enablePushNotifications(uid: string): Promise<string | nul
     { merge: true },
   );
 
-  // 포그라운드 메시지 → 토스트
+  // 포그라운드 메시지 → 토스트 (서버는 data-only 페이로드를 보낸다)
   onMessage(messaging, (payload) => {
-    const title = payload.notification?.title ?? '오늘의 한 걸음';
-    toast(title, { description: payload.notification?.body });
+    const data = payload.data ?? {};
+    const title = data.title ?? payload.notification?.title ?? '오늘의 한 걸음';
+    toast(title, { description: data.body ?? payload.notification?.body });
   });
 
   toast('🔔 알림이 켜졌어요');
