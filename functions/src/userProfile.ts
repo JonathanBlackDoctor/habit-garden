@@ -60,18 +60,25 @@ export const approveUser = functions
       throw new functions.https.HttpsError('invalid-argument', 'targetUid required');
     }
 
-    const ref = db.doc(`userProfiles/${targetUid}`);
-    const snap = await ref.get();
-    if (!snap.exists) {
-      throw new functions.https.HttpsError('not-found', 'Profile not found');
-    }
+    try {
+      const ref = db.doc(`userProfiles/${targetUid}`);
+      const snap = await ref.get();
+      if (!snap.exists) {
+        throw new functions.https.HttpsError('not-found', 'Profile not found');
+      }
 
-    await ref.update({
-      status: action === 'approve' ? 'approved' : 'rejected',
-      approvedAt: FieldValue.serverTimestamp(),
-      approvedBy: OWNER_UID,
-    });
-    return { ok: true, action };
+      await ref.update({
+        status: action === 'approve' ? 'approved' : 'rejected',
+        approvedAt: FieldValue.serverTimestamp(),
+        approvedBy: OWNER_UID,
+      });
+      return { ok: true, action };
+    } catch (err) {
+      if (err instanceof functions.https.HttpsError) throw err;
+      console.error('approveUser failed', { targetUid, action, err });
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new functions.https.HttpsError('internal', msg);
+    }
   });
 
 export const listPendingUsers = functions

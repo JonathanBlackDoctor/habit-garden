@@ -49,7 +49,7 @@ export default function Admin() {
       await call({ targetUid, action });
       toast(action === 'approve' ? '✅ 승인했습니다.' : '🚫 거절했습니다.');
     } catch (e: any) {
-      toast.error(`처리 실패: ${e?.message ?? '오류'}`);
+      toast.error(`처리 실패 [${e?.code ?? '?'}]: ${e?.message ?? '오류'}`);
     } finally {
       setActingUid(null);
     }
@@ -64,7 +64,7 @@ export default function Admin() {
       await call({ targetUid, action: 'reject' });
       toast('🚫 접근을 차단했습니다.');
     } catch (e: any) {
-      toast.error(`처리 실패: ${e?.message ?? '오류'}`);
+      toast.error(`처리 실패 [${e?.code ?? '?'}]: ${e?.message ?? '오류'}`);
     } finally {
       setActingUid(null);
     }
