@@ -93,9 +93,12 @@ export default function PlantSVG({
       height={size}
       className={cn('transition-all duration-500', className)}
       aria-label={`${speciesId} stage ${stage}`}
-      style={showGlow
-        ? { filter: `drop-shadow(0 0 ${fx.glowRadius}px color-mix(in srgb, ${glowColor} ${Math.round(fx.glowOpacity * 100)}%, transparent))` }
-        : undefined}
+      style={{
+        ...(rarity === 'transcendent' ? { overflow: 'visible' as const } : {}),
+        ...(showGlow
+          ? { filter: `drop-shadow(0 0 ${fx.glowRadius}px color-mix(in srgb, ${glowColor} ${Math.round(fx.glowOpacity * 100)}%, transparent))` }
+          : {}),
+      }}
     >
       <defs>
         {!withered && (
@@ -828,23 +831,28 @@ function renderFlower(speciesId: string, accent: string, withered: boolean | und
         </defs>
         <line x1="40" y1="40" x2="40" y2="30" stroke={stem} strokeWidth="3.5" strokeLinecap="round" />
         {/* 빛무리 (맥동) */}
-        <circle cx="40" cy="24" r="17" fill={withered ? 'none' : `url(#${gid('ct-halo')})`}>
-          {!withered && <animate attributeName="r" values="15;18;15" dur="3.4s" repeatCount="indefinite" />}
+        <circle cx="40" cy="24" r="22" fill={withered ? 'none' : `url(#${gid('ct-halo')})`}>
+          {!withered && <animate attributeName="r" values="19;24;19" dur="3.4s" repeatCount="indefinite" />}
         </circle>
-        {/* 방사 광선 (긴/짧은 2겹) */}
+        {/* 방사 광선 (god-ray 3겹 — viewBox 밖까지 길게) */}
         {!withered && (
-          <>
+          <g className="halo-rotate" style={{ transformBox: 'view-box', transformOrigin: '40px 24px' }}>
+            <g stroke="#FFF6CF" strokeWidth="1.4" opacity="0.5" strokeLinecap="round">
+              {[0, 45, 90, 135, 180, 225, 270, 315].map((d) => (
+                <line key={d} x1="40" y1="6" x2="40" y2="-22" transform={`rotate(${d} 40 24)`} />
+              ))}
+            </g>
             <g stroke="#FFF6CF" strokeWidth="1.1" opacity="0.85" strokeLinecap="round">
               {[0, 45, 90, 135, 180, 225, 270, 315].map((d) => (
-                <line key={d} x1="40" y1="9" x2="40" y2="1" transform={`rotate(${d} 40 24)`} />
+                <line key={d} x1="40" y1="9" x2="40" y2="-4" transform={`rotate(${d} 40 24)`} />
               ))}
             </g>
             <g stroke="#FFD66A" strokeWidth="0.9" opacity="0.7" strokeLinecap="round">
               {[22, 67, 112, 157, 202, 247, 292, 337].map((d) => (
-                <line key={d} x1="40" y1="12" x2="40" y2="6" transform={`rotate(${d} 40 24)`} />
+                <line key={d} x1="40" y1="12" x2="40" y2="-2" transform={`rotate(${d} 40 24)`} />
               ))}
             </g>
-          </>
+          </g>
         )}
         {/* 8각 빛별 (STAR4 두 겹) */}
         <path d={STAR4} fill={star} transform="translate(40 24) scale(3.4)" />
@@ -890,6 +898,16 @@ function renderFlower(speciesId: string, accent: string, withered: boolean | und
         <circle cx="40" cy="24" r="3" fill={withered ? '#E4D8BC' : '#FFFFFF'}>
           {!withered && <animate attributeName="opacity" values="1;0.5;1" dur="2.2s" repeatCount="indefinite" />}
         </circle>
+        {/* 흩날리는 꽃잎 입자 */}
+        {!withered && [[24, 20, 0], [56, 22, 1.3], [20, 30, 2.6], [58, 33, 0.7]].map(([cx, cy, delay], i) => (
+          <g key={i}>
+            <ellipse cx={cx} cy={cy} rx="2.2" ry="1.3" fill={i % 2 ? '#C9A0FF' : '#FFB8E8'} opacity="0">
+              <animate attributeName="opacity" values="0;0.85;0" dur="4s" begin={`${delay}s`} repeatCount="indefinite" />
+              <animateTransform attributeName="transform" type="translate"
+                values="0 0; -3 -16; -5 -30" dur="4s" begin={`${delay}s`} repeatCount="indefinite" />
+            </ellipse>
+          </g>
+        ))}
       </g>
     );
   }
@@ -910,8 +928,26 @@ function renderFlower(speciesId: string, accent: string, withered: boolean | und
             <stop offset="45%" stopColor="#6A78D8" />
             <stop offset="100%" stopColor="#23234E" />
           </radialGradient>
+          <radialGradient id={gid('gl-nebula')} cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#9A7BFF" stopOpacity="0.55" />
+            <stop offset="60%" stopColor="#5A6BD8" stopOpacity="0.22" />
+            <stop offset="100%" stopColor="#5A6BD8" stopOpacity="0" />
+          </radialGradient>
         </defs>
         <line x1="40" y1="40" x2="40" y2="30" stroke={stem} strokeWidth="3" strokeLinecap="round" />
+        {/* 흐릿한 성운 헤일로 (코어 뒤) */}
+        {!withered && (
+          <circle cx="40" cy="24" r="22" fill={`url(#${gid('gl-nebula')})`}>
+            <animate attributeName="r" values="20;25;20" dur="5s" repeatCount="indefinite" />
+            <animate attributeName="opacity" values="0.7;1;0.7" dur="5s" repeatCount="indefinite" />
+          </circle>
+        )}
+        {/* 옅은 궤도 링 */}
+        {!withered && (
+          <ellipse cx="40" cy="24" rx="19" ry="6" fill="none" stroke="#C9D2FF" strokeWidth="0.6" opacity="0.4">
+            <animateTransform attributeName="transform" type="rotate" from="0 40 24" to="360 40 24" dur="22s" repeatCount="indefinite" />
+          </ellipse>
+        )}
         {/* 바깥 6장 + 안쪽 6장(엇갈림) 백합 꽃잎 */}
         {[0, 60, 120, 180, 240, 300].map((deg) => (
           <ellipse key={deg} cx="40" cy="12" rx="3.6" ry="11" fill={petalG} opacity="0.92"
@@ -924,7 +960,7 @@ function renderFlower(speciesId: string, accent: string, withered: boolean | und
         {/* 성운 코어 */}
         <circle cx="40" cy="24" r="9" fill={withered ? '#D1C4A8' : `url(#${gid('gl-core')})`} opacity="0.95" />
         {/* 별가루 (반짝임) */}
-        {!withered && [[35, 19], [45, 19], [40, 15], [34, 28], [46, 28], [40, 31], [38, 23]].map(([cx, cy], i) => (
+        {!withered && [[35, 19], [45, 19], [40, 15], [34, 28], [46, 28], [40, 31], [38, 23], [30, 16], [50, 16], [28, 24], [52, 25], [40, 9]].map(([cx, cy], i) => (
           <circle key={i} cx={cx} cy={cy} r="0.85" fill="#FFFFFF">
             <animate attributeName="opacity" values="1;0.15;1" dur="1.9s" begin={`${i * 0.3}s`} repeatCount="indefinite" />
           </circle>
