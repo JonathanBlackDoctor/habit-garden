@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useProgress, useGardenActions } from '@/features/garden/useGarden';
 import PlantSVG from '@/features/garden/PlantSVG';
 import PlantCodex from '@/features/garden/PlantCodex';
-import { PLANT_SPECIES, POINT_PRICES, DAILY_YIELD_BY_RARITY, PLANTS_PER_BED, PLANTS_PER_ROW, CODEX_SPECIES_COUNT } from 'shared/types/firestore';
+import { PLANT_SPECIES, POINT_PRICES, DAILY_YIELD_BY_RARITY, PLANTS_PER_BED, PLANTS_PER_ROW, CODEX_SPECIES_COUNT, MAX_BEDS } from 'shared/types/firestore';
 import type { PlantInstance, PlantSpecies } from 'shared/types/firestore';
 import { Button } from '@/components/ui/button';
 import { Leaf, Droplets, Lock, Sprout, Snowflake, Wheat, BookOpen, Sparkles, ChevronLeft, ChevronRight, Shovel } from 'lucide-react';
@@ -567,11 +567,17 @@ export default function Garden() {
             물주기 비용 {POINT_PRICES.WATER}P · 희귀+{POINT_PRICES.HARVEST_BONUS_RARE} · 에픽+{POINT_PRICES.HARVEST_BONUS_RARE + POINT_PRICES.HARVEST_BONUS_EPIC} · 전설+{POINT_PRICES.HARVEST_BONUS_RARE + POINT_PRICES.HARVEST_BONUS_EPIC + POINT_PRICES.HARVEST_BONUS_LEGENDARY} 수확 보너스.<br />
             만개 식물은 매일 자동 P 생성. 심을 때 10% 확률로 한 등급 위 씨앗 발견 (lucky 종은 15%).
           </p>
+          {gardenState.plants.length >= MAX_BEDS * PLANTS_PER_BED && (
+            <p className="text-[11px] text-amber-600 font-medium">
+              화단이 가득 찼습니다. (최대 {MAX_BEDS}개 · {MAX_BEDS * PLANTS_PER_BED}칸) 식물을 수확하거나 캐내면 새로 심을 수 있어요.
+            </p>
+          )}
           <div className="space-y-2">
             {[...PLANT_SPECIES]
               .sort((a, b) => RARITY_ORDER[a.rarity] - RARITY_ORDER[b.rarity] || a.unlockCost - b.unlockCost)
               .map((sp) => {
                 const unlocked = gardenState.unlockedSpecies.includes(sp.id);
+                const isFull = gardenState.plants.length >= MAX_BEDS * PLANTS_PER_BED;
                 const meta = RARITY_META[sp.rarity];
                 const seedCost = sp.seedCost ?? POINT_PRICES.SEED;
                 const dy = sp.dailyYield ?? DAILY_YIELD_BY_RARITY[sp.rarity];
@@ -599,7 +605,7 @@ export default function Garden() {
                       )}
                     </div>
                     {unlocked ? (
-                      <Button size="sm" variant="secondary" onClick={() => plantSeed(sp.id)}>
+                      <Button size="sm" variant="secondary" onClick={() => plantSeed(sp.id)} disabled={isFull}>
                         심기 ({seedCost}P)
                       </Button>
                     ) : (

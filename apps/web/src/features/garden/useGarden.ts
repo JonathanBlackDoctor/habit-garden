@@ -3,7 +3,7 @@ import { doc, onSnapshot, setDoc, serverTimestamp, collection, addDoc, Timestamp
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import type { ProgressDoc, PlantInstance } from 'shared/types/firestore';
-import { PLANT_SPECIES, POINT_PRICES, CODEX_SPECIES_COUNT } from 'shared/types/firestore';
+import { PLANT_SPECIES, POINT_PRICES, CODEX_SPECIES_COUNT, MAX_BEDS, PLANTS_PER_BED } from 'shared/types/firestore';
 import { toast } from 'sonner';
 
 // 첫 방문 시 테스트해볼 수 있도록 소량의 포인트와 새싹 1개를 지급
@@ -82,6 +82,10 @@ export function useGardenActions() {
     if (!baseSpecies) return;
     if (!progress.gardenState.unlockedSpecies.includes(speciesId)) {
       toast.error('해금되지 않은 식물입니다.');
+      return;
+    }
+    if (progress.gardenState.plants.length >= MAX_BEDS * PLANTS_PER_BED) {
+      toast.error(`화단은 최대 ${MAX_BEDS}개(${MAX_BEDS * PLANTS_PER_BED}칸)까지만 사용할 수 있습니다.`);
       return;
     }
     const cost = baseSpecies.seedCost ?? POINT_PRICES.SEED;
