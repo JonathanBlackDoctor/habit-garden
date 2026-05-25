@@ -581,17 +581,16 @@ export default function Garden() {
             </div>
             <div className="flex-1">
               <p className="text-sm font-medium text-[var(--fg-primary)]">스트릭 보호 토큰</p>
-              <p className="text-xs text-[var(--fg-muted)] tabular-nums">보유 {freeze.count}개 · 사용 {freeze.price}P</p>
+              <p className="text-xs text-[var(--fg-muted)] tabular-nums">사용 {freeze.price}P</p>
             </div>
             <Button
               size="sm"
               variant="secondary"
-              disabled={freeze.count <= 0}
               onClick={() => {
                 setConfirmDialog({
                   type: 'freeze',
                   label: '스트릭 보호 토큰 사용',
-                  desc: `토큰 1개를 사용해 오늘의 스트릭을 보호합니다. ${freeze.price}P가 차감됩니다. 계속할까요?`,
+                  desc: `${freeze.price}P를 즉시 지불해 오늘의 스트릭을 보호합니다. 계속할까요?`,
                   confirmLabel: `사용 (-${freeze.price}P)`,
                   onConfirm: async () => { await freeze.useOne(); },
                 });

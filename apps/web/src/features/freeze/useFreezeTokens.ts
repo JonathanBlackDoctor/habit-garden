@@ -1,4 +1,4 @@
-import { collection, doc, setDoc, addDoc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import { useProgress } from '@/features/garden/useGarden';
@@ -62,21 +62,14 @@ export function useFreezeTokens() {
 
   const useOne = async () => {
     if (!uid || !progress) return false;
-    const ref = doc(db, 'users', uid, 'progress', 'main');
-    const snap = await getDoc(ref);
-    const existing = snap.exists() ? (snap.data() as any).freezeTokens ?? 0 : 0;
-    if (existing <= 0) {
-      toast.error('Freeze 토큰이 없어요');
-      return false;
-    }
     if (progress.spendablePoints < price) {
       toast.error(`포인트 부족 (필요 ${price}P)`);
       return false;
     }
+    const ref = doc(db, 'users', uid, 'progress', 'main');
     await setDoc(
       ref,
       {
-        freezeTokens: existing - 1,
         spendablePoints: progress.spendablePoints - price,
         // 오늘을 보호일로 마킹 → 서버 일일 처리에서 스트릭·정원(초월·연약 전설)을 보호.
         freezeProtectedDate: today,
