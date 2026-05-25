@@ -38,8 +38,6 @@ export default function Planner() {
   const date   = useAppStore((s) => s.currentDate);
   const navigate = useNavigate();
 
-  const tomorrow = format(addDays(parseISO(date), 1), 'yyyy-MM-dd');
-
   // ── 장기 할 일 ──
   const [longTodos, setLongTodos] = useState<LongTodoDoc[]>([]);
   const [longInput, setLongInput] = useState('');
@@ -122,18 +120,14 @@ export default function Planner() {
         </section>
       )}
 
-      {/* ───────── 오늘 / 내일 할 일 ───────── */}
+      {/* ───────── 오늘 할 일 ───────── */}
       <DayTodoList
         uid={uid} date={date} variant="today" rewardable
         title="오늘 할 일" emptyHint="오늘의 할 일을 추가해보세요."
       />
-      <DayTodoList
-        uid={uid} date={tomorrow} variant="plain" rewardable={false}
-        title="내일 할 일" emptyHint="내일 할 일을 미리 적어두세요."
-      />
 
-      {/* ───────── 다른 날짜에 미리 추가 ───────── */}
-      <FutureDateTodo uid={uid} minDate={format(addDays(parseISO(date), 2), 'yyyy-MM-dd')} />
+      {/* ───────── 미리 할 일 추가 ───────── */}
+      <UpcomingTodo uid={uid} today={date} />
 
       <div className="border-t border-[var(--border-soft)]" />
 
@@ -379,30 +373,54 @@ function DayTodoList({
   );
 }
 
-function FutureDateTodo({ uid, minDate }: { uid: string | null; minDate: string }) {
-  const [selectedDate, setSelectedDate] = useState(minDate);
+function UpcomingTodo({ uid, today }: { uid: string | null; today: string }) {
+  const tomorrow = format(addDays(parseISO(today), 1), 'yyyy-MM-dd');
+  const dayAfter = format(addDays(parseISO(today), 2), 'yyyy-MM-dd');
+  const [selectedDate, setSelectedDate] = useState(tomorrow);
+
+  const dateLabel =
+    selectedDate === tomorrow ? '내일'
+    : selectedDate === dayAfter ? '모레'
+    : formatKDate(selectedDate);
+
+  const quickPick = (d: string, label: string) => (
+    <button
+      onClick={() => setSelectedDate(d)}
+      className={`rounded-full px-3 py-1 text-xs font-medium transition-opacity ${
+        selectedDate === d
+          ? 'bg-[var(--leaf-soft)] text-[var(--leaf)] ring-2 ring-[var(--leaf)]/30'
+          : 'bg-[var(--bg-surface)] text-[var(--fg-muted)] opacity-70'
+      }`}
+    >
+      {label}
+    </button>
+  );
 
   return (
     <section className="space-y-3">
       <div className="flex items-center gap-2">
-        <h3 className="text-sm font-semibold text-[var(--fg-primary)]">다른 날짜에 미리 추가</h3>
+        <h3 className="text-sm font-semibold text-[var(--fg-primary)]">미리 할 일 추가</h3>
         <label className="ml-auto flex items-center gap-1 text-xs text-[var(--fg-muted)]">
           <CalendarDays size={14} />
           <input
             type="date"
             value={selectedDate}
-            min={minDate}
-            onChange={(e) => setSelectedDate(e.target.value || minDate)}
+            min={tomorrow}
+            onChange={(e) => setSelectedDate(e.target.value || tomorrow)}
             className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-2 py-1 text-xs outline-none focus:border-[var(--leaf)]"
           />
         </label>
+      </div>
+      <div className="flex gap-1.5">
+        {quickPick(tomorrow, '내일')}
+        {quickPick(dayAfter, '모레')}
       </div>
       <DayTodoList
         uid={uid}
         date={selectedDate}
         variant="plain"
         rewardable={false}
-        title={`${formatKDate(selectedDate)} 할 일`}
+        title={`${dateLabel} 할 일`}
         emptyHint="이 날짜의 할 일을 미리 적어두세요."
       />
     </section>
