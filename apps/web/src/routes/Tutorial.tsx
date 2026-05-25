@@ -33,6 +33,7 @@ const EASE = [0.22, 1, 0.36, 1] as const;
 
 export default function Tutorial() {
   const navigate = useNavigate();
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   return (
     <div className="min-h-screen p-4 pb-8 space-y-4">
@@ -290,7 +291,30 @@ export default function Tutorial() {
           알면 더 빠르게 성장합니다.
         </p>
 
-        <div className="mt-3 space-y-2">
+        <button
+          onClick={() => setAdvancedOpen((v) => !v)}
+          className="mt-3 flex w-full items-center justify-between rounded-[var(--radius-lg)] border border-[var(--border-soft)] bg-[var(--bg-surface)]/80 px-4 py-3 text-left shadow-[var(--shadow-sm)] backdrop-blur-sm active:opacity-70"
+          aria-expanded={advancedOpen}
+        >
+          <span className="text-[13px] font-medium text-[var(--fg-primary)]">
+            고급 기능 9가지 {advancedOpen ? '접기' : '펼쳐보기'}
+          </span>
+          <ChevronDown
+            size={16}
+            className={`shrink-0 text-[var(--fg-faint)] transition-transform duration-200 ${advancedOpen ? 'rotate-180' : ''}`}
+          />
+        </button>
+
+        <AnimatePresence initial={false}>
+          {advancedOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.3, ease: EASE }}
+              className="overflow-hidden"
+            >
+              <div className="mt-2 space-y-2">
           <AdvancedItem
             icon={<Heart size={16} />}
             tone="bloom"
@@ -394,7 +418,10 @@ export default function Tutorial() {
             푸시 알림(FCM)·체크 시 진동·짧은 효과음을 각각 켜고 끌 수 있어요.
             모바일에서 가장 좋은 경험을 위해 햅틱은 켜두는 걸 권장합니다.
           </AdvancedItem>
-        </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.section>
 
       {/* Pro Tip */}
