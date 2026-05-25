@@ -219,12 +219,18 @@
 }
 @keyframes bv2-tw { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
 @keyframes bv2-halo { 0%, 100% { opacity: 0.85; } 50% { opacity: 0.45; } }
+@keyframes bv2-bl-burst {
+  0%   { transform: scale(0);   opacity: 1; }
+  80%  { transform: scale(2.2); opacity: 0; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
 
 .bv2-bl-spin   { animation: bv2-bl-spin var(--bv2-speed, 60s) linear infinite; transform-origin: 32px 32px; transform-box: view-box; }
 .bv2-bl-spinR  { animation: bv2-bl-spinR var(--bv2-speed, 80s) linear infinite; transform-origin: 32px 32px; transform-box: view-box; }
 .bv2-bl-breath { animation: bv2-bl-breath var(--bv2-breathe, 4.5s) ease-in-out infinite; transform-origin: 32px 32px; transform-box: view-box; }
 .bv2-bl-core   { animation: bv2-bl-core 3.2s ease-in-out infinite; transform-origin: 32px 32px; transform-box: view-box; }
 .bv2-bl-bloom  { animation: bv2-bl-bloom 0.95s cubic-bezier(.2,.7,.3,1.2) both; transform-origin: 32px 32px; transform-box: view-box; }
+.bv2-bl-burst  { animation: bv2-bl-burst 0.9s ease-out both; transform-origin: 32px 32px; transform-box: view-box; }
 .bv2-tw        { animation: bv2-tw 2.4s ease-in-out infinite; }
 .bv2-halo      { animation: bv2-halo 3.6s ease-in-out infinite; }
 
@@ -232,7 +238,7 @@
   .plant-sway, .mote, .aura-pulse, .halo-rotate, .sparkle,
   .transcend-chip, .transcend-ambient,
   .transcend-pillar, .transcend-petal, .transcend-star, .transcend-shoot,
-  .bv2-bl-spin, .bv2-bl-spinR, .bv2-bl-breath, .bv2-bl-core, .bv2-bl-bloom, .bv2-tw, .bv2-halo {
+  .bv2-bl-spin, .bv2-bl-spinR, .bv2-bl-breath, .bv2-bl-core, .bv2-bl-bloom, .bv2-bl-burst, .bv2-tw, .bv2-halo {
     animation: none !important;
   }
 }
