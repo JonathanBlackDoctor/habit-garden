@@ -121,7 +121,7 @@ export function useAuth(): {
   const authLoading    = useAppStore((s) => s.authLoading);
   const setUser        = useAppStore((s) => s.setUser);
   const setAuthLoading = useAppStore((s) => s.setAuthLoading);
-  const setUid         = useAppStore((s) => s.setUid);
+  const setRealUid     = useAppStore((s) => s.setRealUid);
   const setProfile     = useAppStore((s) => s.setProfile);
   const setSettings    = useAppStore((s) => s.setSettings);
 
@@ -130,7 +130,8 @@ export function useAuth(): {
 
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
-      setUid(firebaseUser?.uid ?? null);
+      // 실제 인증 uid 저장 → store 가 샌드박스 여부에 따라 유효 uid(uid)를 계산.
+      setRealUid(firebaseUser?.uid ?? null);
       setAuthLoading(false);
       if (!firebaseUser) {
         setProfile(null);
@@ -138,7 +139,7 @@ export function useAuth(): {
       }
     });
     return unsubscribe;
-  }, [setUser, setAuthLoading, setUid, setProfile, setSettings]);
+  }, [setUser, setAuthLoading, setRealUid, setProfile, setSettings]);
 
   // userProfiles/{uid} 실시간 구독 (+ Cloud Function이 못 만들었으면 self-create 폴백)
   useEffect(() => {
