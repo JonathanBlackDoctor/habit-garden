@@ -331,6 +331,7 @@ export interface PlantInstance {
   plantedAt: Timestamp;
   witheredSince?: Timestamp;
   neglectStreak?: number;         // 연속 실패(게으른)일 수 — 연약 전설 trait 에서 사용
+  wateredAt?: Timestamp;          // 마지막 물주기 시각 (하루 1회 제한)
 }
 
 // users/{uid}/badges/{badgeId}
