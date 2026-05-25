@@ -109,7 +109,7 @@ export default function Login() {
             <span className="relative">{guestLoading ? '준비 중…' : '가입 없이 바로 시작하기'}</span>
           </button>
           <p className="-mt-2 text-center text-[12px] text-[var(--fg-faint)]">
-            가입 없이 30초 만에 · 습관·정원을 바로 체험해보세요
+            가입 없이 30초 만에 · 가입도 사용도 모두 무료
           </p>
 
           {/* 또는 구분선 */}
@@ -146,7 +146,7 @@ export default function Login() {
             <div className="space-y-2 text-[12.5px] leading-relaxed text-[var(--fg-muted)]">
               <p className="text-[var(--fg-primary)]">지금 바로 체험해보세요.</p>
               <p>
-                가입 없이도 습관·정원·기록 기능을 쓸 수 있어요. 가입하면 AI 코치·여러 기기 동기화·푸시 알림이 열리며, 둘러보던 정원은 그대로 유지됩니다.
+                가입 없이도 습관·정원·기록 기능을 쓸 수 있어요. 가입하면 AI 코치·여러 기기 동기화·푸시 알림이 열리며, 둘러보던 정원은 그대로 유지됩니다. 가입도 사용도 모두 무료이고, 별도 결제나 유료 플랜은 없어요.
               </p>
             </div>
           </div>

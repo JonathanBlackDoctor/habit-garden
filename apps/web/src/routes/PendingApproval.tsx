@@ -114,7 +114,7 @@ export default function PendingApproval() {
           className="mt-5 rounded-[var(--radius-lg)] border border-[var(--border-soft)] bg-[var(--bg-surface)]/80 p-5 shadow-[var(--shadow-sm)] backdrop-blur-sm"
         >
           <p className="text-[12.5px] leading-relaxed text-[var(--fg-muted)]">
-            안녕하세요. 이 앱은 <span className="font-medium text-[var(--fg-primary)]">조나단</span>이 가족·지인과 함께 쓰려고 개인적으로 만든 프로젝트입니다. 광고도 없고, 데이터는 본인에게만 보입니다.
+            안녕하세요. 이 앱은 <span className="font-medium text-[var(--fg-primary)]">조나단</span>이 가족·지인과 함께 쓰려고 개인적으로 만든 프로젝트입니다. 가입도 사용도 모두 무료이고, 광고도 없고, 데이터는 본인에게만 보입니다.
           </p>
         </motion.section>
 
