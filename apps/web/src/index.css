@@ -148,9 +148,32 @@
   animation: transcend-ambient 6s var(--ease-out) infinite;
 }
 
+/* ── 레벨 배지(Bloom) 모션 ── */
+@keyframes bv2-bl-spin  { from { transform: rotate(0deg); }   to { transform: rotate(360deg); } }
+@keyframes bv2-bl-spinR { from { transform: rotate(360deg); } to { transform: rotate(0deg); } }
+@keyframes bv2-bl-breath { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+@keyframes bv2-bl-core { 0%, 100% { transform: scale(1); opacity: .55; } 50% { transform: scale(1.18); opacity: .9; } }
+@keyframes bv2-bl-bloom {
+  0%   { transform: scale(0.25) rotate(-40deg); opacity: 0; }
+  55%  { transform: scale(1.12) rotate(8deg);   opacity: 1; }
+  80%  { transform: scale(0.97) rotate(-2deg);  opacity: 1; }
+  100% { transform: scale(1) rotate(0deg);      opacity: 1; }
+}
+@keyframes bv2-tw { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+@keyframes bv2-halo { 0%, 100% { opacity: 0.85; } 50% { opacity: 0.45; } }
+
+.bv2-bl-spin   { animation: bv2-bl-spin var(--bv2-speed, 60s) linear infinite; transform-origin: 32px 32px; transform-box: fill-box; }
+.bv2-bl-spinR  { animation: bv2-bl-spinR var(--bv2-speed, 80s) linear infinite; transform-origin: 32px 32px; transform-box: fill-box; }
+.bv2-bl-breath { animation: bv2-bl-breath var(--bv2-breathe, 4.5s) ease-in-out infinite; transform-origin: 32px 32px; transform-box: fill-box; }
+.bv2-bl-core   { animation: bv2-bl-core 3.2s ease-in-out infinite; transform-origin: 32px 32px; transform-box: fill-box; }
+.bv2-bl-bloom  { animation: bv2-bl-bloom 0.95s cubic-bezier(.2,.7,.3,1.2) both; transform-origin: 32px 32px; transform-box: fill-box; }
+.bv2-tw        { animation: bv2-tw 2.4s ease-in-out infinite; }
+.bv2-halo      { animation: bv2-halo 3.6s ease-in-out infinite; }
+
 @media (prefers-reduced-motion: reduce) {
   .plant-sway, .mote, .aura-pulse, .halo-rotate, .sparkle,
-  .transcend-chip, .transcend-ambient {
+  .transcend-chip, .transcend-ambient,
+  .bv2-bl-spin, .bv2-bl-spinR, .bv2-bl-breath, .bv2-bl-core, .bv2-bl-bloom, .bv2-tw, .bv2-halo {
     animation: none !important;
   }
 }
