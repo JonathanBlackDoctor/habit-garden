@@ -146,6 +146,20 @@ export default function Garden() {
   const safePage = Math.min(bedPage, bedCount - 1);
   const pagePlants = arranged.slice(safePage * PLANTS_PER_BED, safePage * PLANTS_PER_BED + PLANTS_PER_BED);
 
+  // 현재 화단(페이지)에 있는 활성 초월 식물만 대기 효과에 기여
+  // (비시듦 + stage>=3 — 성장/만개 시에만)
+  const activeTranscend = new Set(
+    pagePlants
+      .filter((p) => !p.witheredSince && p.stage >= 3 && TRANSCENDENT_IDS.has(p.speciesId))
+      .map((p) => p.speciesId),
+  );
+  const hasCelestial = activeTranscend.has('celestial_tree');
+  const hasEternal = activeTranscend.has('eternal_bloom');
+  const hasGalaxy = activeTranscend.has('galaxy_lily');
+  const activeTranscendCount = activeTranscend.size;
+  // 어두운 하늘 테마(밤하늘/우주)일 때 라벨·식물을 밝게 보정
+  const darkAtmosphere = activeTranscendCount >= 2 || (activeTranscendCount === 1 && hasGalaxy);
+
   // 페이지 범위 보정
   useEffect(() => { if (bedPage > bedCount - 1) setBedPage(bedCount - 1); }, [bedCount, bedPage]);
 
@@ -171,6 +185,7 @@ export default function Garden() {
         className={cn(
           'flex flex-col items-center gap-1 rounded-lg p-1 transition-all relative',
           isSelected && 'ring-2 ring-[var(--leaf)] ring-offset-1',
+          darkAtmosphere && '[filter:drop-shadow(0_0_4px_rgba(255,255,255,0.35))]',
         )}
       >
         <PlantSVG
@@ -180,7 +195,12 @@ export default function Garden() {
           rarity={sp?.rarity}
           size={68}
         />
-        <span className="text-[10px] text-[var(--fg-muted)] tabular-nums">Lv{plant.stage}</span>
+        <span className={cn(
+          'text-[10px] tabular-nums',
+          darkAtmosphere
+            ? 'text-white/90 [text-shadow:0_1px_2px_rgba(0,0,0,0.7)]'
+            : 'text-[var(--fg-muted)]',
+        )}>Lv{plant.stage}</span>
         {isFull && sp && !plant.witheredSince && (
           <span className="absolute -top-1 -right-1 rounded-full bg-[#FFD44A] px-1.5 py-0.5 text-[8px] font-bold text-[#5A3E1E] tabular-nums">
             +{sp.dailyYield ?? DAILY_YIELD_BY_RARITY[sp.rarity]}/일
@@ -219,16 +239,6 @@ export default function Garden() {
   const vibe = healthVibe(gardenState.health ?? 100);
   const autogrowToday = progress.gardenStats?.autogrowToday ?? 0;
   const codexCount = progress.gardenStats?.codexEntries?.length ?? 0;
-  // 활성 초월 식물: 비시듦 + stage>=3 (성장/만개 시에만 대기 효과 기여)
-  const activeTranscend = new Set(
-    plants
-      .filter((p) => !p.witheredSince && p.stage >= 3 && TRANSCENDENT_IDS.has(p.speciesId))
-      .map((p) => p.speciesId),
-  );
-  const hasCelestial = activeTranscend.has('celestial_tree');
-  const hasEternal = activeTranscend.has('eternal_bloom');
-  const hasGalaxy = activeTranscend.has('galaxy_lily');
-  const activeTranscendCount = activeTranscend.size;
 
   return (
     <div className="min-h-screen p-4 space-y-4 pb-8">
