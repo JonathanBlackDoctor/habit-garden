@@ -134,6 +134,7 @@ export default function More() {
         />
       )}
 
+      <p className="px-1 pt-2 text-[11px] font-medium text-[var(--fg-faint)]">바로가기</p>
       {items
         .filter((it) => !(isGuest && it.to === '/admin'))
         .map(({ icon: Icon, label, to }) => (
@@ -148,7 +149,8 @@ export default function More() {
       ))}
 
       {/* 피드백 / 알림 설정 (Phase 1-2, 3-1) */}
-      <div className="mt-4 rounded-[var(--radius)] bg-[var(--bg-surface)] shadow-[var(--shadow-sm)] divide-y divide-[var(--leaf-soft)]">
+      <p className="px-1 pt-3 text-[11px] font-medium text-[var(--fg-faint)]">설정</p>
+      <div className="rounded-[var(--radius)] bg-[var(--bg-surface)] shadow-[var(--shadow-sm)] divide-y divide-[var(--leaf-soft)]">
         {isPremium && (
           <ToggleRow
             icon={<Bell size={18} className="text-[var(--leaf)]" />}
@@ -233,10 +235,11 @@ export default function More() {
         </button>
       </div>
 
+      <p className="px-1 pt-3 text-[11px] font-medium text-[var(--fg-faint)]">계정</p>
       {!isStandalone && (
         <button
           onClick={onInstallClick}
-          className="flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3.5 text-sm text-[var(--fg-primary)] shadow-[var(--shadow-sm)] active:opacity-70 mt-4 text-left"
+          className="flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3.5 text-sm text-[var(--fg-primary)] shadow-[var(--shadow-sm)] active:opacity-70 text-left"
         >
           <Download size={18} className="text-[var(--leaf)]" />
           <div className="flex-1">
@@ -253,7 +256,7 @@ export default function More() {
           }
           signOutUser();
         }}
-        className="flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3.5 text-sm text-red-500 shadow-[var(--shadow-sm)] active:opacity-70 mt-4"
+        className="flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3.5 text-sm text-red-500 shadow-[var(--shadow-sm)] active:opacity-70 mt-2"
       >
         <LogOut size={18} />
         {isGuest ? '게스트 종료' : '로그아웃'}

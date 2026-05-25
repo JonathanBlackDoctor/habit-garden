@@ -117,69 +117,6 @@ export default function Main() {
         </div>
       </motion.div>
 
-      {/* ── 모닝 브리프 (B-8/B-32) ── */}
-      {dayDoc?.morningBrief && (
-        <motion.div
-          initial={{ opacity: 0, y: -6 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="rounded-[var(--radius)] border border-[var(--bloom)]/20 bg-gradient-to-br from-[#FFF6E5] to-[#FFE9C2] p-3"
-        >
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-[var(--bloom)]">
-            <Sunrise size={14} /> 오늘의 브리프
-          </div>
-          <p className="mt-1 text-sm leading-snug text-[var(--fg-primary)]">{dayDoc.morningBrief.message}</p>
-          <div className="mt-2 flex items-center gap-2 text-[11px] text-[var(--fg-muted)]">
-            <span className="tabular-nums">어제 {dayDoc.morningBrief.yesterdayScore}점</span>
-            {dayDoc.morningBrief.streak > 0 && <span className="tabular-nums">🔥 {dayDoc.morningBrief.streak}일</span>}
-          </div>
-          <div className="mt-1.5 flex flex-wrap gap-1.5">
-            {dayDoc.morningBrief.priorityHabits.map((h) => (
-              <span key={h.id} className="rounded-full bg-white/70 px-2 py-0.5 text-[11px] text-[var(--fg-primary)]">
-                ⭐ {h.title}
-              </span>
-            ))}
-          </div>
-        </motion.div>
-      )}
-
-      {/* ── AI 코치 한 줄 (Phase 3-3) — 승인 사용자 전용 ── */}
-      {isPremium ? (
-        <CoachCard />
-      ) : (
-        <SignupCTA
-          title="AI 코치가 기다려요"
-          desc="가입하면 매일의 기록을 읽고 한 줄 코칭을 건네는 AI 코치와 주간 인사이트가 열려요."
-        />
-      )}
-
-      {/* ── 주간 퀘스트 (Phase 4-1) ── */}
-      <WeeklyQuestCard />
-
-      {/* ── 1년 전 오늘 (Phase 2-5) ── */}
-      <OneYearAgoCard />
-
-      {/* ── Comeback 환영 (Phase 4-5) ── */}
-      {comeback.active && (
-        <motion.div
-          initial={{ opacity: 0, y: -6 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="relative flex items-start gap-3 rounded-[var(--radius)] border border-[var(--bloom)]/30 bg-[var(--bloom-soft)] p-3"
-        >
-          <Sparkles size={18} className="mt-0.5 shrink-0 text-[var(--bloom)]" />
-          <div className="flex-1 text-xs leading-snug text-[var(--fg-primary)]">
-            <p className="font-semibold text-[var(--bloom)]">{comeback.gapDays}일 만이에요</p>
-            <p>완벽이 아니라 돌아오는 게 중요해요. 앞으로 3일간 포인트 ×2!</p>
-          </div>
-          <button
-            onClick={comeback.dismiss}
-            aria-label="닫기"
-            className="-mt-1 -mr-1 rounded-full p-1 text-[var(--fg-faint)] hover:text-[var(--fg-muted)]"
-          >
-            <X size={14} />
-          </button>
-        </motion.div>
-      )}
-
       {/* ── 오늘의 습관 ── */}
       <motion.section
         initial={{ opacity: 0, y: 8 }}
@@ -244,6 +181,52 @@ export default function Main() {
           전체 달성 {totalAchieved}/{totalHabits}
         </div>
       </motion.section>
+
+      {/* ── 할 일 / 회고 ── */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.08 }}
+        className="grid grid-cols-2 gap-3"
+      >
+        {/* 할 일 */}
+        <button
+          onClick={() => navigate('/planner')}
+          className="card p-3 text-left space-y-1"
+        >
+          <p className="text-xs font-medium text-[var(--fg-muted)]">할 일</p>
+          {todos.length === 0 ? (
+            <p className="text-xs text-[var(--fg-faint)]">없음</p>
+          ) : (
+            <>
+              <p className="text-sm tabular-nums text-[var(--fg-primary)]">
+                {todos.filter((t) => t.done).length}/{todos.length} 완료
+              </p>
+              {todos.slice(0, 2).map((t) => (
+                <p key={t.id} className="text-xs text-[var(--fg-muted)] truncate">
+                  {t.done ? '✓' : '□'} {t.title}
+                </p>
+              ))}
+            </>
+          )}
+        </button>
+
+        {/* 회고 */}
+        <button
+          onClick={() => navigate('/reflection')}
+          className="card p-3 text-left space-y-1"
+        >
+          <p className="text-xs font-medium text-[var(--fg-muted)]">하루 회고</p>
+          {hasReflection ? (
+            <div className="flex items-center gap-1 text-[var(--leaf)]">
+              <CheckCircle2 size={14} />
+              <span className="text-xs">작성 완료</span>
+            </div>
+          ) : (
+            <p className="text-xs text-[var(--fg-faint)]">저녁에 작성하기</p>
+          )}
+        </button>
+      </motion.div>
 
       {/* ── 정원 미리보기 ── */}
       <motion.section
@@ -321,51 +304,68 @@ export default function Main() {
         <ArrowRight size={14} className="text-[var(--fg-faint)]" />
       </motion.button>
 
-      {/* ── 플래너 / 회고 ── */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="grid grid-cols-2 gap-3"
-      >
-        {/* 플래너 */}
-        <button
-          onClick={() => navigate('/planner')}
-          className="card p-3 text-left space-y-1"
+      {/* ── 모닝 브리프 (B-8/B-32) ── */}
+      {dayDoc?.morningBrief && (
+        <motion.div
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-[var(--radius)] border border-[var(--bloom)]/20 bg-gradient-to-br from-[#FFF6E5] to-[#FFE9C2] p-3"
         >
-          <p className="text-xs font-medium text-[var(--fg-muted)]">할 일</p>
-          {todos.length === 0 ? (
-            <p className="text-xs text-[var(--fg-faint)]">없음</p>
-          ) : (
-            <>
-              <p className="text-sm tabular-nums text-[var(--fg-primary)]">
-                {todos.filter((t) => t.done).length}/{todos.length} 완료
-              </p>
-              {todos.slice(0, 2).map((t) => (
-                <p key={t.id} className="text-xs text-[var(--fg-muted)] truncate">
-                  {t.done ? '✓' : '□'} {t.title}
-                </p>
-              ))}
-            </>
-          )}
-        </button>
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-[var(--bloom)]">
+            <Sunrise size={14} /> 오늘의 브리프
+          </div>
+          <p className="mt-1 text-sm leading-snug text-[var(--fg-primary)]">{dayDoc.morningBrief.message}</p>
+          <div className="mt-2 flex items-center gap-2 text-[11px] text-[var(--fg-muted)]">
+            <span className="tabular-nums">어제 {dayDoc.morningBrief.yesterdayScore}점</span>
+            {dayDoc.morningBrief.streak > 0 && <span className="tabular-nums">🔥 {dayDoc.morningBrief.streak}일</span>}
+          </div>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {dayDoc.morningBrief.priorityHabits.map((h) => (
+              <span key={h.id} className="rounded-full bg-white/70 px-2 py-0.5 text-[11px] text-[var(--fg-primary)]">
+                ⭐ {h.title}
+              </span>
+            ))}
+          </div>
+        </motion.div>
+      )}
 
-        {/* 회고 */}
-        <button
-          onClick={() => navigate('/reflection')}
-          className="card p-3 text-left space-y-1"
+      {/* ── AI 코치 한 줄 (Phase 3-3) — 승인 사용자 전용 ── */}
+      {isPremium ? (
+        <CoachCard />
+      ) : (
+        <SignupCTA
+          title="AI 코치가 기다려요"
+          desc="가입하면 매일의 기록을 읽고 한 줄 코칭을 건네는 AI 코치와 주간 인사이트가 열려요."
+        />
+      )}
+
+      {/* ── 주간 퀘스트 (Phase 4-1) ── */}
+      <WeeklyQuestCard />
+
+      {/* ── 1년 전 오늘 (Phase 2-5) ── */}
+      <OneYearAgoCard />
+
+      {/* ── Comeback 환영 (Phase 4-5) ── */}
+      {comeback.active && (
+        <motion.div
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative flex items-start gap-3 rounded-[var(--radius)] border border-[var(--bloom)]/30 bg-[var(--bloom-soft)] p-3"
         >
-          <p className="text-xs font-medium text-[var(--fg-muted)]">하루 회고</p>
-          {hasReflection ? (
-            <div className="flex items-center gap-1 text-[var(--leaf)]">
-              <CheckCircle2 size={14} />
-              <span className="text-xs">작성 완료</span>
-            </div>
-          ) : (
-            <p className="text-xs text-[var(--fg-faint)]">저녁에 작성하기</p>
-          )}
-        </button>
-      </motion.div>
+          <Sparkles size={18} className="mt-0.5 shrink-0 text-[var(--bloom)]" />
+          <div className="flex-1 text-xs leading-snug text-[var(--fg-primary)]">
+            <p className="font-semibold text-[var(--bloom)]">{comeback.gapDays}일 만이에요</p>
+            <p>완벽이 아니라 돌아오는 게 중요해요. 앞으로 3일간 포인트 ×2!</p>
+          </div>
+          <button
+            onClick={comeback.dismiss}
+            aria-label="닫기"
+            className="-mt-1 -mr-1 rounded-full p-1 text-[var(--fg-faint)] hover:text-[var(--fg-muted)]"
+          >
+            <X size={14} />
+          </button>
+        </motion.div>
+      )}
 
       {/* ── 기도 ── */}
       {faithEnabled && (
