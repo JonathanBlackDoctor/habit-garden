@@ -13,7 +13,7 @@ import {
   type ProgressDoc,
   type PlantInstance,
 } from '../../shared/types/firestore';
-import { resolveLevelUps } from '../../shared/lib/levelRewards';
+import { resolveLevelUps, levelUpSeedSpeciesList } from '../../shared/lib/levelRewards';
 
 const db = admin.firestore();
 
@@ -52,23 +52,21 @@ export async function applyLevelUps(uid: string): Promise<LevelUpResult> {
     const level = prog.newLevel;
     const xp    = prog.remainingXp;
     const pointsAwarded = prog.totalPoints;
-    let seedsAwarded = 0;
 
-    // 씨앗 지급은 정원 자리 상한·마일스톤 씨앗 종 같은 서버 사정이 있어 여기서 처리한다.
-    for (const step of prog.steps) {
-      if (!step.seed || plants.length >= MAX_GARDEN_PLANTS) continue;
-      const seedSpecies =
-        step.milestone && unlocked.includes(LEVELUP_REWARD.MILESTONE_SEED_SPECIES)
-          ? LEVELUP_REWARD.MILESTONE_SEED_SPECIES
-          : LEVELUP_REWARD.SEED_SPECIES;
+    // 씨앗 지급 규칙은 shared/lib/levelRewards 의 levelUpSeedSpeciesList 로 일원화한다.
+    const seedSpeciesList = levelUpSeedSpeciesList(prog.steps, {
+      slotsAvailable: MAX_GARDEN_PLANTS - plants.length,
+      milestoneSpeciesUnlocked: unlocked.includes(LEVELUP_REWARD.MILESTONE_SEED_SPECIES),
+    });
+    seedSpeciesList.forEach((speciesId, i) => {
       plants.push({
-        id: `levelup-${step.level}-${Date.now()}`,
-        speciesId: seedSpecies,
+        id: `levelup-${level}-${Date.now()}-${i}`,
+        speciesId,
         stage: 0,
         plantedAt: admin.firestore.Timestamp.now() as any,
       });
-      seedsAwarded += 1;
-    }
+    });
+    const seedsAwarded = seedSpeciesList.length;
 
     if (levelsGained === 0) return { ...none, newLevel: level };
 

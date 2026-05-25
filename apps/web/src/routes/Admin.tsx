@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import {
   collection, onSnapshot, updateDoc, deleteDoc, doc, setDoc, getDocs,
-  serverTimestamp, query, orderBy, where,
+  serverTimestamp, query, orderBy, where, Timestamp,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
-import { SEED_PRAYERS } from 'shared/types/firestore';
-import type { HabitDoc, UserProfileDoc } from 'shared/types/firestore';
+import { SEED_PRAYERS, MAX_GARDEN_PLANTS, LEVELUP_REWARD } from 'shared/types/firestore';
+import type { HabitDoc, UserProfileDoc, PlantInstance } from 'shared/types/firestore';
+import { rewardsForLevelRange, levelUpSeedSpeciesList } from 'shared/lib/levelRewards';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { ChevronLeft, Trash2, Leaf, HandHeart, Check, X, RotateCcw, FlaskConical } from 'lucide-react';
@@ -53,6 +54,43 @@ export default function Admin() {
   // 포인트·경험치 편집은 실제 데이터 보호를 위해 샌드박스 모드에서만 허용한다.
   const canEditProgress = isOwner(realUid) && sandbox;
 
+  // 레벨이 from→to(상승)일 때 서버 levelEngine 과 동일한 보상을 지급한다.
+  // Admin 에서 레벨을 직접 올려도 정상 플레이처럼 씨앗이 정원에 들어가도록 한다.
+  // base 는 함께 기록할 필드(레벨·경험치 등), grantPoints=true 면 레벨업 포인트도 가산한다.
+  const grantLevelUpRewards = async (
+    from: number,
+    to: number,
+    base: Record<string, unknown>,
+    grantPoints: boolean,
+  ) => {
+    if (!uid || !progress) return;
+    const patch: Record<string, unknown> = { ...base, updatedAt: serverTimestamp() };
+    if (to > from) {
+      const rewards = rewardsForLevelRange(from, to);
+      const garden = progress.gardenState;
+      const plants: PlantInstance[] = [...(garden?.plants ?? [])];
+      const seedIds = levelUpSeedSpeciesList(rewards.steps, {
+        slotsAvailable: MAX_GARDEN_PLANTS - plants.length,
+        milestoneSpeciesUnlocked: (garden?.unlockedSpecies ?? [])
+          .includes(LEVELUP_REWARD.MILESTONE_SEED_SPECIES),
+      });
+      seedIds.forEach((speciesId, i) => {
+        plants.push({
+          id: `levelup-${to}-${Date.now()}-${i}`,
+          speciesId,
+          stage: 0,
+          plantedAt: Timestamp.now() as any,
+        });
+      });
+      if (seedIds.length > 0) patch.gardenState = { ...garden, plants };
+      if (grantPoints && rewards.totalPoints > 0) {
+        patch.spendablePoints = (progress.spendablePoints ?? 0) + rewards.totalPoints;
+        patch.totalPoints = (progress.totalPoints ?? 0) + rewards.totalPoints;
+      }
+    }
+    await setDoc(doc(db, 'users', uid, 'progress', 'main'), patch, { merge: true });
+  };
+
   const applyDevProgress = async () => {
     if (!uid || !canEditProgress) return;
     const parsed = {
@@ -66,11 +104,12 @@ export default function Admin() {
       return;
     }
     try {
-      await setDoc(doc(db, 'users', uid, 'progress', 'main'), {
-        ...parsed,
-        updatedAt: serverTimestamp(),
-      }, { merge: true });
-      toast('🧪 포인트·경험치를 적용했습니다.');
+      // 포인트는 입력값을 그대로 쓰므로 보상 포인트는 가산하지 않고, 레벨 상승분의 씨앗만 지급한다.
+      const from = progress?.level ?? 0;
+      await grantLevelUpRewards(from, parsed.level, parsed, false);
+      toast(parsed.level > from
+        ? '🧪 적용 + 레벨업 씨앗을 정원에 지급했습니다.'
+        : '🧪 포인트·경험치를 적용했습니다.');
     } catch (e: any) {
       toast.error(`적용 실패: ${e?.message ?? '오류'}`);
     }
@@ -93,12 +132,13 @@ export default function Admin() {
 
   const bumpLevel = async (delta: number) => {
     if (!uid || !canEditProgress) return;
-    const level = Math.max(0, (progress?.level ?? 0) + delta);
+    const from = progress?.level ?? 0;
+    const to = Math.max(0, from + delta);
     try {
-      await setDoc(doc(db, 'users', uid, 'progress', 'main'), {
-        level, updatedAt: serverTimestamp(),
-      }, { merge: true });
-      setDevFields((f) => ({ ...f, level: String(level) }));
+      // 레벨 +버튼은 실제 레벨업을 시뮬레이션 — 씨앗·포인트 보상까지 지급한다.
+      await grantLevelUpRewards(from, to, { level: to }, true);
+      setDevFields((f) => ({ ...f, level: String(to) }));
+      if (to > from) toast(`🧪 레벨 ${to} 도달 — 레벨업 보상 지급 완료`);
     } catch (e: any) {
       toast.error(`처리 실패: ${e?.message ?? '오류'}`);
     }

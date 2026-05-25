@@ -42,6 +42,28 @@ export function levelStepReward(newLevel: number): LevelUpStep {
   return { level: newLevel, points, seed, milestone };
 }
 
+/**
+ * 레벨업 스텝들에 대해 실제로 지급할 씨앗 종 목록을 계산한다(정원 자리 상한 적용).
+ * 씨앗 지급 규칙(마일스톤 씨앗 종·자리 상한)을 서버(levelEngine)와 클라이언트(Admin
+ * 레벨 조절)가 동일하게 쓰도록 여기에 모은다.
+ */
+export function levelUpSeedSpeciesList(
+  steps: LevelUpStep[],
+  opts: { slotsAvailable: number; milestoneSpeciesUnlocked: boolean },
+): string[] {
+  const seeds: string[] = [];
+  for (const step of steps) {
+    if (!step.seed) continue;
+    if (seeds.length >= opts.slotsAvailable) break;
+    seeds.push(
+      step.milestone && opts.milestoneSpeciesUnlocked
+        ? LEVELUP_REWARD.MILESTONE_SEED_SPECIES
+        : LEVELUP_REWARD.SEED_SPECIES,
+    );
+  }
+  return seeds;
+}
+
 function aggregate(steps: LevelUpStep[]): LevelUpRewards {
   return {
     steps,
