@@ -1,19 +1,42 @@
-import { useCallback, useRef } from 'react';
-import { Outlet } from 'react-router-dom';
+import { useCallback, useEffect, useRef } from 'react';
+import { useLocation, useOutlet } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 import TabBar from './TabBar';
 import CelebrationOverlay from '@/features/habits/CelebrationOverlay';
 import LevelUpModal from '@/features/garden/LevelUpModal';
 import { useLevelUpWatcher } from '@/features/garden/useLevelUpWatcher';
 import { useSwipeNavigation } from '@/lib/useSwipeNavigation';
 import { ScrollTopContext } from '@/lib/scrollContext';
+import { useVisibleTabs } from '@/lib/tabs';
+
+const SLIDE = 28;
+const variants = {
+  enter: (dir: number) => ({ x: dir > 0 ? SLIDE : dir < 0 ? -SLIDE : 0, opacity: 0 }),
+  center: { x: 0, opacity: 1 },
+  exit: (dir: number) => ({ x: dir > 0 ? -SLIDE : dir < 0 ? SLIDE : 0, opacity: 0 }),
+};
 
 export default function AppLayout() {
   useLevelUpWatcher();
   const scrollRef = useRef<HTMLDivElement>(null);
   const swipe = useSwipeNavigation();
+  const location = useLocation();
+  const outlet = useOutlet();
+  const tabs = useVisibleTabs();
+
   const scrollToTop = useCallback(() => {
     scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
+
+  // 탭 순서 기준 이동 방향(+1 오른쪽 / -1 왼쪽)으로 슬라이드 방향 결정
+  const tabIndexOf = (path: string) =>
+    tabs.findIndex((t) => (t.to === '/' ? path === '/' : path.startsWith(t.to)));
+  const prevPath = useRef(location.pathname);
+  const from = tabIndexOf(prevPath.current);
+  const to = tabIndexOf(location.pathname);
+  const direction = from === -1 || to === -1 ? 0 : Math.sign(to - from);
+  useEffect(() => { prevPath.current = location.pathname; }, [location.pathname]);
+
   return (
     <ScrollTopContext.Provider value={scrollToTop}>
       <div
@@ -26,7 +49,19 @@ export default function AppLayout() {
           onTouchStart={swipe.onTouchStart}
           onTouchEnd={swipe.onTouchEnd}
         >
-          <Outlet />
+          <AnimatePresence mode="wait" custom={direction} initial={false}>
+            <motion.div
+              key={location.pathname}
+              custom={direction}
+              variants={variants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: 0.2, ease: [0.22, 0.61, 0.36, 1] }}
+            >
+              {outlet}
+            </motion.div>
+          </AnimatePresence>
         </div>
         <TabBar />
         <CelebrationOverlay />
