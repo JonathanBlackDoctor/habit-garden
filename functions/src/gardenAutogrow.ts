@@ -12,11 +12,13 @@ import {
   DAILY_YIELD_BY_RARITY,
   POINT_PRICES,
   BADGE_DEFS,
+  MAX_GARDEN_PLANTS,
   type ProgressDoc,
   type PlantInstance,
   type PlantSpecies,
   type GardenStats,
 } from '../../shared/types/firestore';
+import { applyLevelUps } from './levelEngine';
 
 const db = admin.firestore();
 
@@ -282,7 +284,7 @@ export async function processDailyGarden(
 
   // 5) 스트릭 보너스 시드 (7일 배수)
   const streak = prog.globalStreak ?? 0;
-  if (yesterdaySuccess && streak > 0 && streak % 7 === 0 && plants.length < 30) {
+  if (yesterdaySuccess && streak > 0 && streak % 7 === 0 && plants.length < MAX_GARDEN_PLANTS) {
     const unlocked = garden.unlockedSpecies ?? [];
     const giftId = unlocked.includes('clover') ? 'clover' : 'sprout';
     plants.push({
@@ -320,6 +322,11 @@ export async function processDailyGarden(
     patch.totalPoints = FieldValue.increment(passiveYield);
   }
   await ref.set(patch, { merge: true });
+
+  // 9.5) beauty·초월 트레잇 XP로 레벨 기준을 넘었으면 레벨업·보상 처리
+  if (xpBumped) {
+    await applyLevelUps(uid);
+  }
 
   // 10) passive yield ledger
   if (passiveYield > 0) {

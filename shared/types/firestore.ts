@@ -383,6 +383,7 @@ export const POINT_PRICES = {
 export const PLANTS_PER_BED = 8;   // 화단 한 페이지에 보이는 식물 수
 export const PLANTS_PER_ROW = 4;   // 계단식 한 줄당 식물 수 (8개 = 2줄)
 export const MAX_BEDS = 3;         // 최대 화단 수
+export const MAX_GARDEN_PLANTS = MAX_BEDS * PLANTS_PER_BED;  // 정원 전체 식물 자리 = 24
 
 // 등급별 일일 수확 (만개 식물 → spendablePoints 자동 가산) 기본값
 // 초월(transcendent)은 수익이 없다(0) — 보유·유지 자체가 목적.
@@ -406,6 +407,18 @@ export const PRAYER_POINT_EARN = {
   PRAYER_STREAK_7:     40,
   PRAYER_STREAK_30:    150,
   PRAYER_ANSWERED:     30,   // 응답 기록 시 (간증 작성 권장)
+} as const;
+
+// ── 레벨업 보상 (레벨업 1회마다 지급) ─────────────────────
+// 규칙: 홀수 레벨 → 씨앗, 짝수 레벨 → 포인트, 5레벨 단위 → 큰 보상(포인트+씨앗).
+// 포인트는 그 레벨업에 소모한 XP(xpForLevel)에 비례시켜 난이도 곡선을 따라가게 한다.
+export const LEVELUP_REWARD = {
+  EVEN_BASE_POINTS:      20,    // 짝수 레벨 도달 시 고정 베이스 포인트
+  REWARD_RATE:           0.15,  // 소모 XP 대비 포인트 비율
+  MILESTONE_EVERY:       5,     // 큰 보상 주기 (5레벨마다)
+  MILESTONE_MULTIPLIER:  2,     // 큰 보상 = 소모 XP × REWARD_RATE × 이 배수
+  SEED_SPECIES:        'sprout',   // 기본 보상 씨앗
+  MILESTONE_SEED_SPECIES: 'clover', // 큰 보상 씨앗 (미해금 시 sprout 로 대체)
 } as const;
 
 // 하루 기도 체크 포인트 상한 (인플레이션 방지)

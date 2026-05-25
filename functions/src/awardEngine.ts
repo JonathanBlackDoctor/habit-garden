@@ -27,8 +27,8 @@ import {
   type ProgressDoc,
 } from '../../shared/types/firestore';
 import { pointsForCheck } from '../../shared/lib/habitPoints';
-import { xpForLevel } from '../../shared/lib/xpLevel';
 import { growRandomPlant } from './gardenAutogrow';
+import { applyLevelUps } from './levelEngine';
 
 const db = admin.firestore();
 const REGION = 'asia-northeast3';
@@ -168,27 +168,8 @@ async function creditPoints(
 
   await batch.commit();
 
-  // 레벨업 확인 (별도 처리)
-  await checkLevelUp(uid);
-}
-
-async function checkLevelUp(uid: string) {
-  const ref  = db.doc(`users/${uid}/progress/main`);
-  const snap = await ref.get();
-  if (!snap.exists) return;
-
-  const progress = snap.data() as ProgressDoc;
-  const level    = progress.level ?? 1;
-  const xp       = progress.xpInLevel ?? 0;
-  const needed   = xpForLevel(level);
-
-  if (xp >= needed) {
-    await ref.update({
-      level:      FieldValue.increment(1),
-      xpInLevel:  xp - needed,
-      updatedAt:  FieldValue.serverTimestamp(),
-    });
-  }
+  // 레벨업 확인 + 보상 (누적 XP가 여러 레벨을 채웠으면 모두 처리)
+  await applyLevelUps(uid);
 }
 
 async function updateDayScore(uid: string, date: string) {
