@@ -244,27 +244,6 @@ export function useGardenActions() {
       return;
     }
 
-    // 초월(transcendent): 수익 없이 심기 비용(seedCost)만 환급. 해금비·누적 유지비는 환급 없음.
-    if (species.rarity === 'transcendent') {
-      const refund = species.seedCost ?? 0;
-      const newPlants = progress.gardenState.plants.filter((p) => p.id !== plantId);
-      try {
-        await setDoc(doc(db, 'users', uid, 'progress', 'main'), {
-          spendablePoints: (progress.spendablePoints ?? 0) + refund,
-          gardenState: { ...progress.gardenState, plants: newPlants },
-          updatedAt: serverTimestamp(),
-        }, { merge: true });
-        await addDoc(collection(db, 'users', uid, 'pointLedger'), {
-          delta: refund, reason: 'harvest_transcendent', refId: plantId,
-          createdAt: serverTimestamp(),
-        });
-        toast(`✨ ${species.name}을(를) 거두었습니다. 심기 비용 +${refund}P 환급.`);
-      } catch (e) {
-        toast.error('저장 실패: ' + (e as Error).message);
-      }
-      return;
-    }
-
     // 수확량 계산
     const prevStats = progress.gardenStats ?? {};
     const prevHarvestsBySpecies = prevStats.harvestsBySpecies ?? {};

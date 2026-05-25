@@ -145,7 +145,7 @@ export default function PlantSVG({
         {s >= 1 && renderStemAndLeaves(speciesId, s, withered, ctx)}
         {s >= 3 && renderFlower(speciesId, accent, withered, ctx)}
         {s >= 4 && renderBloom(speciesId, accent, withered, ctx)}
-        {s >= 5 && (
+        {s >= 5 && rarity !== 'transcendent' && (
           <circle cx="40" cy="18" r="7" fill={withered ? '#D1C4A8' : flowerFill} opacity="0.95" />
         )}
       </g>
@@ -810,52 +810,126 @@ function renderFlower(speciesId: string, accent: string, withered: boolean | und
     );
   }
 
-  // ── 초월: 천상수 — 빛의 별나무 (방사 광선 + 중심 별 + 궤도 보석) ──
+  // ── 초월: 천상수 — 빛의 별나무 (8각 빛별 + 방사 광선 + 궤도 보석) ──
   if (speciesId === 'celestial_tree') {
+    const star = withered ? '#D1C4A8' : `url(#${gid('ct-core')})`;
     return (
       <g>
+        <defs>
+          <radialGradient id={gid('ct-core')} cx="50%" cy="42%" r="62%">
+            <stop offset="0%" stopColor="#FFFFFF" />
+            <stop offset="45%" stopColor="#FFF1A8" />
+            <stop offset="100%" stopColor="#F2B33A" />
+          </radialGradient>
+          <radialGradient id={gid('ct-halo')} cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#FFE89A" stopOpacity="0.7" />
+            <stop offset="100%" stopColor="#FFE89A" stopOpacity="0" />
+          </radialGradient>
+        </defs>
         <line x1="40" y1="40" x2="40" y2="30" stroke={stem} strokeWidth="3.5" strokeLinecap="round" />
-        {/* 방사 광선 */}
-        <g stroke="#FFF6CF" strokeWidth="1" opacity="0.75" strokeLinecap="round">
-          {[0, 45, 90, 135, 180, 225, 270, 315].map((d) => (
-            <line key={d} x1="40" y1="14" x2="40" y2="6" transform={`rotate(${d} 40 24)`} />
-          ))}
-        </g>
-        <circle cx="40" cy="24" r="10" fill={petal} opacity="0.55" />
-        <path d={STAR4} fill="#FFFBE6" transform="translate(40 24) scale(2.4)" />
-        <circle cx="40" cy="24" r="2.4" fill="#FFFFFF" />
-        {[[28, 16], [52, 16], [40, 38]].map(([cx, cy], i) => (
-          <circle key={i} cx={cx} cy={cy} r="1.4" fill="#FFF1A8" opacity="0.9" />
+        {/* 빛무리 (맥동) */}
+        <circle cx="40" cy="24" r="17" fill={withered ? 'none' : `url(#${gid('ct-halo')})`}>
+          {!withered && <animate attributeName="r" values="15;18;15" dur="3.4s" repeatCount="indefinite" />}
+        </circle>
+        {/* 방사 광선 (긴/짧은 2겹) */}
+        {!withered && (
+          <>
+            <g stroke="#FFF6CF" strokeWidth="1.1" opacity="0.85" strokeLinecap="round">
+              {[0, 45, 90, 135, 180, 225, 270, 315].map((d) => (
+                <line key={d} x1="40" y1="9" x2="40" y2="1" transform={`rotate(${d} 40 24)`} />
+              ))}
+            </g>
+            <g stroke="#FFD66A" strokeWidth="0.9" opacity="0.7" strokeLinecap="round">
+              {[22, 67, 112, 157, 202, 247, 292, 337].map((d) => (
+                <line key={d} x1="40" y1="12" x2="40" y2="6" transform={`rotate(${d} 40 24)`} />
+              ))}
+            </g>
+          </>
+        )}
+        {/* 8각 빛별 (STAR4 두 겹) */}
+        <path d={STAR4} fill={star} transform="translate(40 24) scale(3.4)" />
+        <path d={STAR4} fill={star} opacity="0.85" transform="translate(40 24) rotate(45) scale(2.8)" />
+        <path d={STAR4} fill={withered ? '#E4D8BC' : '#FFFFFF'} transform="translate(40 24) scale(1.5)">
+          {!withered && <animate attributeName="opacity" values="1;0.55;1" dur="2.2s" repeatCount="indefinite" />}
+        </path>
+        {/* 궤도 보석 (반짝임) */}
+        {!withered && [[26, 15], [54, 15], [40, 39], [23, 31], [57, 31]].map(([cx, cy], i) => (
+          <circle key={i} cx={cx} cy={cy} r="1.5" fill="#FFF1A8">
+            <animate attributeName="opacity" values="1;0.2;1" dur="2s" begin={`${i * 0.35}s`} repeatCount="indefinite" />
+          </circle>
         ))}
       </g>
     );
   }
 
-  // ── 초월: 영겁화 — 오로라빛 다중 꽃잎 링 ──
+  // ── 초월: 영겁화 — 오로라빛 3겹 꽃잎 + 맥동 코어 ──
   if (speciesId === 'eternal_bloom') {
+    const outer = withered ? c : `url(#${gid('eb-petal')})`;
+    const inner = withered ? '#D1C4A8' : `url(#${gid('eb-core')})`;
     return (
       <g>
+        <defs>
+          <linearGradient id={gid('eb-petal')} x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#FFB8E8" />
+            <stop offset="50%" stopColor="#C9A0FF" />
+            <stop offset="100%" stopColor="#80E0FF" />
+          </linearGradient>
+          <radialGradient id={gid('eb-core')} cx="50%" cy="45%" r="60%">
+            <stop offset="0%" stopColor="#FFFFFF" />
+            <stop offset="50%" stopColor="#FF9AD8" />
+            <stop offset="100%" stopColor="#9A6BFF" />
+          </radialGradient>
+        </defs>
         <line x1="40" y1="40" x2="40" y2="30" stroke={stem} strokeWidth="3" strokeLinecap="round" />
-        {petalRing(10, 40, 14, 3.2, 9, 24, petal, 0.85)}
-        {petalRing(8, 40, 17, 2.4, 7.5, 24, '#FFE3F4', 0.7)}
-        <circle cx="40" cy="24" r="6" fill={c} opacity="0.9" />
-        <circle cx="40" cy="24" r="3.4" fill="#FFFFFF" opacity="0.85" />
+        {petalRing(12, 40, 11, 3, 7, 24, outer, 0.85)}
+        {petalRing(10, 40, 14, 2.5, 5.5, 24, withered ? '#E4D8BC' : '#FFE3F4', 0.8)}
+        {petalRing(8, 40, 17, 2, 4.5, 24, inner, 0.9)}
+        <circle cx="40" cy="24" r="6" fill={inner}>
+          {!withered && <animate attributeName="r" values="5.4;6.6;5.4" dur="3s" repeatCount="indefinite" />}
+        </circle>
+        <circle cx="40" cy="24" r="3" fill={withered ? '#E4D8BC' : '#FFFFFF'}>
+          {!withered && <animate attributeName="opacity" values="1;0.5;1" dur="2.2s" repeatCount="indefinite" />}
+        </circle>
       </g>
     );
   }
 
-  // ── 초월: 은하백합 — 6장 백합 + 별가루 + 빛나는 코어 ──
+  // ── 초월: 은하백합 — 6장 백합 + 성운 코어 + 별가루 ──
   if (speciesId === 'galaxy_lily') {
+    const petalG = withered ? c : `url(#${gid('gl-petal')})`;
     return (
       <g>
+        <defs>
+          <linearGradient id={gid('gl-petal')} x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#C9A0FF" />
+            <stop offset="55%" stopColor="#80B0FF" />
+            <stop offset="100%" stopColor="#3E3E7A" />
+          </linearGradient>
+          <radialGradient id={gid('gl-core')} cx="50%" cy="50%" r="55%">
+            <stop offset="0%" stopColor="#EAF0FF" />
+            <stop offset="45%" stopColor="#6A78D8" />
+            <stop offset="100%" stopColor="#23234E" />
+          </radialGradient>
+        </defs>
         <line x1="40" y1="40" x2="40" y2="30" stroke={stem} strokeWidth="3" strokeLinecap="round" />
-        {petalRing(6, 40, 13, 4, 11, 24, petal, 0.92)}
-        <circle cx="40" cy="24" r="11" fill="#2A2A5A" opacity="0.28" />
-        {[[34, 18], [46, 18], [40, 14], [33, 28], [47, 28], [40, 34]].map(([cx, cy], i) => (
-          <circle key={i} cx={cx} cy={cy} r="0.9" fill="#FFFFFF" opacity="0.9" />
+        {/* 바깥 6장 + 안쪽 6장(엇갈림) 백합 꽃잎 */}
+        {[0, 60, 120, 180, 240, 300].map((deg) => (
+          <ellipse key={deg} cx="40" cy="12" rx="3.6" ry="11" fill={petalG} opacity="0.92"
+                   transform={`rotate(${deg} 40 24)`} />
         ))}
-        <circle cx="40" cy="24" r="4.5" fill="#EAF0FF" opacity="0.95" />
-        <circle cx="40" cy="24" r="2.2" fill="#FFFFFF" />
+        {[30, 90, 150, 210, 270, 330].map((deg) => (
+          <ellipse key={`i-${deg}`} cx="40" cy="16" rx="2.4" ry="7.5" fill={petalG} opacity="0.7"
+                   transform={`rotate(${deg} 40 24)`} />
+        ))}
+        {/* 성운 코어 */}
+        <circle cx="40" cy="24" r="9" fill={withered ? '#D1C4A8' : `url(#${gid('gl-core')})`} opacity="0.95" />
+        {/* 별가루 (반짝임) */}
+        {!withered && [[35, 19], [45, 19], [40, 15], [34, 28], [46, 28], [40, 31], [38, 23]].map(([cx, cy], i) => (
+          <circle key={i} cx={cx} cy={cy} r="0.85" fill="#FFFFFF">
+            <animate attributeName="opacity" values="1;0.15;1" dur="1.9s" begin={`${i * 0.3}s`} repeatCount="indefinite" />
+          </circle>
+        ))}
+        <circle cx="40" cy="24" r="2.6" fill={withered ? '#E4D8BC' : '#FFFFFF'} opacity="0.95" />
       </g>
     );
   }
