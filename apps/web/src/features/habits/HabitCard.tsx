@@ -100,6 +100,7 @@ export default function HabitCard({ habit, check, streak = 0, isNow = false, onS
         status === 'todo' &&
           'border-l-4 border-[var(--leaf)] shadow-[var(--shadow-sm)]',
         status === 'todo' && isNow && 'aura-pulse ring-1 ring-[var(--leaf)]/40',
+        status !== 'todo' && 'opacity-60',
         status === 'achieved' && 'border border-[var(--leaf-soft)] bg-[var(--leaf-soft)]/40',
         status === 'skipped' && 'bg-[var(--bg-base)]/60'
       )}
