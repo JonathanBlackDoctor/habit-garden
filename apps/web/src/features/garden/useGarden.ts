@@ -6,6 +6,20 @@ import type { ProgressDoc, PlantInstance } from 'shared/types/firestore';
 import { PLANT_SPECIES, POINT_PRICES, CODEX_SPECIES_COUNT, MAX_BEDS, PLANTS_PER_BED } from 'shared/types/firestore';
 import { toast } from 'sonner';
 
+// 게임 하루는 04:00 KST 기준으로 리셋된다.
+export function isWateredToday(wateredAt: { toMillis(): number }): boolean {
+  const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+  const RESET_HOUR_MS = 4 * 60 * 60 * 1000; // 04:00 KST in ms
+  const DAY_MS = 24 * 60 * 60 * 1000;
+
+  const nowKST = Date.now() + KST_OFFSET_MS;
+  const msSinceMidnightKST = nowKST % DAY_MS;
+  const gameDayStartKST = nowKST - msSinceMidnightKST +
+    (msSinceMidnightKST >= RESET_HOUR_MS ? RESET_HOUR_MS : RESET_HOUR_MS - DAY_MS);
+
+  return wateredAt.toMillis() + KST_OFFSET_MS >= gameDayStartKST;
+}
+
 // 첫 방문 시 테스트해볼 수 있도록 소량의 포인트와 새싹 1개를 지급
 // plantedAt 은 setDoc 시점에 serverTimestamp() 로 주입 (PlantInstance.plantedAt 은 Timestamp 타입)
 const DEFAULT_PROGRESS: Omit<ProgressDoc, 'updatedAt'> = {
@@ -166,11 +180,16 @@ export function useGardenActions() {
       toast.error(`포인트가 부족합니다. (필요: ${cost}P)`);
       return false;
     }
+    const plant = progress.gardenState.plants.find((p) => p.id === plantId);
+    if (plant?.wateredAt && isWateredToday(plant.wateredAt)) {
+      toast.error('오늘은 이미 물을 줬습니다. 내일 다시 시도하세요.');
+      return false;
+    }
     const plants = progress.gardenState.plants.map((p) => {
       if (p.id !== plantId) return p;
       const species = PLANT_SPECIES.find((s) => s.id === p.speciesId);
       const maxStage = (species?.stages ?? 4) - 1;
-      return { ...p, stage: Math.min(p.stage + 1, maxStage), witheredSince: undefined };
+      return { ...p, stage: Math.min(p.stage + 1, maxStage), witheredSince: undefined, wateredAt: Timestamp.now() as any };
     });
 
     try {

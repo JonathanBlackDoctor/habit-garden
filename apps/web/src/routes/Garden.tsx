@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useProgress, useGardenActions } from '@/features/garden/useGarden';
+import { useProgress, useGardenActions, isWateredToday } from '@/features/garden/useGarden';
 import PlantSVG from '@/features/garden/PlantSVG';
 import PlantCodex from '@/features/garden/PlantCodex';
 import { PLANT_SPECIES, POINT_PRICES, DAILY_YIELD_BY_RARITY, PLANTS_PER_BED, PLANTS_PER_ROW, CODEX_SPECIES_COUNT, MAX_BEDS } from 'shared/types/firestore';
@@ -535,19 +535,25 @@ export default function Garden() {
                         수확하기 (+{totalYield}P{streakBonus ? ' ✨' : ''}{star3 ? ' ★3' : ''})
                       </Button>
                     ) : (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={async () => {
-                          const id = selected.id;
-                          const ok = await waterPlant(id);
-                          if (ok) setWaterFx({ id, key: Date.now() });
-                        }}
-                        className="w-full gap-2"
-                      >
-                        <Droplets size={15} />
-                        물주기 ({POINT_PRICES.WATER}P)
-                      </Button>
+                      (() => {
+                        const alreadyWatered = !!selected.wateredAt && isWateredToday(selected.wateredAt);
+                        return (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            disabled={alreadyWatered}
+                            onClick={async () => {
+                              const id = selected.id;
+                              const ok = await waterPlant(id);
+                              if (ok) setWaterFx({ id, key: Date.now() });
+                            }}
+                            className="w-full gap-2"
+                          >
+                            <Droplets size={15} />
+                            {alreadyWatered ? '오늘 물줌 ✓' : `물주기 (${POINT_PRICES.WATER}P)`}
+                          </Button>
+                        );
+                      })()
                     )}
                     <Button
                       variant="outline"
