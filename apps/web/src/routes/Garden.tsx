@@ -68,7 +68,7 @@ function traitLabel(t?: PlantSpecies['trait']): string | null {
   }
 }
 
-type Tab = 'garden' | 'shop' | 'codex';
+type Tab = 'garden' | 'codex';
 
 type SortKey = 'planted_desc' | 'planted_asc' | 'rarity' | 'stage' | 'species' | 'name';
 type FilterKey = 'all' | 'bloom' | 'withered';
@@ -288,7 +288,6 @@ export default function Garden() {
       <div className="flex gap-2 border-b border-[var(--leaf-soft)]">
         {([
           { id: 'garden', label: '정원',  icon: Leaf },
-          { id: 'shop',   label: '상점',  icon: Sprout },
           { id: 'codex',  label: '도감',  icon: BookOpen },
         ] as { id: Tab; label: string; icon: typeof Leaf }[]).map(({ id, label, icon: Icon }) => (
           <button
@@ -347,6 +346,7 @@ export default function Garden() {
 
           {/* 계단식 화단 페이저 */}
           <motion.div
+            data-bed-pager={bedCount > 1 ? '' : undefined}
             className="relative overflow-hidden rounded-[var(--radius-lg)] bg-gradient-to-b from-[var(--garden-sky-top)] via-[var(--garden-sky-bottom)] to-[var(--leaf-soft)] p-4 min-h-[240px]"
             style={{ boxShadow: 'inset 0 -4px 8px rgba(79,122,55,0.08)' }}
             drag={bedCount > 1 ? 'x' : false}
@@ -632,14 +632,11 @@ export default function Garden() {
               }}
             >사용</Button>
           </div>
-        </>
-      )}
 
-      {/* 상점 탭 */}
-      {tab === 'shop' && (
-        <div className="card p-4 space-y-3">
+          {/* 상점 · 씨앗 심기 (정원에서 아래로 스크롤하면 이어서 보임) */}
+          <div className="card p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-[var(--fg-primary)]">씨앗 심기 / 식물 해금</h3>
+            <h3 className="text-sm font-semibold text-[var(--fg-primary)]">상점 · 씨앗 심기 / 식물 해금</h3>
             <div className={cn(
               'flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold tabular-nums',
               plantLimitReached
@@ -713,6 +710,7 @@ export default function Garden() {
               })}
           </div>
         </div>
+        </>
       )}
 
       {/* 도감 탭 */}
