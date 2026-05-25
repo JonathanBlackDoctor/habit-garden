@@ -42,8 +42,8 @@ export const dailyReset = functions
     for (const profileDoc of profilesSnap.docs) {
       const uid = profileDoc.id;
       try {
-        const success = await processUserDay(uid, today, yesterday);
-        await processDailyGarden(uid, success);  // 정원 트레잇·생기·시들기·보너스 시드
+        const { success, protected: protectedDay } = await processUserDay(uid, today, yesterday);
+        await processDailyGarden(uid, success, protectedDay);  // 정원 트레잇·생기·시들기·보너스 시드
         const dormantCount = await processDormantTransitions(uid);  // 잊혀짐 자동 전이 (설계 §5)
         if (dormantCount > 0) console.log(`dormant transition: uid=${uid}, n=${dormantCount}`);
       } catch (e) {
@@ -90,7 +90,11 @@ async function processDormantTransitions(uid: string): Promise<number> {
   return count;
 }
 
-async function processUserDay(uid: string, today: string, yesterday: string): Promise<boolean> {
+async function processUserDay(
+  uid: string,
+  today: string,
+  yesterday: string,
+): Promise<{ success: boolean; protected: boolean }> {
   // 1. 오늘 DayDoc 생성
   const todayRef = db.doc(`users/${uid}/days/${today}`);
   const todaySnap = await todayRef.get();
@@ -111,6 +115,7 @@ async function processUserDay(uid: string, today: string, yesterday: string): Pr
 
   // 3. 스트릭 정산 — 어제 성공 못 했으면 globalStreak 리셋
   let success = false;
+  let protectedDay = false;
   if (ydaySnap.exists) {
     const checks = await db
       .collection(`users/${uid}/days/${yesterday}/habitChecks`)
@@ -125,20 +130,32 @@ async function processUserDay(uid: string, today: string, yesterday: string): Pr
     if (!success) {
       const progressRef = db.doc(`users/${uid}/progress/main`);
       const pSnap = await progressRef.get();
-      const current = pSnap.exists ? (pSnap.data()?.globalStreak ?? 0) : 0;
+      const data = pSnap.exists ? pSnap.data() : undefined;
+      const current = data?.globalStreak ?? 0;
       if (current > 0) {
-        // 스트릭 보호 (휴가/아픔/그레이스) 적용 — 보호 시 리셋하지 않음
-        const protectedDay = await tryConsumeStreakProtection(uid, yesterday, pSnap.data());
+        // 스트릭 보호 (휴가/아픔/그레이스/freeze 토큰) 적용 — 보호 시 리셋하지 않음
+        protectedDay = await tryConsumeStreakProtection(uid, yesterday, data);
         if (!protectedDay) {
           await progressRef.set({
             globalStreak: 0,
             updatedAt: FieldValue.serverTimestamp(),
           }, { merge: true });
         }
+      } else {
+        // 스트릭이 0이라 리셋할 건 없지만, 정원 보호를 위해 커버 여부만(소모 없이) 평가
+        protectedDay = isDayProtected(yesterday, data);
       }
     }
   }
-  return success;
+  return { success, protected: protectedDay };
+}
+
+/** 소모 없이 해당 날짜가 휴가/freeze 토큰으로 보호되는지만 판단 (정원 보호 평가용). */
+function isDayProtected(date: string, prog: FirebaseFirestore.DocumentData | undefined): boolean {
+  if (!prog) return false;
+  if (prog.vacationUntil && prog.vacationUntil >= date) return true;
+  if (prog.freezeProtectedDate && prog.freezeProtectedDate === date) return true;
+  return false;
 }
 
 /**
@@ -154,6 +171,11 @@ async function tryConsumeStreakProtection(
 ): Promise<boolean> {
   if (!prog) return false;
   const progressRef = db.doc(`users/${uid}/progress/main`);
+
+  // 0) freeze 토큰으로 이미 보호한 날 (토큰 사용 시 소모 완료 — 여기선 인정만)
+  if (prog.freezeProtectedDate && prog.freezeProtectedDate === date) {
+    return true;
+  }
 
   // 1) 휴가/아픔 모드 — vacationUntil 이 보호 대상일 이상
   if (prog.vacationUntil && prog.vacationUntil >= date) {

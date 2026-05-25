@@ -3,25 +3,30 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useProgress, useGardenActions } from '@/features/garden/useGarden';
 import PlantSVG from '@/features/garden/PlantSVG';
 import PlantCodex from '@/features/garden/PlantCodex';
-import { PLANT_SPECIES, POINT_PRICES, DAILY_YIELD_BY_RARITY, PLANTS_PER_BED, PLANTS_PER_ROW } from 'shared/types/firestore';
+import { PLANT_SPECIES, POINT_PRICES, DAILY_YIELD_BY_RARITY, PLANTS_PER_BED, PLANTS_PER_ROW, CODEX_SPECIES_COUNT } from 'shared/types/firestore';
 import type { PlantInstance, PlantSpecies } from 'shared/types/firestore';
 import { Button } from '@/components/ui/button';
 import { Leaf, Droplets, Lock, Sprout, Snowflake, Wheat, BookOpen, Sparkles, ChevronLeft, ChevronRight, Shovel } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFreezeTokens } from '@/features/freeze/useFreezeTokens';
 
-// 상점 정렬 순서 (5등급)
+// 상점 정렬 순서 (6등급)
 const RARITY_ORDER: Record<PlantSpecies['rarity'], number> = {
-  basic: 0, common: 1, rare: 2, epic: 3, legendary: 4,
+  basic: 0, common: 1, rare: 2, epic: 3, legendary: 4, transcendent: 5,
 };
 
 const RARITY_META: Record<PlantSpecies['rarity'], { label: string; chip: string }> = {
-  basic:     { label: '기본', chip: 'bg-[var(--leaf-soft)] text-[var(--fg-muted)]' },
-  common:    { label: '일반', chip: 'bg-[#DCEEDB] text-[#3A6E2D]' },
-  rare:      { label: '희귀', chip: 'bg-[#E5DCF2] text-[#6B4A8C]' },
-  epic:      { label: '에픽', chip: 'bg-gradient-to-r from-[#FFE4B0] to-[#FFB8E8] text-[#7A4FA0] font-semibold' },
-  legendary: { label: '전설', chip: 'bg-gradient-to-r from-[#FFD44A] via-[#FFB8E8] to-[#80E0FF] text-[#5A3E1E] font-bold' },
+  basic:        { label: '기본', chip: 'bg-[var(--leaf-soft)] text-[var(--fg-muted)]' },
+  common:       { label: '일반', chip: 'bg-[#DCEEDB] text-[#3A6E2D]' },
+  rare:         { label: '희귀', chip: 'bg-[#E5DCF2] text-[#6B4A8C]' },
+  epic:         { label: '에픽', chip: 'bg-gradient-to-r from-[#FFE4B0] to-[#FFB8E8] text-[#7A4FA0] font-semibold' },
+  legendary:    { label: '전설', chip: 'bg-gradient-to-r from-[#FFD44A] via-[#FFB8E8] to-[#80E0FF] text-[#5A3E1E] font-bold' },
+  transcendent: { label: '초월', chip: 'transcend-chip text-white font-bold' },
 };
+
+const TRANSCENDENT_IDS = new Set(
+  PLANT_SPECIES.filter((s) => s.rarity === 'transcendent').map((s) => s.id),
+);
 
 function healthVibe(h: number): { label: string; bar: string; chip: string } {
   if (h <= 30) return { label: '정원이 시들고 있어요', bar: 'bg-[#D9544A]', chip: 'text-[#A83A30]' };
@@ -51,6 +56,12 @@ function traitLabel(t?: PlantSpecies['trait']): string | null {
     case 'waning':     return `🌌 ${t.graceDays}일 연속 거르면 죽음`;
     case 'regress':    return '🏵️ 거른 날마다 한 단계 시듦';
     case 'radiant':    return '🌅 만개 후 거르면 즉시 죽음';
+    case 'transcendent': {
+      const eff = t.effect === 'xp' ? `매일 +${t.amount} XP`
+        : t.effect === 'vitality' ? `매일 정원 생기 +${t.amount}`
+        : '다른 식물 죽음 매일 1회 방지';
+      return `🌌 ${eff} · 유지비 ${t.upkeep}P/일 · 하루 거르면 즉사`;
+    }
   }
 }
 
@@ -198,6 +209,7 @@ export default function Garden() {
   const vibe = healthVibe(gardenState.health ?? 100);
   const autogrowToday = progress.gardenStats?.autogrowToday ?? 0;
   const codexCount = progress.gardenStats?.codexEntries?.length ?? 0;
+  const hasTranscendent = plants.some((p) => TRANSCENDENT_IDS.has(p.speciesId));
 
   return (
     <div className="min-h-screen p-4 space-y-4 pb-8">
@@ -206,7 +218,7 @@ export default function Garden() {
         <div>
           <h2 className="text-base font-semibold text-[var(--fg-primary)]">나의 정원</h2>
           <p className="text-xs text-[var(--fg-muted)] tabular-nums">
-            생기 {gardenState.health}/100 · ✦{spendablePoints}P · 도감 {codexCount}/25
+            생기 {gardenState.health}/100 · ✦{spendablePoints}P · 도감 {codexCount}/{CODEX_SPECIES_COUNT}
           </p>
         </div>
         <div className="flex items-center gap-1.5">
@@ -316,6 +328,10 @@ export default function Garden() {
               className="pointer-events-none absolute -top-8 right-1 z-0 h-28 w-28 rounded-full"
               style={{ background: 'radial-gradient(circle, var(--garden-sun) 0%, transparent 70%)', opacity: 0.7 }}
             />
+            {/* 초월 식물 보유 시 정원 전역 오로라 앰비언트 (공통 시각 효과) */}
+            {hasTranscendent && (
+              <div className="transcend-ambient pointer-events-none absolute inset-0 z-0 rounded-[var(--radius-lg)]" aria-hidden />
+            )}
             {/* 원경 언덕 */}
             <svg
               className="pointer-events-none absolute inset-x-0 bottom-7 z-0 h-16 w-full"
@@ -572,9 +588,15 @@ export default function Garden() {
                       {sp.description && (
                         <p className="text-[11px] text-[var(--fg-muted)]">{sp.description}</p>
                       )}
-                      <p className="text-[10px] text-[var(--fg-faint)] tabular-nums">
-                        수확 +{sp.harvestYield ?? 0}P · 일일 +{dy}P · 만개 {sp.stages - 1}단계 · 씨앗 {seedCost}P
-                      </p>
+                      {sp.rarity === 'transcendent' && sp.trait?.kind === 'transcendent' ? (
+                        <p className="text-[10px] text-[#8B5CF6] font-medium tabular-nums">
+                          ⚠️ 수익 없음 · 유지비 {sp.trait.upkeep}P/일 · 하루 거르면 즉사 · 거두면 씨앗값 {seedCost}P 환급
+                        </p>
+                      ) : (
+                        <p className="text-[10px] text-[var(--fg-faint)] tabular-nums">
+                          수확 +{sp.harvestYield ?? 0}P · 일일 +{dy}P · 만개 {sp.stages - 1}단계 · 씨앗 {seedCost}P
+                        </p>
+                      )}
                     </div>
                     {unlocked ? (
                       <Button size="sm" variant="secondary" onClick={() => plantSeed(sp.id)}>

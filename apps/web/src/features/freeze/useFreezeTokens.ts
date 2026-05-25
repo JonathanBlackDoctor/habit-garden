@@ -41,6 +41,9 @@ function calcFreezePrice(plants: PlantInstance[], prayerStreak: number): number 
     } else if (trait.kind === 'streakSync' && prayerStreak > 0) {
       // 기도 스트릭 활성 중인 streakSync 식물 — 수확 보너스 50% 손실 위험
       bonus += Math.round(species.harvestYield * 0.5 * stageRatio);
+    } else if (trait.kind === 'transcendent') {
+      // 초월: 하루 실패 즉사급. harvestYield가 0이므로 심기 원가(seedCost) 기준으로 위험가치 산정.
+      bonus += Math.round((species.seedCost ?? 0) * (0.5 + 0.5 * stageRatio));
     }
   }
 
@@ -49,6 +52,7 @@ function calcFreezePrice(plants: PlantInstance[], prayerStreak: number): number 
 
 export function useFreezeTokens() {
   const uid = useAppStore((s) => s.uid);
+  const today = useAppStore((s) => s.currentDate);
   const progress = useProgress();
 
   const plants = progress?.gardenState?.plants ?? [];
@@ -74,6 +78,8 @@ export function useFreezeTokens() {
       {
         freezeTokens: existing - 1,
         spendablePoints: progress.spendablePoints - price,
+        // 오늘을 보호일로 마킹 → 서버 일일 처리에서 스트릭·정원(초월·연약 전설)을 보호.
+        freezeProtectedDate: today,
         updatedAt: serverTimestamp() as any,
       },
       { merge: true },

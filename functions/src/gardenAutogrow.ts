@@ -98,7 +98,11 @@ export async function bumpGardenHealth(uid: string, delta: number): Promise<void
  *  - consecutiveHealthyDays 갱신
  *  - 배지 자동 부여 (rarity 챌린지·collector 등급·codex·health·rare drop)
  */
-export async function processDailyGarden(uid: string, yesterdaySuccess: boolean): Promise<void> {
+export async function processDailyGarden(
+  uid: string,
+  yesterdaySuccess: boolean,
+  protectedDay = false,
+): Promise<void> {
   const ref = db.doc(`users/${uid}/progress/main`);
   const snap = await ref.get();
   if (!snap.exists) return;
@@ -149,20 +153,55 @@ export async function processDailyGarden(uid: string, yesterdaySuccess: boolean)
     }
   }
 
-  // 3) health 변동
+  // 3) health 변동 (보호된 날은 중립 — 실패 페널티 없음)
   if (yesterdaySuccess) {
     health = Math.min(100, health + 3);
-  } else {
+  } else if (!protectedDay) {
     health = Math.max(0, health - 10);
   }
 
-  // 4) 시들기 후보 (health 낮을 때 + hardy 면역 + 연약 전설은 자체 처리하므로 제외)
+  let plantsLost = 0;
+
+  // 4.4) 초월(transcendent) 처리: 고유 효과 적용 + 유지비 차감 + 죽음 판정
+  //   살아있는 동안만 효과를 주고 유지비를 낸다. 하루 실패(보호 안 됨)면 즉시 스러지고,
+  //   유지비를 못 내면 굶어 죽는다. guardian 효과는 아래 연약 전설 죽음을 1회 막는 슬롯이 된다.
+  let guardianSlots = 0;
+  let totalUpkeep = 0;
+  let budget = prog.spendablePoints ?? 0;
+  {
+    const survivors: PlantInstance[] = [];
+    for (const p of plants) {
+      const sp = speciesOf(p.speciesId);
+      const trait = sp?.trait;
+      if (trait?.kind !== 'transcendent') { survivors.push(p); continue; }
+      // 유지비 미납 → 굶어 죽음
+      if (budget < trait.upkeep) { plantsLost++; continue; }
+      // 게으른 하루(보호 안 됨) → 즉시 죽음 (유지비 차감 없음)
+      if (!yesterdaySuccess && !protectedDay) { plantsLost++; continue; }
+      // 생존: 유지비 차감 + 고유 효과 적용
+      budget -= trait.upkeep;
+      totalUpkeep += trait.upkeep;
+      if (trait.effect === 'xp') {
+        xpInLevel += trait.amount;
+        xpBumped = true;
+      } else if (trait.effect === 'vitality') {
+        health = Math.min(100, health + trait.amount);
+      } else if (trait.effect === 'guardian') {
+        guardianSlots += trait.amount;
+      }
+      survivors.push(p);
+    }
+    plants = survivors;
+  }
+
+  // 4) 시들기 후보 (health 낮을 때 + hardy 면역 + 연약 전설·초월은 자체 처리하므로 제외)
   if (health <= 50 && plants.length > 0) {
     const candidates = plants
       .map((p, idx) => ({ p, idx, sp: speciesOf(p.speciesId) }))
       .filter(({ p, sp }) =>
         !p.witheredSince &&
         sp?.trait?.kind !== 'hardy' &&
+        sp?.rarity !== 'transcendent' &&
         !(sp?.trait && FRAGILE_TRAIT_KINDS.has(sp.trait.kind)),
       );
     if (candidates.length > 0) {
@@ -176,7 +215,6 @@ export async function processDailyGarden(uid: string, yesterdaySuccess: boolean)
 
   // 4.5) 연약 전설 trait: 게으른 날 시듦/죽음, 성실한 날 회복
   //   화려한 대신 매일 성실하지 않으면 쉽게 죽는다(영구 제거). 식물마다 방식이 다르다.
-  let plantsLost = 0;
   plants = plants.flatMap((p): PlantInstance[] => {
     const sp = speciesOf(p.speciesId);
     const kind = sp?.trait?.kind;
@@ -190,31 +228,44 @@ export async function processDailyGarden(uid: string, yesterdaySuccess: boolean)
       return [recovered];
     }
 
+    // 보호된 날(휴가/그레이스/freeze 토큰): 죽음·시듦 없이 그대로 생존
+    if (protectedDay) return [p];
+
     // 게으른 하루
     const neglectStreak = (p.neglectStreak ?? 0) + 1;
     const now = admin.firestore.Timestamp.now() as any;
+    // 죽을 운명이면 guardian(은하백합) 슬롯으로 1회 구제 — 슬롯 1 소모, 그날은 생존.
+    const tryGuard = (): PlantInstance[] | null => {
+      if (guardianSlots <= 0) return null;
+      guardianSlots--;
+      const saved: PlantInstance = { ...p, neglectStreak: 0 };
+      if (kind !== 'radiant') saved.witheredSince = undefined;
+      return [saved];
+    };
     switch (kind) {
-      case 'brittle':
+      case 'brittle': {
         // 단 하루도 못 거른다 → 즉시 죽음
+        const g = tryGuard(); if (g) return g;
         plantsLost++;
         return [];
+      }
       case 'fragile':
         // 시든 채 또 거르면 죽음, 아니면 시듦
-        if (p.witheredSince) { plantsLost++; return []; }
+        if (p.witheredSince) { const g = tryGuard(); if (g) return g; plantsLost++; return []; }
         return [{ ...p, neglectStreak, witheredSince: now }];
       case 'waning': {
         // graceDays 연속 거르면 죽음
         const grace = (sp!.trait as { kind: 'waning'; graceDays: number }).graceDays;
-        if (neglectStreak >= grace) { plantsLost++; return []; }
+        if (neglectStreak >= grace) { const g = tryGuard(); if (g) return g; plantsLost++; return []; }
         return [{ ...p, neglectStreak, witheredSince: now }];
       }
       case 'regress':
         // 거른 날마다 한 단계 시듦, stage 0 에서 또 거르면 죽음
-        if (p.stage <= 0) { plantsLost++; return []; }
+        if (p.stage <= 0) { const g = tryGuard(); if (g) return g; plantsLost++; return []; }
         return [{ ...p, neglectStreak, stage: p.stage - 1, witheredSince: now }];
       case 'radiant':
         // 평소 시들지 않음. 만개(최고 stage)의 영광을 거르면 즉시 죽음
-        if (p.stage >= max) { plantsLost++; return []; }
+        if (p.stage >= max) { const g = tryGuard(); if (g) return g; plantsLost++; return []; }
         return [{ ...p, neglectStreak }];
       default:
         return [p];
@@ -255,9 +306,13 @@ export async function processDailyGarden(uid: string, yesterdaySuccess: boolean)
     updatedAt: FieldValue.serverTimestamp(),
   };
   if (xpBumped) patch.xpInLevel = xpInLevel;
+  // 순포인트 = passive yield − 초월 유지비. totalPoints(누적 획득)는 수익만 반영.
+  const netPoints = passiveYield - totalUpkeep;
+  if (netPoints !== 0) {
+    patch.spendablePoints = FieldValue.increment(netPoints);
+  }
   if (passiveYield > 0) {
-    patch.spendablePoints = FieldValue.increment(passiveYield);
-    patch.totalPoints     = FieldValue.increment(passiveYield);
+    patch.totalPoints = FieldValue.increment(passiveYield);
   }
   await ref.set(patch, { merge: true });
 
@@ -266,6 +321,16 @@ export async function processDailyGarden(uid: string, yesterdaySuccess: boolean)
     await db.collection(`users/${uid}/pointLedger`).add({
       delta: passiveYield,
       reason: 'passive_yield',
+      refId: 'daily',
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  }
+
+  // 10.5) 초월 유지비 ledger
+  if (totalUpkeep > 0) {
+    await db.collection(`users/${uid}/pointLedger`).add({
+      delta: -totalUpkeep,
+      reason: 'transcendent_upkeep',
       refId: 'daily',
       createdAt: FieldValue.serverTimestamp(),
     });
@@ -288,22 +353,30 @@ async function checkGardenBadges(
   const consecutiveHealthy = stats.consecutiveHealthyDays ?? 0;
   const rareDrops = stats.rareDropsTriggered ?? 0;
 
+  // 초월(transcendent)은 컬렉션/도감 완성 집계에서 제외 — 별도 프레스티지 티어.
+  const isTranscendent = (id: string) => speciesOf(id)?.rarity === 'transcendent';
+
   // first_bloom: 만개한 식물이 한 그루라도 있으면
   if (plants.some((p) => p.stage >= maxStageOf(p.speciesId))) {
     await grantBadgeIfNew(uid, 'first_bloom', 0);
   }
 
-  // collector_5 / 10 / 15 / 20 / 25 — 해금 수 기준
-  const unlockCount = unlocked.length;
+  // collector_5 / 10 / 15 / 20 / 25 — 해금 수 기준 (초월 제외)
+  const unlockCount = unlocked.filter((id) => !isTranscendent(id)).length;
   if (unlockCount >= 5)  await grantBadgeIfNew(uid, 'collector',     50);
   if (unlockCount >= 10) await grantBadgeIfNew(uid, 'collector_10',  150);
   if (unlockCount >= 15) await grantBadgeIfNew(uid, 'collector_15',  400);
   if (unlockCount >= 20) await grantBadgeIfNew(uid, 'collector_20',  1000);
   if (unlockCount >= 25) await grantBadgeIfNew(uid, 'collector_25',  3000);
 
-  // codex 25/25
-  if (codex.length >= 25) {
+  // codex 25/25 (초월 제외)
+  if (codex.filter((id) => !isTranscendent(id)).length >= 25) {
     await grantBadgeIfNew(uid, 'codex_complete', 5000);
+  }
+
+  // 초월의 수호자: 초월 식물을 보유 중이면
+  if (plants.some((p) => isTranscendent(p.speciesId))) {
+    await grantBadgeIfNew(uid, 'transcendent_keeper', 0);
   }
 
   // 수확 챌린지

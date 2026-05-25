@@ -12,7 +12,7 @@
 import { useId } from 'react';
 import { cn } from '@/lib/utils';
 
-type Rarity = 'basic' | 'common' | 'rare' | 'epic' | 'legendary';
+type Rarity = 'basic' | 'common' | 'rare' | 'epic' | 'legendary' | 'transcendent';
 
 interface PlantSVGProps {
   speciesId: string;
@@ -35,14 +35,15 @@ interface Ctx {
 // ── 등급별 장식 escalation ────────────────────────────────
 const RARITY_FX: Record<Rarity, {
   glowRadius: number; glowOpacity: number;
-  aura: 'none' | 'soft' | 'halo';
+  aura: 'none' | 'soft' | 'halo' | 'celestial';
   sparkleCount: number; motes: number; pulse: boolean;
 }> = {
-  basic:     { glowRadius: 0,  glowOpacity: 0,    aura: 'none', sparkleCount: 0, motes: 0, pulse: false },
-  common:    { glowRadius: 0,  glowOpacity: 0,    aura: 'none', sparkleCount: 0, motes: 0, pulse: false },
-  rare:      { glowRadius: 5,  glowOpacity: 0.45, aura: 'soft', sparkleCount: 0, motes: 0, pulse: false },
-  epic:      { glowRadius: 8,  glowOpacity: 0.55, aura: 'soft', sparkleCount: 3, motes: 0, pulse: false },
-  legendary: { glowRadius: 15, glowOpacity: 0.78, aura: 'halo', sparkleCount: 8, motes: 5, pulse: true },
+  basic:        { glowRadius: 0,  glowOpacity: 0,    aura: 'none',      sparkleCount: 0,  motes: 0, pulse: false },
+  common:       { glowRadius: 0,  glowOpacity: 0,    aura: 'none',      sparkleCount: 0,  motes: 0, pulse: false },
+  rare:         { glowRadius: 5,  glowOpacity: 0.45, aura: 'soft',      sparkleCount: 0,  motes: 0, pulse: false },
+  epic:         { glowRadius: 8,  glowOpacity: 0.55, aura: 'soft',      sparkleCount: 3,  motes: 0, pulse: false },
+  legendary:    { glowRadius: 15, glowOpacity: 0.78, aura: 'halo',      sparkleCount: 8,  motes: 5, pulse: true },
+  transcendent: { glowRadius: 24, glowOpacity: 0.95, aura: 'celestial', sparkleCount: 12, motes: 8, pulse: true },
 };
 
 function hashStr(s: string): number {
@@ -64,7 +65,7 @@ export default function PlantSVG({
 
   const deco = decorative && !withered;
   const showGlow = deco && fx.glowRadius > 0 && s >= 2;
-  const glowColor = rarity === 'legendary' ? '#FFD44A' : accent;
+  const glowColor = rarity === 'transcendent' ? '#E6CBFF' : rarity === 'legendary' ? '#FFD44A' : accent;
   const showAura = deco && fx.aura !== 'none' && s >= 2;
   const showSparkles = deco && fx.sparkleCount > 0 && s >= 3;
   const showMotes = deco && fx.motes > 0 && s >= 3;
@@ -207,12 +208,41 @@ function petalRing(
 // ── 등급 장식 레이어 ──────────────────────────────────────
 const HALO_ORIGIN = { transformBox: 'view-box' as const, transformOrigin: '40px 26px' };
 
-function renderAura(kind: 'none' | 'soft' | 'halo', gid: (n: string) => string, color: string, pulse: boolean): React.ReactNode {
+function renderAura(kind: 'none' | 'soft' | 'halo' | 'celestial', gid: (n: string) => string, color: string, pulse: boolean): React.ReactNode {
   if (kind === 'none') return null;
 
   // rare/epic: 단순 후광
   if (kind === 'soft') {
     return <circle cx="40" cy="26" r="30" fill={`url(#${gid('aura')})`} className={pulse ? 'aura-pulse' : undefined} />;
+  }
+
+  // transcendent: 무지개빛 후광 + 3겹 회전 광선(서로 다른 속도·방향) + 이중 광륜
+  if (kind === 'celestial') {
+    const RAYS = [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330];
+    return (
+      <>
+        <circle cx="40" cy="26" r="38" fill={`url(#${gid('aura')})`} className="aura-pulse" />
+        {/* 긴 광선 (느리게 정방향) */}
+        <g className="halo-rotate" style={HALO_ORIGIN}>
+          <g stroke="#FFFFFF" strokeWidth="1.6" opacity="0.6" strokeLinecap="round">
+            {RAYS.map((d) => (
+              <line key={d} x1="40" y1="6" x2="40" y2="-3" transform={`rotate(${d} 40 26)`} />
+            ))}
+          </g>
+        </g>
+        {/* 중간 광선 (반대로) */}
+        <g className="halo-rotate" style={{ ...HALO_ORIGIN, animationDirection: 'reverse', animationDuration: '20s' }}>
+          <g stroke={color} strokeWidth="1.2" opacity="0.5" strokeLinecap="round">
+            {[15, 45, 75, 105, 135, 165, 195, 225, 255, 285, 315, 345].map((d) => (
+              <line key={d} x1="40" y1="10" x2="40" y2="3" transform={`rotate(${d} 40 26)`} />
+            ))}
+          </g>
+        </g>
+        {/* 이중 광륜 */}
+        <circle cx="40" cy="26" r="26" fill="none" stroke="#FFFFFF" strokeWidth="1" opacity="0.5" className="aura-pulse" />
+        <circle cx="40" cy="26" r="20" fill="none" stroke={color} strokeWidth="1.2" opacity="0.55" className="aura-pulse" />
+      </>
+    );
   }
 
   // legendary: 맥동 후광 + 회전 광선 버스트(서로 반대로 도는 2겹) + 광륜
@@ -244,13 +274,14 @@ function renderAura(kind: 'none' | 'soft' | 'halo', gid: (n: string) => string, 
 const STAR4 = 'M0,-3.4 L0.9,-0.9 L3.4,0 L0.9,0.9 L0,3.4 L-0.9,0.9 L-3.4,0 L-0.9,-0.9 Z';
 const SPARKLE_POS: [number, number][] = [
   [14, 20], [60, 16], [58, 46], [22, 48], [68, 32], [12, 38], [70, 52], [40, 7],
+  [30, 10], [50, 10], [16, 54], [64, 8],
 ];
 function renderSparkles(count: number, rarity: Rarity): React.ReactNode {
-  const legendary = rarity === 'legendary';
-  const color = legendary ? '#FFF3C0' : '#FFFFFF';
+  const star = rarity === 'legendary' || rarity === 'transcendent';
+  const color = rarity === 'transcendent' ? '#FFFFFF' : rarity === 'legendary' ? '#FFF3C0' : '#FFFFFF';
   return SPARKLE_POS.slice(0, count).map(([x, y], i) => (
     <g key={i} className="sparkle" style={{ animationDelay: `${i * 0.28}s` }}>
-      {legendary
+      {star
         ? <path d={STAR4} fill={color} transform={`translate(${x} ${y}) scale(${0.85 + (i % 3) * 0.3})`} />
         : <circle cx={x} cy={y} r="1.7" fill={color} />}
     </g>
@@ -779,6 +810,56 @@ function renderFlower(speciesId: string, accent: string, withered: boolean | und
     );
   }
 
+  // ── 초월: 천상수 — 빛의 별나무 (방사 광선 + 중심 별 + 궤도 보석) ──
+  if (speciesId === 'celestial_tree') {
+    return (
+      <g>
+        <line x1="40" y1="40" x2="40" y2="30" stroke={stem} strokeWidth="3.5" strokeLinecap="round" />
+        {/* 방사 광선 */}
+        <g stroke="#FFF6CF" strokeWidth="1" opacity="0.75" strokeLinecap="round">
+          {[0, 45, 90, 135, 180, 225, 270, 315].map((d) => (
+            <line key={d} x1="40" y1="14" x2="40" y2="6" transform={`rotate(${d} 40 24)`} />
+          ))}
+        </g>
+        <circle cx="40" cy="24" r="10" fill={petal} opacity="0.55" />
+        <path d={STAR4} fill="#FFFBE6" transform="translate(40 24) scale(2.4)" />
+        <circle cx="40" cy="24" r="2.4" fill="#FFFFFF" />
+        {[[28, 16], [52, 16], [40, 38]].map(([cx, cy], i) => (
+          <circle key={i} cx={cx} cy={cy} r="1.4" fill="#FFF1A8" opacity="0.9" />
+        ))}
+      </g>
+    );
+  }
+
+  // ── 초월: 영겁화 — 오로라빛 다중 꽃잎 링 ──
+  if (speciesId === 'eternal_bloom') {
+    return (
+      <g>
+        <line x1="40" y1="40" x2="40" y2="30" stroke={stem} strokeWidth="3" strokeLinecap="round" />
+        {petalRing(10, 40, 14, 3.2, 9, 24, petal, 0.85)}
+        {petalRing(8, 40, 17, 2.4, 7.5, 24, '#FFE3F4', 0.7)}
+        <circle cx="40" cy="24" r="6" fill={c} opacity="0.9" />
+        <circle cx="40" cy="24" r="3.4" fill="#FFFFFF" opacity="0.85" />
+      </g>
+    );
+  }
+
+  // ── 초월: 은하백합 — 6장 백합 + 별가루 + 빛나는 코어 ──
+  if (speciesId === 'galaxy_lily') {
+    return (
+      <g>
+        <line x1="40" y1="40" x2="40" y2="30" stroke={stem} strokeWidth="3" strokeLinecap="round" />
+        {petalRing(6, 40, 13, 4, 11, 24, petal, 0.92)}
+        <circle cx="40" cy="24" r="11" fill="#2A2A5A" opacity="0.28" />
+        {[[34, 18], [46, 18], [40, 14], [33, 28], [47, 28], [40, 34]].map(([cx, cy], i) => (
+          <circle key={i} cx={cx} cy={cy} r="0.9" fill="#FFFFFF" opacity="0.9" />
+        ))}
+        <circle cx="40" cy="24" r="4.5" fill="#EAF0FF" opacity="0.95" />
+        <circle cx="40" cy="24" r="2.2" fill="#FFFFFF" />
+      </g>
+    );
+  }
+
   // 기본: 단일 꽃 (sprout/herb/maple/lotus 등)
   return (
     <>
@@ -796,6 +877,7 @@ function renderBloom(speciesId: string, accent: string, withered: boolean | unde
     'cactus', 'moss', 'mint', 'pine', 'fern', 'tree_of_life', 'bamboo',
     'crystal_rose', 'starlight_lily', 'aurora_orchid', 'golden_peony', 'dawn_lily',
     'sunflower', 'tulip',
+    'celestial_tree', 'eternal_bloom', 'galaxy_lily',
   ]);
   if (NO_BLOOM_OVERLAY.has(speciesId)) return null;
   return (
@@ -839,6 +921,9 @@ function getColor(speciesId: string): string {
     aurora_orchid:  '#5A7A8C',
     golden_peony:   '#5A8C3E',
     dawn_lily:      '#6A8C4E',
+    celestial_tree: '#7A6A3A',
+    eternal_bloom:  '#6A4F8C',
+    galaxy_lily:    '#3E3E7A',
   };
   return map[speciesId] ?? '#4F7A37';
 }
@@ -874,6 +959,9 @@ function getAccent(speciesId: string): string {
     aurora_orchid:  '#9A7BFF',
     golden_peony:   '#FFD24A',
     dawn_lily:      '#FF9E7A',
+    celestial_tree: '#FFE89A',
+    eternal_bloom:  '#FF8AD0',
+    galaxy_lily:    '#A9C0FF',
   };
   return map[speciesId] ?? '#A8D08D';
 }
