@@ -49,9 +49,11 @@ export type BloomBadgeProps = {
   level: number;
   size?: number;
   motion?: boolean;
+  // 값이 바뀌면 꽃이 피어나는 모션(bv2-bl-bloom)을 다시 재생한다. 레벨업 연출용.
+  burstKey?: number | string;
 };
 
-export default function BloomBadge({ level, size = 28, motion = true }: BloomBadgeProps) {
+export default function BloomBadge({ level, size = 28, motion = true, burstKey }: BloomBadgeProps) {
   const uid = useId().replace(/[:]/g, '');
   const t = tierOf(level);
   const s = subOf(level);
@@ -188,7 +190,18 @@ export default function BloomBadge({ level, size = 28, motion = true }: BloomBad
         </radialGradient>
       </defs>
 
-      <g className={cls('bv2-bl-bloom')}>
+      {/* 레벨업 버스트 링 — burstKey 가 바뀔 때마다 한 번 확산 (level_desigh/badges-v2.jsx) */}
+      {motion && burstKey != null && (
+        <circle
+          key={`burst-${burstKey}`}
+          cx="32" cy="32" r="18"
+          fill="none" stroke={p.glow} strokeWidth="2"
+          className="bv2-bl-burst"
+          aria-hidden
+        />
+      )}
+
+      <g key={burstKey} className={cls('bv2-bl-bloom')}>
         {/* sub5: 후광 */}
         {s >= 5 && (
           <>

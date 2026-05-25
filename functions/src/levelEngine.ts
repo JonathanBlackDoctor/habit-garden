@@ -13,7 +13,7 @@ import {
   type ProgressDoc,
   type PlantInstance,
 } from '../../shared/types/firestore';
-import { xpForLevel } from '../../shared/lib/xpLevel';
+import { resolveLevelUps } from '../../shared/lib/levelRewards';
 
 const db = admin.firestore();
 
@@ -41,49 +41,33 @@ export async function applyLevelUps(uid: string): Promise<LevelUpResult> {
     if (!snap.exists) return none;
 
     const progress = snap.data() as ProgressDoc;
-    let level = progress.level ?? 1;
-    let xp    = progress.xpInLevel ?? 0;
+    const startLevel = progress.level ?? 1;
+    const startXp    = progress.xpInLevel ?? 0;
     const plants: PlantInstance[] = [...(progress.gardenState?.plants ?? [])];
     const unlocked = progress.gardenState?.unlockedSpecies ?? [];
 
-    let levelsGained  = 0;
-    let pointsAwarded  = 0;
-    let seedsAwarded  = 0;
+    // 보상 규칙은 shared/lib/levelRewards 에 일원화 — 클라이언트 레벨업 창과 동일 계산.
+    const prog = resolveLevelUps(startLevel, startXp);
+    const levelsGained = prog.steps.length;
+    const level = prog.newLevel;
+    const xp    = prog.remainingXp;
+    const pointsAwarded = prog.totalPoints;
+    let seedsAwarded = 0;
 
-    // 여러 레벨을 한꺼번에 채웠을 수 있으므로 가능한 만큼 반복 처리한다.
-    // 보상: 홀수 레벨 → 씨앗, 짝수 레벨 → 포인트, 5레벨 단위 → 큰 보상(포인트+씨앗).
-    // 포인트는 그 레벨업에 소모한 XP에 비례시켜 난이도 곡선을 따라가게 한다.
-    let needed = xpForLevel(level);
-    while (xp >= needed) {
-      const consumedXp = needed;                      // 이번 레벨업에 소모한 XP
-      xp    -= needed;
-      level += 1;
-      levelsGained += 1;
-
-      const milestone = level % LEVELUP_REWARD.MILESTONE_EVERY === 0;
-      let giveSeed          = level % 2 === 1;        // 홀수 레벨 → 씨앗
-      let seedSpecies: string = LEVELUP_REWARD.SEED_SPECIES;
-      if (level % 2 === 0) {                          // 짝수 레벨 → 포인트 (소모 XP 비례)
-        pointsAwarded += LEVELUP_REWARD.EVEN_BASE_POINTS + Math.floor(consumedXp * LEVELUP_REWARD.REWARD_RATE);
-      }
-      if (milestone) {                                // 5레벨마다 큰 보상 (포인트 + 씨앗)
-        pointsAwarded += Math.floor(consumedXp * LEVELUP_REWARD.REWARD_RATE * LEVELUP_REWARD.MILESTONE_MULTIPLIER);
-        giveSeed = true;
-        if (unlocked.includes(LEVELUP_REWARD.MILESTONE_SEED_SPECIES)) {
-          seedSpecies = LEVELUP_REWARD.MILESTONE_SEED_SPECIES;
-        }
-      }
-
-      if (giveSeed && plants.length < MAX_GARDEN_PLANTS) {
-        plants.push({
-          id: `levelup-${level}-${Date.now()}`,
-          speciesId: seedSpecies,
-          stage: 0,
-          plantedAt: admin.firestore.Timestamp.now() as any,
-        });
-        seedsAwarded += 1;
-      }
-      needed = xpForLevel(level);
+    // 씨앗 지급은 정원 자리 상한·마일스톤 씨앗 종 같은 서버 사정이 있어 여기서 처리한다.
+    for (const step of prog.steps) {
+      if (!step.seed || plants.length >= MAX_GARDEN_PLANTS) continue;
+      const seedSpecies =
+        step.milestone && unlocked.includes(LEVELUP_REWARD.MILESTONE_SEED_SPECIES)
+          ? LEVELUP_REWARD.MILESTONE_SEED_SPECIES
+          : LEVELUP_REWARD.SEED_SPECIES;
+      plants.push({
+        id: `levelup-${step.level}-${Date.now()}`,
+        speciesId: seedSpecies,
+        stage: 0,
+        plantedAt: admin.firestore.Timestamp.now() as any,
+      });
+      seedsAwarded += 1;
     }
 
     if (levelsGained === 0) return { ...none, newLevel: level };

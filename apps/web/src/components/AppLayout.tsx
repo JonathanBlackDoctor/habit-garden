@@ -1,8 +1,11 @@
 import { Outlet } from 'react-router-dom';
 import TabBar from './TabBar';
 import CelebrationOverlay from '@/features/habits/CelebrationOverlay';
+import LevelUpModal from '@/features/garden/LevelUpModal';
+import { useLevelUpWatcher } from '@/features/garden/useLevelUpWatcher';
 
 export default function AppLayout() {
+  useLevelUpWatcher();
   return (
     <div
       className="mx-auto flex max-w-[480px] flex-col bg-[var(--bg-base)]"
@@ -13,6 +16,7 @@ export default function AppLayout() {
       </div>
       <TabBar />
       <CelebrationOverlay />
+      <LevelUpModal />
     </div>
   );
 }

@@ -61,6 +61,14 @@ interface AppState {
     payload: { title: string; points: number; detail?: string },
   ) => void;
   clearCelebration: () => void;
+
+  // ── 레벨업 창 (보상 수령) ──
+  // 서버가 보상을 자동 지급하면 progress 변화를 감지해 fromLevel→toLevel 구간을 띄운다.
+  // 사용자가 "보상 수령"을 누르면 닫힌다(보상 자체는 이미 계정에 반영됨).
+  levelUp: { fromLevel: number; toLevel: number } | null;
+  /** 레벨업 창을 띄운다. 이미 열려 있으면 구간을 합쳐 가장 넓게 표시. */
+  showLevelUp: (fromLevel: number, toLevel: number) => void;
+  clearLevelUp: () => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -117,4 +125,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   triggerCelebration: (kind, payload) =>
     set({ celebrationKind: kind, celebrationPayload: payload }),
   clearCelebration:   () => set({ celebrationKind: null, celebrationPayload: undefined }),
+
+  levelUp: null,
+  showLevelUp: (fromLevel, toLevel) =>
+    set((s) => ({
+      levelUp: {
+        fromLevel: s.levelUp ? Math.min(s.levelUp.fromLevel, fromLevel) : fromLevel,
+        toLevel:   s.levelUp ? Math.max(s.levelUp.toLevel, toLevel)     : toLevel,
+      },
+    })),
+  clearLevelUp: () => set({ levelUp: null }),
 }));
