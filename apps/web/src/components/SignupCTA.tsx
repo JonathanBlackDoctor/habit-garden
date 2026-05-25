@@ -81,6 +81,9 @@ export default function SignupCTA({
         {loading ? '연결 중…' : 'Google로 가입하고 내 정원 지키기'}
         {!loading && <ArrowRight size={16} />}
       </button>
+      <p className="mt-2 text-center text-[11px] text-[var(--fg-faint)]">
+        가입도 사용도 모두 무료예요
+      </p>
     </div>
   );
 }
