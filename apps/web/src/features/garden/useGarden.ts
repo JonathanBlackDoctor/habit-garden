@@ -3,7 +3,7 @@ import { doc, onSnapshot, setDoc, serverTimestamp, collection, addDoc, Timestamp
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import type { ProgressDoc, PlantInstance } from 'shared/types/firestore';
-import { PLANT_SPECIES, POINT_PRICES } from 'shared/types/firestore';
+import { PLANT_SPECIES, POINT_PRICES, CODEX_SPECIES_COUNT } from 'shared/types/firestore';
 import { toast } from 'sonner';
 
 // 첫 방문 시 테스트해볼 수 있도록 소량의 포인트와 새싹 1개를 지급
@@ -118,10 +118,11 @@ export function useGardenActions() {
       plantedAt: Timestamp.now() as any,
     };
 
-    // 도감 갱신 — finalSpecies 도 codex 에 자동 등록
+    // 도감 갱신 — finalSpecies 도 codex 에 자동 등록 (초월은 별도 티어이므로 제외)
     const prevStats = progress.gardenStats ?? {};
     const prevCodex = prevStats.codexEntries ?? [];
-    const nextCodex = prevCodex.includes(finalSpecies.id) ? prevCodex : [...prevCodex, finalSpecies.id];
+    const nextCodex = (finalSpecies.rarity === 'transcendent' || prevCodex.includes(finalSpecies.id))
+      ? prevCodex : [...prevCodex, finalSpecies.id];
     const nextRareDrops = (prevStats.rareDropsTriggered ?? 0) + (upgraded ? 1 : 0);
 
     const newPlants = [...progress.gardenState.plants, newPlant];
@@ -202,10 +203,11 @@ export function useGardenActions() {
     }
     const unlockedSpecies = [...progress.gardenState.unlockedSpecies, speciesId];
 
-    // 도감 갱신 — 해금 시점에 자동 등록
+    // 도감 갱신 — 해금 시점에 자동 등록 (초월은 별도 티어이므로 제외)
     const prevStats = progress.gardenStats ?? {};
     const prevCodex = prevStats.codexEntries ?? [];
-    const nextCodex = prevCodex.includes(speciesId) ? prevCodex : [...prevCodex, speciesId];
+    const nextCodex = (species.rarity === 'transcendent' || prevCodex.includes(speciesId))
+      ? prevCodex : [...prevCodex, speciesId];
 
     try {
       await setDoc(doc(db, 'users', uid, 'progress', 'main'), {
@@ -220,7 +222,11 @@ export function useGardenActions() {
         createdAt: serverTimestamp(),
       });
 
-      toast(`🌿 ${species.name} 해금! 도감 ${nextCodex.length}/25`);
+      if (species.rarity === 'transcendent') {
+        toast(`✨ ${species.name} 해금! 초월의 식물을 맞이했습니다.`);
+      } else {
+        toast(`🌿 ${species.name} 해금! 도감 ${nextCodex.length}/${CODEX_SPECIES_COUNT}`);
+      }
     } catch (e) {
       toast.error('저장 실패: ' + (e as Error).message);
     }
@@ -235,6 +241,27 @@ export function useGardenActions() {
     const maxStage = (species.stages ?? 4) - 1;
     if (plant.stage < maxStage) {
       toast.error('아직 만개하지 않았습니다.');
+      return;
+    }
+
+    // 초월(transcendent): 수익 없이 심기 비용(seedCost)만 환급. 해금비·누적 유지비는 환급 없음.
+    if (species.rarity === 'transcendent') {
+      const refund = species.seedCost ?? 0;
+      const newPlants = progress.gardenState.plants.filter((p) => p.id !== plantId);
+      try {
+        await setDoc(doc(db, 'users', uid, 'progress', 'main'), {
+          spendablePoints: (progress.spendablePoints ?? 0) + refund,
+          gardenState: { ...progress.gardenState, plants: newPlants },
+          updatedAt: serverTimestamp(),
+        }, { merge: true });
+        await addDoc(collection(db, 'users', uid, 'pointLedger'), {
+          delta: refund, reason: 'harvest_transcendent', refId: plantId,
+          createdAt: serverTimestamp(),
+        });
+        toast(`✨ ${species.name}을(를) 거두었습니다. 심기 비용 +${refund}P 환급.`);
+      } catch (e) {
+        toast.error('저장 실패: ' + (e as Error).message);
+      }
       return;
     }
 

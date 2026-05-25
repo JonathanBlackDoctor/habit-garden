@@ -13,15 +13,20 @@ import PlantSVG from './PlantSVG';
 import { cn } from '@/lib/utils';
 
 const RARITY_ORDER: Record<PlantSpecies['rarity'], number> = {
-  basic: 0, common: 1, rare: 2, epic: 3, legendary: 4,
+  basic: 0, common: 1, rare: 2, epic: 3, legendary: 4, transcendent: 5,
 };
 
 const RARITY_CHIP: Record<PlantSpecies['rarity'], string> = {
-  basic:     'bg-[var(--leaf-soft)] text-[var(--fg-muted)]',
-  common:    'bg-[#DCEEDB] text-[#3A6E2D]',
-  rare:      'bg-[#E5DCF2] text-[#6B4A8C]',
-  epic:      'bg-gradient-to-r from-[#FFE4B0] to-[#FFB8E8] text-[#7A4FA0]',
-  legendary: 'bg-gradient-to-r from-[#FFD44A] via-[#FFB8E8] to-[#80E0FF] text-[#5A3E1E] font-bold',
+  basic:        'bg-[var(--leaf-soft)] text-[var(--fg-muted)]',
+  common:       'bg-[#DCEEDB] text-[#3A6E2D]',
+  rare:         'bg-[#E5DCF2] text-[#6B4A8C]',
+  epic:         'bg-gradient-to-r from-[#FFE4B0] to-[#FFB8E8] text-[#7A4FA0]',
+  legendary:    'bg-gradient-to-r from-[#FFD44A] via-[#FFB8E8] to-[#80E0FF] text-[#5A3E1E] font-bold',
+  transcendent: 'transcend-chip text-white font-bold',
+};
+
+const RARITY_LABEL: Record<PlantSpecies['rarity'], string> = {
+  basic: '기본', common: '일반', rare: '희귀', epic: '에픽', legendary: '전설', transcendent: '초월',
 };
 
 function starsFor(count: number): string {
@@ -40,9 +45,12 @@ export default function PlantCodex({ progress }: { progress: ProgressDoc }) {
   const sorted = [...PLANT_SPECIES].sort(
     (a, b) => RARITY_ORDER[a.rarity] - RARITY_ORDER[b.rarity] || a.unlockCost - b.unlockCost,
   );
+  // 초월(transcendent)은 별도 프레스티지 티어 — 도감 완성 집계에서 제외하고 따로 보여준다.
+  const normalSpecies = sorted.filter((sp) => sp.rarity !== 'transcendent');
+  const transcendentSpecies = sorted.filter((sp) => sp.rarity === 'transcendent');
 
-  const discoveredCount = sorted.filter((sp) => discovered.has(sp.id)).length;
-  const totalCount = sorted.length;
+  const discoveredCount = normalSpecies.filter((sp) => discovered.has(sp.id)).length;
+  const totalCount = normalSpecies.length;
   const percent = Math.round((discoveredCount / totalCount) * 100);
 
   return (
@@ -77,7 +85,7 @@ export default function PlantCodex({ progress }: { progress: ProgressDoc }) {
 
       {/* 5×5 그리드 */}
       <div className="grid grid-cols-5 gap-2">
-        {sorted.map((sp) => {
+        {normalSpecies.map((sp) => {
           const isDiscovered = discovered.has(sp.id);
           const isUnlocked = unlocked.has(sp.id);
           const count = harvests[sp.id] ?? 0;
@@ -118,8 +126,7 @@ export default function PlantCodex({ progress }: { progress: ProgressDoc }) {
 
               {/* 등급 칩 */}
               <span className={cn('rounded-full px-1 text-[8px]', RARITY_CHIP[sp.rarity])}>
-                {sp.rarity === 'basic' ? '기본' : sp.rarity === 'common' ? '일반' :
-                 sp.rarity === 'rare' ? '희귀' : sp.rarity === 'epic' ? '에픽' : '전설'}
+                {RARITY_LABEL[sp.rarity]}
               </span>
 
               {/* ★ 마일스톤 + 수확 카운트 */}
@@ -140,6 +147,53 @@ export default function PlantCodex({ progress }: { progress: ProgressDoc }) {
           );
         })}
       </div>
+
+      {/* 초월 (프레스티지) — 도감 완성과 무관한 별도 티어 */}
+      {transcendentSpecies.length > 0 && (
+        <div className="space-y-2 pt-1">
+          <p className="text-xs font-semibold transcend-text">✦ 초월 — 보유·유지 자체가 의미인 식물</p>
+          <div className="grid grid-cols-3 gap-2">
+            {transcendentSpecies.map((sp) => {
+              const isUnlocked = unlocked.has(sp.id);
+              return (
+                <motion.div
+                  key={sp.id}
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                  className={cn(
+                    'relative flex flex-col items-center gap-1 rounded-lg border p-1.5 text-center transition-all',
+                    isUnlocked
+                      ? 'border-[#C9A0FF] bg-white/80'
+                      : 'border-dashed border-[var(--fg-faint)] bg-[var(--leaf-soft)]/30 opacity-60',
+                  )}
+                  title={isUnlocked ? sp.name : '미해금'}
+                >
+                  <div className={cn('relative', !isUnlocked && 'grayscale opacity-30')}>
+                    <PlantSVG
+                      speciesId={sp.id}
+                      stage={isUnlocked ? Math.max(3, sp.stages - 1) : 2}
+                      rarity={sp.rarity}
+                      size={48}
+                      decorative={false}
+                    />
+                    {!isUnlocked && (
+                      <div className="absolute inset-0 flex items-center justify-center text-lg font-bold text-[var(--fg-faint)]">
+                        ?
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-[10px] font-medium leading-tight text-[var(--fg-primary)] line-clamp-1">
+                    {isUnlocked ? sp.name : '???'}
+                  </p>
+                  <span className={cn('rounded-full px-1 text-[8px]', RARITY_CHIP[sp.rarity])}>
+                    {RARITY_LABEL[sp.rarity]}
+                  </span>
+                </motion.div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* 마일스톤 가이드 */}
       <div className="rounded-md bg-[var(--leaf-soft)]/40 p-2 text-[10px] leading-relaxed text-[var(--fg-muted)]">

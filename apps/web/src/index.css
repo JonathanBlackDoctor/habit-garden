@@ -116,8 +116,41 @@
 .halo-rotate  { animation: halo-rotate 16s linear infinite; transform-box: fill-box; transform-origin: center; }
 .sparkle      { animation: sparkle-twinkle 1.9s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
 
+/* ── 초월(transcendent) 전용 효과 ── */
+@keyframes transcend-ambient {
+  0%, 100% { opacity: 0.35; }
+  50%      { opacity: 0.6; }
+}
+
+/* 무지개빛 등급 칩 (정원·도감 공통) */
+.transcend-chip {
+  background: linear-gradient(100deg, #FFB8E8, #C9A0FF, #80E0FF, #FFE89A, #FFB8E8);
+  background-size: 280% 100%;
+  animation: transcend-chip-flow 6s linear infinite;
+}
+@keyframes transcend-chip-flow {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 280% 50%; }
+}
+.transcend-text {
+  background: linear-gradient(100deg, #C77DFF, #80B0FF, #C9A0FF);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+/* 정원 전역 오로라 앰비언트 (초월 식물 보유 시) */
+.transcend-ambient {
+  background:
+    radial-gradient(120% 80% at 50% 0%, rgba(201,160,255,0.20) 0%, transparent 60%),
+    radial-gradient(100% 70% at 20% 10%, rgba(128,224,255,0.16) 0%, transparent 55%),
+    radial-gradient(100% 70% at 80% 8%, rgba(255,184,232,0.16) 0%, transparent 55%);
+  mix-blend-mode: screen;
+  animation: transcend-ambient 6s var(--ease-out) infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .plant-sway, .mote, .aura-pulse, .halo-rotate, .sparkle {
+  .plant-sway, .mote, .aura-pulse, .halo-rotate, .sparkle,
+  .transcend-chip, .transcend-ambient {
     animation: none !important;
   }
 }
