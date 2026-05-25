@@ -1,6 +1,5 @@
 import { Outlet } from 'react-router-dom';
 import TabBar from './TabBar';
-import { Toaster } from 'sonner';
 import CelebrationOverlay from '@/features/habits/CelebrationOverlay';
 
 export default function AppLayout() {
@@ -13,17 +12,6 @@ export default function AppLayout() {
         <Outlet />
       </div>
       <TabBar />
-      <Toaster
-        position="bottom-center"
-        richColors
-        closeButton
-        swipeDirections={['left', 'right']}
-        offset="calc(72px + env(safe-area-inset-bottom))"
-        toastOptions={{
-          closeButtonAriaLabel: '알림 닫기',
-          style: { background: 'var(--bloom-soft)', border: '1px solid var(--bloom)', color: 'var(--bloom)' },
-        }}
-      />
       <CelebrationOverlay />
     </div>
   );
