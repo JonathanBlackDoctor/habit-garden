@@ -6,6 +6,7 @@ import PlantCodex from '@/features/garden/PlantCodex';
 import { PLANT_SPECIES, POINT_PRICES, DAILY_YIELD_BY_RARITY, PLANTS_PER_BED, PLANTS_PER_ROW, CODEX_SPECIES_COUNT, MAX_BEDS } from 'shared/types/firestore';
 import type { PlantInstance, PlantSpecies } from 'shared/types/firestore';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
 import { Leaf, Droplets, Lock, Sprout, Snowflake, Wheat, BookOpen, Sparkles, ChevronLeft, ChevronRight, Shovel } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFreezeTokens } from '@/features/freeze/useFreezeTokens';
@@ -102,6 +103,14 @@ export default function Garden() {
   const [bedPage, setBedPage] = useState(0);
   const [sortKey, setSortKey] = useState<SortKey>('planted_desc');
   const [filter, setFilter] = useState<FilterKey>('all');
+  const [confirmDialog, setConfirmDialog] = useState<{
+    type: 'harvest' | 'digup' | 'freeze';
+    plantId?: string;
+    label: string;
+    desc: string;
+    confirmLabel: string;
+    onConfirm: () => void;
+  } | null>(null);
 
   const allPlants = progress?.gardenState.plants ?? [];
 
@@ -509,7 +518,17 @@ export default function Garden() {
                       <Button
                         variant="default"
                         size="sm"
-                        onClick={async () => { await harvestPlant(selected.id); setSelected(null); }}
+                        onClick={() => {
+                          const sid = selected.id;
+                          setConfirmDialog({
+                            type: 'harvest',
+                            plantId: sid,
+                            label: '수확하기',
+                            desc: `${sp?.name ?? '식물'}을(를) 수확하면 정원에서 사라집니다. 계속할까요?`,
+                            confirmLabel: `수확 (+${totalYield}P)`,
+                            onConfirm: async () => { await harvestPlant(sid); setSelected(null); },
+                          });
+                        }}
                         className="w-full gap-2 bg-[var(--bloom)] hover:opacity-90"
                       >
                         <Wheat size={15} />
@@ -533,7 +552,17 @@ export default function Garden() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={async () => { await digUpPlant(selected.id); setSelected(null); }}
+                      onClick={() => {
+                        const sid = selected.id;
+                        setConfirmDialog({
+                          type: 'digup',
+                          plantId: sid,
+                          label: '파내기',
+                          desc: `${sp?.name ?? '식물'}을(를) 파내면 영구적으로 제거됩니다. 계속할까요?`,
+                          confirmLabel: '파내기',
+                          onConfirm: async () => { await digUpPlant(sid); setSelected(null); },
+                        });
+                      }}
                       className="w-full gap-2 border-[#D9544A]/40 text-[#A83A30] hover:bg-[#FEF2F2] hover:border-[#D9544A]"
                     >
                       <Shovel size={15} />
@@ -554,7 +583,20 @@ export default function Garden() {
               <p className="text-sm font-medium text-[var(--fg-primary)]">스트릭 보호 토큰</p>
               <p className="text-xs text-[var(--fg-muted)] tabular-nums">보유 {freeze.count}개 · 사용 {freeze.price}P</p>
             </div>
-            <Button size="sm" variant="secondary" onClick={freeze.useOne} disabled={freeze.count <= 0}>사용</Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={freeze.count <= 0}
+              onClick={() => {
+                setConfirmDialog({
+                  type: 'freeze',
+                  label: '스트릭 보호 토큰 사용',
+                  desc: `토큰 1개를 사용해 오늘의 스트릭을 보호합니다. ${freeze.price}P가 차감됩니다. 계속할까요?`,
+                  confirmLabel: `사용 (-${freeze.price}P)`,
+                  onConfirm: async () => { await freeze.useOne(); },
+                });
+              }}
+            >사용</Button>
           </div>
         </>
       )}
@@ -623,6 +665,32 @@ export default function Garden() {
 
       {/* 도감 탭 */}
       {tab === 'codex' && <PlantCodex progress={progress} />}
+
+      {/* 확인 다이얼로그 */}
+      <Dialog open={!!confirmDialog} onOpenChange={(open) => { if (!open) setConfirmDialog(null); }}>
+        <DialogContent className="max-w-[320px]">
+          <DialogHeader>
+            <DialogTitle>{confirmDialog?.label}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-[var(--fg-muted)] leading-relaxed">{confirmDialog?.desc}</p>
+          <div className="flex gap-2 pt-2">
+            <DialogClose asChild>
+              <Button variant="outline" className="flex-1">취소</Button>
+            </DialogClose>
+            <Button
+              className={confirmDialog?.type === 'digup'
+                ? 'flex-1 bg-[#D9544A] hover:bg-[#B83A30] text-white'
+                : 'flex-1'}
+              onClick={async () => {
+                setConfirmDialog(null);
+                await confirmDialog?.onConfirm();
+              }}
+            >
+              {confirmDialog?.confirmLabel}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
