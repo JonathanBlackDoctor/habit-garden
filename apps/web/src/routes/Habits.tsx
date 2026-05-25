@@ -5,7 +5,8 @@ import { Pencil, Check, Plus, Settings } from 'lucide-react';
 import { toast } from 'sonner';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
-import { useHabits, useHabitChecks, useSaveHabitCheck } from '@/features/habits/useHabits';
+import { useHabits, useHabitChecks, useSaveHabitCheck, useClearHabitCheck } from '@/features/habits/useHabits';
+import { useHabitStreaks } from '@/features/habits/useHabitStreaks';
 import HabitCard from '@/features/habits/HabitCard';
 import HabitEditRow from '@/features/habits/HabitEditRow';
 import PastDateBanner from '@/components/PastDateBanner';
@@ -59,6 +60,8 @@ export default function Habits() {
   const habits = useHabits({ includeInactive: editMode });
   const checks = useHabitChecks(date);
   const save   = useSaveHabitCheck(isPast ? date : undefined);
+  const clear  = useClearHabitCheck(isPast ? date : undefined);
+  const streaks = useHabitStreaks();
 
   const groups = groupByTime(habits);
   const activeHabits   = habits.filter((h) => h.active);
@@ -66,6 +69,14 @@ export default function Habits() {
   const totalAchieved  = activeHabits.filter((h) => checks[h.id]?.achieved).length;
   const totalChecked   = activeHabits.filter((h) => checks[h.id]?.score !== undefined && checks[h.id]?.score !== null).length;
   const currentTOD     = timeOfDay();
+  // 미기록(체크 문서 없음) 습관 수 — 격려 넛지용
+  const remaining      = activeHabits.filter((h) => checks[h.id] === undefined).length;
+  const nudge =
+    totalActive === 0 ? null
+    : remaining === 0 ? '오늘 다 했어요 🌱'
+    : remaining === 1 ? '딱 하나만 더!'
+    : remaining <= 3  ? `거의 다 왔어요 · ${remaining}개 남음`
+    : `오늘 ${remaining}개 남았어요`;
 
   const addNewHabit = async () => {
     if (!uid) return;
@@ -100,6 +111,11 @@ export default function Habits() {
           <p className="text-sm text-[var(--fg-muted)]">
             달성 {totalAchieved}/{totalActive} · 체크 {totalChecked}/{totalActive}
           </p>
+          {nudge && (
+            <p className={`mt-0.5 text-xs font-medium ${remaining === 0 ? 'text-[var(--leaf)]' : 'text-[var(--bloom)]'}`}>
+              {nudge}
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-1">
           <button
@@ -147,7 +163,7 @@ export default function Habits() {
             className="space-y-1.5 rounded-[var(--radius-lg)] p-2.5 transition-all"
             style={{
               background: bg,
-              boxShadow: isNow ? '0 0 0 2px var(--leaf-soft)' : undefined,
+              boxShadow: isNow ? '0 0 0 2px var(--leaf), 0 6px 20px -8px var(--leaf)' : undefined,
             }}
           >
             <div className="flex items-center justify-between">
@@ -176,7 +192,10 @@ export default function Habits() {
                   key={habit.id}
                   habit={habit}
                   check={checks[habit.id]}
+                  streak={streaks[habit.id] ?? 0}
+                  isNow={isNow}
                   onScore={(score) => save(habit, score, checks[habit.id])}
+                  onClear={() => clear(habit, checks[habit.id])}
                 />
               )
             ))}
