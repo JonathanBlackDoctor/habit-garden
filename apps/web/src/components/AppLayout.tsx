@@ -25,7 +25,9 @@ export default function AppLayout() {
   const tabs = useVisibleTabs();
 
   const scrollToTop = useCallback(() => {
+    // 실제 스크롤러가 내부 컨테이너일 수도, document일 수도 있어 둘 다 호출(비스크롤러는 no-op)
     scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
   // 탭 순서 기준 이동 방향(+1 오른쪽 / -1 왼쪽)으로 슬라이드 방향 결정
