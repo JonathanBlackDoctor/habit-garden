@@ -38,6 +38,7 @@ export default function Reflection() {
 
   const save = async () => {
     if (!uid || !allRequired) return;
+    const isFirst = !completed;
     setSaving(true);
     try {
       await setDoc(
@@ -49,7 +50,11 @@ export default function Reflection() {
         { merge: true }
       );
       setCompleted(true);
-      toast('✦ +20P', { description: '회고 작성 완료!' });
+      if (isFirst) {
+        toast('✦ +20P', { description: '회고 작성 완료!' });
+      } else {
+        toast('회고가 수정되었습니다.');
+      }
     } finally {
       setSaving(false);
     }
