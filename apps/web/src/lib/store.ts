@@ -6,11 +6,29 @@ import type { UserProfileDoc, UserSettingsDoc } from 'shared/types/firestore';
 // 콤보 윈도우: 마지막 체크로부터 이 시간 안에 다음 체크 시 콤보 유지
 export const COMBO_WINDOW_MS = 30_000;
 
+// ── 샌드박스(개발자 테스트) 모드 ──
+// 켜면 모든 데이터 경로가 실제 uid 대신 `${uid}__sandbox` 네임스페이스로 바뀐다.
+// 실제 데이터는 전혀 건드리지 않으며, 끄면 즉시 실제 데이터로 복귀한다.
+const SANDBOX_KEY = 'hg_sandbox';
+export const SANDBOX_SUFFIX = '__sandbox';
+function readSandbox(): boolean {
+  try { return localStorage.getItem(SANDBOX_KEY) === '1'; } catch { return false; }
+}
+function effectiveUid(realUid: string | null, sandbox: boolean): string | null {
+  if (!realUid) return null;
+  return sandbox ? `${realUid}${SANDBOX_SUFFIX}` : realUid;
+}
+
 interface AppState {
   currentDate: string;
   setCurrentDate: (date: string) => void;
+  // uid = 데이터 경로용 유효 uid (샌드박스 모드면 `${realUid}__sandbox`).
+  // realUid = 실제 인증 uid (owner 판별·인증 로직용). sandbox 토글과 무관하게 불변.
   uid: string | null;
-  setUid: (uid: string | null) => void;
+  realUid: string | null;
+  sandbox: boolean;
+  setRealUid: (uid: string | null) => void;
+  setSandbox: (on: boolean) => void;
   user: User | null;
   authLoading: boolean;
   setUser: (user: User | null) => void;
@@ -48,8 +66,22 @@ interface AppState {
 export const useAppStore = create<AppState>((set, get) => ({
   currentDate:     plannerDate(),
   setCurrentDate:  (date) => set({ currentDate: date, rewardedHabitIds: {} }),
+  realUid:         null,
+  sandbox:         readSandbox(),
   uid:             null,
-  setUid:          (uid) => set({ uid }),
+  setRealUid:      (realUid) =>
+    set((s) => ({ realUid, uid: effectiveUid(realUid, s.sandbox) })),
+  setSandbox: (on) => {
+    try { localStorage.setItem(SANDBOX_KEY, on ? '1' : '0'); } catch { /* noop */ }
+    set((s) => ({
+      sandbox: on,
+      uid: effectiveUid(s.realUid, on),
+      // 모드 전환 시 하루 보상 게이트·콤보 초기화 (모드 간 연출 혼선 방지)
+      rewardedHabitIds: {},
+      currentCombo: 0,
+      lastCheckAt: 0,
+    }));
+  },
   user:            null,
   authLoading:     true,
   setUser:         (user) => set({ user }),

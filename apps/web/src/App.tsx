@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AppLayout from '@/components/AppLayout';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import SandboxBanner from '@/components/SandboxBanner';
 import ReminderActionHandler from '@/features/habits/ReminderActionHandler';
 
 import Login      from '@/routes/Login';
@@ -39,6 +40,7 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <HashRouter>
         <AuthInit>
+          <SandboxBanner />
           <ReminderActionHandler />
           <Toaster
             position="bottom-center"
