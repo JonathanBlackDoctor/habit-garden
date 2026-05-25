@@ -52,8 +52,10 @@ export async function applyLevelUps(uid: string): Promise<LevelUpResult> {
 
     // 여러 레벨을 한꺼번에 채웠을 수 있으므로 가능한 만큼 반복 처리한다.
     // 보상: 홀수 레벨 → 씨앗, 짝수 레벨 → 포인트, 5레벨 단위 → 큰 보상(포인트+씨앗).
+    // 포인트는 그 레벨업에 소모한 XP에 비례시켜 난이도 곡선을 따라가게 한다.
     let needed = xpForLevel(level);
     while (xp >= needed) {
+      const consumedXp = needed;                      // 이번 레벨업에 소모한 XP
       xp    -= needed;
       level += 1;
       levelsGained += 1;
@@ -61,11 +63,11 @@ export async function applyLevelUps(uid: string): Promise<LevelUpResult> {
       const milestone = level % LEVELUP_REWARD.MILESTONE_EVERY === 0;
       let giveSeed          = level % 2 === 1;        // 홀수 레벨 → 씨앗
       let seedSpecies: string = LEVELUP_REWARD.SEED_SPECIES;
-      if (level % 2 === 0) {                          // 짝수 레벨 → 포인트
-        pointsAwarded += LEVELUP_REWARD.EVEN_BASE_POINTS + LEVELUP_REWARD.EVEN_POINTS_PER_LEVEL * level;
+      if (level % 2 === 0) {                          // 짝수 레벨 → 포인트 (소모 XP 비례)
+        pointsAwarded += LEVELUP_REWARD.EVEN_BASE_POINTS + Math.floor(consumedXp * LEVELUP_REWARD.REWARD_RATE);
       }
       if (milestone) {                                // 5레벨마다 큰 보상 (포인트 + 씨앗)
-        pointsAwarded += LEVELUP_REWARD.MILESTONE_BASE_POINTS + LEVELUP_REWARD.MILESTONE_POINTS_PER_LEVEL * level;
+        pointsAwarded += Math.floor(consumedXp * LEVELUP_REWARD.REWARD_RATE * LEVELUP_REWARD.MILESTONE_MULTIPLIER);
         giveSeed = true;
         if (unlocked.includes(LEVELUP_REWARD.MILESTONE_SEED_SPECIES)) {
           seedSpecies = LEVELUP_REWARD.MILESTONE_SEED_SPECIES;

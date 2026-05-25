@@ -411,12 +411,12 @@ export const PRAYER_POINT_EARN = {
 
 // ── 레벨업 보상 (레벨업 1회마다 지급) ─────────────────────
 // 규칙: 홀수 레벨 → 씨앗, 짝수 레벨 → 포인트, 5레벨 단위 → 큰 보상(포인트+씨앗).
+// 포인트는 그 레벨업에 소모한 XP(xpForLevel)에 비례시켜 난이도 곡선을 따라가게 한다.
 export const LEVELUP_REWARD = {
-  EVEN_BASE_POINTS:           20,  // 짝수 레벨 도달 시 기본 포인트
-  EVEN_POINTS_PER_LEVEL:       5,  // 짝수 레벨 도달 시 레벨 비례 포인트
-  MILESTONE_EVERY:             5,  // 큰 보상 주기 (5레벨마다)
-  MILESTONE_BASE_POINTS:     100,  // 큰 보상 기본 포인트
-  MILESTONE_POINTS_PER_LEVEL: 10,  // 큰 보상 레벨 비례 포인트
+  EVEN_BASE_POINTS:      20,    // 짝수 레벨 도달 시 고정 베이스 포인트
+  REWARD_RATE:           0.15,  // 소모 XP 대비 포인트 비율
+  MILESTONE_EVERY:       5,     // 큰 보상 주기 (5레벨마다)
+  MILESTONE_MULTIPLIER:  2,     // 큰 보상 = 소모 XP × REWARD_RATE × 이 배수
   SEED_SPECIES:        'sprout',   // 기본 보상 씨앗
   MILESTONE_SEED_SPECIES: 'clover', // 큰 보상 씨앗 (미해금 시 sprout 로 대체)
 } as const;
