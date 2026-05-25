@@ -27,12 +27,6 @@ function dDayLabel(deadline: string): string {
   return diff > 0 ? `D-${diff}` : `D+${-diff}`;
 }
 
-const WEEKDAY_KO = ['일', '월', '화', '수', '목', '금', '토'];
-function formatKDate(date: string): string {
-  const d = parseISO(date);
-  return `${d.getMonth() + 1}월 ${d.getDate()}일 (${WEEKDAY_KO[d.getDay()]})`;
-}
-
 export default function Planner() {
   const uid    = useAppStore((s) => s.uid);
   const date   = useAppStore((s) => s.currentDate);
@@ -253,7 +247,7 @@ function DayTodoList({
 }: {
   uid: string | null;
   date: string;
-  title: string;
+  title?: string;
   emptyHint: string;
   variant?: 'today' | 'plain';
   rewardable?: boolean;
@@ -366,7 +360,7 @@ function DayTodoList({
 
   return (
     <section className="space-y-3">
-      <h3 className="text-sm font-semibold text-[var(--fg-primary)]">{title}</h3>
+      {title && <h3 className="text-sm font-semibold text-[var(--fg-primary)]">{title}</h3>}
       {inputRow}
       {itemList}
     </section>
@@ -377,11 +371,6 @@ function UpcomingTodo({ uid, today }: { uid: string | null; today: string }) {
   const tomorrow = format(addDays(parseISO(today), 1), 'yyyy-MM-dd');
   const dayAfter = format(addDays(parseISO(today), 2), 'yyyy-MM-dd');
   const [selectedDate, setSelectedDate] = useState(tomorrow);
-
-  const dateLabel =
-    selectedDate === tomorrow ? '내일'
-    : selectedDate === dayAfter ? '모레'
-    : formatKDate(selectedDate);
 
   const quickPick = (d: string, label: string) => (
     <button
@@ -420,7 +409,6 @@ function UpcomingTodo({ uid, today }: { uid: string | null; today: string }) {
         date={selectedDate}
         variant="plain"
         rewardable={false}
-        title={`${dateLabel} 할 일`}
         emptyHint="이 날짜의 할 일을 미리 적어두세요."
       />
     </section>
