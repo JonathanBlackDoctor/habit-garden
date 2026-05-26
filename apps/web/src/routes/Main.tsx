@@ -80,6 +80,10 @@ export default function Main() {
 
   // 미기록(아직 손대지 않은) 습관 수 + 격려 넛지
   const remaining = habits.filter((h) => checks[h.id] === undefined).length;
+  // 미기록 습관 이름 — 지금 시간대 우선 정렬 (메인에 직접 노출)
+  const pendingHabits = [currentTOD, ...TIME_ORDER.filter((t) => t !== currentTOD)].flatMap((tod) =>
+    habits.filter((h) => h.timeOfDay === tod && checks[h.id] === undefined)
+  );
   // 건너뜀(score=null)은 오늘 목표에서 제외 — 미이행으로 취급하지 않음
   const skippedCount = habits.filter((h) => checks[h.id]?.score === null).length;
   const intended = Math.max(totalHabits - skippedCount, 0);
@@ -193,6 +197,25 @@ export default function Main() {
                   {nudge}
                 </p>
               )}
+              {/* 미기록 습관 이름 — 무엇을 해야 하는지 직접 노출 */}
+              {pendingHabits.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {pendingHabits.slice(0, 3).map((h) => (
+                    <button
+                      key={h.id}
+                      onClick={() => navigate('/habits')}
+                      className="max-w-[10rem] truncate rounded-full bg-[var(--leaf-soft)] px-2 py-0.5 text-[11px] font-medium text-[var(--leaf)]"
+                    >
+                      {h.title}
+                    </button>
+                  ))}
+                  {pendingHabits.length > 3 && (
+                    <span className="self-center px-1 text-[11px] text-[var(--fg-faint)]">
+                      +{pendingHabits.length - 3}
+                    </span>
+                  )}
+                </div>
+              )}
               {groupedHabits.map(({ tod, group, achieved }) => {
                 const isNow = tod === currentTOD;
                 // 미기록(아직 손대지 않은) 습관만 '할 일'로 간주 — 건너뜀·미달·달성은 처리됨
@@ -208,7 +231,7 @@ export default function Main() {
                     )}
                   >
                     <span className="w-8 shrink-0 text-[11px] text-[var(--fg-muted)]">{TIME_LABELS[tod]}</span>
-                    <div className="flex flex-1 flex-wrap gap-1">
+                    <div className="flex flex-1 flex-wrap items-center gap-1.5">
                       {group.map((h) => {
                         const c = checks[h.id];
                         const todoDot = c === undefined;
@@ -216,7 +239,8 @@ export default function Main() {
                           <div
                             key={h.id}
                             className={cn(
-                              'h-3 w-3 rounded-full',
+                              'rounded-full',
+                              todoDot ? 'h-4 w-4' : 'h-2.5 w-2.5',     // 미기록은 더 크게
                               c?.achieved
                                 ? 'bg-[var(--leaf)]/30'                  // 달성(기록) — 흐리게
                                 : c?.score === null
@@ -224,7 +248,8 @@ export default function Main() {
                                 : c !== undefined
                                 ? 'bg-[var(--wither)]/40'                // 미달(기록) — 흐리게
                                 : 'bg-[var(--leaf)]',                    // 미기록 — 또렷하게(강조)
-                              todoDot && isNow && 'ring-2 ring-[var(--bloom)]/50 aura-pulse'
+                              todoDot && 'ring-2 ring-[var(--leaf)]/30',
+                              todoDot && isNow && 'ring-[var(--bloom)]/60 aura-pulse'
                             )}
                           />
                         );
