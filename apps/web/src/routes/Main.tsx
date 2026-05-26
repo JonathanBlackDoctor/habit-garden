@@ -8,8 +8,9 @@ import { useProgress } from '@/features/garden/useGarden';
 import PlantSVG from '@/features/garden/PlantSVG';
 import TodayGrowth from '@/features/garden/TodayGrowth';
 import { formatKoreanDate, timeOfDay } from '@/lib/dayBoundary';
-import { xpForLevel } from '@/lib/utils';
+import { xpForLevel, cn } from '@/lib/utils';
 import BloomBadge from '@/components/BloomBadge';
+import ProgressRing from '@/components/ProgressRing';
 import type { DayDoc, TodayTodoDoc } from 'shared/types/firestore';
 import { PLANT_SPECIES } from 'shared/types/firestore';
 import { motion } from 'framer-motion';
@@ -24,6 +25,9 @@ import { useFaithEnabled, useIsPremium } from '@/lib/features';
 
 const TIME_LABELS: Record<string, string> = {
   morning: '아침', afternoon: '점심', evening: '저녁', night: '밤', anytime: '언제든',
+};
+const GREETINGS: Record<string, string> = {
+  morning: '좋은 아침이에요', afternoon: '좋은 오후예요', evening: '좋은 저녁이에요', night: '하루 마무리 시간이에요',
 };
 const TIME_ORDER = ['morning', 'afternoon', 'evening', 'night', 'anytime'];
 
@@ -74,6 +78,16 @@ export default function Main() {
     return { tod, group, achieved };
   }).filter(({ group }) => group.length > 0);
 
+  // 미기록(아직 손대지 않은) 습관 수 + 격려 넛지
+  const remaining = habits.filter((h) => checks[h.id] === undefined).length;
+  const ratio = totalHabits > 0 ? totalAchieved / totalHabits : 0;
+  const nudge =
+    totalHabits === 0 ? null
+    : remaining === 0 ? '오늘 할 일 끝! 🌱'
+    : remaining === 1 ? '딱 하나만 더!'
+    : remaining <= 3  ? `거의 다 왔어요 · ${remaining}개 남음`
+    : `오늘 ${remaining}개 남았어요`;
+
   return (
     <div className="flex min-h-full flex-col gap-3 p-4 pb-6">
       {/* ── 상단바 ── */}
@@ -97,7 +111,7 @@ export default function Main() {
           <div className="flex items-center gap-2.5">
             <BloomBadge level={level} size={34} />
             <div>
-              <p className="text-xs opacity-80">{formatKoreanDate(date)}</p>
+              <p className="text-xs opacity-80">{GREETINGS[currentTOD]} · {formatKoreanDate(date)}</p>
               <p className="text-lg font-semibold leading-tight">
                 Lv.{level}
                 {streak > 0 && (
@@ -155,47 +169,77 @@ export default function Main() {
             관리 메뉴에서 시드 습관을 추가하세요.
           </p>
         ) : (
-          <div className="space-y-2">
-            {groupedHabits.map(({ tod, group, achieved }) => {
-              const isNow = tod === currentTOD;
-              const allDone = achieved === group.length && group.length > 0;
-              return (
-                <button
-                  key={tod}
-                  onClick={() => navigate('/habits')}
-                  className="flex w-full items-center gap-2 text-left"
-                >
-                  <span className="w-10 text-xs text-[var(--fg-muted)] shrink-0">{TIME_LABELS[tod]}</span>
-                  <div className="flex-1 flex gap-1">
-                    {group.map((h) => (
-                      <div
-                        key={h.id}
-                        className={`h-3.5 w-3.5 rounded-full ${
-                          checks[h.id]?.achieved
-                            ? 'bg-[var(--leaf)]'
-                            : checks[h.id]?.score !== undefined
-                            ? 'bg-[var(--wither)]'
-                            : 'bg-[var(--leaf-soft)] border border-[var(--border)]'
-                        }`}
-                      />
-                    ))}
-                  </div>
-                  <span
-                    className={`text-xs tabular-nums shrink-0 ${
-                      allDone ? 'text-[var(--leaf)]' : isNow ? 'text-[var(--bloom)] font-medium' : 'text-[var(--fg-faint)]'
-                    }`}
+          <div className="flex items-center gap-4">
+            {/* 히어로 — 오늘 달성률 원형 진행 링 */}
+            <ProgressRing
+              progress={ratio}
+              size={92}
+              color={ratio >= 1 ? 'var(--bloom)' : 'var(--leaf)'}
+            >
+              <span className="text-xl font-bold tabular-nums text-[var(--fg-primary)]">
+                {totalAchieved}
+                <span className="text-sm font-medium text-[var(--fg-faint)]">/{totalHabits}</span>
+              </span>
+              <span className="mt-0.5 text-[10px] text-[var(--fg-muted)]">달성</span>
+            </ProgressRing>
+
+            {/* 넛지 + 시간대별 요약 */}
+            <div className="min-w-0 flex-1 space-y-1.5">
+              {nudge && (
+                <p className={cn('text-sm font-semibold', remaining === 0 ? 'text-[var(--leaf)]' : 'text-[var(--bloom)]')}>
+                  {nudge}
+                </p>
+              )}
+              {groupedHabits.map(({ tod, group, achieved }) => {
+                const isNow = tod === currentTOD;
+                const allDone = achieved === group.length && group.length > 0;
+                return (
+                  <button
+                    key={tod}
+                    onClick={() => navigate('/habits')}
+                    className={cn(
+                      'flex w-full items-center gap-2 rounded-md px-1 py-0.5 text-left transition-colors',
+                      isNow && !allDone && 'bg-[var(--bloom)]/10'
+                    )}
                   >
-                    {achieved}/{group.length}
-                    {isNow && !allDone && ' ⚡'}
-                  </span>
-                </button>
-              );
-            })}
+                    <span className="w-8 shrink-0 text-[11px] text-[var(--fg-muted)]">{TIME_LABELS[tod]}</span>
+                    <div className="flex flex-1 flex-wrap gap-1">
+                      {group.map((h) => {
+                        const c = checks[h.id];
+                        const todoDot = c === undefined;
+                        return (
+                          <div
+                            key={h.id}
+                            className={cn(
+                              'h-3 w-3 rounded-full',
+                              c?.achieved
+                                ? 'bg-[var(--leaf)]'
+                                : c?.score === null
+                                ? 'bg-[var(--bg-base)] border border-[var(--border)]' // 건너뜀 — 중립
+                                : c !== undefined
+                                ? 'bg-[var(--wither)]'                                  // 미달
+                                : 'bg-[var(--leaf-soft)] border border-[var(--leaf)]/50', // 미기록 — 강조
+                              todoDot && isNow && 'ring-2 ring-[var(--bloom)]/50 aura-pulse'
+                            )}
+                          />
+                        );
+                      })}
+                    </div>
+                    <span
+                      className={cn(
+                        'shrink-0 text-[11px] tabular-nums',
+                        allDone ? 'text-[var(--leaf)]' : isNow ? 'font-medium text-[var(--bloom)]' : 'text-[var(--fg-faint)]'
+                      )}
+                    >
+                      {achieved}/{group.length}
+                      {isNow && !allDone && ' ⚡'}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
-        <div className="text-xs text-[var(--fg-faint)] text-right tabular-nums">
-          전체 달성 {totalAchieved}/{totalHabits}
-        </div>
       </motion.section>
 
       {/* ── 할 일 / 회고 ── */}
