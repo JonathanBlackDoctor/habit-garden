@@ -204,7 +204,7 @@ export default function Main() {
                 const pending = group.filter((h) => checks[h.id] === undefined).length;
                 const settled = pending === 0;
                 // 적응형 크기 — 그룹이 많아질수록 dot를 줄여 줄바꿈 최소화
-                const dotSize = group.length <= 6 ? 20 : group.length <= 10 ? 16 : 14;
+                const dotSize = group.length <= 6 ? 16 : group.length <= 10 ? 14 : 12;
                 return (
                   <button
                     key={tod}
@@ -215,7 +215,7 @@ export default function Main() {
                     )}
                   >
                     <span className="w-8 shrink-0 text-[11px] text-[var(--fg-muted)]">{TIME_LABELS[tod]}</span>
-                    <div className={cn('flex flex-1 flex-wrap items-center', dotSize >= 20 ? 'gap-1.5' : 'gap-1')}>
+                    <div className={cn('flex flex-1 flex-wrap items-center', dotSize >= 16 ? 'gap-1.5' : 'gap-1')}>
                       {group.map((h) => (
                         <HabitStatusDot
                           key={h.id}
