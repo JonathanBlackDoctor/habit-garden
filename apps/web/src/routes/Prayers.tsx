@@ -66,7 +66,6 @@ function PrayersInner() {
   const groups  = usePrayerGroups();
   const { quickAdd, addPrayerTarget } = usePrayerActions();
   const isPremium = useIsPremium();
-  const prayerBloomKey = useTabBloomKey('/prayers'); // 기도 탭 진입 시 진행바 재생
 
   const [seg, setSeg] = useState<Segment>('today');
   const [quick, setQuick] = useState('');
@@ -184,6 +183,7 @@ function TodayView({
   const { checkPrayer, uncheckPrayer, appendTodayExtras, persistTodayPlan } = usePrayerActions();
   const { pinned, rotation, fromPlan, pinnedIds, rotationIds } = useTodayPrayers(prayers, dayDoc);
   const digest = useLatestWeeklyDigest();
+  const prayerBloomKey = useTabBloomKey('/prayers'); // 기도 탭 진입 시 진행바 재생
 
   // 오늘의 목록을 그날 한 번 확정 — 기도 체크로 lastPrayedAt 이 바뀌어도 목록이 흔들리지 않게.
   // 빈 계산은 영속화하지 않는다(prayers 로딩 전 빈 배열로 하루가 잠기는 것을 방지).
