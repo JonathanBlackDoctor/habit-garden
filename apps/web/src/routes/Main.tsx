@@ -80,7 +80,10 @@ export default function Main() {
 
   // 미기록(아직 손대지 않은) 습관 수 + 격려 넛지
   const remaining = habits.filter((h) => checks[h.id] === undefined).length;
-  const ratio = totalHabits > 0 ? totalAchieved / totalHabits : 0;
+  // 건너뜀(score=null)은 오늘 목표에서 제외 — 미이행으로 취급하지 않음
+  const skippedCount = habits.filter((h) => checks[h.id]?.score === null).length;
+  const intended = Math.max(totalHabits - skippedCount, 0);
+  const ratio = intended > 0 ? totalAchieved / intended : (totalHabits > 0 ? 1 : 0);
   const nudge =
     totalHabits === 0 ? null
     : remaining === 0 ? '오늘 할 일 끝! 🌱'
@@ -178,7 +181,7 @@ export default function Main() {
             >
               <span className="text-xl font-bold tabular-nums text-[var(--fg-primary)]">
                 {totalAchieved}
-                <span className="text-sm font-medium text-[var(--fg-faint)]">/{totalHabits}</span>
+                <span className="text-sm font-medium text-[var(--fg-faint)]">/{intended}</span>
               </span>
               <span className="mt-0.5 text-[10px] text-[var(--fg-muted)]">달성</span>
             </ProgressRing>
@@ -192,14 +195,16 @@ export default function Main() {
               )}
               {groupedHabits.map(({ tod, group, achieved }) => {
                 const isNow = tod === currentTOD;
-                const allDone = achieved === group.length && group.length > 0;
+                // 미기록(아직 손대지 않은) 습관만 '할 일'로 간주 — 건너뜀·미달·달성은 처리됨
+                const pending = group.filter((h) => checks[h.id] === undefined).length;
+                const settled = pending === 0;
                 return (
                   <button
                     key={tod}
                     onClick={() => navigate('/habits')}
                     className={cn(
                       'flex w-full items-center gap-2 rounded-md px-1 py-0.5 text-left transition-colors',
-                      isNow && !allDone && 'bg-[var(--bloom)]/10'
+                      isNow && !settled && 'bg-[var(--bloom)]/10'
                     )}
                   >
                     <span className="w-8 shrink-0 text-[11px] text-[var(--fg-muted)]">{TIME_LABELS[tod]}</span>
@@ -228,11 +233,11 @@ export default function Main() {
                     <span
                       className={cn(
                         'shrink-0 text-[11px] tabular-nums',
-                        allDone ? 'text-[var(--leaf)]' : isNow ? 'font-medium text-[var(--bloom)]' : 'text-[var(--fg-faint)]'
+                        settled ? 'text-[var(--leaf)]' : isNow ? 'font-medium text-[var(--bloom)]' : 'text-[var(--fg-faint)]'
                       )}
                     >
                       {achieved}/{group.length}
-                      {isNow && !allDone && ' ⚡'}
+                      {isNow && !settled && ' ⚡'}
                     </span>
                   </button>
                 );
