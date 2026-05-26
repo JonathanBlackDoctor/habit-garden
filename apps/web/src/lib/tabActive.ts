@@ -7,7 +7,7 @@ export const TabActiveContext = createContext<TabActive>({ path: null, nonce: 0 
 // 해당 path 탭이 '활성화'되거나(다른 탭 → 이 탭) '재탭'될 때마다 1씩 증가하는 키.
 // BloomBadge burstKey, CountUp replayKey 등에 넘겨 탭 진입/재탭 시 애니메이션을 재생.
 // 슬라이드/스크롤 전환이 끝난 뒤(SETTLE_MS) 발화 → 화면 밖에서 재생돼 못 보는 마스킹 방지.
-const SETTLE_MS = 380;
+const SETTLE_MS = 150;
 export function useTabBloomKey(path: string): number {
   const { path: active, nonce } = useContext(TabActiveContext);
   const [key, setKey] = useState(0);
