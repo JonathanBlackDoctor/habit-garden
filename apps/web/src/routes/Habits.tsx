@@ -151,11 +151,12 @@ export default function Habits() {
         if (!group || group.length === 0) return null;
         const groupAchieved = group.filter((h) => checks[h.id]?.achieved).length;
         const ratio = group.length > 0 ? groupAchieved / group.length : 0;
+        const remaining = group.filter((h) => checks[h.id] === undefined).length;
         const isNow = tod === currentTOD;
         const bgFull = TIME_GRADIENTS[tod];
         const bgDim  = TIME_GRADIENTS_DIM[tod];
-        // 달성률이 0이면 dim, 100%면 full, 중간은 보간 — 단순화: 50% 임계
-        const bg = ratio >= 0.5 ? bgFull : bgDim;
+        // 미기록이 남아있으면 '진행 중' → 밝게 강조. 전부 기록된 뒤에만 달성률(<50%)로 dim 판단
+        const bg = remaining > 0 || ratio >= 0.5 ? bgFull : bgDim;
         const isNight = tod === 'night';
         return (
           <section
