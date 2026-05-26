@@ -8,6 +8,8 @@ import { BADGE_DEFS } from 'shared/types/firestore';
 import type { BadgeDoc, DayDoc } from 'shared/types/firestore';
 import { xpForLevel } from '@/lib/utils';
 import BloomBadge from '@/components/BloomBadge';
+import CountUp from '@/components/CountUp';
+import { motion } from 'framer-motion';
 import { useTabBloomKey } from '@/lib/tabActive';
 import { plannerDate } from '@/lib/dayBoundary';
 import { Flame, Star, Award } from 'lucide-react';
@@ -94,13 +96,21 @@ export default function Progress() {
       {/* 스트릭 */}
       <div className="grid grid-cols-2 gap-3">
         <div className="card p-3 text-center">
-          <Flame size={20} className="text-[var(--bloom)] mx-auto mb-1" />
-          <p className="text-2xl font-bold text-[var(--fg-primary)] tabular-nums">{globalStreak}</p>
+          <motion.div key={bloomKey} initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 420, damping: 16 }}>
+            <Flame size={20} className="text-[var(--bloom)] mx-auto mb-1" />
+          </motion.div>
+          <p className="text-2xl font-bold text-[var(--fg-primary)] tabular-nums">
+            <CountUp value={globalStreak} replayKey={bloomKey} />
+          </p>
           <p className="text-xs text-[var(--fg-muted)]">현재 스트릭</p>
         </div>
         <div className="card p-3 text-center">
-          <Star size={20} className="text-[var(--bloom)] mx-auto mb-1" />
-          <p className="text-2xl font-bold text-[var(--fg-primary)] tabular-nums">{globalBestStreak}</p>
+          <motion.div key={bloomKey} initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 420, damping: 16 }}>
+            <Star size={20} className="text-[var(--bloom)] mx-auto mb-1" />
+          </motion.div>
+          <p className="text-2xl font-bold text-[var(--fg-primary)] tabular-nums">
+            <CountUp value={globalBestStreak} replayKey={bloomKey} />
+          </p>
           <p className="text-xs text-[var(--fg-muted)]">최고 스트릭</p>
         </div>
       </div>
@@ -170,10 +180,16 @@ export default function Progress() {
       <div className="card p-4 space-y-3">
         <h3 className="text-sm font-medium text-[var(--fg-primary)]">배지</h3>
         <div className="grid grid-cols-4 gap-3">
-          {BADGE_DEFS.map((def) => {
+          {BADGE_DEFS.map((def, idx) => {
             const earned = earnedIds.has(def.id);
             return (
-              <div key={def.id} className="flex flex-col items-center gap-1 text-center">
+              <motion.div
+                key={`${def.id}-${bloomKey}`}
+                initial={{ scale: 0.5, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ delay: Math.min(idx * 0.03, 0.45), type: 'spring', stiffness: 380, damping: 20 }}
+                className="flex flex-col items-center gap-1 text-center"
+              >
                 <div
                   className={`flex h-12 w-12 items-center justify-center rounded-full text-xl ${
                     earned
@@ -190,7 +206,7 @@ export default function Progress() {
                 <span className={`text-[10px] leading-tight ${earned ? 'text-[var(--fg-primary)]' : 'text-[var(--fg-faint)]'}`}>
                   {def.title}
                 </span>
-              </div>
+              </motion.div>
             );
           })}
         </div>

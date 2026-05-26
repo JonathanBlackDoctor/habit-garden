@@ -24,6 +24,7 @@ import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { Navigate } from 'react-router-dom';
 import { useFaithEnabled, useIsPremium } from '@/lib/features';
+import { useTabBloomKey } from '@/lib/tabActive';
 
 type Segment = 'today' | 'all' | 'answered' | 'dormant';
 const SEGMENTS: { id: Segment; label: string }[] = [
@@ -65,6 +66,7 @@ function PrayersInner() {
   const groups  = usePrayerGroups();
   const { quickAdd, addPrayerTarget } = usePrayerActions();
   const isPremium = useIsPremium();
+  const prayerBloomKey = useTabBloomKey('/prayers'); // 기도 탭 진입 시 진행바 재생
 
   const [seg, setSeg] = useState<Segment>('today');
   const [quick, setQuick] = useState('');
@@ -232,6 +234,7 @@ function TodayView({
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-[var(--bg-base)]">
             <motion.div
+              key={prayerBloomKey}
               className="h-full rounded-full bg-[var(--leaf)]"
               initial={{ width: 0 }}
               animate={{ width: `${pct}%` }}
