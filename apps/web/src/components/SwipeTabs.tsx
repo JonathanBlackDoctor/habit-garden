@@ -21,8 +21,7 @@ const TAB_ELEMENTS: Record<string, ReactElement> = {
 };
 
 const LOCK_PX = 10;            // 가로 제스처로 확정하는 최소 이동
-const COMMIT_RATIO = 0.22;     // 화면 폭 대비 탭 전환 임계
-const COMMIT_VELOCITY = 0.4;   // px/ms 이상이면 거리와 무관하게 전환
+const PROJECT_MS = 120;        // 놓는 순간 속도를 이만큼(ms) 투영해 목표 패널 결정
 const SPRING = { type: 'spring' as const, stiffness: 360, damping: 40, restDelta: 0.5 };
 
 export default function SwipeTabs() {
@@ -64,12 +63,11 @@ export default function SwipeTabs() {
     inited.current = true;
   }, [w, activeIndex, isTabRoute, trackX]);
 
-  const gesture = useRef({ x: 0, y: 0, lastX: 0, lastT: 0, locked: false, ignore: false, vx: 0 });
+  const gesture = useRef({ x: 0, y: 0, lastX: 0, lastT: 0, locked: false, ignore: false, vx: 0, startTrack: 0 });
 
   useEffect(() => {
     const el = containerRef.current;
     if (!el || !isTabRoute || !w) return;
-    const base = () => -activeIndex * w;
     const minX = -(tabs.length - 1) * w;
     const clamp = (x: number) =>
       x > 0 ? x * 0.3 : x < minX ? minX + (x - minX) * 0.3 : x; // 양 끝 고무줄 저항
@@ -91,27 +89,31 @@ export default function SwipeTabs() {
       const dx = t.clientX - g.x, dy = t.clientY - g.y;
       if (!g.locked) {
         if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 8) { g.ignore = true; return; } // 세로 스크롤 양보
-        if (Math.abs(dx) > LOCK_PX && Math.abs(dx) >= Math.abs(dy)) g.locked = true;
-        else return;
+        if (Math.abs(dx) > LOCK_PX && Math.abs(dx) >= Math.abs(dy)) {
+          g.locked = true;
+          trackX.stop();                 // 진행 중인 스냅 애니메이션 정지
+          g.startTrack = trackX.get();   // 기준점은 route 상태가 아닌 실시간 트랙 위치
+        } else return;
       }
       e.preventDefault();
       const now = performance.now();
       const dt = now - g.lastT || 16;
       g.vx = (t.clientX - g.lastX) / dt; g.lastX = t.clientX; g.lastT = now;
-      trackX.set(clamp(base() + dx));
+      trackX.set(clamp(g.startTrack + dx));
     };
 
     const onEnd = () => {
       const g = gesture.current;
       if (g.ignore || !g.locked) { g.ignore = false; g.locked = false; return; }
       g.locked = false;
-      const dx = trackX.get() - base();
-      const stepped = Math.abs(dx) > w * COMMIT_RATIO || Math.abs(g.vx) > COMMIT_VELOCITY;
-      const target = stepped
-        ? Math.min(tabs.length - 1, Math.max(0, activeIndex + (dx < 0 ? 1 : -1)))
-        : activeIndex;
+      // 속도를 투영한 위치로 목표 패널 결정 → 위치/속도 부호 불일치로 인한 역방향 버그 방지
+      const projected = trackX.get() + g.vx * PROJECT_MS;
+      const startIdx = Math.round(-g.startTrack / w);
+      let target = Math.round(-projected / w);
+      target = Math.max(startIdx - 1, Math.min(startIdx + 1, target)); // 한 번에 최대 한 칸
+      target = Math.max(0, Math.min(tabs.length - 1, target));
       if (target !== activeIndex) navigate(tabs[target].to); // 위치 애니메이션은 활성 변경 effect가 처리
-      else animate(trackX, base(), SPRING);
+      else animate(trackX, -target * w, SPRING);
     };
 
     el.addEventListener('touchstart', onStart, { passive: true });
