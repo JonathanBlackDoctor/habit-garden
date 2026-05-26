@@ -5,7 +5,7 @@ import {
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import type { HabitDoc, HabitCheckDoc } from 'shared/types/firestore';
-import { pointsForCheck } from 'shared/lib/habitPoints';
+import { pointsForCheck, SCALED_ACHIEVE_THRESHOLD } from 'shared/lib/habitPoints';
 import { toast } from 'sonner';
 import { feedback } from '@/lib/feedback';
 
@@ -76,7 +76,8 @@ export function useSaveHabitCheck(dateOverride?: string) {
     // 미기록(prevCheck 없음)에서 건너뛰기(score=null)는 새 기록으로 저장돼야 함
     if (prevCheck != null && prevScore === score) return;
 
-    const achieved = score !== null && score >= habit.achieveThreshold;
+    const threshold = habit.scoreMode === 'scaled' ? SCALED_ACHIEVE_THRESHOLD : habit.achieveThreshold;
+    const achieved = score !== null && score >= threshold;
     const checkDoc: HabitCheckDoc = {
       habitId: habit.id,
       score,

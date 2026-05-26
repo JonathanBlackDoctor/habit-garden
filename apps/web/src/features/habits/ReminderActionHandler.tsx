@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import type { HabitDoc } from 'shared/types/firestore';
+import { SCALED_ACHIEVE_THRESHOLD } from 'shared/lib/habitPoints';
 
 /**
  * 알림 액션(B-2) 처리기.
@@ -21,7 +22,7 @@ async function applyQuickCheck(uid: string, habitIds: string[], date: string) {
     const snap = await getDoc(doc(db, 'users', uid, 'habits', id));
     if (!snap.exists()) continue;
     const habit = snap.data() as HabitDoc;
-    const score = habit.scoreMode === 'binary' ? 1 : habit.achieveThreshold;
+    const score = habit.scoreMode === 'binary' ? 1 : SCALED_ACHIEVE_THRESHOLD;
     await setDoc(doc(db, 'users', uid, 'days', date, 'habitChecks', id), {
       habitId: id,
       score,

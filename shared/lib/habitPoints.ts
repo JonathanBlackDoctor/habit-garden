@@ -20,6 +20,13 @@
  *  (포인트와 무관, 스트릭/배지/dayScore 산정에 사용).
  */
 
+/**
+ * 5점 척도 달성 임계값. 모든 scaled 습관에 획일적으로 적용한다 —
+ * 습관별 achieveThreshold 필드가 과거 잘못 저장돼 있어도 이 값을 기준으로 판정한다.
+ * (1·2점=미달성, 3점부터 달성)
+ */
+export const SCALED_ACHIEVE_THRESHOLD = 3;
+
 const SCALED_MULTIPLIER: Record<1 | 2 | 3 | 4 | 5, number> = {
   1: 0.4,
   2: 0.8,

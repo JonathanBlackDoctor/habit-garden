@@ -115,8 +115,8 @@ export default function HabitEditRow({ habit, groupSiblings }: Props) {
           value={habit.scoreMode}
           onChange={(e) => {
             const scoreMode = e.target.value as HabitDoc['scoreMode'];
-            // 척도 전환 시 임계값도 함께 맞춘다 — scaled는 2(1점 미달성·연속 끊김, 2점부터 달성), binary는 1
-            updateField({ scoreMode, achieveThreshold: scoreMode === 'scaled' ? 2 : 1 });
+            // 척도 전환 시 임계값도 함께 맞춘다 — scaled는 3(1·2점 미달성, 3점부터 달성), binary는 1
+            updateField({ scoreMode, achieveThreshold: scoreMode === 'scaled' ? 3 : 1 });
           }}
           className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-1.5 py-0.5 text-xs text-[var(--fg-primary)] focus:border-[var(--leaf)] focus:outline-none"
         >

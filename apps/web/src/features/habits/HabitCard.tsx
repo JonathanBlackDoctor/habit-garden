@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { useSaveReflection, useSaveMissReason } from '@/features/habits/useReflections';
 import { useHabitHistory } from '@/features/habits/useHabitHistory';
 import { statusOf } from '@/features/habits/habitStatus';
+import { SCALED_ACHIEVE_THRESHOLD } from 'shared/lib/habitPoints';
 
 const QUICK_TAGS = ['피곤', '스트레스', '바쁨', '약속', '여행', '회복'] as const;
 
@@ -259,7 +260,7 @@ export default function HabitCard({ habit, check, streak = 0, isNow = false, onS
             {habit.description && (
               <p className="text-xs text-[var(--fg-muted)]">{habit.description}</p>
             )}
-            <HabitStreakCalendar habitId={habit.id} threshold={habit.achieveThreshold} />
+            <HabitStreakCalendar habitId={habit.id} threshold={habit.scoreMode === 'scaled' ? SCALED_ACHIEVE_THRESHOLD : habit.achieveThreshold} />
           </motion.div>
         )}
       </AnimatePresence>
