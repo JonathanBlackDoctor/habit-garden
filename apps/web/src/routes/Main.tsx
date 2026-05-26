@@ -10,6 +10,7 @@ import TodayGrowth from '@/features/garden/TodayGrowth';
 import { formatKoreanDate, timeOfDay } from '@/lib/dayBoundary';
 import { xpForLevel } from '@/lib/utils';
 import BloomBadge from '@/components/BloomBadge';
+import { useTabBloomKey } from '@/lib/tabActive';
 import type { DayDoc, TodayTodoDoc } from 'shared/types/firestore';
 import { PLANT_SPECIES } from 'shared/types/firestore';
 import { motion } from 'framer-motion';
@@ -36,6 +37,7 @@ export default function Main() {
   const habits   = useHabits();
   const checks   = useHabitChecks(date);
   const progress = useProgress();
+  const bloomKey = useTabBloomKey('/'); // 오늘 탭에 들어올 때 배지 재생
   const [dayDoc, setDayDoc]   = useState<DayDoc | null>(null);
   const [todos, setTodos]     = useState<TodayTodoDoc[]>([]);
   const currentTOD = timeOfDay();
@@ -95,7 +97,7 @@ export default function Main() {
         </svg>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <BloomBadge level={level} size={34} />
+            <BloomBadge level={level} size={34} burstKey={bloomKey || undefined} />
             <div>
               <p className="text-xs opacity-80">{formatKoreanDate(date)}</p>
               <p className="text-lg font-semibold leading-tight">

@@ -3,6 +3,7 @@ import type { ReactElement } from 'react';
 import { useLocation, useNavigate, useOutlet } from 'react-router-dom';
 import { animate, motion, useMotionValue } from 'framer-motion';
 import { useVisibleTabs } from '@/lib/tabs';
+import { TabActiveContext } from '@/lib/tabActive';
 import Main from '@/routes/Main';
 import Habits from '@/routes/Habits';
 import Garden from '@/routes/Garden';
@@ -130,24 +131,26 @@ export default function SwipeTabs() {
 
   // 비탭 라우트(상세 페이지 등)는 캐러셀 없이 자체 스크롤 컨테이너로
   if (!isTabRoute) {
-    return <div className="h-full overflow-y-auto overflow-x-hidden">{outlet}</div>;
+    return <div className="no-scrollbar h-full overflow-y-auto overflow-x-hidden">{outlet}</div>;
   }
 
   return (
-    <div ref={containerRef} className="h-full w-full overflow-hidden" style={{ touchAction: 'pan-y' }}>
-      <motion.div className="flex h-full" style={{ x: trackX, width: w ? tabs.length * w : '100%' }}>
-        {tabs.map((t, i) => (
-          <div
-            key={t.to}
-            data-active-panel={i === activeIndex ? '' : undefined}
-            aria-hidden={i !== activeIndex}
-            className="h-full shrink-0 overflow-y-auto overflow-x-hidden overscroll-contain"
-            style={{ width: w || '100%' }}
-          >
-            {TAB_ELEMENTS[t.to]}
-          </div>
-        ))}
-      </motion.div>
-    </div>
+    <TabActiveContext.Provider value={tabs[activeIndex]?.to ?? null}>
+      <div ref={containerRef} className="h-full w-full overflow-hidden" style={{ touchAction: 'pan-y' }}>
+        <motion.div className="flex h-full" style={{ x: trackX, width: w ? tabs.length * w : '100%' }}>
+          {tabs.map((t, i) => (
+            <div
+              key={t.to}
+              data-active-panel={i === activeIndex ? '' : undefined}
+              aria-hidden={i !== activeIndex}
+              className="no-scrollbar h-full shrink-0 overflow-y-auto overflow-x-hidden overscroll-contain"
+              style={{ width: w || '100%' }}
+            >
+              {TAB_ELEMENTS[t.to]}
+            </div>
+          ))}
+        </motion.div>
+      </div>
+    </TabActiveContext.Provider>
   );
 }

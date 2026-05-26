@@ -72,6 +72,10 @@
   }
 
   .tabular-nums { font-variant-numeric: tabular-nums; }
+
+  /* 스크롤은 되되 스크롤바는 숨김(탭 패널 등) */
+  .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
 }
 
 @layer components {
