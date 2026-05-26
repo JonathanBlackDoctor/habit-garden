@@ -177,6 +177,7 @@ export default function Main() {
           <div className="flex items-center gap-4">
             {/* 히어로 — 오늘 달성률 원형 진행 링 */}
             <ProgressRing
+              key={bloomKey}
               progress={ratio}
               size={92}
               color={ratio >= 1 ? 'var(--bloom)' : 'var(--leaf)'}
