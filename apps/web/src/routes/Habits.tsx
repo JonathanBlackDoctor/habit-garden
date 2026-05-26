@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, animate } from 'framer-motion';
 import { addDoc, collection, updateDoc } from 'firebase/firestore';
 import { Pencil, Check, Plus, Settings } from 'lucide-react';
 import { toast } from 'sonner';
@@ -68,13 +68,30 @@ export default function Habits() {
   const nowSectionRef = useRef<HTMLElement>(null);
 
   // 탭 진입/재탭 시 현재 시간대 그룹을 화면 중앙으로 스크롤
+  // scrollIntoView는 가로 트랜스폼된 트랙 내부 중첩 스크롤에서 불안정하므로
+  // 스크롤 컨테이너의 scrollTop을 직접 애니메이션(AppLayout과 동일 방식)
   useEffect(() => {
     if (bloomKey === 0) return;
     const el = nowSectionRef.current;
     if (!el) return;
-    const raf = requestAnimationFrame(() =>
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' }),
-    );
+    const raf = requestAnimationFrame(() => {
+      let sc = el.closest('[data-active-panel]') as HTMLElement | null;
+      if (!sc) {
+        let p = el.parentElement;
+        while (p && p.scrollHeight <= p.clientHeight) p = p.parentElement;
+        sc = p;
+      }
+      if (!sc) return;
+      const elTop = el.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop;
+      const target = elTop - (sc.clientHeight - el.clientHeight) / 2;
+      const max = sc.scrollHeight - sc.clientHeight;
+      const clamped = Math.max(0, Math.min(target, max));
+      animate(sc.scrollTop, clamped, {
+        duration: 0.5,
+        ease: [0.22, 1, 0.36, 1],
+        onUpdate: (v) => { sc!.scrollTop = v; },
+      });
+    });
     return () => cancelAnimationFrame(raf);
   }, [bloomKey]);
 
@@ -220,8 +237,9 @@ export default function Habits() {
               return isNow && !editMode ? (
                 <motion.div
                   key={bloomKey}
-                  animate={{ scale: [1, 1.05, 1] }}
-                  transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+                  initial={{ scale: 1 }}
+                  animate={{ scale: [1, 1.08, 1] }}
+                  transition={{ duration: 0.7, times: [0, 0.4, 1], ease: 'easeOut', delay: 0.15 }}
                   style={{ transformOrigin: 'center' }}
                   className="space-y-1.5"
                 >
