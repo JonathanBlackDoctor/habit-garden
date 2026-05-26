@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { addDoc, collection, updateDoc } from 'firebase/firestore';
 import { Pencil, Check, Plus, Settings } from 'lucide-react';
 import { toast } from 'sonner';
@@ -12,6 +13,7 @@ import HabitEditRow from '@/features/habits/HabitEditRow';
 import PastDateBanner from '@/components/PastDateBanner';
 import type { HabitDoc } from 'shared/types/firestore';
 import { timeOfDay } from '@/lib/dayBoundary';
+import { useTabBloomKey } from '@/lib/tabActive';
 
 const TIME_LABELS: Record<string, string> = {
   morning:   '🌅 아침',
@@ -62,6 +64,19 @@ export default function Habits() {
   const save   = useSaveHabitCheck(isPast ? date : undefined);
   const clear  = useClearHabitCheck(isPast ? date : undefined);
   const streaks = useHabitStreaks(habits);
+  const bloomKey = useTabBloomKey('/habits');
+  const nowSectionRef = useRef<HTMLElement>(null);
+
+  // 탭 진입/재탭 시 현재 시간대 그룹을 화면 중앙으로 스크롤
+  useEffect(() => {
+    if (bloomKey === 0) return;
+    const el = nowSectionRef.current;
+    if (!el) return;
+    const raf = requestAnimationFrame(() =>
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' }),
+    );
+    return () => cancelAnimationFrame(raf);
+  }, [bloomKey]);
 
   const groups = groupByTime(habits);
   const activeHabits   = habits.filter((h) => h.active);
@@ -160,6 +175,7 @@ export default function Habits() {
         return (
           <section
             key={tod}
+            ref={isNow ? nowSectionRef : undefined}
             className="space-y-1.5 rounded-[var(--radius-lg)] p-2.5 transition-all"
             style={{
               background: bg,
@@ -180,25 +196,41 @@ export default function Habits() {
                 {groupAchieved}/{group.length}
               </span>
             </div>
-            {group.map((habit) => (
-              editMode ? (
-                <HabitEditRow
-                  key={habit.id}
-                  habit={habit}
-                  groupSiblings={group}
-                />
+            {(() => {
+              const cards = group.map((habit) => (
+                editMode ? (
+                  <HabitEditRow
+                    key={habit.id}
+                    habit={habit}
+                    groupSiblings={group}
+                  />
+                ) : (
+                  <HabitCard
+                    key={habit.id}
+                    habit={habit}
+                    check={checks[habit.id]}
+                    streak={streaks[habit.id] ?? 0}
+                    isNow={isNow}
+                    onScore={(score) => save(habit, score, checks[habit.id])}
+                    onClear={() => clear(habit, checks[habit.id])}
+                  />
+                )
+              ));
+              // 현재 시간대 그룹은 탭 진입/재탭 시 살짝 확대되며 강조
+              return isNow && !editMode ? (
+                <motion.div
+                  key={bloomKey}
+                  animate={{ scale: [1, 1.05, 1] }}
+                  transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+                  style={{ transformOrigin: 'center' }}
+                  className="space-y-1.5"
+                >
+                  {cards}
+                </motion.div>
               ) : (
-                <HabitCard
-                  key={habit.id}
-                  habit={habit}
-                  check={checks[habit.id]}
-                  streak={streaks[habit.id] ?? 0}
-                  isNow={isNow}
-                  onScore={(score) => save(habit, score, checks[habit.id])}
-                  onClear={() => clear(habit, checks[habit.id])}
-                />
-              )
-            ))}
+                cards
+              );
+            })()}
           </section>
         );
       })}
