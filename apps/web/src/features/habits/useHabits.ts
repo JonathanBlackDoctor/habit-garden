@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-  collection, onSnapshot, query, orderBy, doc, setDoc, serverTimestamp,
+  collection, onSnapshot, query, orderBy, doc, setDoc, deleteDoc, serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
@@ -41,6 +41,24 @@ export function useHabitChecks(date: string) {
   }, [uid, date]);
 
   return checks;
+}
+
+/**
+ * 체크 문서를 삭제해 '미기록' 상태로 되돌린다.
+ * 건너뜀(score=null) 취소 등에 사용. 콤보·셀러브레이션은 건드리지 않는다.
+ */
+export function useClearHabitCheck(dateOverride?: string) {
+  const uid  = useAppStore((s) => s.uid);
+  const storeDate = useAppStore((s) => s.currentDate);
+  const date = dateOverride ?? storeDate;
+  const isPastEdit = !!dateOverride && dateOverride !== storeDate;
+
+  return async (habit: HabitDoc, prevCheck?: HabitCheckDoc | null) => {
+    if (!uid || prevCheck == null) return;
+    await deleteDoc(doc(db, 'users', uid, 'days', date, 'habitChecks', habit.id));
+    feedback('check');
+    toast(isPastEdit ? '기록 삭제됨' : '건너뜀 취소됨', { description: habit.title });
+  };
 }
 
 export function useSaveHabitCheck(dateOverride?: string) {

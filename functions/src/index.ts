@@ -10,6 +10,7 @@ export { parsePrayerBulk } from './parsePrayer';
 export { findDuplicatePrayers } from './findDuplicates';
 export { generatePrayerWeekly } from './prayerWeekly';
 export { prayerAward, prayerAnsweredAward } from './prayerAward';
+export { todoAward } from './todoAward';
 export { aiCoach } from './aiCoach';
 export { sendScheduledReminder } from './reminders';
 export { flushReminderQueue } from './reminderQueue';

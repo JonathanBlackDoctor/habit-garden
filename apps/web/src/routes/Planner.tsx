@@ -9,6 +9,9 @@ import type { TodayTodoDoc, LongTodoDoc } from 'shared/types/firestore';
 import { Plus, ChevronLeft, Trash2, CalendarDays, Pencil, Check, X, Undo2, Archive } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { differenceInCalendarDays, addDays, parseISO, format } from 'date-fns';
+import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'sonner';
+import { feedback } from '@/lib/feedback';
 
 type Priority = LongTodoDoc['priority'];
 
@@ -28,8 +31,6 @@ export default function Planner() {
   const uid    = useAppStore((s) => s.uid);
   const date   = useAppStore((s) => s.currentDate);
   const navigate = useNavigate();
-
-  const tomorrow = format(addDays(parseISO(date), 1), 'yyyy-MM-dd');
 
   // ── 장기 할 일 ──
   const [longTodos, setLongTodos] = useState<LongTodoDoc[]>([]);
@@ -113,9 +114,14 @@ export default function Planner() {
         </section>
       )}
 
-      {/* ───────── 오늘 / 내일 할 일 ───────── */}
-      <DayTodoList uid={uid} date={date} title="오늘 할 일" emptyHint="오늘의 할 일을 추가해보세요." />
-      <DayTodoList uid={uid} date={tomorrow} title="내일 할 일" emptyHint="내일 할 일을 미리 적어두세요." />
+      {/* ───────── 오늘 할 일 ───────── */}
+      <DayTodoList
+        uid={uid} date={date} variant="today" rewardable
+        title="오늘 할 일" emptyHint="오늘의 할 일을 추가해보세요."
+      />
+
+      {/* ───────── 미리 할 일 추가 ───────── */}
+      <UpcomingTodo uid={uid} today={date} />
 
       <div className="border-t border-[var(--border-soft)]" />
 
@@ -203,13 +209,48 @@ export default function Planner() {
   );
 }
 
+function encourageCopy(total: number, done: number): string {
+  if (total === 0) return '오늘 할 일을 추가해보세요 🌱';
+  const remaining = total - done;
+  if (done === 0) return '하나만 시작해볼까요?';
+  if (remaining === 0) return '오늘 할 일 완수! 🌿';
+  return `좋아요! ${remaining}개 남았어요`;
+}
+
+function TodayProgressRing({ done, total }: { done: number; total: number }) {
+  const R = 20;
+  const C = 2 * Math.PI * R;
+  const ratio = total > 0 ? done / total : 0;
+  return (
+    <div className="relative h-14 w-14 shrink-0">
+      <svg viewBox="0 0 48 48" className="h-14 w-14 -rotate-90">
+        <circle cx="24" cy="24" r={R} fill="none" stroke="var(--border)" strokeWidth="4" />
+        <motion.circle
+          cx="24" cy="24" r={R} fill="none"
+          stroke="var(--leaf)"
+          strokeWidth="4" strokeLinecap="round"
+          strokeDasharray={C}
+          initial={false}
+          animate={{ strokeDashoffset: C * (1 - ratio) }}
+          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center text-[11px] font-semibold tabular-nums text-[var(--fg-primary)]">
+        {done}/{total}
+      </div>
+    </div>
+  );
+}
+
 function DayTodoList({
-  uid, date, title, emptyHint,
+  uid, date, title, emptyHint, variant = 'plain', rewardable = false,
 }: {
   uid: string | null;
   date: string;
-  title: string;
+  title?: string;
   emptyHint: string;
+  variant?: 'today' | 'plain';
+  rewardable?: boolean;
 }) {
   const [todos, setTodos] = useState<TodayTodoDoc[]>([]);
   const [input, setInput] = useState('');
@@ -236,50 +277,140 @@ function DayTodoList({
 
   const toggle = async (todo: TodayTodoDoc) => {
     if (!uid) return;
+    const nextDone = !todo.done;
     await updateDoc(doc(db, 'users', uid, 'days', date, 'todayTodos', todo.id), {
-      done: !todo.done,
+      done: nextDone,
     });
+    if (nextDone) {
+      feedback('achieve');
+      if (rewardable) toast('✦ +3P', { description: todo.title });
+    } else {
+      feedback('check');
+    }
   };
+
+  const isToday = variant === 'today';
+  const doneCount = todos.filter((t) => t.done).length;
+
+  const itemList = (
+    <div className="space-y-2">
+      {todos.length === 0 && (
+        <p className="text-center text-sm text-[var(--fg-faint)] py-6">{emptyHint}</p>
+      )}
+      <AnimatePresence initial={false}>
+        {todos.map((todo) => (
+          <motion.button
+            key={todo.id}
+            layout
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            onClick={() => toggle(todo)}
+            className={`flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 text-left shadow-[var(--shadow-sm)] ${isToday ? 'py-3.5' : 'py-3'}`}
+          >
+            <motion.div
+              animate={todo.done ? { scale: [1, 1.25, 1] } : { scale: 1 }}
+              transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+              className={`h-5 w-5 shrink-0 rounded-full border-2 flex items-center justify-center transition-colors ${todo.done ? 'border-[var(--leaf)] bg-[var(--leaf)]' : 'border-[var(--border)]'}`}
+            >
+              {todo.done && <span className="text-white text-xs">✓</span>}
+            </motion.div>
+            <span className={`${isToday ? 'text-[15px]' : 'text-sm'} ${todo.done ? 'line-through text-[var(--fg-faint)]' : 'text-[var(--fg-primary)]'}`}>
+              {todo.title}
+            </span>
+          </motion.button>
+        ))}
+      </AnimatePresence>
+    </div>
+  );
+
+  const inputRow = (
+    <div className="flex gap-2">
+      <input
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        onKeyDown={(e) => e.key === 'Enter' && add()}
+        placeholder="할 일 추가…"
+        className="flex-1 rounded-[var(--radius)] border border-[var(--border)] bg-white px-4 py-2.5 text-sm outline-none focus:border-[var(--leaf)]"
+      />
+      <button
+        onClick={add}
+        className="flex items-center justify-center rounded-[var(--radius)] bg-[var(--leaf)] px-3 text-white"
+      >
+        <Plus size={18} />
+      </button>
+    </div>
+  );
+
+  if (isToday) {
+    return (
+      <section className="space-y-3 rounded-[var(--radius-lg)] bg-[var(--leaf-soft)] p-4 shadow-[var(--shadow-md)]">
+        <div className="flex items-center gap-3">
+          <TodayProgressRing done={doneCount} total={todos.length} />
+          <div className="min-w-0">
+            <h3 className="text-base font-semibold text-[var(--fg-primary)]">{title}</h3>
+            <p className="text-sm text-[var(--leaf)]">{encourageCopy(todos.length, doneCount)}</p>
+          </div>
+        </div>
+        {inputRow}
+        {itemList}
+      </section>
+    );
+  }
 
   return (
     <section className="space-y-3">
-      <h3 className="text-sm font-semibold text-[var(--fg-primary)]">{title}</h3>
+      {title && <h3 className="text-sm font-semibold text-[var(--fg-primary)]">{title}</h3>}
+      {inputRow}
+      {itemList}
+    </section>
+  );
+}
 
-      <div className="flex gap-2">
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && add()}
-          placeholder="할 일 추가…"
-          className="flex-1 rounded-[var(--radius)] border border-[var(--border)] bg-white px-4 py-2.5 text-sm outline-none focus:border-[var(--leaf)]"
-        />
-        <button
-          onClick={add}
-          className="flex items-center justify-center rounded-[var(--radius)] bg-[var(--leaf)] px-3 text-white"
-        >
-          <Plus size={18} />
-        </button>
-      </div>
+function UpcomingTodo({ uid, today }: { uid: string | null; today: string }) {
+  const tomorrow = format(addDays(parseISO(today), 1), 'yyyy-MM-dd');
+  const dayAfter = format(addDays(parseISO(today), 2), 'yyyy-MM-dd');
+  const [selectedDate, setSelectedDate] = useState(tomorrow);
 
-      <div className="space-y-2">
-        {todos.length === 0 && (
-          <p className="text-center text-sm text-[var(--fg-faint)] py-6">{emptyHint}</p>
-        )}
-        {todos.map((todo) => (
-          <button
-            key={todo.id}
-            onClick={() => toggle(todo)}
-            className="flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3 text-left shadow-[var(--shadow-sm)]"
-          >
-            <div className={`h-5 w-5 shrink-0 rounded-full border-2 flex items-center justify-center transition-colors ${todo.done ? 'border-[var(--leaf)] bg-[var(--leaf)]' : 'border-[var(--border)]'}`}>
-              {todo.done && <span className="text-white text-xs">✓</span>}
-            </div>
-            <span className={`text-sm ${todo.done ? 'line-through text-[var(--fg-faint)]' : 'text-[var(--fg-primary)]'}`}>
-              {todo.title}
-            </span>
-          </button>
-        ))}
+  const quickPick = (d: string, label: string) => (
+    <button
+      onClick={() => setSelectedDate(d)}
+      className={`rounded-full px-3 py-1 text-xs font-medium transition-opacity ${
+        selectedDate === d
+          ? 'bg-[var(--leaf-soft)] text-[var(--leaf)] ring-2 ring-[var(--leaf)]/30'
+          : 'bg-[var(--bg-surface)] text-[var(--fg-muted)] opacity-70'
+      }`}
+    >
+      {label}
+    </button>
+  );
+
+  return (
+    <section className="space-y-3">
+      <div className="flex items-center gap-2">
+        <h3 className="text-sm font-semibold text-[var(--fg-primary)]">미리 할 일 추가</h3>
+        <label className="ml-auto flex items-center gap-1 text-xs text-[var(--fg-muted)]">
+          <CalendarDays size={14} />
+          <input
+            type="date"
+            value={selectedDate}
+            min={tomorrow}
+            onChange={(e) => setSelectedDate(e.target.value || tomorrow)}
+            className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-2 py-1 text-xs outline-none focus:border-[var(--leaf)]"
+          />
+        </label>
       </div>
+      <div className="flex gap-1.5">
+        {quickPick(tomorrow, '내일')}
+        {quickPick(dayAfter, '모레')}
+      </div>
+      <DayTodoList
+        uid={uid}
+        date={selectedDate}
+        variant="plain"
+        rewardable={false}
+        emptyHint="이 날짜의 할 일을 미리 적어두세요."
+      />
     </section>
   );
 }
