@@ -12,9 +12,9 @@ interface Props {
 }
 
 /** 4상태(이행/미이행/건너뜀/미기록)를 글리프+형태+색으로 구분하는 인디케이터. */
-export default function HabitStatusDot({ status, size = 16, isNow = false, title }: Props) {
-  // 글리프는 지름이 충분할 때만 — 14px 이하에서는 형태/색만으로 구분
-  const showGlyph = size >= 16;
+export default function HabitStatusDot({ status, size = 14, isNow = false, title }: Props) {
+  // 글리프는 지름이 충분할 때만 — 12px 이하에서는 형태/색만으로 구분
+  const showGlyph = size >= 14;
   const glyphSize = Math.round(size * 0.62);
 
   const base = 'inline-flex items-center justify-center rounded-full shrink-0';
