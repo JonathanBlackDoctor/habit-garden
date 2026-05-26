@@ -218,12 +218,12 @@ export default function Main() {
                             className={cn(
                               'h-3 w-3 rounded-full',
                               c?.achieved
-                                ? 'bg-[var(--leaf)]'
+                                ? 'bg-[var(--leaf)]/30'                  // 달성(기록) — 흐리게
                                 : c?.score === null
-                                ? 'bg-[var(--bg-base)] border border-[var(--border)]' // 건너뜀 — 중립
+                                ? 'bg-[var(--fg-faint)]/30'              // 건너뜀 — 흐리게
                                 : c !== undefined
-                                ? 'bg-[var(--wither)]'                                  // 미달
-                                : 'bg-[var(--leaf-soft)] border border-[var(--leaf)]/50', // 미기록 — 강조
+                                ? 'bg-[var(--wither)]/40'                // 미달(기록) — 흐리게
+                                : 'bg-[var(--leaf)]',                    // 미기록 — 또렷하게(강조)
                               todoDot && isNow && 'ring-2 ring-[var(--bloom)]/50 aura-pulse'
                             )}
                           />
