@@ -61,7 +61,7 @@ export default function Habits() {
   const checks = useHabitChecks(date);
   const save   = useSaveHabitCheck(isPast ? date : undefined);
   const clear  = useClearHabitCheck(isPast ? date : undefined);
-  const streaks = useHabitStreaks();
+  const streaks = useHabitStreaks(habits);
 
   const groups = groupByTime(habits);
   const activeHabits   = habits.filter((h) => h.active);
