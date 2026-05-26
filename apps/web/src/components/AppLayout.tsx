@@ -18,8 +18,11 @@ export default function AppLayout() {
   return (
     <ScrollTopContext.Provider value={scrollToTop}>
       <div
-        className="mx-auto flex max-w-[480px] flex-col bg-[var(--bg-base)]"
-        style={{ height: '100dvh', paddingBottom: 'calc(64px + env(safe-area-inset-bottom))' }}
+        className="fixed inset-0 mx-auto flex max-w-[480px] flex-col bg-[var(--bg-base)]"
+        style={{
+          paddingTop: 'env(safe-area-inset-top)',
+          paddingBottom: 'calc(64px + env(safe-area-inset-bottom))',
+        }}
       >
         <div ref={hostRef} className="flex-1 min-h-0 overflow-hidden">
           <SwipeTabs />
