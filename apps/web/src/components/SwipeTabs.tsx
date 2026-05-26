@@ -6,8 +6,10 @@ import { useVisibleTabs } from '@/lib/tabs';
 const LOCK_PX = 10;           // 가로 제스처로 확정하는 최소 이동
 const COMMIT_RATIO = 0.26;    // 화면 폭 대비 탭 전환 임계
 const COMMIT_VELOCITY = 0.45; // px/ms 이상이면 거리와 무관하게 전환
+const ENTER_RATIO = 0.28;     // 새 화면이 들어오는 시작 오프셋(화면 폭 대비)
 const SPRING = { type: 'spring' as const, stiffness: 420, damping: 42, restDelta: 0.4 };
-const EXIT = { type: 'spring' as const, stiffness: 560, damping: 52, restDelta: 0.5 };
+const ENTER = { duration: 0.24, ease: [0.22, 0.61, 0.36, 1] as const };
+const FADE = { duration: 0.18, ease: 'easeOut' as const };
 
 export default function SwipeTabs() {
   const tabs = useVisibleTabs();
@@ -18,6 +20,7 @@ export default function SwipeTabs() {
   const containerRef = useRef<HTMLDivElement>(null);
   const widthRef = useRef(0);
   const dragX = useMotionValue(0);
+  const opacity = useMotionValue(1);
 
   const tabIndex = tabs.findIndex((t) =>
     t.to === '/' ? location.pathname === '/' : location.pathname.startsWith(t.to),
@@ -40,8 +43,8 @@ export default function SwipeTabs() {
     return () => window.removeEventListener('resize', measure);
   }, []);
 
-  // 네비게이션(탭 탭 / 스와이프 커밋 / 뒤로가기) 시 새 화면이 방향에 맞게 슬라이드-인.
-  // useLayoutEffect로 paint 전에 시작 오프셋을 적용해 깜빡임 방지.
+  // 네비게이션(탭 탭 / 스와이프 커밋 / 뒤로가기) 시 새 화면이 방향에 맞게 슬라이드+페이드-인.
+  // useLayoutEffect로 paint 전에 시작 상태를 적용해 깜빡임 방지. 짧은 거리(28%)+페이드라 빈 화면 없음.
   const prevPath = useRef(location.pathname);
   useLayoutEffect(() => {
     if (prevPath.current === location.pathname) return;
@@ -50,14 +53,15 @@ export default function SwipeTabs() {
     );
     const newI = tabIndex;
     prevPath.current = location.pathname;
-    if (oldI === -1 || newI === -1 || oldI === newI) { dragX.set(0); return; }
+    if (oldI === -1 || newI === -1 || oldI === newI) { dragX.set(0); opacity.set(1); return; }
     const W = widthRef.current || 1;
-    dragX.set(newI > oldI ? W : -W);
-    animate(dragX, 0, SPRING);
-  }, [location.pathname, tabIndex, tabs, dragX]);
+    dragX.set((newI > oldI ? 1 : -1) * W * ENTER_RATIO);
+    opacity.set(0);
+    animate(dragX, 0, ENTER);
+    animate(opacity, 1, FADE);
+  }, [location.pathname, tabIndex, tabs, dragX, opacity]);
 
   const gesture = useRef({ startX: 0, startY: 0, lastX: 0, lastT: 0, locked: false, ignore: false, vx: 0 });
-  const animating = useRef(false);
 
   const resetScroll = () => {
     window.scrollTo({ top: 0 });
@@ -66,17 +70,12 @@ export default function SwipeTabs() {
     }
   };
 
-  // 커밋: 현재 화면을 드래그 방향으로 끝까지 밀어낸 뒤 1회 navigate → 새 화면 슬라이드-인(단일 마운트)
+  // 커밋: 느린 슬라이드-아웃을 기다리지 않고 즉시 navigate → 새 화면이 슬라이드+페이드-인(단일 마운트, 빈 화면 없음)
   const settle = useCallback(
-    (commitPath: string | null, dir: 1 | -1) => {
+    (commitPath: string | null) => {
       if (!commitPath) { animate(dragX, 0, SPRING); return; }
-      animating.current = true;
-      const W = widthRef.current || 1;
-      animate(dragX, dir === 1 ? -W : W, EXIT).then(() => {
-        resetScroll();
-        navigate(commitPath);
-        animating.current = false;
-      });
+      resetScroll();
+      navigate(commitPath);
     },
     [dragX, navigate],
   );
@@ -87,7 +86,7 @@ export default function SwipeTabs() {
 
     const onStart = (e: TouchEvent) => {
       const g = gesture.current;
-      if (animating.current || e.touches.length !== 1) { g.ignore = true; return; }
+      if (e.touches.length !== 1) { g.ignore = true; return; }
       const target = e.target as Element;
       if (target.closest('[data-bed-pager]') || target.closest('[data-no-swipe]')) { g.ignore = true; return; }
       const t = e.touches[0];
@@ -124,7 +123,7 @@ export default function SwipeTabs() {
       const dir: 1 | -1 = offset < 0 ? 1 : -1;
       const dest = pathInDir(dir);
       const commit = !!dest && (Math.abs(offset) > W * COMMIT_RATIO || Math.abs(g.vx) > COMMIT_VELOCITY);
-      settle(commit ? dest : null, dir);
+      settle(commit ? dest : null);
     };
 
     el.addEventListener('touchstart', onStart, { passive: true });
@@ -143,7 +142,7 @@ export default function SwipeTabs() {
 
   return (
     <div ref={containerRef} className="relative" style={{ touchAction: 'pan-y' }}>
-      <motion.div style={{ x: dragX }}>{outlet}</motion.div>
+      <motion.div style={{ x: dragX, opacity }}>{outlet}</motion.div>
     </div>
   );
 }
