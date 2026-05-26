@@ -4,13 +4,13 @@
  * 동일한 식을 쓰게 한다. "0점 두려움"을 줄이기 위해 임계 미만이어도
  * 시도 자체에 약간의 포인트를 지급한다.
  *
- * 규칙:
+ * 규칙: 5점 척도 '달성'(3점)을 완료형 '완료'(weight×2)와 동급으로 맞춘다.
  *  - scaled(1~5):
- *      score=1 → 0 (미이행으로 간주, 보상 없음)
- *      score=2 → weight × 0.8
- *      score=3 → weight × 1.5 (achieve 임계 가정)
- *      score=4 → weight × 2
- *      score=5 → weight × 2 + 5 (PERFECT 보너스)
+ *      score=1 → 0 (미이행 = 미완료)
+ *      score=2 → weight × 1.0 (미달성·시도 인정)
+ *      score=3 → weight × 2.0 (달성 = 완료 동급)
+ *      score=4 → weight × 2.5
+ *      score=5 → weight × 3.0 + 3 (PERFECT 보너스)
  *  - binary(0|1):
  *      score=0 → 0
  *      score=1 → weight × 2
@@ -28,14 +28,14 @@
 export const SCALED_ACHIEVE_THRESHOLD = 3;
 
 const SCALED_MULTIPLIER: Record<1 | 2 | 3 | 4 | 5, number> = {
-  1: 0.4,
-  2: 0.8,
-  3: 1.5,
-  4: 2.0,
-  5: 2.0, // 5점은 별도 보너스 +5
+  1: 0,   // 미이행 — 아래에서 0 반환 (보상 없음)
+  2: 1.0,
+  3: 2.0, // 달성 임계 — 완료형 '완료'(×2)와 동급
+  4: 2.5,
+  5: 3.0, // 5점은 별도 보너스 +PERFECT_BONUS
 };
 
-export const PERFECT_BONUS = 5;
+export const PERFECT_BONUS = 3;
 
 export function pointsForCheck(
   weight: number,
