@@ -1,18 +1,22 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 
-// 현재 활성 탭의 경로. keep-alive 캐러셀에서 어떤 탭이 보이는지 하위 페이지에 전달.
-export const TabActiveContext = createContext<string | null>(null);
+// 현재 활성 탭 경로 + 재탭 신호(nonce). nonce는 이미 활성인 탭을 다시 눌렀을 때 증가.
+export type TabActive = { path: string | null; nonce: number };
+export const TabActiveContext = createContext<TabActive>({ path: null, nonce: 0 });
 
-// 해당 path 탭이 '비활성 → 활성'으로 바뀔 때마다 1씩 증가하는 키.
-// BloomBadge의 burstKey 등에 넘겨 탭에 들어올 때 애니메이션을 다시 재생하는 용도.
+// 해당 path 탭이 '활성화'되거나(다른 탭 → 이 탭) '재탭'될 때마다 1씩 증가하는 키.
+// BloomBadge burstKey, CountUp replayKey 등에 넘겨 탭 진입/재탭 시 애니메이션을 재생.
 export function useTabBloomKey(path: string): number {
-  const active = useContext(TabActiveContext);
+  const { path: active, nonce } = useContext(TabActiveContext);
   const [key, setKey] = useState(0);
-  const wasActive = useRef<boolean | null>(null);
+  const prev = useRef<TabActive | null>(null);
   useEffect(() => {
     const isActive = active === path;
-    if (wasActive.current === false && isActive) setKey((k) => k + 1);
-    wasActive.current = isActive;
-  }, [active, path]);
+    if (prev.current === null) { prev.current = { path: active, nonce }; return; } // 최초 마운트는 건너뜀
+    const becameActive = isActive && prev.current.path !== path; // 다른 탭 → 이 탭
+    const retapped = isActive && nonce !== prev.current.nonce;   // 활성 상태에서 재탭
+    if (becameActive || retapped) setKey((k) => k + 1);
+    prev.current = { path: active, nonce };
+  }, [active, nonce, path]);
   return key;
 }
