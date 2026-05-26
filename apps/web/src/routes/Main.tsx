@@ -23,6 +23,8 @@ import CoachCard from '@/features/coach/CoachCard';
 import SignupCTA from '@/components/SignupCTA';
 import { useCrisisWatcher } from '@/features/coach/useCrisisWatcher';
 import { useFaithEnabled, useIsPremium } from '@/lib/features';
+import HabitStatusDot from '@/features/habits/HabitStatusDot';
+import { statusOf } from '@/features/habits/habitStatus';
 
 const TIME_LABELS: Record<string, string> = {
   morning: '아침', afternoon: '점심', evening: '저녁', night: '밤', anytime: '언제든',
@@ -174,18 +176,19 @@ export default function Main() {
             관리 메뉴에서 시드 습관을 추가하세요.
           </p>
         ) : (
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             {/* 히어로 — 오늘 달성률 원형 진행 링 */}
             <ProgressRing
               progress={ratio}
-              size={92}
+              size={76}
+              stroke={8}
               color={ratio >= 1 ? 'var(--bloom)' : 'var(--leaf)'}
             >
-              <span className="text-xl font-bold tabular-nums text-[var(--fg-primary)]">
+              <span className="text-lg font-bold tabular-nums text-[var(--fg-primary)]">
                 {totalAchieved}
-                <span className="text-sm font-medium text-[var(--fg-faint)]">/{intended}</span>
+                <span className="text-xs font-medium text-[var(--fg-faint)]">/{intended}</span>
               </span>
-              <span className="mt-0.5 text-[10px] text-[var(--fg-muted)]">달성</span>
+              <span className="mt-0.5 text-[9px] text-[var(--fg-muted)]">달성</span>
             </ProgressRing>
 
             {/* 넛지 + 시간대별 요약 */}
@@ -200,6 +203,8 @@ export default function Main() {
                 // 미기록(아직 손대지 않은) 습관만 '할 일'로 간주 — 건너뜀·미달·달성은 처리됨
                 const pending = group.filter((h) => checks[h.id] === undefined).length;
                 const settled = pending === 0;
+                // 적응형 크기 — 그룹이 많아질수록 dot를 줄여 줄바꿈 최소화
+                const dotSize = group.length <= 6 ? 20 : group.length <= 10 ? 16 : 14;
                 return (
                   <button
                     key={tod}
@@ -210,30 +215,16 @@ export default function Main() {
                     )}
                   >
                     <span className="w-8 shrink-0 text-[11px] text-[var(--fg-muted)]">{TIME_LABELS[tod]}</span>
-                    <div className="flex flex-1 flex-wrap items-center gap-1.5">
-                      {group.map((h) => {
-                        const c = checks[h.id];
-                        const todoDot = c === undefined;
-                        return (
-                          <div
-                            key={h.id}
-                            className={cn(
-                              'h-3.5 w-3.5 rounded-full',
-                              // 미기록 — 흰 바탕 + 굵은 컬러 테두리(빈 체크박스처럼 고대비로 또렷)
-                              todoDot
-                                ? isNow
-                                  ? 'bg-[var(--bg-surface)] border-[2.5px] border-[var(--bloom)]'
-                                  : 'bg-[var(--bg-surface)] border-[2.5px] border-[var(--leaf)]'
-                                // 처리됨 — 저대비로 차분히 가라앉음
-                                : c?.achieved
-                                ? 'bg-[var(--leaf-soft)]'                 // 달성
-                                : c?.score === null
-                                ? 'bg-[var(--bg-base)] border border-[var(--border)]' // 건너뜀
-                                : 'bg-[var(--wither)]/50'                 // 미달
-                            )}
-                          />
-                        );
-                      })}
+                    <div className={cn('flex flex-1 flex-wrap items-center', dotSize >= 20 ? 'gap-1.5' : 'gap-1')}>
+                      {group.map((h) => (
+                        <HabitStatusDot
+                          key={h.id}
+                          status={statusOf(checks[h.id])}
+                          size={dotSize}
+                          isNow={isNow}
+                          title={h.title}
+                        />
+                      ))}
                     </div>
                     <span
                       className={cn(

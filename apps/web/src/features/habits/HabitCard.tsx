@@ -5,6 +5,7 @@ import { Flame, SkipForward, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSaveReflection, useSaveMissReason } from '@/features/habits/useReflections';
 import { useHabitHistory } from '@/features/habits/useHabitHistory';
+import { statusOf } from '@/features/habits/habitStatus';
 
 const QUICK_TAGS = ['피곤', '스트레스', '바쁨', '약속', '여행', '회복'] as const;
 
@@ -40,8 +41,7 @@ export default function HabitCard({ habit, check, streak = 0, isNow = false, onS
   // 아직 손대지 않음 (체크 문서 없음) → 강조 대상
   const todo = check === undefined;
   // 카드 상태 — 스타일 분기용
-  const status: 'todo' | 'achieved' | 'skipped' | 'missed' =
-    achieved ? 'achieved' : skipped ? 'skipped' : missed ? 'missed' : 'todo';
+  const status = statusOf(check);
   // 점수는 입력됐지만 아직 회고를 저장하지 않은 상태
   const canReflect = currentScore !== null && !check?.mood && !check?.whyMissed;
 
