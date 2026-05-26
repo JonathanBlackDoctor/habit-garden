@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@
 import { Leaf, Droplets, Lock, Sprout, Snowflake, Wheat, BookOpen, Sparkles, ChevronLeft, ChevronRight, Shovel } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFreezeTokens } from '@/features/freeze/useFreezeTokens';
+import { useTabBloomKey } from '@/lib/tabActive';
 
 // 상점 정렬 순서 (6등급)
 const RARITY_ORDER: Record<PlantSpecies['rarity'], number> = {
@@ -99,6 +100,7 @@ export default function Garden() {
   const progress = useProgress();
   const { plantSeed, waterPlant, unlockSpecies, harvestPlant, digUpPlant } = useGardenActions();
   const freeze = useFreezeTokens();
+  const bloomKey = useTabBloomKey('/garden');
   const [selected, setSelected] = useState<PlantInstance | null>(null);
   const [tab, setTab] = useState<Tab>('garden');
   const [waterFx, setWaterFx] = useState<{ id: string; key: number } | null>(null);
@@ -277,9 +279,12 @@ export default function Garden() {
           <span className="text-[var(--fg-muted)] tabular-nums">{gardenState.health}%</span>
         </div>
         <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--leaf-soft)]">
-          <div
-            className={cn('h-full rounded-full transition-all', vibe.bar)}
-            style={{ width: `${gardenState.health}%` }}
+          <motion.div
+            key={bloomKey}
+            className={cn('h-full rounded-full', vibe.bar)}
+            initial={{ width: 0 }}
+            animate={{ width: `${gardenState.health}%` }}
+            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
           />
         </div>
       </div>

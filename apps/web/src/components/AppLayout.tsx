@@ -22,6 +22,11 @@ export default function AppLayout() {
 
   // 재탭: 활성 패널을 빠르게 최상단으로(커스텀 0.3s) + 진입 애니메이션 재생 신호(nonce++)
   const onReTap = useCallback(() => {
+    // 습관 탭은 재탭 시 자체적으로 '현재 시간대로 스크롤'을 수행하므로 맨 위로 스크롤을 건너뛴다
+    if (activePath === '/habits') {
+      setRetapNonce((n) => n + 1);
+      return;
+    }
     const el =
       hostRef.current?.querySelector<HTMLElement>('[data-active-panel]')
       ?? (hostRef.current?.firstElementChild as HTMLElement | null);
@@ -33,7 +38,7 @@ export default function AppLayout() {
       });
     }
     setRetapNonce((n) => n + 1);
-  }, []);
+  }, [activePath]);
 
   return (
     <ScrollTopContext.Provider value={onReTap}>
