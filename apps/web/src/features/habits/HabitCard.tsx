@@ -99,7 +99,7 @@ export default function HabitCard({ habit, check, streak = 0, isNow = false, onS
         'relative card px-3 py-2 transition-all',
         status === 'todo' &&
           'border-l-4 border-[var(--leaf)] shadow-[var(--shadow-sm)]',
-        status === 'todo' && isNow && 'aura-pulse ring-1 ring-[var(--leaf)]/40',
+        status === 'todo' && isNow && 'ring-1 ring-[var(--leaf)]/40',
         // 미기록이 아닌(처리된) 카드는 덜 중요 → 흐리게.
         // 미달성(missed)은 회고·원인 입력 UI 가독성을 위해 덜 흐리게 유지
         status === 'missed' && 'opacity-60',
