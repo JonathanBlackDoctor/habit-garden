@@ -112,8 +112,11 @@ export default function SwipeTabs() {
       let target = Math.round(-projected / w);
       target = Math.max(startIdx - 1, Math.min(startIdx + 1, target)); // 한 번에 최대 한 칸
       target = Math.max(0, Math.min(tabs.length - 1, target));
-      if (target !== activeIndex) navigate(tabs[target].to); // 위치 애니메이션은 활성 변경 effect가 처리
-      else animate(trackX, -target * w, SPRING);
+      if (target !== activeIndex) navigate(tabs[target].to);
+      // 라우팅/리렌더 타이밍에 의존하지 않고 항상 트랙을 목표 경계로 애니메이션 →
+      // 두 탭 사이에 멈추는 현상 방지. 전환 시엔 activeIndex 이펙트도 같은 목표로
+      // 애니메이션하지만 목표가 동일하므로 매끄럽게 수렴한다.
+      animate(trackX, -target * w, SPRING);
     };
 
     el.addEventListener('touchstart', onStart, { passive: true });
