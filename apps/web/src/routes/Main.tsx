@@ -80,10 +80,6 @@ export default function Main() {
 
   // 미기록(아직 손대지 않은) 습관 수 + 격려 넛지
   const remaining = habits.filter((h) => checks[h.id] === undefined).length;
-  // 미기록 습관 이름 — 지금 시간대 우선 정렬 (메인에 직접 노출)
-  const pendingHabits = [currentTOD, ...TIME_ORDER.filter((t) => t !== currentTOD)].flatMap((tod) =>
-    habits.filter((h) => h.timeOfDay === tod && checks[h.id] === undefined)
-  );
   // 건너뜀(score=null)은 오늘 목표에서 제외 — 미이행으로 취급하지 않음
   const skippedCount = habits.filter((h) => checks[h.id]?.score === null).length;
   const intended = Math.max(totalHabits - skippedCount, 0);
@@ -197,25 +193,6 @@ export default function Main() {
                   {nudge}
                 </p>
               )}
-              {/* 미기록 습관 이름 — 무엇을 해야 하는지 직접 노출 */}
-              {pendingHabits.length > 0 && (
-                <div className="flex flex-wrap gap-1">
-                  {pendingHabits.slice(0, 3).map((h) => (
-                    <button
-                      key={h.id}
-                      onClick={() => navigate('/habits')}
-                      className="max-w-[10rem] truncate rounded-full bg-[var(--leaf-soft)] px-2 py-0.5 text-[11px] font-medium text-[var(--leaf)]"
-                    >
-                      {h.title}
-                    </button>
-                  ))}
-                  {pendingHabits.length > 3 && (
-                    <span className="self-center px-1 text-[11px] text-[var(--fg-faint)]">
-                      +{pendingHabits.length - 3}
-                    </span>
-                  )}
-                </div>
-              )}
               {groupedHabits.map(({ tod, group, achieved }) => {
                 const isNow = tod === currentTOD;
                 // 미기록(아직 손대지 않은) 습관만 '할 일'로 간주 — 건너뜀·미달·달성은 처리됨
@@ -239,17 +216,18 @@ export default function Main() {
                           <div
                             key={h.id}
                             className={cn(
-                              'rounded-full',
-                              todoDot ? 'h-4 w-4' : 'h-2.5 w-2.5',     // 미기록은 더 크게
-                              c?.achieved
-                                ? 'bg-[var(--leaf)]/30'                  // 달성(기록) — 흐리게
+                              'h-3.5 w-3.5 rounded-full',
+                              // 미기록 — 흰 바탕 + 굵은 컬러 테두리(빈 체크박스처럼 고대비로 또렷)
+                              todoDot
+                                ? isNow
+                                  ? 'bg-[var(--bg-surface)] border-[2.5px] border-[var(--bloom)]'
+                                  : 'bg-[var(--bg-surface)] border-[2.5px] border-[var(--leaf)]'
+                                // 처리됨 — 저대비로 차분히 가라앉음
+                                : c?.achieved
+                                ? 'bg-[var(--leaf-soft)]'                 // 달성
                                 : c?.score === null
-                                ? 'bg-[var(--fg-faint)]/30'              // 건너뜀 — 흐리게
-                                : c !== undefined
-                                ? 'bg-[var(--wither)]/40'                // 미달(기록) — 흐리게
-                                : 'bg-[var(--leaf)]',                    // 미기록 — 또렷하게(강조)
-                              todoDot && 'ring-2 ring-[var(--leaf)]/30',
-                              todoDot && isNow && 'ring-[var(--bloom)]/60 aura-pulse'
+                                ? 'bg-[var(--bg-base)] border border-[var(--border)]' // 건너뜀
+                                : 'bg-[var(--wither)]/50'                 // 미달
                             )}
                           />
                         );
