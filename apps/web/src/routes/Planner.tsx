@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react';
 import {
   collection, addDoc, onSnapshot, updateDoc, deleteDoc, doc, setDoc,
-  deleteField, serverTimestamp, query, orderBy,
+  deleteField, serverTimestamp, query, orderBy, getDoc, getDocs, runTransaction,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
+import { plannerDate } from '@/lib/dayBoundary';
 import type { TodayTodoDoc, LongTodoDoc } from 'shared/types/firestore';
 import { Plus, ChevronLeft, Trash2, CalendarDays, Pencil, Check, X, Undo2, Archive } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { differenceInCalendarDays, addDays, parseISO, format } from 'date-fns';
+import { differenceInCalendarDays, addDays, subDays, parseISO, format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { feedback } from '@/lib/feedback';
@@ -322,6 +323,51 @@ function TodayTodoItem({
   );
 }
 
+/**
+ * 미완료 '오늘 할 일'을 오늘로 이월하는 클라이언트 안전망.
+ * 서버 dailyReset(04:00 KST)이 같은 일을 하지만, 함수가 누락·지연되면 어제 항목이
+ * 오늘에 나타나지 않아 사라진 것처럼 보인다. 어제 문서는 복사만 하므로 원본은 보존된다.
+ *  - todosCarriedOver 플래그(서버와 공유)로 하루 1회만 실행 — 트랜잭션으로 중복 이월 방지.
+ *  - 서버가 며칠 누락했을 수 있으니 미완료가 남은 가장 최근 과거 날짜까지 거슬러 찾아 복구한다.
+ * 복구한 항목 수를 반환한다.
+ */
+async function carryOverPendingTodos(uid: string, today: string): Promise<number> {
+  const dayRef = doc(db, 'users', uid, 'days', today);
+  const daySnap = await getDoc(dayRef);
+  if (daySnap.exists() && daySnap.data().todosCarriedOver) return 0;
+
+  let sourceDate: string | null = null;
+  let pending: TodayTodoDoc[] = [];
+  for (let i = 1; i <= 14; i++) {
+    const prevDate = format(subDays(parseISO(today), i), 'yyyy-MM-dd');
+    const snap = await getDocs(collection(db, 'users', uid, 'days', prevDate, 'todayTodos'));
+    const items = snap.docs
+      .map((d) => ({ ...(d.data() as TodayTodoDoc), id: d.id }))
+      .filter((t) => !t.done);
+    if (items.length > 0) { sourceDate = prevDate; pending = items; break; }
+  }
+
+  return runTransaction(db, async (tx) => {
+    const fresh = await tx.get(dayRef);
+    if (fresh.exists() && fresh.data().todosCarriedOver) return 0; // 서버·다른 탭에서 이미 처리됨
+    if (sourceDate) {
+      const todayCol = collection(db, 'users', uid, 'days', today, 'todayTodos');
+      for (const prev of pending) {
+        const ref = doc(todayCol);
+        tx.set(ref, {
+          id: ref.id,
+          title: prev.title,
+          done: false,
+          carriedFrom: sourceDate,
+          ...(prev.linkedLongTodoId ? { linkedLongTodoId: prev.linkedLongTodoId } : {}),
+        });
+      }
+    }
+    tx.set(dayRef, { todosCarriedOver: true, updatedAt: serverTimestamp() }, { merge: true });
+    return pending.length;
+  });
+}
+
 function DayTodoList({
   uid, date, title, emptyHint, variant = 'plain', rewardable = false,
 }: {
@@ -345,6 +391,14 @@ function DayTodoList({
       setTodos(snap.docs.map((d) => ({ ...(d.data() as TodayTodoDoc), id: d.id })));
     });
   }, [uid, date]);
+
+  // 실제 '오늘'을 볼 때만 미완료 이월 안전망 실행 (서버 dailyReset 누락 대비·복구).
+  useEffect(() => {
+    if (!uid || variant !== 'today' || date !== plannerDate()) return;
+    carryOverPendingTodos(uid, date)
+      .then((n) => { if (n > 0) toast(`어제 못 끝낸 할 일 ${n}개를 가져왔어요 🌱`); })
+      .catch((e) => console.error('todo carryover failed', e));
+  }, [uid, date, variant]);
 
   const add = async () => {
     if (!uid || !input.trim()) return;
