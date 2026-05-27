@@ -2,8 +2,10 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useState } from 'react';
-import { Sprout } from 'lucide-react';
+import { Sprout, ExternalLink, Copy } from 'lucide-react';
+import { toast } from 'sonner';
 import { signInAsGuest, signInWithGoogle } from '@/lib/auth';
+import { detectInAppBrowser, openInExternalBrowser } from '@/lib/inAppBrowser';
 import { useAppStore } from '@/lib/store';
 import { OnboardingInfo } from '@/components/onboarding/OnboardingInfo';
 
@@ -12,6 +14,7 @@ export default function Login() {
   const authLoading = useAppStore((s) => s.authLoading);
   const navigate = useNavigate();
   const [guestLoading, setGuestLoading] = useState(false);
+  const [inAppBrowser] = useState(() => detectInAppBrowser());
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -20,10 +23,29 @@ export default function Login() {
   }, [user, authLoading, navigate]);
 
   const handleLogin = async () => {
+    // 카카오톡 등 인앱 브라우저는 Google OAuth(disallowed_useragent)를 차단한다.
+    // OAuth 를 띄우는 대신 외부 기본 브라우저로 다시 열도록 유도한다.
+    if (inAppBrowser) {
+      const opened = openInExternalBrowser();
+      if (!opened) {
+        await copyLink();
+        toast.info('주소가 복사됐어요. Chrome·Safari 등 브라우저에 붙여넣어 열어주세요.');
+      }
+      return;
+    }
     try {
       await signInWithGoogle();
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      toast.success('주소를 복사했어요');
+    } catch {
+      toast.error('주소 복사에 실패했어요. 주소창을 길게 눌러 복사해주세요.');
     }
   };
 
@@ -118,6 +140,37 @@ export default function Login() {
             <span className="text-[11px] text-[var(--fg-faint)]">또는</span>
             <span className="h-px flex-1 bg-[var(--border)]" />
           </div>
+
+          {/* 인앱 브라우저 안내 — Google 로그인은 카카오톡/인앱 브라우저에서 차단됨 */}
+          {inAppBrowser && (
+            <div className="relative w-full overflow-hidden rounded-[var(--radius-lg)] border border-[var(--bloom)]/40 bg-[var(--bloom-soft)]/60 px-5 py-4 shadow-[var(--shadow-sm)]">
+              <div className="space-y-2 text-[12.5px] leading-relaxed text-[var(--fg-muted)]">
+                <p className="font-semibold text-[var(--fg-primary)]">
+                  인앱 브라우저에서는 Google 로그인이 막혀 있어요
+                </p>
+                <p>
+                  보안 정책 때문에 카카오톡 같은 앱 안의 브라우저에서는 Google 로그인이 차단됩니다.
+                  아래 버튼으로 Chrome·Safari 등 기본 브라우저에서 열어 로그인해주세요.
+                </p>
+                <div className="flex gap-2 pt-1">
+                  <button
+                    onClick={() => openInExternalBrowser()}
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--leaf)] px-3 py-2.5 text-[13px] font-semibold text-white active:scale-[0.985]"
+                  >
+                    <ExternalLink size={15} />
+                    기본 브라우저로 열기
+                  </button>
+                  <button
+                    onClick={copyLink}
+                    className="flex items-center justify-center gap-1.5 rounded-[var(--radius-md)] border border-[var(--border)] bg-white px-3 py-2.5 text-[13px] font-medium text-[var(--fg-primary)] active:scale-[0.985]"
+                  >
+                    <Copy size={15} />
+                    주소 복사
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           <button
             onClick={handleLogin}

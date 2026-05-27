@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Sparkles, ArrowRight, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import { upgradeGuestWithGoogle } from '@/lib/auth';
+import { detectInAppBrowser, openInExternalBrowser } from '@/lib/inAppBrowser';
 import { useIsGuest, useIsPremium } from '@/lib/features';
 
 const OWNER_EMAIL = 'alpaomegastartend@gmail.com';
@@ -27,6 +28,19 @@ export default function SignupCTA({
 
   const onUpgrade = async () => {
     if (loading) return;
+    // 인앱 브라우저는 Google OAuth(disallowed_useragent)를 차단한다 → 외부 브라우저로 유도.
+    if (detectInAppBrowser()) {
+      const opened = openInExternalBrowser();
+      if (!opened) {
+        try {
+          await navigator.clipboard.writeText(window.location.href);
+          toast.info('주소가 복사됐어요. Chrome·Safari 등 브라우저에 붙여넣어 열어주세요.');
+        } catch {
+          toast.info('Chrome·Safari 등 기본 브라우저에서 열어 가입해주세요.');
+        }
+      }
+      return;
+    }
     setLoading(true);
     try {
       await upgradeGuestWithGoogle();
