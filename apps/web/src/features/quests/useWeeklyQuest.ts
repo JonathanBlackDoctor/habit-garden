@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react';
-import { doc, setDoc, serverTimestamp, collection, addDoc, collectionGroup, onSnapshot, query, where, runTransaction } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, collection, addDoc, onSnapshot, runTransaction } from 'firebase/firestore';
 import { useState } from 'react';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
@@ -24,31 +24,29 @@ export function useWeeklyQuest() {
   const ws = weekStartOf(today);
   const dates = useMemo(() => datesOfWeek(ws), [ws]);
 
-  const [checks, setChecks] = useState<Array<HabitCheckDoc & { date: string }>>([]);
+  // 주의 7일 각각의 habitChecks 하위컬렉션을 직접 구독한다.
+  // collectionGroup + checkedAt 부등호 쿼리는 콜렉션그룹 인덱스를 요구하고(미배포 시 무음 실패),
+  // checkedAt(UTC) 하한이 KST 04:00 플래너 경계와 어긋나 월요일 새벽 체크를 누락시킨다.
+  // 본인 소유 경로 직접 읽기는 인덱스가 필요 없고 날짜 폴더가 곧 플래너 날짜라 정확하다.
+  const [checksByDate, setChecksByDate] = useState<Record<string, Array<HabitCheckDoc & { date: string }>>>({});
 
   useEffect(() => {
     if (!uid) return;
-    const q = query(
-      collectionGroup(db, 'habitChecks'),
-      where('checkedAt', '>=', new Date(ws)),
+    setChecksByDate({});
+    const unsubs = dates.map((date) =>
+      onSnapshot(
+        collection(db, 'users', uid, 'days', date, 'habitChecks'),
+        (snap) => {
+          const items = snap.docs.map((d) => ({ ...(d.data() as HabitCheckDoc), date }));
+          setChecksByDate((prev) => ({ ...prev, [date]: items }));
+        },
+        () => setChecksByDate((prev) => ({ ...prev, [date]: [] })),
+      ),
     );
-    return onSnapshot(
-      q,
-      (snap) => {
-        const items: Array<HabitCheckDoc & { date: string }> = [];
-        snap.docs.forEach((d) => {
-          const parts = d.ref.path.split('/');
-          if (parts[1] !== uid) return;
-          const idx = parts.indexOf('days');
-          const date = parts[idx + 1];
-          if (!dates.includes(date)) return;
-          items.push({ ...(d.data() as HabitCheckDoc), date });
-        });
-        setChecks(items);
-      },
-      () => setChecks([]),
-    );
-  }, [uid, ws, dates]);
+    return () => unsubs.forEach((u) => u());
+  }, [uid, dates]);
+
+  const checks = useMemo(() => Object.values(checksByDate).flat(), [checksByDate]);
 
   // 주가 바뀌면 퀘스트 자동 픽
   useEffect(() => {
