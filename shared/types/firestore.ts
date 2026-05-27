@@ -51,6 +51,7 @@ export interface DayDoc {
   prayerPlan?: PrayerPlan;        // 오늘의 기도 목록 (dailyReset이 미리 계산)
   prayerCheckAwardedIds?: string[]; // 오늘 기도 체크 포인트가 현재 적립돼 있는 기도제목 id (체크 시 추가, 해제 시 제거 → 해제하면 그만큼 삭감)
   todoAwardedIds?: string[];        // 오늘 할 일 완료 포인트가 현재 적립돼 있는 todo id (완료 시 추가, 해제 시 제거 → 해제하면 그만큼 삭감)
+  todosCarriedOver?: boolean;       // 전날 미완료 할 일 이월이 끝났는지 (하루 1회만 실행 — 멱등 가드)
   prayerCountedIds?: string[];    // 오늘 기도 카운트·스트릭이 반영된 기도제목 id (영구; 체크↔해제 반복 시 prayCount/스트릭 폭증 방지)
   prayerListCompleted?: boolean;  // 오늘 목록 완료 보너스 지급 여부
   morningBrief?: MorningBrief;    // 매일 06:00 생성되는 개인화 모닝 브리프
@@ -262,6 +263,7 @@ export interface TodayTodoDoc {
   title: string;
   done: boolean;
   linkedLongTodoId?: string;
+  carriedFrom?: string;             // 'YYYY-MM-DD' — 미완료로 이월돼 온 출처 날짜
 }
 
 // ── 게임화 / 진척 ─────────────────────────────────────────
