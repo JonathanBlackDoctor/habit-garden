@@ -282,7 +282,8 @@ export interface ProgressDoc {
   lastPrayerDate?: string;          // 'YYYY-MM-DD'
   totalPrayersAnswered?: number;
   // ── 동기부여 확장 ──────────────────────────
-  weeklyQuest?: WeeklyQuestData;    // Phase 4-1
+  weeklyQuest?: WeeklyQuestData;    // Phase 4-1 (레거시 단일 — weeklyQuests 로 대체됨)
+  weeklyQuests?: WeeklyQuestData[]; // 주당 3개 동시 지급
   lastReminderAt?: Timestamp;       // Phase 3 — 알림 throttle
   comebackUntil?: string;           // Phase 4-5 — 회복 모드 종료일 'YYYY-MM-DD'
   freezeTokens?: number;            // Phase 4-3 — 글로벌 freeze 토큰
@@ -368,6 +369,9 @@ export interface AIFeedback {
 }
 
 // ── 포인트 상수 ──────────────────────────────────────────
+/** 스트릭(freeze) 토큰 최대 보유 수 — 아주 귀한 자원이라 상한을 둔다. */
+export const FREEZE_TOKEN_CAP = 3;
+
 export const POINT_PRICES = {
   SEED: 50,                       // 기본 심기 비용 (PlantSpecies.seedCost 가 우선)
   WATER: 10,                      // 물주기 비용 (균형 조정: 20→10)
