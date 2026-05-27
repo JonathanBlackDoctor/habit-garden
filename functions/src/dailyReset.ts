@@ -12,7 +12,7 @@ import { subDays, format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import { processDailyGarden } from './gardenAutogrow';
 import { shouldBecomeDormant, type RotationInput } from '../../shared/prayerRotation';
-import type { PrayerDoc } from '../../shared/types/firestore';
+import type { PrayerDoc, TodayTodoDoc } from '../../shared/types/firestore';
 
 const db = admin.firestore();
 const KST = 'Asia/Seoul';
@@ -106,6 +106,9 @@ async function processUserDay(
     });
   }
 
+  // 1-1. 전날 미완료 '오늘 할 일' 이월 (체크 안 한 항목이 사라지지 않게 다음 날로 넘김)
+  await carryOverTodos(uid, today, yesterday, todaySnap.data()?.todosCarriedOver);
+
   // 2. 어제 finalize
   const ydayRef  = db.doc(`users/${uid}/days/${yesterday}`);
   const ydaySnap = await ydayRef.get();
@@ -148,6 +151,45 @@ async function processUserDay(
     }
   }
   return { success, protected: protectedDay };
+}
+
+/**
+ * 전날(yesterday) 미완료 '오늘 할 일'을 오늘(today)로 이월한다.
+ *  - 완료(done=true) 항목은 가져오지 않는다.
+ *  - 전날 문서는 기록 보존을 위해 건드리지 않고, 오늘로 새 문서를 복사한다.
+ *  - todosCarriedOver 플래그로 하루 1회만 실행(멱등). dailyReset이 매일 돌며
+ *    yesterday→today 로 사슬처럼 이월하므로 며칠 비워도 누락 없이 이어진다.
+ */
+async function carryOverTodos(
+  uid: string,
+  today: string,
+  yesterday: string,
+  alreadyCarried: boolean | undefined,
+): Promise<void> {
+  if (alreadyCarried) return;
+
+  const todayCol = db.collection(`users/${uid}/days/${today}/todayTodos`);
+  const ydaySnap = await db.collection(`users/${uid}/days/${yesterday}/todayTodos`).get();
+  const pending = ydaySnap.docs.filter((d) => !(d.data() as TodayTodoDoc).done);
+
+  const batch = db.batch();
+  for (const d of pending) {
+    const prev = d.data() as TodayTodoDoc;
+    const ref = todayCol.doc();
+    batch.set(ref, {
+      id: ref.id,
+      title: prev.title,
+      done: false,
+      carriedFrom: yesterday,
+      ...(prev.linkedLongTodoId ? { linkedLongTodoId: prev.linkedLongTodoId } : {}),
+    });
+  }
+  batch.set(
+    db.doc(`users/${uid}/days/${today}`),
+    { todosCarriedOver: true, updatedAt: FieldValue.serverTimestamp() },
+    { merge: true },
+  );
+  await batch.commit();
 }
 
 /** 소모 없이 해당 날짜가 휴가/freeze 토큰으로 보호되는지만 판단 (정원 보호 평가용). */

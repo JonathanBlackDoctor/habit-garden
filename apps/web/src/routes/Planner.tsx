@@ -242,6 +242,86 @@ function TodayProgressRing({ done, total }: { done: number; total: number }) {
   );
 }
 
+function TodayTodoItem({
+  todo, isToday, onToggle, onRename, onRemove,
+}: {
+  todo: TodayTodoDoc;
+  isToday: boolean;
+  onToggle: () => void;
+  onRename: (title: string) => void;
+  onRemove: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(todo.title);
+
+  const startEdit = () => { setDraft(todo.title); setEditing(true); };
+  const saveEdit = () => {
+    const next = draft.trim();
+    if (next && next !== todo.title) onRename(next);
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <motion.div
+        layout
+        className={`flex w-full items-center gap-2 rounded-[var(--radius)] bg-[var(--bg-surface)] px-3 shadow-[var(--shadow-sm)] ${isToday ? 'py-2.5' : 'py-2'}`}
+      >
+        <input
+          autoFocus
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') saveEdit();
+            if (e.key === 'Escape') setEditing(false);
+          }}
+          className="flex-1 rounded-[var(--radius)] border border-[var(--border)] bg-white px-3 py-1.5 text-sm outline-none focus:border-[var(--leaf)]"
+        />
+        <button onClick={saveEdit} aria-label="저장" className="rounded-[var(--radius)] bg-[var(--leaf)] p-1.5 text-white">
+          <Check size={15} />
+        </button>
+        <button onClick={() => setEditing(false)} aria-label="취소" className="rounded-[var(--radius)] border border-[var(--border)] p-1.5 text-[var(--fg-muted)]">
+          <X size={15} />
+        </button>
+      </motion.div>
+    );
+  }
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -6 }}
+      className={`flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 shadow-[var(--shadow-sm)] ${isToday ? 'py-3.5' : 'py-3'}`}
+    >
+      <button onClick={onToggle} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+        <motion.div
+          animate={todo.done ? { scale: [1, 1.25, 1] } : { scale: 1 }}
+          transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+          className={`h-5 w-5 shrink-0 rounded-full border-2 flex items-center justify-center transition-colors ${todo.done ? 'border-[var(--leaf)] bg-[var(--leaf)]' : 'border-[var(--border)]'}`}
+        >
+          {todo.done && <span className="text-white text-xs">✓</span>}
+        </motion.div>
+        <span className={`min-w-0 truncate ${isToday ? 'text-[15px]' : 'text-sm'} ${todo.done ? 'line-through text-[var(--fg-faint)]' : 'text-[var(--fg-primary)]'}`}>
+          {todo.title}
+        </span>
+        {todo.carriedFrom && !todo.done && (
+          <span className="shrink-0 rounded-full bg-[var(--border-soft)] px-2 py-0.5 text-[10px] font-medium text-[var(--fg-muted)]">
+            이월
+          </span>
+        )}
+      </button>
+      <button onClick={startEdit} aria-label="수정" className="shrink-0 text-[var(--fg-faint)] hover:text-[var(--fg-muted)]">
+        <Pencil size={15} />
+      </button>
+      <button onClick={onRemove} aria-label="삭제" className="shrink-0 text-[var(--fg-faint)] hover:text-[var(--wither)]">
+        <Trash2 size={16} />
+      </button>
+    </motion.div>
+  );
+}
+
 function DayTodoList({
   uid, date, title, emptyHint, variant = 'plain', rewardable = false,
 }: {
@@ -289,6 +369,17 @@ function DayTodoList({
     }
   };
 
+  const rename = async (todo: TodayTodoDoc, title: string) => {
+    if (!uid) return;
+    await updateDoc(doc(db, 'users', uid, 'days', date, 'todayTodos', todo.id), { title });
+  };
+
+  const remove = async (todo: TodayTodoDoc) => {
+    if (!uid) return;
+    if (!confirm('이 할 일을 삭제할까요?')) return;
+    await deleteDoc(doc(db, 'users', uid, 'days', date, 'todayTodos', todo.id));
+  };
+
   const isToday = variant === 'today';
   const doneCount = todos.filter((t) => t.done).length;
 
@@ -299,26 +390,14 @@ function DayTodoList({
       )}
       <AnimatePresence initial={false}>
         {todos.map((todo) => (
-          <motion.button
+          <TodayTodoItem
             key={todo.id}
-            layout
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            onClick={() => toggle(todo)}
-            className={`flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 text-left shadow-[var(--shadow-sm)] ${isToday ? 'py-3.5' : 'py-3'}`}
-          >
-            <motion.div
-              animate={todo.done ? { scale: [1, 1.25, 1] } : { scale: 1 }}
-              transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
-              className={`h-5 w-5 shrink-0 rounded-full border-2 flex items-center justify-center transition-colors ${todo.done ? 'border-[var(--leaf)] bg-[var(--leaf)]' : 'border-[var(--border)]'}`}
-            >
-              {todo.done && <span className="text-white text-xs">✓</span>}
-            </motion.div>
-            <span className={`${isToday ? 'text-[15px]' : 'text-sm'} ${todo.done ? 'line-through text-[var(--fg-faint)]' : 'text-[var(--fg-primary)]'}`}>
-              {todo.title}
-            </span>
-          </motion.button>
+            todo={todo}
+            isToday={isToday}
+            onToggle={() => toggle(todo)}
+            onRename={(title) => rename(todo, title)}
+            onRemove={() => remove(todo)}
+          />
         ))}
       </AnimatePresence>
     </div>
