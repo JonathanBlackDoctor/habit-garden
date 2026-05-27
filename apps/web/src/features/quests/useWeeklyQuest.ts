@@ -94,17 +94,21 @@ export function useWeeklyQuest() {
         // 이미 완료됐거나 다른 주 퀘스트면 중단 (멱등 게이트)
         if (!q || q.completedAt || q.weekStart !== ws || current < q.goal) return null;
 
+        // 지급액은 현재 정의(WEEKLY_QUESTS)를 기준으로 — 카드 표시(def.reward)와 일치시키고,
+        // 보상 상향 이전에 픽된 진행 중 퀘스트도 강화된 보상을 받게 한다.
+        const payout = WEEKLY_QUESTS.find((d) => d.id === q.id)?.reward ?? q.reward;
+
         const patch: any = {
           weeklyQuest: { ...q, completedAt: serverTimestamp(), current },
-          spendablePoints: (p?.spendablePoints ?? 0) + q.reward.points,
-          totalPoints: (p?.totalPoints ?? 0) + q.reward.points,
+          spendablePoints: (p?.spendablePoints ?? 0) + payout.points,
+          totalPoints: (p?.totalPoints ?? 0) + payout.points,
           updatedAt: serverTimestamp(),
         };
-        if (q.reward.freezeTokens) {
-          patch.freezeTokens = (p?.freezeTokens ?? 0) + q.reward.freezeTokens;
+        if (payout.freezeTokens) {
+          patch.freezeTokens = (p?.freezeTokens ?? 0) + payout.freezeTokens;
         }
         tx.set(progressRef, patch, { merge: true });
-        return { points: q.reward.points, freezeTokens: q.reward.freezeTokens, id: q.id };
+        return { points: payout.points, freezeTokens: payout.freezeTokens, id: q.id };
       }).catch(() => null);
 
       if (!reward) return;
