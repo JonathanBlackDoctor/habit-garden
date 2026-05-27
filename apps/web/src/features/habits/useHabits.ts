@@ -67,7 +67,12 @@ export function useSaveHabitCheck(dateOverride?: string) {
   const date = dateOverride ?? storeDate;
   const isPastEdit = !!dateOverride && dateOverride !== storeDate;
 
-  return async (habit: HabitDoc, score: number | null, prevCheck?: HabitCheckDoc | null) => {
+  return async (
+    habit: HabitDoc,
+    score: number | null,
+    prevCheck?: HabitCheckDoc | null,
+    priorStreak = 0,   // 오늘 직전까지의 연속 달성일 (useHabitStreaks 값)
+  ) => {
     if (!uid) return;
 
     const prevScore = prevCheck?.score ?? null;
@@ -101,7 +106,7 @@ export function useSaveHabitCheck(dateOverride?: string) {
       return;
     }
 
-    const { bumpCombo, triggerCelebration, tryRewardHabit } = useAppStore.getState();
+    const { triggerCelebration, tryRewardHabit } = useAppStore.getState();
 
     // 서버 정산과 동일한 델타: 현재 점수 포인트 − 이전 점수 포인트
     const basePts = score === null ? 0 : pointsForCheck(habit.weight, habit.scoreMode, score);
@@ -142,21 +147,22 @@ export function useSaveHabitCheck(dateOverride?: string) {
     const perfect = habit.scoreMode === 'scaled' && score === 5;
 
     if (achieved) {
+      // 콤보 = 이 습관의 연속 달성일(오늘 포함). 2일 연속부터 발동, 보너스는 10P로 캡.
       let combo = 0;
       let comboBonus = 0;
       if (firstRewardToday) {
-        combo = bumpCombo();
-        comboBonus = combo >= 3 ? combo : 0;
+        combo = priorStreak + 1;
+        comboBonus = combo >= 2 ? Math.min(combo, 10) : 0;
       }
       const displayPts = delta + comboBonus;
 
       feedback(perfect ? 'perfect' : 'achieve');
-      if (firstRewardToday && combo >= 3) feedback('combo');
+      if (firstRewardToday && combo >= 2) feedback('combo');
 
       toast(`✦ +${displayPts}P`, {
         description:
           comboBonus > 0
-            ? `${habit.title} 달성 · 🔥${combo} 콤보 +${comboBonus}`
+            ? `${habit.title} 달성 · 🔥${combo}일 연속 +${comboBonus}`
             : `${habit.title} 달성`,
       });
 
@@ -164,11 +170,11 @@ export function useSaveHabitCheck(dateOverride?: string) {
         triggerCelebration('perfect', {
           title: habit.title,
           points: displayPts,
-          detail: comboBonus > 0 ? `🔥 ${combo} 콤보` : undefined,
+          detail: comboBonus > 0 ? `🔥 ${combo}일 연속` : undefined,
         });
       }
     } else {
-      // 부분 점수 — 작은 토스트, 콤보는 끊지 않음
+      // 부분 점수 — 작은 토스트
       feedback('check');
       toast(`✦ +${delta}P`, { description: `${habit.title} · 시도 인정` });
     }
