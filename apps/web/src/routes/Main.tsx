@@ -25,6 +25,7 @@ import { useCrisisWatcher } from '@/features/coach/useCrisisWatcher';
 import { useFaithEnabled, useIsPremium } from '@/lib/features';
 import HabitStatusDot from '@/features/habits/HabitStatusDot';
 import { statusOf } from '@/features/habits/habitStatus';
+import { pointsForCheck } from 'shared/lib/habitPoints';
 
 const TIME_LABELS: Record<string, string> = {
   morning: '아침', afternoon: '점심', evening: '저녁', night: '밤', anytime: '언제든',
@@ -66,6 +67,13 @@ export default function Main() {
   useCrisisWatcher();
   const totalAchieved = Object.values(checks).filter((c) => c.achieved).length;
   const totalHabits   = habits.length;
+  // 오늘 기록된 체크의 실제 적립 포인트 합 — 가중치·점수를 반영한 정산식(서버와 동일).
+  // 콤보 보너스는 변동값이라 제외한 기본 포인트 기준 예상치.
+  const forecastPoints = habits.reduce((sum, h) => {
+    const c = checks[h.id];
+    if (!c || c.score === null) return sum;
+    return sum + pointsForCheck(h.weight, h.scoreMode, c.score);
+  }, 0);
   const spendable     = progress?.spendablePoints ?? 0;
   const streak        = progress?.globalStreak ?? 0;
   const level         = progress?.level ?? 1;
@@ -360,9 +368,9 @@ export default function Main() {
         </div>
         <div className="flex items-center justify-between">
           <TodayGrowth achieved={totalAchieved} total={totalHabits} />
-          {totalAchieved > 0 && (
+          {forecastPoints > 0 && (
             <p className="text-xs text-[var(--fg-muted)] tabular-nums">
-              +{totalAchieved * 10}P 예상
+              +{forecastPoints}P 예상
             </p>
           )}
         </div>
