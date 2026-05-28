@@ -6,6 +6,9 @@ node_modules/
 apps/web/dist/
 functions/lib/
 *.tsbuildinfo
+# shared/ 는 .ts 원본만 추적 — functions tsc 가 실수로 산출물을 떨구는 경우 방지
+shared/**/*.js
+shared/**/*.js.map
 
 # ───────── 로그 ─────────
 *.log
