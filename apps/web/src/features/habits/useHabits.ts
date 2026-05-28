@@ -8,6 +8,7 @@ import type { HabitDoc, HabitCheckDoc } from 'shared/types/firestore';
 import { pointsForCheck, SCALED_ACHIEVE_THRESHOLD } from 'shared/lib/habitPoints';
 import { toast } from 'sonner';
 import { feedback } from '@/lib/feedback';
+import { useProgress } from '@/features/garden/useGarden';
 
 export function useHabits(opts?: { includeInactive?: boolean }) {
   const uid  = useAppStore((s) => s.uid);
@@ -66,6 +67,7 @@ export function useSaveHabitCheck(dateOverride?: string) {
   const storeDate = useAppStore((s) => s.currentDate);
   const date = dateOverride ?? storeDate;
   const isPastEdit = !!dateOverride && dateOverride !== storeDate;
+  const progress = useProgress();
 
   return async (
     habit: HabitDoc,
@@ -108,6 +110,10 @@ export function useSaveHabitCheck(dateOverride?: string) {
 
     const { triggerCelebration, tryRewardHabit } = useAppStore.getState();
 
+    // Comeback Mode(progress.comebackUntil ≥ 오늘)면 서버가 포인트 ×2 적립 — 토스트도 동일 배수로 표시.
+    const inComeback = !!(progress?.comebackUntil && progress.comebackUntil >= date);
+    const mult = inComeback ? 2 : 1;
+
     // 서버 정산과 동일한 델타: 현재 점수 포인트 − 이전 점수 포인트
     const basePts = score === null ? 0 : pointsForCheck(habit.weight, habit.scoreMode, score);
     const prevBasePts = prevScore === null ? 0 : pointsForCheck(habit.weight, habit.scoreMode, prevScore);
@@ -117,7 +123,7 @@ export function useSaveHabitCheck(dateOverride?: string) {
       // 건너뛰기 — 콤보는 유지(중립). 단, 이미 적립된 점수가 있으면 그만큼 삭감.
       feedback('check');
       if (delta < 0) {
-        toast(`✦ ${delta}P`, { description: `${habit.title} · 건너뛰기 (기록 취소)` });
+        toast(`✦ ${delta * mult}P`, { description: `${habit.title} · 건너뛰기 (기록 취소)` });
       } else {
         toast('건너뜀', { description: habit.title });
       }
@@ -128,7 +134,7 @@ export function useSaveHabitCheck(dateOverride?: string) {
     if (delta < 0) {
       const downReason = basePts === 0 ? '완료 해제' : '점수 하향';
       feedback('check');
-      toast(`✦ ${delta}P`, { description: `${habit.title} · ${downReason}` });
+      toast(`✦ ${delta * mult}P`, { description: `${habit.title} · ${downReason}` });
       return;
     }
 
@@ -154,7 +160,9 @@ export function useSaveHabitCheck(dateOverride?: string) {
         combo = priorStreak + 1;
         comboBonus = combo >= 2 ? Math.min(combo, 10) : 0;
       }
-      const displayPts = delta + comboBonus;
+      // 점수는 ×배수, 연속일(combo)은 일수라 그대로
+      const displayPts = (delta + comboBonus) * mult;
+      const displayBonus = comboBonus * mult;
 
       feedback(perfect ? 'perfect' : 'achieve');
       if (firstRewardToday && combo >= 2) feedback('combo');
@@ -162,7 +170,7 @@ export function useSaveHabitCheck(dateOverride?: string) {
       toast(`✦ +${displayPts}P`, {
         description:
           comboBonus > 0
-            ? `${habit.title} 달성 · 🔥${combo}일 연속 +${comboBonus}`
+            ? `${habit.title} 달성 · 🔥${combo}일 연속 +${displayBonus}`
             : `${habit.title} 달성`,
       });
 
@@ -176,7 +184,7 @@ export function useSaveHabitCheck(dateOverride?: string) {
     } else {
       // 부분 점수 — 작은 토스트
       feedback('check');
-      toast(`✦ +${delta}P`, { description: `${habit.title} · 시도 인정` });
+      toast(`✦ +${delta * mult}P`, { description: `${habit.title} · 시도 인정` });
     }
   };
 }
