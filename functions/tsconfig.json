@@ -10,12 +10,7 @@
     "target": "es2019",
     "esModuleInterop": true,
     "resolveJsonModule": true,
-    "skipLibCheck": true,
-    "ignoreDeprecations": "6.0",
-    "baseUrl": ".",
-    "paths": {
-      "shared/*": ["../shared/*"]
-    }
+    "skipLibCheck": true
   },
   "compileOnSave": true,
   "include": ["src", "../shared"],
