@@ -48,6 +48,7 @@ export interface DayDoc {
   aiFeedback?: AIFeedback;
   finalized?: boolean;
   habitBasePointsCurrent?: { [habitId: string]: number }; // 오늘 각 습관의 현재 기본 포인트. (현재-이전) 델타만 지급/삭감해 점수 변경·완료해제가 포인트에 반영되게 한다.
+  habitComboBonusCurrent?: { [habitId: string]: number }; // 오늘 각 습관에 실제 적립된 연속일 콤보 보너스. 토글·점수변경 시 (현재-이전) 델타만 지급/회수.
   prayerPlan?: PrayerPlan;        // 오늘의 기도 목록 (dailyReset이 미리 계산)
   prayerCheckAwardedIds?: string[]; // 오늘 기도 체크 포인트가 현재 적립돼 있는 기도제목 id (체크 시 추가, 해제 시 제거 → 해제하면 그만큼 삭감)
   todoAwardedIds?: string[];        // 오늘 할 일 완료 포인트가 현재 적립돼 있는 todo id (완료 시 추가, 해제 시 제거 → 해제하면 그만큼 삭감)
