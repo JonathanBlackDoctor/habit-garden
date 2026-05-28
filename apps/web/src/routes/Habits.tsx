@@ -228,7 +228,7 @@ export default function Habits() {
                     check={checks[habit.id]}
                     streak={streaks[habit.id] ?? 0}
                     isNow={isNow}
-                    onScore={(score) => save(habit, score, checks[habit.id])}
+                    onScore={(score) => save(habit, score, checks[habit.id], streaks[habit.id] ?? 0)}
                     onClear={() => clear(habit, checks[habit.id])}
                   />
                 )

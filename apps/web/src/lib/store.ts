@@ -3,9 +3,6 @@ import { User } from 'firebase/auth';
 import { plannerDate } from './dayBoundary';
 import type { UserProfileDoc, UserSettingsDoc } from 'shared/types/firestore';
 
-// 콤보 윈도우: 마지막 체크로부터 이 시간 안에 다음 체크 시 콤보 유지
-export const COMBO_WINDOW_MS = 30_000;
-
 // ── 샌드박스(개발자 테스트) 모드 ──
 // 켜면 모든 데이터 경로가 실제 uid 대신 `${uid}__sandbox` 네임스페이스로 바뀐다.
 // 실제 데이터는 전혀 건드리지 않으며, 끄면 즉시 실제 데이터로 복귀한다.
@@ -38,13 +35,6 @@ interface AppState {
   setProfile: (profile: UserProfileDoc | null) => void;
   settings: UserSettingsDoc | null;
   setSettings: (settings: UserSettingsDoc | null) => void;
-
-  // ── 콤보 (Phase 1-3) ──
-  currentCombo: number;
-  lastCheckAt: number;            // epoch ms, 0 = 없음
-  /** 다음 체크가 콤보로 이어지는지 계산하고 카운터를 갱신. 신규 콤보 수치 반환. */
-  bumpCombo: () => number;
-  resetCombo: () => void;
 
   // ── 하루 1회 보상 게이트 ──
   // 오늘 이미 보상 피드백(포인트 토스트·콤보·셀러브레이션)을 준 습관 id.
@@ -84,10 +74,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((s) => ({
       sandbox: on,
       uid: effectiveUid(s.realUid, on),
-      // 모드 전환 시 하루 보상 게이트·콤보 초기화 (모드 간 연출 혼선 방지)
+      // 모드 전환 시 하루 보상 게이트 초기화 (모드 간 연출 혼선 방지)
       rewardedHabitIds: {},
-      currentCombo: 0,
-      lastCheckAt: 0,
     }));
   },
   user:            null,
@@ -99,19 +87,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   setProfile:      (profile) => set({ profile }),
   settings:        null,
   setSettings:     (settings) => set({ settings }),
-
-  currentCombo:    0,
-  lastCheckAt:     0,
-  bumpCombo: () => {
-    const now = Date.now();
-    const { currentCombo, lastCheckAt } = get();
-    const next = (lastCheckAt && now - lastCheckAt <= COMBO_WINDOW_MS)
-      ? currentCombo + 1
-      : 1;
-    set({ currentCombo: next, lastCheckAt: now });
-    return next;
-  },
-  resetCombo: () => set({ currentCombo: 0, lastCheckAt: 0 }),
 
   rewardedHabitIds: {},
   tryRewardHabit: (habitId) => {

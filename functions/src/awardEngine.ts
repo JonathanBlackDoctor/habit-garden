@@ -11,8 +11,11 @@
  *    오늘 각 습관의 현재 기본 포인트. score 변경 시 (현재 - 이전) 델타만 지급/삭감.
  *    상향 → 양수 지급, 하향·완료해제(score=null) → 음수 삭감, 동일 → 0(무시).
  *    1↔5 반복 시에도 현재 점수 기준값으로 수렴하므로 무한 적립이 없다.
- *    (콤보·셀러브레이션 중복은 클라이언트의 rewardedHabitIds 게이트로 막는다.)
- *  - days/{date}.habitPointsToday: 하루 누적 순 지급량 (양수 델타에만 상한 적용)
+ *  - days/{date}.habitComboBonusCurrent: { [habitId]: number }
+ *    오늘 각 습관에 실제 적립된 연속일 콤보 보너스. 같은 습관 N일 연속 달성 시
+ *    `min(N, 10)`P 지급(2일 이상부터). 달성 해제·점수 하향 시 회수해 멱등을 유지.
+ *    캡으로 잘렸어도 실제 적립한 누적값을 저장해 회수가 정확히 일치한다.
+ *  - days/{date}.habitPointsToday: 하루 누적 순 지급량 (기본+보너스, 양수 델타에만 상한 적용)
  *  - days/{date}.successAwarded: '성공한 날' 보너스·스트릭 1회 지급 게이트
  */
 import * as functions from 'firebase-functions/v1';
@@ -26,7 +29,7 @@ import {
   type HabitCheckDoc,
   type ProgressDoc,
 } from '../../shared/types/firestore';
-import { pointsForCheck } from '../../shared/lib/habitPoints';
+import { pointsForCheck, SCALED_ACHIEVE_THRESHOLD } from '../../shared/lib/habitPoints';
 import { growRandomPlant } from './gardenAutogrow';
 import { applyLevelUps } from './levelEngine';
 
@@ -103,23 +106,101 @@ export const awardEngine = functions
       }, { merge: true });
     });
 
-    if (finalDelta === 0) {
-      await updateDayScore(uid, date);
-      return;
+    if (finalDelta !== 0) {
+      const reason = finalDelta < 0
+        ? 'habit_downgrade'
+        : inComeback
+          ? (achievedAfter ? 'habit_achieved_comeback' : 'habit_partial_comeback')
+          : (achievedAfter ? 'habit_achieved' : 'habit_partial');
+      await creditPoints(uid, finalDelta, reason, habitId);
     }
 
-    const reason = finalDelta < 0
-      ? 'habit_downgrade'
-      : inComeback
-        ? (achievedAfter ? 'habit_achieved_comeback' : 'habit_partial_comeback')
-        : (achievedAfter ? 'habit_achieved' : 'habit_partial');
+    // ── 연속일 콤보 보너스 ──
+    // 오늘 직전까지의 연속 달성일 + 오늘(달성 시 +1)을 콤보로 본다. 2일↑이면 min(콤보,10)P 지급.
+    // 토글·점수변경 시 (현재-이전) 델타로 멱등하게 회수/추가, base 적립 이후의 cap을 그대로 따른다.
+    const threshold = habit.scoreMode === 'scaled' ? SCALED_ACHIEVE_THRESHOLD : habit.achieveThreshold;
+    const priorStreak = achievedAfter ? await computePriorStreak(uid, date, habitId, threshold) : 0;
+    const targetCombo = achievedAfter ? priorStreak + 1 : 0;
+    const desiredBonus = targetCombo >= 2 ? Math.min(targetCombo, 10) : 0;
 
-    await creditPoints(uid, finalDelta, reason, habitId);
+    let bonusFinalDelta = 0;
+    await db.runTransaction(async (tx) => {
+      const daySnap = await tx.get(dayRef);
+      const dayData = daySnap.data() ?? {};
+      const bonusMap: Record<string, number> = dayData.habitComboBonusCurrent ?? {};
+      const prevBonus = bonusMap[habitId] ?? 0;
+      const rawBonusDelta = desiredBonus - prevBonus;
+      if (rawBonusDelta === 0) return;
+
+      const multipliedBonus = inComeback ? rawBonusDelta * 2 : rawBonusDelta;
+      const earnedToday: number = dayData.habitPointsToday ?? 0;
+      let cappedBonus: number;
+      if (multipliedBonus > 0) {
+        const remaining = Math.max(0, HABIT_DAILY_CHECK_CAP - earnedToday);
+        cappedBonus = Math.min(multipliedBonus, remaining);
+      } else {
+        cappedBonus = multipliedBonus;
+      }
+      if (cappedBonus === 0) return;
+
+      bonusFinalDelta = cappedBonus;
+      // 실제 적립 누적값을 저장 — cap으로 잘려도 회수가 정확히 일치
+      tx.set(dayRef, {
+        habitComboBonusCurrent: { ...bonusMap, [habitId]: prevBonus + cappedBonus },
+        habitPointsToday: earnedToday + cappedBonus,
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+    });
+
+    if (bonusFinalDelta !== 0) {
+      const bonusReason = bonusFinalDelta > 0
+        ? (inComeback ? 'streak_combo_comeback' : 'streak_combo')
+        : 'streak_combo_revert';
+      await creditPoints(uid, bonusFinalDelta, bonusReason, habitId);
+    }
+
     await updateDayScore(uid, date);
-    await checkBadges(uid);
+    if (finalDelta !== 0 || bonusFinalDelta !== 0) await checkBadges(uid);
     if (shouldGrow) await growRandomPlant(uid);  // 정원 자동 성장 (지급 시에만)
     void POINT_EARN; // 미사용 경고 방지
   });
+
+/**
+ * 오늘 직전까지의 연속 달성일(스트릭). 어제부터 거꾸로 N일치 habitChecks 를 읽어
+ * 점수≥임계값=달성, score=null=중립(끊지 않고 건너뜀), 그 외/미기록=끊김으로 카운트.
+ * 보너스가 10P에서 캡되므로 9일까지 세면 충분.
+ */
+async function computePriorStreak(
+  uid: string,
+  today: string,
+  habitId: string,
+  threshold: number,
+): Promise<number> {
+  const LOOKBACK = 14;
+  const base = new Date(today + 'T00:00:00Z');
+  const dateKeys: string[] = [];
+  for (let i = 1; i <= LOOKBACK; i++) {
+    const d = new Date(base);
+    d.setUTCDate(d.getUTCDate() - i);
+    dateKeys.push(d.toISOString().slice(0, 10));
+  }
+  const snaps = await Promise.all(
+    dateKeys.map((dt) => db.doc(`users/${uid}/days/${dt}/habitChecks/${habitId}`).get()),
+  );
+  let streak = 0;
+  for (const s of snaps) {
+    if (!s.exists) break;
+    const d = s.data() as HabitCheckDoc;
+    if (d.score === null) continue;
+    if (d.score >= threshold) {
+      streak++;
+      if (streak >= 9) break;
+    } else {
+      break;
+    }
+  }
+  return streak;
+}
 
 // ── 회고 작성 감지 (days 문서 onUpdate) ───────────────────────────────────
 export const reflectionAward = functions
