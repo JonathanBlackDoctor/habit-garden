@@ -3,6 +3,7 @@
     "module": "commonjs",
     "noImplicitReturns": true,
     "noUnusedLocals": false,
+    "rootDir": "..",
     "outDir": "lib",
     "sourceMap": true,
     "strict": true,
@@ -10,6 +11,7 @@
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
+    "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "paths": {
       "shared/*": ["../shared/*"]
