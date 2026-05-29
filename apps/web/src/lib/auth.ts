@@ -23,8 +23,44 @@ import { seedGuestHabits } from './seed';
 
 export const OWNER_UID = 'XMgQWlM1wtM62hIheTH4sKGDNuC2';
 
+// 게스트→Google 리다이렉트 업그레이드 진행 중 게스트 uid 를 임시 보관하는 키.
+// 리다이렉트 복귀 시 credential-already-in-use 면 이 uid 의 데이터를 새 계정으로 이관한다.
+const PENDING_GUEST_KEY = 'hg_pending_guest_uid';
+
 export function isOwner(uid: string | null | undefined): boolean {
   return !!uid && uid === OWNER_UID;
+}
+
+/**
+ * 리다이렉트 로그인/업그레이드 복귀 처리 (게스트 데이터 이관 포함).
+ *  - 정상 결과(링크 성공·일반 로그인): uid 가 유지되므로 이관 불필요.
+ *  - credential-already-in-use: 아직 게스트로 로그인된 상태에서 데이터를 먼저 읽어둔 뒤
+ *    기존 Google 계정으로 로그인하고 새 uid 로 복사한다(팝업 경로와 동일 동작).
+ */
+async function handleRedirectResult(): Promise<void> {
+  let pendingGuestUid: string | null = null;
+  try { pendingGuestUid = localStorage.getItem(PENDING_GUEST_KEY); } catch { /* noop */ }
+  try {
+    await getRedirectResult(auth);
+  } catch (e: any) {
+    if (e?.code === 'auth/credential-already-in-use') {
+      const cred = GoogleAuthProvider.credentialFromError(e);
+      if (cred) {
+        const snapshot = pendingGuestUid
+          ? await exportGuestData(pendingGuestUid).catch(() => null)
+          : null;
+        const result = await signInWithCredential(auth, cred);
+        if (snapshot) {
+          await importGuestData(result.user.uid, snapshot).catch((err) =>
+            console.error('guest data migration failed (redirect)', err),
+          );
+        }
+      }
+    }
+    // 그 외 오류는 무시 — 일반 로그인 흐름/스냅샷이 처리한다.
+  } finally {
+    try { localStorage.removeItem(PENDING_GUEST_KEY); } catch { /* noop */ }
+  }
 }
 
 export async function signInWithGoogle(): Promise<void> {
@@ -86,6 +122,8 @@ export async function upgradeGuestWithGoogle(): Promise<void> {
       code === 'auth/operation-not-supported-in-this-environment' ||
       code === 'auth/cancelled-popup-request'
     ) {
+      // 리다이렉트로 페이지를 떠나기 전 게스트 uid 보관 → 복귀 후 데이터 이관에 사용.
+      try { localStorage.setItem(PENDING_GUEST_KEY, guestUid); } catch { /* noop */ }
       await linkWithRedirect(current, provider);
       return;
     }
@@ -126,7 +164,8 @@ export function useAuth(): {
   const setSettings    = useAppStore((s) => s.setSettings);
 
   useEffect(() => {
-    getRedirectResult(auth).catch(() => {});
+    // 리다이렉트 복귀 처리 (게스트→Google 이관 포함). 결과를 버리지 않고 검사한다.
+    void handleRedirectResult();
 
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
