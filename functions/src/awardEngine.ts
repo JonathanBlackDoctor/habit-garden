@@ -21,6 +21,8 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
+import { format, subHours } from 'date-fns';
+import { toZonedTime } from 'date-fns-tz';
 import {
   POINT_EARN,
   HABIT_DAILY_CHECK_CAP,
@@ -35,6 +37,12 @@ import { applyLevelUps } from './levelEngine';
 
 const db = admin.firestore();
 const REGION = 'asia-northeast3';
+const KST = 'Asia/Seoul';
+
+// 04:00 경계 기준 '오늘' (클라이언트 dayBoundary.plannerDate / todoAward.plannerToday 와 동일 규칙)
+function plannerToday(): string {
+  return format(subHours(toZonedTime(new Date(), KST), 4), 'yyyy-MM-dd');
+}
 
 // ── habitChecks onWrite ─────────────────────────────────────────────────────
 export const awardEngine = functions
@@ -213,8 +221,9 @@ export const reflectionAward = functions
     const before = change.before.data();
     const after  = change.after.data();
 
-    // 회고가 새로 완료된 경우만
-    if (!before?.reflection && after?.reflection) {
+    // 회고가 새로 완료된 경우만. 단, 과거 날짜 백필로 +20P 를 반복 적립하는 악용을 막기 위해
+    // '오늘'(04:00 경계) 회고에만 지급한다. (todoAward 의 미래 날짜 가드와 같은 취지)
+    if (!before?.reflection && after?.reflection && date === plannerToday()) {
       await creditPoints(uid, POINT_EARN.REFLECTION, 'reflection', date);
       await growRandomPlant(uid);  // 정원 자동 성장
     }
@@ -263,22 +272,24 @@ async function updateDayScore(uid: string, date: string) {
   habitsSnap.docs.forEach((d) => { habitsMap[d.id] = d.data() as HabitDoc; });
 
   let numerator = 0, denominator = 0;
-  let achievedCount = 0, totalCount = 0;
+  let achievedCount = 0, scoredCount = 0;
 
   checksSnap.docs.forEach((d) => {
     const c    = d.data() as HabitCheckDoc;
     const h    = habitsMap[c.habitId];
     if (!h) return;
-    totalCount++;
-    if (c.achieved) achievedCount++;
+    // 의도적 건너뛰기(score=null)는 성공률 분모에서 제외 — dailyReset 의 스트릭 정산과 동일 기준.
+    // (이 함수와 dailyReset 이 같은 '성공일' 정의를 쓰도록 일원화해, 스트릭이 정체되는 밴드를 없앤다.)
     if (c.score === null) return;
+    scoredCount++;
+    if (c.achieved) achievedCount++;
     const norm = h.scoreMode === 'scaled' ? (c.score - 1) / 4 : c.score;
     numerator   += norm * h.weight;
     denominator += h.weight;
   });
 
   const dayScore = denominator > 0 ? Math.round((numerator / denominator) * 100) : 0;
-  const successRatio = totalCount > 0 ? achievedCount / totalCount : 0;
+  const successRatio = scoredCount > 0 ? achievedCount / scoredCount : 0;
   const isSuccessDay = successRatio >= 0.6;
 
   await db.doc(`users/${uid}/days/${date}`).set(

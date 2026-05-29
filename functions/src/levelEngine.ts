@@ -42,7 +42,10 @@ export async function applyLevelUps(uid: string): Promise<LevelUpResult> {
 
     const progress = snap.data() as ProgressDoc;
     const startLevel = progress.level ?? 1;
-    const startXp    = progress.xpInLevel ?? 0;
+    const rawXp      = progress.xpInLevel ?? 0;
+    // 체크 해제·점수 하향으로 xpInLevel 이 음수가 될 수 있다. 레벨은 강등하지 않으므로
+    // 레벨 계산에는 0 으로 클램프하고, 음수였다면 아래에서 0 으로 바로잡아 영구 음수를 막는다.
+    const startXp    = Math.max(0, rawXp);
     const plants: PlantInstance[] = [...(progress.gardenState?.plants ?? [])];
     const unlocked = [...(progress.gardenState?.unlockedSpecies ?? [])];
 
@@ -73,7 +76,13 @@ export async function applyLevelUps(uid: string): Promise<LevelUpResult> {
       seedsAwarded += 1;
     }
 
-    if (levelsGained === 0) return { ...none, newLevel: level };
+    if (levelsGained === 0) {
+      // 레벨업은 없지만 음수 XP 였다면 0 으로 정정해 다음 적립이 정상 누적되게 한다.
+      if (rawXp < 0) {
+        tx.set(ref, { xpInLevel: 0, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      }
+      return { ...none, newLevel: level };
+    }
 
     const patch: Record<string, unknown> = {
       level,

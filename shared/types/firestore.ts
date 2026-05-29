@@ -612,6 +612,12 @@ export const BADGE_DEFS: BadgeDef[] = [
   { id: 'garden_healthy_14',    title: '활기찬 정원',   tier: 'silver', description: '정원 생기 80 이상 14일 연속' },
   // ── 초월 (프레스티지) ─────────────────────────────────
   { id: 'transcendent_keeper',  title: '초월의 수호자', tier: 'gold',   description: '초월 식물을 보유' },
+  // ── 기도 (신앙) ───────────────────────────────────────
+  // prayerAward 가 지급하는 배지. 정의가 없으면 BADGE_DEFS.find 가 undefined 라 영구 미지급됐었다.
+  { id: 'pray_streak_7',   title: '기도의 한 주',  tier: 'bronze', description: '기도 연속 7일' },
+  { id: 'pray_streak_30',  title: '기도의 한 달',  tier: 'silver', description: '기도 연속 30일' },
+  { id: 'pray_streak_100', title: '기도의 백일',   tier: 'gold',   description: '기도 연속 100일' },
+  { id: 'pray_answered_1', title: '첫 응답',       tier: 'bronze', description: '첫 기도 응답 기록' },
 ];
 
 // ── 회고 질문 세트 ────────────────────────────────────────

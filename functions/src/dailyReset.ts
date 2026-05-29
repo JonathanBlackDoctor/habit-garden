@@ -11,7 +11,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { subDays, format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import { processDailyGarden } from './gardenAutogrow';
-import { shouldBecomeDormant, type RotationInput } from '../../shared/prayerRotation';
+import { selectTodayPrayers, shouldBecomeDormant, type RotationInput } from '../../shared/prayerRotation';
 import type { PrayerDoc, TodayTodoDoc } from '../../shared/types/firestore';
 
 const db = admin.firestore();
@@ -46,6 +46,7 @@ export const dailyReset = functions
         await processDailyGarden(uid, success, protectedDay);  // 정원 트레잇·생기·시들기·보너스 시드
         const dormantCount = await processDormantTransitions(uid);  // 잊혀짐 자동 전이 (설계 §5)
         if (dormantCount > 0) console.log(`dormant transition: uid=${uid}, n=${dormantCount}`);
+        await generatePrayerPlan(uid, today, Date.now());  // 오늘의 기도 목록 사전 계산 (권위 있는 plan)
       } catch (e) {
         console.error(`dailyReset failed for uid=${uid}:`, e);
       }
@@ -88,6 +89,34 @@ async function processDormantTransitions(uid: string): Promise<number> {
   }
   if (count > 0) await batch.commit();
   return count;
+}
+
+/**
+ * 오늘의 기도 목록(prayerPlan)을 서버에서 미리 계산해 DayDoc 에 저장한다.
+ * prayerAward.checkDailyListComplete 가 의존하는 '권위 있는' 목록으로,
+ * 사용자가 기도 탭을 열지 않은 날에도 목록 완료 보너스·스트릭이 동작하게 한다.
+ * 활성 기도제목이 없으면 쓰지 않는다(비신앙 사용자 불필요 쓰기 방지).
+ * 클라이언트 useTodayPrayers 는 plan 이 있으면 그대로 따르고 덮어쓰지 않는다(fromPlan).
+ */
+async function generatePrayerPlan(uid: string, today: string, nowMs: number): Promise<void> {
+  const snap = await db.collection(`users/${uid}/prayers`).where('status', '==', 'active').get();
+  if (snap.empty) return;
+  const inputs: RotationInput[] = snap.docs.map((docSnap) => {
+    const p = docSnap.data() as PrayerDoc;
+    return {
+      id: p.id,
+      priority: p.priority,
+      pinned: p.pinned,
+      rotationDays: p.rotationDays,
+      receivedAtMs: tsToMs(p.receivedAt) ?? nowMs,
+      lastPrayedAtMs: tsToMs(p.lastPrayedAt),
+    };
+  });
+  const { pinnedIds, rotationIds } = selectTodayPrayers(inputs, nowMs);
+  await db.doc(`users/${uid}/days/${today}`).set({
+    prayerPlan: { pinnedIds, rotationIds, generatedAt: FieldValue.serverTimestamp() },
+    updatedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
 }
 
 async function processUserDay(

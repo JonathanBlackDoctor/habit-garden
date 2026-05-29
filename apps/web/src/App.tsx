@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { HashRouter, Route, Routes } from 'react-router-dom';
 import { Toaster, toast } from 'sonner';
 import { useAuth } from '@/lib/auth';
+import { useDayRollover } from '@/lib/store';
 
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AppLayout from '@/components/AppLayout';
@@ -31,6 +32,7 @@ const queryClient = new QueryClient({
 
 function AuthInit({ children }: { children: React.ReactNode }) {
   useAuth(); // triggers onAuthStateChanged → store
+  useDayRollover(); // 04:00 KST 경계에서 currentDate 자동 갱신
   return <>{children}</>;
 }
 

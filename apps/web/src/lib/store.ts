@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { create } from 'zustand';
 import { User } from 'firebase/auth';
 import { plannerDate } from './dayBoundary';
@@ -111,3 +112,30 @@ export const useAppStore = create<AppState>((set, get) => ({
     })),
   clearLevelUp: () => set({ levelUp: null }),
 }));
+
+/**
+ * 04:00 KST 일일 경계 자동 롤오버.
+ * 앱(PWA)을 켜둔 채 자정~04:00 을 넘겨도 currentDate 가 그날의 '오늘'로 갱신되지 않으면
+ * 습관 체크·회고·할 일이 어제 문서(days/{yesterday})에 기록된다. 이를 막기 위해
+ * 가시성 복귀·포커스·주기적(30초) 으로 plannerDate() 를 재계산해 바뀌면 갱신한다.
+ */
+export function useDayRollover() {
+  useEffect(() => {
+    const sync = () => {
+      const today = plannerDate();
+      if (useAppStore.getState().currentDate !== today) {
+        useAppStore.getState().setCurrentDate(today);
+      }
+    };
+    const onVisible = () => { if (document.visibilityState === 'visible') sync(); };
+    const id = window.setInterval(sync, 30_000);
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', sync);
+    sync();
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', sync);
+    };
+  }, []);
+}
