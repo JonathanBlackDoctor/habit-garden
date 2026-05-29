@@ -3,6 +3,7 @@ import { doc, setDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import { Slider } from '@/components/ui/slider';
+import { Dial } from '@/components/ui/Dial';
 import { Switch } from '@/components/ui/switch';
 import type { ConditionData } from 'shared/types/firestore';
 import { ChevronLeft } from 'lucide-react';
@@ -62,31 +63,27 @@ export default function Condition() {
       </div>
       {isPast && <PastDateBanner date={date} />}
 
-      {/* 슬라이더들 */}
+      {/* 다이얼 — 수면·에너지 (드래그로 조절, 5점 단위) */}
       <section className="card p-4 space-y-5">
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-[var(--fg-muted)]">수면 점수</span>
-            <span className="tabular-nums font-medium text-[var(--fg-primary)]">{cond.sleepScore ?? 0}</span>
-          </div>
-          <Slider
-            min={0} max={100} step={1}
-            value={[cond.sleepScore ?? 0]}
-            onValueChange={([v]) => set('sleepScore', v)}
+        <div className="flex items-start justify-around gap-2">
+          <Dial
+            label="수면 점수"
+            value={cond.sleepScore ?? 0}
+            onChange={(v) => set('sleepScore', v)}
+            min={0} max={100} step={5}
+            color="var(--sky)"
+          />
+          <Dial
+            label="에너지"
+            value={cond.energyScore ?? 0}
+            onChange={(v) => set('energyScore', v)}
+            min={0} max={100} step={5}
+            color="var(--leaf)"
           />
         </div>
-
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-[var(--fg-muted)]">에너지</span>
-            <span className="tabular-nums font-medium text-[var(--fg-primary)]">{cond.energyScore ?? 0}</span>
-          </div>
-          <Slider
-            min={0} max={100} step={1}
-            value={[cond.energyScore ?? 0]}
-            onValueChange={([v]) => set('energyScore', v)}
-          />
-        </div>
+        <p className="text-center text-[11px] text-[var(--fg-faint)]">
+          다이얼을 돌리거나 좌우로 드래그해 조절하세요
+        </p>
 
         <div className="space-y-2">
           <div className="flex justify-between text-sm">

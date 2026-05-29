@@ -171,6 +171,7 @@ export interface HabitStreakData {
 // ── 회고 ────────────────────────────────────────────────
 export interface ReflectionData {
   answers: Record<string, string>;
+  screenTimeMinutes?: number;     // 오늘 스마트폰 사용 시간(분)
   completedAt: Timestamp;
 }
 

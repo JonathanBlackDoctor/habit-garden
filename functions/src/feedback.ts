@@ -61,11 +61,17 @@ export const generateFeedback = functions
     const reflection = dayData?.reflection
       ? Object.values(dayData.reflection.answers).join(' / ')
       : '없음';
+    const screenMin = dayData?.reflection?.screenTimeMinutes;
+    const screenTime =
+      typeof screenMin === 'number'
+        ? `${Math.floor(screenMin / 60)}시간 ${screenMin % 60}분`
+        : 'N/A';
 
     const prompt = `
 어제(${targetDate}) 기록 요약:
 dayScore: ${dayData?.dayScore ?? 'N/A'}/100
 컨디션: 수면${dayData?.condition?.sleepScore ?? 'N/A'} 에너지${dayData?.condition?.energyScore ?? 'N/A'} 기분${dayData?.condition?.moodScore ?? 'N/A'}
+스마트폰 사용: ${screenTime}
 회고: ${reflection}
 
 습관 체크:
