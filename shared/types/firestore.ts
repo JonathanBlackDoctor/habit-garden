@@ -32,6 +32,7 @@ export interface UserSettingsDoc {
   };
   prayerGroups?: string[];   // 기도제목을 받은 모임 목록 (직접 추가 가능). 미설정 시 기본값 사용
   prayerTargets?: string[];  // 기도 대상(요청자/나 자신) 목록 (직접 추가 가능). 미설정 시 기본값 사용
+  nickname?: string;         // 정원 둘러보기에서 다른 사용자에게 표시되는 닉네임 (중복 허용)
   updatedAt: Timestamp;
 }
 
@@ -339,6 +340,18 @@ export interface PlantInstance {
   witheredSince?: Timestamp;
   neglectStreak?: number;         // 연속 실패(게으른)일 수 — 연약 전설 trait 에서 사용
   wateredAt?: Timestamp;          // 마지막 물주기 시각 (하루 1회 제한)
+}
+
+// ── 공개 정원 (둘러보기) ──────────────────────────────────
+// gardens/{uid} — 최상위 공개 컬렉션. 인증된 사용자 누구나 읽기 가능, 본인만 쓰기.
+// progress/main 의 민감 정보(포인트·기도·통계)는 제외하고 정원 표시에 필요한 값만 미러링한다.
+// 닉네임을 설정한 사용자만 문서가 생성되어 둘러보기 목록에 노출된다.
+export interface PublicGardenDoc {
+  uid: string;
+  nickname: string;               // 사용자 설정 닉네임 (중복 허용)
+  level: number;                  // ProgressDoc.level 미러
+  gardenState: GardenState;       // 식물·종·생기 (민감 정보 아님)
+  updatedAt: Timestamp;
 }
 
 // users/{uid}/badges/{badgeId}
