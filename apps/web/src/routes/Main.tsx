@@ -15,7 +15,7 @@ import ProgressRing from '@/components/ProgressRing';
 import type { DayDoc, TodayTodoDoc } from 'shared/types/firestore';
 import { PLANT_SPECIES } from 'shared/types/firestore';
 import { motion } from 'framer-motion';
-import { Flame, ArrowRight, CheckCircle2, RefreshCw, Sparkles, X, Sunrise } from 'lucide-react';
+import { Flame, ArrowRight, CheckCircle2, RefreshCw, Sparkles, X, Sunrise, PenLine } from 'lucide-react';
 import { useComeback } from '@/features/comeback/useComeback';
 import OneYearAgoCard from '@/features/stats/OneYearAgoCard';
 import WeeklyQuestCard from '@/features/quests/WeeklyQuestCard';
@@ -82,6 +82,8 @@ export default function Main() {
   const health        = progress?.gardenState?.health ?? 100;
   const plants        = progress?.gardenState?.plants ?? [];
   const hasReflection = !!dayDoc?.reflection;
+  // 저녁·밤에 아직 회고를 안 썼으면 메인에서 강조 (꼭 작성하도록 넛지)
+  const reflectionDue = !hasReflection && (currentTOD === 'evening' || currentTOD === 'night');
 
   // 시간대별 요약
   const groupedHabits = TIME_ORDER.map((tod) => {
@@ -252,6 +254,29 @@ export default function Main() {
         )}
       </motion.section>
 
+      {/* ── 오늘 회고 강조 배너 (저녁·밤 미작성 시) ── */}
+      {reflectionDue && (
+        <motion.button
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          onClick={() => navigate('/reflection')}
+          className="relative flex w-full items-center gap-3 overflow-hidden rounded-[var(--radius)] border border-[var(--bloom)]/30 bg-[var(--bloom-soft)] p-3.5 text-left"
+        >
+          <motion.div
+            animate={{ scale: [1, 1.12, 1] }}
+            transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--bloom)] text-white"
+          >
+            <PenLine size={18} />
+          </motion.div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-[var(--bloom)]">오늘 회고를 작성해 주세요</p>
+            <p className="text-xs text-[var(--fg-muted)]">하루를 돌아보고 +20P · 스마트폰 사용 시간도 함께 기록</p>
+          </div>
+          <ArrowRight size={16} className="shrink-0 text-[var(--bloom)]" />
+        </motion.button>
+      )}
+
       {/* ── 할 일 / 회고 ── */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
@@ -304,19 +329,33 @@ export default function Main() {
           );
         })()}
 
-        {/* 회고 */}
+        {/* 회고 — 미작성 시 강조 */}
         <button
           onClick={() => navigate('/reflection')}
-          className="card p-3 text-left space-y-1"
+          className={`p-3 text-left space-y-1 rounded-[var(--radius)] shadow-[var(--shadow-sm)] ${
+            !hasReflection
+              ? 'bg-[var(--bloom-soft)] ring-1 ring-[var(--bloom)]/25'
+              : 'bg-[var(--bg-surface)]'
+          }`}
         >
-          <p className="text-xs font-medium text-[var(--fg-muted)]">하루 회고</p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium text-[var(--fg-muted)]">하루 회고</p>
+            {reflectionDue && (
+              <span className="rounded-full bg-[var(--bloom)] px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                작성하기
+              </span>
+            )}
+          </div>
           {hasReflection ? (
             <div className="flex items-center gap-1 text-[var(--leaf)]">
               <CheckCircle2 size={14} />
               <span className="text-xs">작성 완료</span>
             </div>
           ) : (
-            <p className="text-xs text-[var(--fg-faint)]">저녁에 작성하기</p>
+            <div className="flex items-center gap-1 text-[var(--bloom)]">
+              <PenLine size={13} />
+              <span className="text-xs">{reflectionDue ? '지금 작성 (+20P)' : '저녁에 작성하기'}</span>
+            </div>
           )}
         </button>
       </motion.div>
