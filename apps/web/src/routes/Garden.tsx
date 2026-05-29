@@ -3,13 +3,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useProgress, useGardenActions, isWateredToday } from '@/features/garden/useGarden';
 import PlantSVG from '@/features/garden/PlantSVG';
 import PlantCodex from '@/features/garden/PlantCodex';
+import GardenBrowse from '@/features/garden/GardenBrowse';
 import TranscendAtmosphere from '@/features/garden/TranscendAtmosphere';
+import { useAppStore } from '@/lib/store';
+import { useNickname } from '@/lib/features';
 import { PLANT_SPECIES, POINT_PRICES, DAILY_YIELD_BY_RARITY, PLANTS_PER_BED, PLANTS_PER_ROW, CODEX_SPECIES_COUNT, MAX_BEDS, DAILY_PLANT_LIMIT } from 'shared/types/firestore';
 import { getGameDayKST } from '@/features/garden/useGarden';
 import type { PlantInstance, PlantSpecies } from 'shared/types/firestore';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
-import { Leaf, Droplets, Lock, Sprout, Snowflake, Wheat, BookOpen, Sparkles, ChevronLeft, ChevronRight, Shovel } from 'lucide-react';
+import { Leaf, Droplets, Lock, Sprout, Snowflake, Wheat, BookOpen, Sparkles, ChevronLeft, ChevronRight, Shovel, Flower2, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFreezeTokens } from '@/features/freeze/useFreezeTokens';
 import { useTabBloomKey } from '@/lib/tabActive';
@@ -70,6 +73,7 @@ function traitLabel(t?: PlantSpecies['trait']): string | null {
 }
 
 type Tab = 'garden' | 'codex';
+type SubTab = 'mine' | 'browse';
 
 type SortKey = 'planted_desc' | 'planted_asc' | 'rarity' | 'stage' | 'species' | 'name';
 type FilterKey = 'all' | 'bloom' | 'withered';
@@ -103,6 +107,11 @@ export default function Garden() {
   const bloomKey = useTabBloomKey('/garden');
   const [selected, setSelected] = useState<PlantInstance | null>(null);
   const [tab, setTab] = useState<Tab>('garden');
+  const [subTab, setSubTab] = useState<SubTab>('mine');
+  const uid = useAppStore((s) => s.uid);
+  const sandbox = useAppStore((s) => s.sandbox);
+  const user = useAppStore((s) => s.user);
+  const nickname = useNickname();
   const [waterFx, setWaterFx] = useState<{ id: string; key: number } | null>(null);
   const [bedPage, setBedPage] = useState(0);
   const [sortKey, setSortKey] = useState<SortKey>('planted_desc');
@@ -250,6 +259,39 @@ export default function Garden() {
 
   return (
     <div className="min-h-screen p-4 space-y-4 pb-8">
+      {/* 상위 탭: 내 정원 / 둘러보기 */}
+      <div className="flex gap-1 rounded-full bg-[var(--leaf-soft)]/60 p-0.5 mt-2">
+        {([
+          { id: 'mine', label: '내 정원', icon: Flower2 },
+          { id: 'browse', label: '둘러보기', icon: Users },
+        ] as { id: SubTab; label: string; icon: typeof Flower2 }[]).map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            onClick={() => setSubTab(id)}
+            className={cn(
+              'flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
+              subTab === id
+                ? 'bg-white text-[var(--leaf-strong,var(--leaf))] shadow-sm'
+                : 'text-[var(--fg-muted)]',
+            )}
+          >
+            <Icon size={13} />
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {subTab === 'browse' ? (
+        <GardenBrowse
+          selfUid={uid ?? ''}
+          sandbox={sandbox}
+          isAnonymous={!!user?.isAnonymous}
+          level={progress.level ?? 1}
+          gardenState={gardenState}
+          currentNickname={nickname}
+        />
+      ) : (
+      <>
       {/* 헤더 */}
       <div className="flex items-center justify-between pt-2">
         <div>
@@ -720,6 +762,8 @@ export default function Garden() {
 
       {/* 도감 탭 */}
       {tab === 'codex' && <PlantCodex progress={progress} />}
+      </>
+      )}
 
       {/* 확인 다이얼로그 */}
       <Dialog open={!!confirmDialog} onOpenChange={(open) => { if (!open) setConfirmDialog(null); }}>

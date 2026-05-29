@@ -2,9 +2,28 @@ import { useEffect, useState } from 'react';
 import { doc, onSnapshot, setDoc, serverTimestamp, collection, addDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
-import type { ProgressDoc, PlantInstance } from 'shared/types/firestore';
+import { writePublicGarden } from '@/lib/features';
+import type { ProgressDoc, PlantInstance, GardenState } from 'shared/types/firestore';
 import { PLANT_SPECIES, POINT_PRICES, CODEX_SPECIES_COUNT, MAX_BEDS, PLANTS_PER_BED, DAILY_PLANT_LIMIT } from 'shared/types/firestore';
 import { toast } from 'sonner';
+
+// 공개 정원 미러 중복 쓰기 방지: uid → 마지막 미러 해시. 모듈 레벨이라 다중 마운트 시 공유된다.
+const gardenMirrorCache = new Map<string, string>();
+
+// 미러 변경 감지용 해시 (Timestamp 원본은 비안정 형태라 제외).
+function gardenMirrorHash(gs: GardenState, level: number, nickname: string): string {
+  const plants = (gs.plants ?? []).map(
+    (p) => `${p.id}:${p.speciesId}:${p.stage}:${p.witheredSince ? 1 : 0}`,
+  );
+  return JSON.stringify({
+    plants,
+    unlocked: gs.unlockedSpecies ?? [],
+    decorations: gs.decorations ?? [],
+    health: gs.health ?? 0,
+    level,
+    nickname,
+  });
+}
 
 // 현재 게임일을 'YYYY-MM-DD'(KST 04:00 기준)로 반환한다.
 export function getGameDayKST(): string {
@@ -67,6 +86,25 @@ export function useProgress() {
       if (snap.exists()) {
         const data = snap.data() as ProgressDoc;
         setProgress(data);
+
+        // 공개 정원 미러 (둘러보기) — 닉네임 설정자만, 샌드박스·게스트 제외.
+        // 닉네임 미설정 시 gardens/{uid} 문서가 생성되지 않아 둘러보기에 노출되지 않는다.
+        const st = useAppStore.getState();
+        const nickname = (st.settings?.nickname ?? '').trim();
+        if (!st.sandbox && !st.user?.isAnonymous && nickname && data.gardenState) {
+          const hash = gardenMirrorHash(data.gardenState, data.level ?? 1, nickname);
+          if (gardenMirrorCache.get(uid) !== hash) {
+            gardenMirrorCache.set(uid, hash);
+            void writePublicGarden({
+              uid,
+              sandbox: st.sandbox,
+              isAnonymous: !!st.user?.isAnonymous,
+              nickname,
+              level: data.level ?? 1,
+              gardenState: data.gardenState,
+            });
+          }
+        }
 
         // 기존 사용자 1회성 시작 보너스: 한 번도 받지 않은 사용자에 한해 적용.
         // 플래그(starterBonusApplied)가 없는 사용자만 대상 → 사용 후 다시 200P 미만이 되어도 재지급 X.
