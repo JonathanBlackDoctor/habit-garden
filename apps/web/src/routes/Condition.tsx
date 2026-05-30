@@ -3,7 +3,7 @@ import { doc, setDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import { Slider } from '@/components/ui/slider';
-import { Dial } from '@/components/ui/Dial';
+import { RulerPicker } from '@/components/ui/RulerPicker';
 import { Switch } from '@/components/ui/switch';
 import type { ConditionData } from 'shared/types/firestore';
 import { ChevronLeft } from 'lucide-react';
@@ -63,26 +63,24 @@ export default function Condition() {
       </div>
       {isPast && <PastDateBanner date={date} />}
 
-      {/* 다이얼 — 수면·에너지 (드래그로 조절, 5점 단위) */}
-      <section className="card p-4 space-y-5">
-        <div className="flex items-start justify-around gap-2">
-          <Dial
-            label="수면 점수"
-            value={cond.sleepScore ?? 0}
-            onChange={(v) => set('sleepScore', v)}
-            min={0} max={100} step={5}
-            color="var(--sky)"
-          />
-          <Dial
-            label="에너지"
-            value={cond.energyScore ?? 0}
-            onChange={(v) => set('energyScore', v)}
-            min={0} max={100} step={5}
-            color="var(--leaf)"
-          />
-        </div>
+      {/* 눈금 휠 — 수면·에너지 (좌우로 밀어 조절) */}
+      <section className="card p-4 space-y-6">
+        <RulerPicker
+          label="수면 점수"
+          value={cond.sleepScore ?? 0}
+          onChange={(v) => set('sleepScore', v)}
+          min={0} max={100} step={1} majorEvery={10}
+          color="var(--sky)"
+        />
+        <RulerPicker
+          label="에너지"
+          value={cond.energyScore ?? 0}
+          onChange={(v) => set('energyScore', v)}
+          min={0} max={100} step={1} majorEvery={10}
+          color="var(--leaf)"
+        />
         <p className="text-center text-[11px] text-[var(--fg-faint)]">
-          다이얼을 돌리거나 좌우로 드래그해 조절하세요
+          눈금을 좌우로 밀어 가운데 표시에 맞추세요
         </p>
 
         <div className="space-y-2">
