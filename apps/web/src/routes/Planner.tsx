@@ -7,6 +7,7 @@ import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import { plannerDate } from '@/lib/dayBoundary';
 import type { TodayTodoDoc, LongTodoDoc } from 'shared/types/firestore';
+import { selectCarryOverItems, CARRY_LOOKBACK_DAYS, type CarryDay } from 'shared/todoCarryover';
 import { Plus, ChevronLeft, Trash2, CalendarDays, Pencil, Check, X, Undo2, Archive } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { differenceInCalendarDays, addDays, subDays, parseISO, format } from 'date-fns';
@@ -326,9 +327,10 @@ function TodayTodoItem({
 /**
  * 미완료 '오늘 할 일'을 오늘로 이월하는 클라이언트 안전망.
  * 서버 dailyReset(04:00 KST)이 같은 일을 하지만, 함수가 누락·지연되면 어제 항목이
- * 오늘에 나타나지 않아 사라진 것처럼 보인다. 어제 문서는 복사만 하므로 원본은 보존된다.
+ * 오늘에 나타나지 않아 사라진 것처럼 보인다. 과거 문서는 복사만 하므로 원본은 보존된다.
  *  - todosCarriedOver 플래그(서버와 공유)로 하루 1회만 실행 — 트랜잭션으로 중복 이월 방지.
- *  - 서버가 며칠 누락했을 수 있으니 미완료가 남은 가장 최근 과거 날짜까지 거슬러 찾아 복구한다.
+ *  - 서버 누락·사용자 부재로 사슬이 끊겼을 수 있으니 미완료가 남은 가장 최근 과거 날짜까지 거슬러 찾는다.
+ *  - 선택 규칙은 shared/todoCarryover 의 순수 함수로 서버와 공유 — 두 경로가 어긋나지 않는다.
  * 복구한 항목 수를 반환한다.
  */
 async function carryOverPendingTodos(uid: string, today: string): Promise<number> {
@@ -336,35 +338,34 @@ async function carryOverPendingTodos(uid: string, today: string): Promise<number
   const daySnap = await getDoc(dayRef);
   if (daySnap.exists() && daySnap.data().todosCarriedOver) return 0;
 
-  let sourceDate: string | null = null;
-  let pending: TodayTodoDoc[] = [];
-  for (let i = 1; i <= 14; i++) {
+  const candidates: CarryDay[] = [];
+  for (let i = 1; i <= CARRY_LOOKBACK_DAYS; i++) {
     const prevDate = format(subDays(parseISO(today), i), 'yyyy-MM-dd');
     const snap = await getDocs(collection(db, 'users', uid, 'days', prevDate, 'todayTodos'));
-    const items = snap.docs
-      .map((d) => ({ ...(d.data() as TodayTodoDoc), id: d.id }))
-      .filter((t) => !t.done);
-    if (items.length > 0) { sourceDate = prevDate; pending = items; break; }
+    const todos = snap.docs.map((d) => d.data() as TodayTodoDoc);
+    candidates.push({ date: prevDate, todos });
+    if (todos.some((t) => !t.done)) break; // 가장 최근 미완료 날짜 발견
   }
+  const { sourceDate, items } = selectCarryOverItems(candidates);
 
   return runTransaction(db, async (tx) => {
     const fresh = await tx.get(dayRef);
     if (fresh.exists() && fresh.data().todosCarriedOver) return 0; // 서버·다른 탭에서 이미 처리됨
     if (sourceDate) {
       const todayCol = collection(db, 'users', uid, 'days', today, 'todayTodos');
-      for (const prev of pending) {
+      for (const it of items) {
         const ref = doc(todayCol);
         tx.set(ref, {
           id: ref.id,
-          title: prev.title,
+          title: it.title,
           done: false,
           carriedFrom: sourceDate,
-          ...(prev.linkedLongTodoId ? { linkedLongTodoId: prev.linkedLongTodoId } : {}),
+          ...(it.linkedLongTodoId ? { linkedLongTodoId: it.linkedLongTodoId } : {}),
         });
       }
     }
     tx.set(dayRef, { todosCarriedOver: true, updatedAt: serverTimestamp() }, { merge: true });
-    return pending.length;
+    return items.length;
   });
 }
 

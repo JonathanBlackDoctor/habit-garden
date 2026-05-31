@@ -8,10 +8,11 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
-import { subDays, format } from 'date-fns';
+import { subDays, format, parseISO } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import { processDailyGarden } from './gardenAutogrow';
 import { shouldBecomeDormant, type RotationInput } from '../../shared/prayerRotation';
+import { selectCarryOverItems, CARRY_LOOKBACK_DAYS, type CarryDay } from '../../shared/todoCarryover';
 import type { PrayerDoc, TodayTodoDoc } from '../../shared/types/firestore';
 
 const db = admin.firestore();
@@ -107,7 +108,7 @@ async function processUserDay(
   }
 
   // 1-1. 전날 미완료 '오늘 할 일' 이월 (체크 안 한 항목이 사라지지 않게 다음 날로 넘김)
-  await carryOverTodos(uid, today, yesterday, todaySnap.data()?.todosCarriedOver);
+  await carryOverTodos(uid, today);
 
   // 2. 어제 finalize
   const ydayRef  = db.doc(`users/${uid}/days/${yesterday}`);
@@ -154,42 +155,48 @@ async function processUserDay(
 }
 
 /**
- * 전날(yesterday) 미완료 '오늘 할 일'을 오늘(today)로 이월한다.
+ * 미완료 '오늘 할 일'을 오늘(today)로 이월한다.
  *  - 완료(done=true) 항목은 가져오지 않는다.
- *  - 전날 문서는 기록 보존을 위해 건드리지 않고, 오늘로 새 문서를 복사한다.
- *  - todosCarriedOver 플래그로 하루 1회만 실행(멱등). dailyReset이 매일 돌며
- *    yesterday→today 로 사슬처럼 이월하므로 며칠 비워도 누락 없이 이어진다.
+ *  - 과거 날짜 문서는 기록 보존을 위해 건드리지 않고, 오늘로 새 문서를 복사한다.
+ *  - todosCarriedOver 플래그로 하루 1회만 실행(멱등).
+ *  - 어제 하루만 보지 않고 '미완료가 남은 가장 최근 과거 날짜'까지 거슬러 찾는다.
+ *    서버가 하루 거르거나 사용자가 며칠 접속하지 않아 사슬이 끊겨도 항목이 고립·증발하지 않는다.
+ *  - 플래그 확인·쓰기는 트랜잭션으로 묶어, 같은 시각 클라이언트 안전망과 동시에 돌아도 중복 이월하지 않는다.
+ *    (과거 todo 조회는 트랜잭션 밖에서 — 남은 항목 복구 용도라 그 짧은 창의 변화는 무시해도 된다.)
  */
-async function carryOverTodos(
-  uid: string,
-  today: string,
-  yesterday: string,
-  alreadyCarried: boolean | undefined,
-): Promise<void> {
-  if (alreadyCarried) return;
+async function carryOverTodos(uid: string, today: string): Promise<number> {
+  const dayRef = db.doc(`users/${uid}/days/${today}`);
+  const pre = await dayRef.get();
+  if (pre.exists && pre.data()?.todosCarriedOver) return 0; // 이미 이월됨(서버/클라/다른 탭)
 
-  const todayCol = db.collection(`users/${uid}/days/${today}/todayTodos`);
-  const ydaySnap = await db.collection(`users/${uid}/days/${yesterday}/todayTodos`).get();
-  const pending = ydaySnap.docs.filter((d) => !(d.data() as TodayTodoDoc).done);
-
-  const batch = db.batch();
-  for (const d of pending) {
-    const prev = d.data() as TodayTodoDoc;
-    const ref = todayCol.doc();
-    batch.set(ref, {
-      id: ref.id,
-      title: prev.title,
-      done: false,
-      carriedFrom: yesterday,
-      ...(prev.linkedLongTodoId ? { linkedLongTodoId: prev.linkedLongTodoId } : {}),
-    });
+  // 미완료가 남은 가장 최근 과거 날짜를 찾을 때까지 하루씩 거슬러 읽는다(보통 어제 한 번에 끝남).
+  const candidates: CarryDay[] = [];
+  for (let i = 1; i <= CARRY_LOOKBACK_DAYS; i++) {
+    const prevDate = format(subDays(parseISO(today), i), 'yyyy-MM-dd');
+    const snap = await db.collection(`users/${uid}/days/${prevDate}/todayTodos`).get();
+    const todos = snap.docs.map((d) => d.data() as TodayTodoDoc);
+    candidates.push({ date: prevDate, todos });
+    if (todos.some((t) => !t.done)) break; // 가장 최근 미완료 날짜 발견 — 더 거슬러 갈 필요 없음
   }
-  batch.set(
-    db.doc(`users/${uid}/days/${today}`),
-    { todosCarriedOver: true, updatedAt: FieldValue.serverTimestamp() },
-    { merge: true },
-  );
-  await batch.commit();
+  const { sourceDate, items } = selectCarryOverItems(candidates);
+
+  return db.runTransaction(async (tx) => {
+    const fresh = await tx.get(dayRef);
+    if (fresh.exists && fresh.data()?.todosCarriedOver) return 0; // 트랜잭션 직전 다른 경로가 처리함
+    const todayCol = db.collection(`users/${uid}/days/${today}/todayTodos`);
+    for (const it of items) {
+      const ref = todayCol.doc();
+      tx.set(ref, {
+        id: ref.id,
+        title: it.title,
+        done: false,
+        carriedFrom: sourceDate,
+        ...(it.linkedLongTodoId ? { linkedLongTodoId: it.linkedLongTodoId } : {}),
+      });
+    }
+    tx.set(dayRef, { todosCarriedOver: true, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    return items.length;
+  });
 }
 
 /** 소모 없이 해당 날짜가 휴가/freeze 토큰으로 보호되는지만 판단 (정원 보호 평가용). */
