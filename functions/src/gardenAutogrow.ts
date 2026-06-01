@@ -132,8 +132,8 @@ export async function processDailyGarden(
     if (sp.trait?.kind === 'transcendent') {
       return { ...p, stage: p.stage + 1, witheredSince: undefined };
     }
-    // fast (대나무·민트·등): health>80 일 때 +1
-    if (sp.trait?.kind === 'fast' && health > 80) {
+    // fast (대나무·민트·등): health>=80 일 때 +1 (생기 80 이상)
+    if (sp.trait?.kind === 'fast' && health >= 80) {
       return { ...p, stage: p.stage + 1, witheredSince: undefined };
     }
     return p;
