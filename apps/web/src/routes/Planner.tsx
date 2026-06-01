@@ -39,7 +39,6 @@ export default function Planner() {
   const [longInput, setLongInput] = useState('');
   const [longPriority, setLongPriority] = useState<Priority>('mid');
   const [longDeadline, setLongDeadline] = useState('');
-  const [showArchive, setShowArchive] = useState(false);
 
   useEffect(() => {
     if (!uid) return;
@@ -184,30 +183,160 @@ export default function Planner() {
           ))}
         </div>
 
-        {/* 보관함 */}
-        {archivedLong.length > 0 && (
-          <div className="space-y-2 pt-1">
-            <button
-              onClick={() => setShowArchive((v) => !v)}
-              className="flex w-full items-center gap-2 text-xs font-medium text-[var(--fg-muted)]"
-            >
-              <Archive size={14} />
-              보관함 ({archivedLong.length})
-              <span className="ml-auto">{showArchive ? '숨기기' : '보기'}</span>
-            </button>
-            {showArchive && archivedLong.map((t) => (
-              <LongTodoItem
-                key={t.id}
-                todo={t}
-                archived
-                onPatch={(patch) => patchLong(t, patch)}
-                onRemove={() => removeLong(t)}
-              />
-            ))}
-          </div>
-        )}
       </section>
+
+      {/* ───────── 보관함 ───────── */}
+      <div className="border-t border-[var(--border-soft)]" />
+      <ArchiveSection
+        uid={uid}
+        today={date}
+        archivedLong={archivedLong}
+        onPatchLong={patchLong}
+        onRemoveLong={removeLong}
+      />
     </div>
+  );
+}
+
+const ARCHIVE_LOOKBACK_DAYS = 30;
+
+function archiveDateLabel(date: string): string {
+  const d = parseISO(date);
+  const diff = differenceInCalendarDays(new Date(), d);
+  const base = format(d, 'M월 d일');
+  if (diff === 1) return `${base} · 어제`;
+  return base;
+}
+
+/**
+ * 보관함 — 완료한 장기 목표와 지난 '오늘 할 일'을 한곳에서 찾아본다.
+ * 장기 목표는 longTodos 스냅샷에서 이미 로드돼 있으나, 일일 할 일은 날짜별 문서에
+ * 흩어져 있어 보관함을 펼칠 때만 최근 ARCHIVE_LOOKBACK_DAYS일을 한 번 조회한다(지연 로딩).
+ * 과거 날짜는 더 이상 바뀌지 않으므로 한 번 불러온 결과를 그대로 보여준다.
+ */
+function ArchiveSection({
+  uid, today, archivedLong, onPatchLong, onRemoveLong,
+}: {
+  uid: string | null;
+  today: string;
+  archivedLong: LongTodoDoc[];
+  onPatchLong: (t: LongTodoDoc, patch: Record<string, unknown>) => void;
+  onRemoveLong: (t: LongTodoDoc) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [dayGroups, setDayGroups] = useState<{ date: string; todos: TodayTodoDoc[] }[]>([]);
+  const [loadingDays, setLoadingDays] = useState(false);
+  const [daysLoaded, setDaysLoaded] = useState(false);
+
+  const loadDays = async () => {
+    if (!uid) return;
+    setLoadingDays(true);
+    const dates = Array.from({ length: ARCHIVE_LOOKBACK_DAYS }, (_, i) =>
+      format(subDays(parseISO(today), i + 1), 'yyyy-MM-dd'),
+    );
+    try {
+      const snaps = await Promise.all(
+        dates.map((d) =>
+          getDocs(query(collection(db, 'users', uid, 'days', d, 'todayTodos'), orderBy('id'))),
+        ),
+      );
+      const groups = dates
+        .map((d, idx) => ({
+          date: d,
+          todos: snaps[idx].docs
+            .map((doc) => ({ ...(doc.data() as TodayTodoDoc), id: doc.id }))
+            .filter((t) => t.done),
+        }))
+        .filter((g) => g.todos.length > 0);
+      setDayGroups(groups);
+      setDaysLoaded(true);
+    } catch (e) {
+      console.error('archive daily todos load failed', e);
+    } finally {
+      setLoadingDays(false);
+    }
+  };
+
+  const toggle = () => {
+    const next = !open;
+    setOpen(next);
+    if (next && !daysLoaded && !loadingDays) loadDays();
+  };
+
+  const dailyDoneCount = dayGroups.reduce((n, g) => n + g.todos.length, 0);
+
+  return (
+    <section className="space-y-3">
+      <button
+        onClick={toggle}
+        className="flex w-full items-center gap-2 text-sm font-semibold text-[var(--fg-primary)]"
+      >
+        <Archive size={16} />
+        보관함
+        <span className="ml-auto text-xs font-medium text-[var(--fg-muted)]">
+          {open ? '숨기기' : '보기'}
+        </span>
+      </button>
+
+      {open && (
+        <div className="space-y-5">
+          {/* 완료한 장기 목표 */}
+          <div className="space-y-2">
+            <h4 className="text-xs font-medium text-[var(--fg-muted)]">
+              장기 목표 ({archivedLong.length})
+            </h4>
+            {archivedLong.length === 0 ? (
+              <p className="py-3 text-center text-xs text-[var(--fg-faint)]">
+                완료한 장기 목표가 없어요.
+              </p>
+            ) : (
+              archivedLong.map((t) => (
+                <LongTodoItem
+                  key={t.id}
+                  todo={t}
+                  archived
+                  onPatch={(patch) => onPatchLong(t, patch)}
+                  onRemove={() => onRemoveLong(t)}
+                />
+              ))
+            )}
+          </div>
+
+          {/* 완료한 오늘 할 일 */}
+          <div className="space-y-2">
+            <h4 className="text-xs font-medium text-[var(--fg-muted)]">
+              오늘 할 일 ({dailyDoneCount})
+            </h4>
+            {loadingDays ? (
+              <p className="py-3 text-center text-xs text-[var(--fg-faint)]">불러오는 중…</p>
+            ) : dayGroups.length === 0 ? (
+              <p className="py-3 text-center text-xs text-[var(--fg-faint)]">
+                최근 {ARCHIVE_LOOKBACK_DAYS}일간 완료한 할 일이 없어요.
+              </p>
+            ) : (
+              dayGroups.map((g) => (
+                <div key={g.date} className="space-y-1.5">
+                  <p className="text-[11px] font-medium tabular-nums text-[var(--fg-faint)]">
+                    {archiveDateLabel(g.date)}
+                  </p>
+                  {g.todos.map((t) => (
+                    <div
+                      key={t.id}
+                      className="flex items-center gap-2 rounded-[var(--radius)] bg-[var(--bg-base)] px-4 py-2.5"
+                    >
+                      <Check size={15} className="shrink-0 text-[var(--leaf)]" />
+                      <span className="flex-1 text-sm line-through text-[var(--fg-faint)]">
+                        {t.title}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </section>
   );
 }
 
