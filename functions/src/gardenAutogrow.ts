@@ -29,6 +29,24 @@ function speciesOf(id: string): PlantSpecies | undefined {
   return PLANT_SPECIES.find((s) => s.id === id);
 }
 
+/**
+ * 현재 시각이 속한 '게임일'(YYYY-MM-DD, 04:00 KST 경계)을 반환.
+ * 클라이언트 getGameDayKST 와 동일한 알고리즘이어야 fast 성장 마커를 공유할 수 있다.
+ */
+function gameDayKST(): string {
+  const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+  const RESET_HOUR_MS = 4 * 60 * 60 * 1000;
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const nowKST = Date.now() + KST_OFFSET_MS;
+  const msSinceMidnightKST = nowKST % DAY_MS;
+  const adjustedKST = msSinceMidnightKST >= RESET_HOUR_MS ? nowKST : nowKST - DAY_MS;
+  const d = new Date(adjustedKST);
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 function maxStageOf(speciesId: string): number {
   return (speciesOf(speciesId)?.stages ?? 4) - 1;
 }
@@ -118,6 +136,15 @@ export async function processDailyGarden(
   let xpBumped = false;
   let stats: GardenStats = { ...(prog.gardenStats ?? {}) };
 
+  // fast 트레잇 자동 성장은 서버 리셋과 클라이언트가 공유하는 게임일 마커로 하루 1회만 적용한다.
+  // (스케줄드 리셋이 누락돼도 클라이언트가 같은 규칙으로 채워 넣을 수 있게 한 이중 경로)
+  const gameDay = gameDayKST();
+  const canFastGrow = health >= 80 && garden.lastFastGrowDate !== gameDay;
+  const willFastGrow = canFastGrow && plants.some((p) => {
+    const sp = speciesOf(p.speciesId);
+    return sp?.trait?.kind === 'fast' && p.stage < ((sp.stages ?? 4) - 1);
+  });
+
   // 1) 트레잇 적용 (성장 계열): fast + bloomer
   plants = plants.map((p) => {
     const sp = speciesOf(p.speciesId);
@@ -132,8 +159,8 @@ export async function processDailyGarden(
     if (sp.trait?.kind === 'transcendent') {
       return { ...p, stage: p.stage + 1, witheredSince: undefined };
     }
-    // fast (대나무·민트·등): health>=80 일 때 +1 (생기 80 이상)
-    if (sp.trait?.kind === 'fast' && health >= 80) {
+    // fast (대나무·민트·등): 생기 80 이상 + 오늘 아직 미적용일 때 +1
+    if (sp.trait?.kind === 'fast' && canFastGrow) {
       return { ...p, stage: p.stage + 1, witheredSince: undefined };
     }
     return p;
@@ -307,8 +334,10 @@ export async function processDailyGarden(
   stats.passiveYieldTotal = (stats.passiveYieldTotal ?? 0) + passiveYield;
 
   // 9) 일괄 저장 (progress + passive yield)
+  const nextGarden: any = { ...garden, plants, health };
+  if (willFastGrow) nextGarden.lastFastGrowDate = gameDay;  // 오늘 fast 성장 적용 표시 (클라이언트 중복 성장 방지)
   const patch: any = {
-    gardenState: { ...garden, plants, health },
+    gardenState: nextGarden,
     gardenStats: stats,
     updatedAt: FieldValue.serverTimestamp(),
   };

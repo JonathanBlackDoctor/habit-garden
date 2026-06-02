@@ -331,6 +331,8 @@ export interface GardenState {
   unlockedSpecies: string[];
   decorations: string[];
   health: number;                 // 0-100
+  lastFastGrowDate?: string;      // fast 트레잇 자동 성장을 적용한 게임일(YYYY-MM-DD, 04:00 KST 경계).
+                                  //   서버 일일 리셋과 클라이언트 이중 경로가 공유해 하루 1회만 성장시킨다.
 }
 
 export interface PlantInstance {
