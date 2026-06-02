@@ -331,6 +331,8 @@ export interface GardenState {
   unlockedSpecies: string[];
   decorations: string[];
   health: number;                 // 0-100
+  lastFastGrowDate?: string;      // fast 트레잇 자동 성장을 적용한 게임일(YYYY-MM-DD, 04:00 KST 경계).
+                                  //   서버 일일 리셋과 클라이언트 이중 경로가 공유해 하루 1회만 성장시킨다.
 }
 
 export interface PlantInstance {
@@ -482,7 +484,7 @@ export type PlantTrait =
   | { kind: 'lucky' }                // 1/5 확률로 stage 1 시작 + 희귀 드롭 가능성
   | { kind: 'beauty'; xp: number }   // 매일 04:00 정원에 있으면 +xp
   | { kind: 'hardy' }                // 시들기 면역
-  | { kind: 'fast' }                 // health>80 일 때 dailyReset 시 stage +1
+  | { kind: 'fast' }                 // health>=80 (생기 80 이상)일 때 dailyReset 시 stage +1
   | { kind: 'healer'; heal: number } // 만개 시 정원 health +heal
   | { kind: 'streakSync' }           // 기도 streak>0 일 때 만개 시각효과 + 수확 +50%
   | { kind: 'bloomer' }              // 매일 자동 성장 (health 무관, 100% 확률) — legendary 전용
@@ -531,7 +533,7 @@ export const PLANT_SPECIES: PlantSpecies[] = [
   { id: 'daisy',      name: '데이지',   rarity: 'common', unlockCost: 180, seedCost: 50, stages: 4, harvestYield: 50,
     trait: { kind: 'beauty', xp: 2 }, description: '🌼 매일 정원에 있으면 +2 XP.' },
   { id: 'mint',       name: '민트',     rarity: 'common', unlockCost: 200, seedCost: 40, stages: 3, harvestYield: 45,
-    trait: { kind: 'fast' }, description: '🌱 생기>80 일 때 매일 자동 성장.' },
+    trait: { kind: 'fast' }, description: '🌱 생기 80 이상일 때 매일 자동 성장.' },
 
   // ── 희귀 (rare) ─────────────────────────────────────────
   { id: 'maple',      name: '단풍나무', rarity: 'rare',   unlockCost: 350, seedCost: 80, stages: 6, harvestYield: 120, description: '계절을 머금은 나무.' },
@@ -539,7 +541,7 @@ export const PLANT_SPECIES: PlantSpecies[] = [
     trait: { kind: 'healer', heal: 10 }, description: '🪷 만개 시 정원 생기 +10.' },
   { id: 'orchid',     name: '난초',     rarity: 'rare',   unlockCost: 400, seedCost: 80, stages: 5, harvestYield: 105, description: '귀한 보라꽃.' },
   { id: 'bamboo',     name: '대나무',   rarity: 'rare',   unlockCost: 300, seedCost: 80, stages: 6, harvestYield: 120,
-    trait: { kind: 'fast' }, description: '🎋 생기>80 일 때 매일 자동 성장.' },
+    trait: { kind: 'fast' }, description: '🎋 생기 80 이상일 때 매일 자동 성장.' },
   { id: 'pine',       name: '소나무',   rarity: 'rare',   unlockCost: 450, seedCost: 80, stages: 7, harvestYield: 130,
     trait: { kind: 'hardy' }, description: '🌲 시들기 면역. 길게 자람.' },
   { id: 'fern',       name: '고사리',   rarity: 'rare',   unlockCost: 380, seedCost: 70, stages: 5, harvestYield: 110,

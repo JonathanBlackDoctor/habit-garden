@@ -10,6 +10,9 @@ import { toast } from 'sonner';
 // 공개 정원 미러 중복 쓰기 방지: uid → 마지막 미러 해시. 모듈 레벨이라 다중 마운트 시 공유된다.
 const gardenMirrorCache = new Map<string, string>();
 
+// fast 자동 성장 세션 가드: `${uid}:${gameDay}` 1회만 시도 (Firestore 마커 확정 전 중복 쓰기 방지).
+const fastGrowGuard = new Set<string>();
+
 // 미러 변경 감지용 해시 (Timestamp 원본은 비안정 형태라 제외).
 function gardenMirrorHash(gs: GardenState, level: number, nickname: string): string {
   const plants = (gs.plants ?? []).map(
@@ -40,6 +43,44 @@ export function getGameDayKST(): string {
   const m = String(d.getUTCMonth() + 1).padStart(2, '0');
   const day = String(d.getUTCDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
+}
+
+/**
+ * fast 트레잇(대나무·민트) 생기 자동 성장 — 클라이언트 이중 경로.
+ *
+ * 원래 이 성장은 매일 04:00 KST 스케줄드 서버 리셋(processDailyGarden)에서만 일어났다.
+ * 스케줄드 함수가 누락/지연되면 "생기 80 이상인데 대나무가 안 자라는" 증상이 생긴다.
+ * 서버와 동일한 게임일 마커(gardenState.lastFastGrowDate)를 공유해, 둘 중 먼저 도는
+ * 쪽이 하루 1회만 성장시키고 마커를 기록한다 → 중복 성장 없이 누락만 보완한다.
+ */
+function maybeRunFastGrowth(uid: string, data: ProgressDoc): void {
+  const garden = data.gardenState;
+  if (!garden) return;
+
+  const gameDay = getGameDayKST();
+  if (garden.lastFastGrowDate === gameDay) return;   // 오늘 이미 적용됨(서버 또는 클라이언트)
+  if ((garden.health ?? 100) < 80) return;            // 생기 80 이상에서만
+
+  const key = `${uid}:${gameDay}`;
+  if (fastGrowGuard.has(key)) return;                 // 세션 내 1회
+
+  let grew = false;
+  const plants = (garden.plants ?? []).map((p) => {
+    const sp = PLANT_SPECIES.find((s) => s.id === p.speciesId);
+    if (sp?.trait?.kind !== 'fast') return p;
+    const max = (sp.stages ?? 4) - 1;
+    if (p.stage >= max) return p;
+    grew = true;
+    return { ...p, stage: p.stage + 1, witheredSince: undefined };
+  });
+  if (!grew) return;                                  // 자랄 fast 식물 없음 → 마커도 남기지 않음
+
+  fastGrowGuard.add(key);
+  setDoc(
+    doc(db, 'users', uid, 'progress', 'main'),
+    { gardenState: { ...garden, plants, lastFastGrowDate: gameDay }, updatedAt: serverTimestamp() },
+    { merge: true },
+  ).catch(() => fastGrowGuard.delete(key));           // 실패 시 다음 스냅샷에서 재시도 허용
 }
 
 // 게임 하루는 04:00 KST 기준으로 리셋된다.
@@ -86,6 +127,9 @@ export function useProgress() {
       if (snap.exists()) {
         const data = snap.data() as ProgressDoc;
         setProgress(data);
+
+        // 생기 자동 성장 보완 (스케줄드 서버 리셋 누락 대비) — 서버와 마커 공유로 중복 방지
+        maybeRunFastGrowth(uid, data);
 
         // 공개 정원 미러 (둘러보기) — 닉네임 설정자만, 샌드박스·게스트 제외.
         // 닉네임 미설정 시 gardens/{uid} 문서가 생성되지 않아 둘러보기에 노출되지 않는다.

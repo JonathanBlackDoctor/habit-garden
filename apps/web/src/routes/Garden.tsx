@@ -54,7 +54,7 @@ function traitLabel(t?: PlantSpecies['trait']): string | null {
     case 'lucky':      return '🍀 행운 (드롭↑·1/5 시작)';
     case 'beauty':     return `✿ 매일 +${t.xp} XP`;
     case 'hardy':      return '🛡️ 시들기 면역';
-    case 'fast':       return '⚡ 생기>80 시 매일 자동 성장';
+    case 'fast':       return '⚡ 생기 80 이상 시 매일 자동 성장';
     case 'healer':     return `🪷 만개 시 생기 +${t.heal}`;
     case 'streakSync': return '✨ 기도 연속 시 수확 +50%';
     case 'bloomer':    return '🌳 매일 자동 성장 (확실)';
