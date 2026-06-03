@@ -7,6 +7,7 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import AppLayout from '@/components/AppLayout';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import SandboxBanner from '@/components/SandboxBanner';
+import { DialogProvider } from '@/components/ui/DialogProvider';
 import ReminderActionHandler from '@/features/habits/ReminderActionHandler';
 
 import Login      from '@/routes/Login';
@@ -38,6 +39,7 @@ export default function App() {
   return (
     <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
+      <DialogProvider>
       <HashRouter>
         <AuthInit>
           <SandboxBanner />
@@ -78,6 +80,7 @@ export default function App() {
           </Routes>
         </AuthInit>
       </HashRouter>
+      </DialogProvider>
     </QueryClientProvider>
     </ErrorBoundary>
   );

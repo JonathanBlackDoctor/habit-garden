@@ -17,6 +17,8 @@ export default {
         sky:           'var(--sky)',
         'sky-soft':    'var(--sky-soft)',
         wither:        'var(--wither)',
+        danger:        'var(--danger)',
+        'danger-soft': 'var(--danger-soft)',
       },
       borderRadius: {
         DEFAULT: 'var(--radius)',

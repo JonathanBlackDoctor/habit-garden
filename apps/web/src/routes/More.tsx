@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
 import { signOutUser } from '@/lib/auth';
-import { Cloud, BookOpen, Settings, LogOut, Bell, Vibrate, Volume2, HandHeart, Download, GraduationCap, Palmtree, Thermometer, ShieldCheck } from 'lucide-react';
+import { Cloud, BookOpen, Settings, LogOut, Bell, Vibrate, Volume2, HandHeart, Download, GraduationCap, Palmtree, Thermometer } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import { enablePushNotifications, disablePushNotifications, isFcmEnabled } from '@/lib/fcm';
@@ -15,8 +15,13 @@ import {
 import { useFaithEnabled, setFaithEnabled, useIsGuest, useIsPremium } from '@/lib/features';
 import { usePwaInstall } from '@/lib/pwaInstall';
 import SignupCTA from '@/components/SignupCTA';
+import { Card } from '@/components/ui/Card';
+import { ListRow } from '@/components/ui/ListRow';
+import { Badge } from '@/components/ui/Badge';
+import { Switch } from '@/components/ui/switch';
+import { useConfirm, usePrompt } from '@/components/ui/DialogProvider';
 
-const items = [
+const NAV_ITEMS = [
   { icon: GraduationCap, label: '튜토리얼', to: '/tutorial' },
   { icon: Cloud,         label: '컨디션',   to: '/condition' },
   { icon: BookOpen,      label: '플래너',   to: '/planner' },
@@ -36,6 +41,8 @@ export default function More() {
   const isGuest = useIsGuest();
   const isPremium = useIsPremium();
   const { canInstall, isStandalone, isIOS, promptInstall } = usePwaInstall();
+  const confirm = useConfirm();
+  const promptInput = usePrompt();
 
   useEffect(() => {
     setPush(isFcmEnabled());
@@ -54,7 +61,14 @@ export default function More() {
 
   const startVacation = async () => {
     if (!uid) return;
-    const input = prompt('며칠간 휴가 모드로 스트릭을 동결할까요?', '7');
+    const input = await promptInput({
+      title: '휴가 모드',
+      description: '며칠간 스트릭을 동결할까요? (1–60일)',
+      defaultValue: '7',
+      inputType: 'number',
+      inputMode: 'numeric',
+      confirmLabel: '시작',
+    });
     if (!input) return;
     const days = Math.max(1, Math.min(60, Number(input) || 0));
     if (!days) return;
@@ -63,7 +77,7 @@ export default function More() {
     const untilStr = until.toISOString().slice(0, 10);
     await setDoc(doc(db, 'users', uid, 'progress', 'main'),
       { vacationUntil: untilStr, updatedAt: serverTimestamp() }, { merge: true });
-    toast.success(`🌴 ${untilStr}까지 휴가 모드`);
+    toast.success(`${untilStr}까지 휴가 모드`);
   };
 
   const endVacation = async () => {
@@ -81,15 +95,18 @@ export default function More() {
       toast.error('이번 달 아픔 데이를 이미 사용했어요');
       return;
     }
-    if (!window.confirm('오늘 아픔 데이를 사용할까요?\n이번 달 1회만 사용할 수 있으며, 오늘 하루 스트릭이 보호됩니다.')) {
-      return;
-    }
+    const ok = await confirm({
+      title: '오늘 아픔 데이를 사용할까요?',
+      description: '이번 달 1회만 사용할 수 있으며, 오늘 하루 스트릭이 보호됩니다.',
+      confirmLabel: '사용하기',
+    });
+    if (!ok) return;
     await setDoc(doc(db, 'users', uid, 'progress', 'main'), {
       sickDays: { month, daysUsed: usedThisMonth + 1 },
       vacationUntil: today,   // 오늘 하루 스트릭 보호
       updatedAt: serverTimestamp(),
     }, { merge: true });
-    toast.success('🤒 오늘은 푹 쉬세요. 스트릭은 지켜드릴게요');
+    toast.success('오늘은 푹 쉬세요. 스트릭은 지켜드릴게요');
   };
 
   const vacationActive = !!vacationUntil && vacationUntil >= today;
@@ -122,9 +139,22 @@ export default function More() {
     });
   };
 
+  const onLogout = async () => {
+    if (isGuest) {
+      const ok = await confirm({
+        title: '게스트 종료',
+        description: '로그아웃하면 이 기기에서 지금까지 가꾼 정원에 다시 접근할 수 없어요. 계속할까요?',
+        confirmLabel: '종료',
+        destructive: true,
+      });
+      if (!ok) return;
+    }
+    signOutUser();
+  };
+
   return (
-    <div className="min-h-screen p-4 space-y-2">
-      <h2 className="py-2 text-base font-semibold text-[var(--fg-primary)]">더보기</h2>
+    <div className="min-h-full p-4 pb-6">
+      <h2 className="py-2 text-lg font-semibold text-[var(--fg-primary)]">더보기</h2>
 
       {/* 가입 유도 — 게스트/미승인 사용자 */}
       {!isPremium && (
@@ -134,160 +164,127 @@ export default function More() {
         />
       )}
 
-      <p className="px-1 pt-2 text-[11px] font-medium text-[var(--fg-faint)]">바로가기</p>
-      {items
-        .filter((it) => !(isGuest && it.to === '/admin'))
-        .map(({ icon: Icon, label, to }) => (
-        <button
-          key={to}
-          onClick={() => navigate(to)}
-          className="flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3.5 text-sm text-[var(--fg-primary)] shadow-[var(--shadow-sm)] active:opacity-70"
-        >
-          <Icon size={18} className="text-[var(--leaf)]" />
-          {label}
-        </button>
-      ))}
+      {/* 바로가기 */}
+      <SectionLabel>바로가기</SectionLabel>
+      <Card padding="none" className="divide-y divide-[var(--border-soft)]">
+        {NAV_ITEMS
+          .filter((it) => !(isGuest && it.to === '/admin'))
+          .map(({ icon: Icon, label, to }) => (
+            <ListRow
+              key={to}
+              icon={<Icon size={18} />}
+              label={label}
+              onClick={() => navigate(to)}
+            />
+          ))}
+      </Card>
 
-      {/* 피드백 / 알림 설정 (Phase 1-2, 3-1) */}
-      <p className="px-1 pt-3 text-[11px] font-medium text-[var(--fg-faint)]">설정</p>
-      <div className="rounded-[var(--radius)] bg-[var(--bg-surface)] shadow-[var(--shadow-sm)] divide-y divide-[var(--leaf-soft)]">
+      {/* 설정 */}
+      <SectionLabel>설정</SectionLabel>
+      <Card padding="none" className="divide-y divide-[var(--border-soft)]">
         {isPremium && (
-          <ToggleRow
-            icon={<Bell size={18} className="text-[var(--leaf)]" />}
+          <ListRow
+            icon={<Bell size={18} />}
             label="푸시 알림"
             desc="시간대별 리마인더 (FCM)"
-            value={push}
-            onToggle={onPushToggle}
+            trailing={<Switch checked={push} onCheckedChange={onPushToggle} />}
           />
         )}
-        <ToggleRow
-          icon={<Vibrate size={18} className="text-[var(--leaf)]" />}
+        <ListRow
+          icon={<Vibrate size={18} />}
           label="햅틱"
           desc="체크 시 진동"
-          value={haptic}
-          onToggle={() => {
-            const v = !haptic; setHapticEnabled(v); setHapt(v);
-            if (v) feedback('check');
-          }}
+          trailing={
+            <Switch
+              checked={haptic}
+              onCheckedChange={(v) => { setHapticEnabled(v); setHapt(v); if (v) feedback('check'); }}
+            />
+          }
         />
-        <ToggleRow
-          icon={<Volume2 size={18} className="text-[var(--leaf)]" />}
+        <ListRow
+          icon={<Volume2 size={18} />}
           label="사운드"
           desc="체크 시 짧은 음"
-          value={sound}
-          onToggle={() => {
-            const v = !sound; setSoundEnabled(v); setSnd(v);
-            if (v) feedback('achieve');
-          }}
+          trailing={
+            <Switch
+              checked={sound}
+              onCheckedChange={(v) => { setSoundEnabled(v); setSnd(v); if (v) feedback('achieve'); }}
+            />
+          }
         />
-        <ToggleRow
-          icon={<HandHeart size={18} className="text-[var(--leaf)]" />}
+        <ListRow
+          icon={<HandHeart size={18} />}
           label="신앙 기능"
           desc="경건·기도제목 메뉴 표시"
-          value={faithEnabled}
-          onToggle={onFaithToggle}
+          trailing={<Switch checked={faithEnabled} onCheckedChange={onFaithToggle} />}
         />
-      </div>
+      </Card>
 
       {/* 스트릭 보호 (B-4) */}
-      <div className="mt-4 rounded-[var(--radius)] bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-sm)] space-y-3">
-        <div className="flex items-center gap-2">
-          <ShieldCheck size={18} className="text-[var(--leaf)]" />
-          <p className="text-sm font-medium text-[var(--fg-primary)]">스트릭 보호</p>
-        </div>
-        <p className="text-[11px] leading-snug text-[var(--fg-faint)]">
+      <SectionLabel>스트릭 보호</SectionLabel>
+      <Card className="space-y-3">
+        <p className="text-xs leading-snug text-[var(--fg-faint)]">
           매주 1회는 자동 그레이스로 스트릭이 보호돼요. 길게 쉴 땐 휴가 모드, 아픈 날엔 아픔 데이(월 1회)를 쓰세요.
         </p>
 
         {vacationActive ? (
-          <button
+          <ListRow
+            className="rounded-[var(--radius-sm)] bg-[var(--leaf-soft)] px-3 py-2.5"
+            icon={<Palmtree size={18} />}
+            label={`휴가 모드 켜짐 — ${vacationUntil}까지`}
+            desc="탭하면 해제"
             onClick={endVacation}
-            className="flex w-full items-center gap-3 rounded-[var(--radius-sm)] bg-[var(--leaf-soft)] px-3 py-2.5 text-left text-sm active:opacity-70"
-          >
-            <Palmtree size={16} className="text-[var(--leaf)]" />
-            <div className="flex-1">
-              <p className="text-[var(--fg-primary)]">휴가 모드 켜짐 — {vacationUntil}까지</p>
-              <p className="text-[10px] text-[var(--fg-faint)]">탭하면 해제</p>
-            </div>
-          </button>
+            chevron={false}
+          />
         ) : (
-          <button
+          <ListRow
+            className="rounded-[var(--radius-sm)] bg-[var(--bg-base)] px-3 py-2.5"
+            icon={<Palmtree size={18} />}
+            label="휴가 모드 시작"
             onClick={startVacation}
-            className="flex w-full items-center gap-3 rounded-[var(--radius-sm)] bg-[var(--bg-base)] px-3 py-2.5 text-left text-sm active:opacity-70"
-          >
-            <Palmtree size={16} className="text-[var(--leaf)]" />
-            <span className="text-[var(--fg-primary)]">🌴 휴가 모드 시작</span>
-          </button>
+            chevron={false}
+          />
         )}
 
-        <button
+        <ListRow
+          className="rounded-[var(--radius-sm)] bg-[var(--bg-base)] px-3 py-2.5"
+          icon={<Thermometer size={18} className="text-[var(--bloom)]" />}
+          label="오늘 아픔 데이"
           onClick={takeSickDay}
           disabled={sickUsedThisMonth >= 1}
-          className="flex w-full items-center gap-3 rounded-[var(--radius-sm)] bg-[var(--bg-base)] px-3 py-2.5 text-left text-sm active:opacity-70 disabled:opacity-40"
-        >
-          <Thermometer size={16} className="text-[var(--bloom)]" />
-          <div className="flex-1">
-            <p className="text-[var(--fg-primary)]">🤒 오늘 아픔 데이</p>
-            <p className="text-[10px] text-[var(--fg-faint)]">
-              {sickUsedThisMonth >= 1 ? '이번 달 사용 완료' : '이번 달 1회 남음'}
-            </p>
-          </div>
-        </button>
-      </div>
-
-      <p className="px-1 pt-3 text-[11px] font-medium text-[var(--fg-faint)]">계정</p>
-      {!isStandalone && (
-        <button
-          onClick={onInstallClick}
-          className="flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3.5 text-sm text-[var(--fg-primary)] shadow-[var(--shadow-sm)] active:opacity-70 text-left"
-        >
-          <Download size={18} className="text-[var(--leaf)]" />
-          <div className="flex-1">
-            <p>앱으로 설치</p>
-            <p className="text-[10px] text-[var(--fg-faint)]">홈 화면에 설치하면 푸시 알림이 크롬과 분리됩니다</p>
-          </div>
-        </button>
-      )}
-
-      <button
-        onClick={() => {
-          if (isGuest && !window.confirm('게스트로 둘러보는 중이에요. 로그아웃하면 이 기기에서 지금까지 가꾼 정원에 다시 접근할 수 없어요. 계속할까요?')) {
-            return;
+          trailing={
+            <Badge variant={sickUsedThisMonth >= 1 ? 'neutral' : 'bloom-soft'}>
+              {sickUsedThisMonth >= 1 ? '이번 달 사용 완료' : '이번 달 1회'}
+            </Badge>
           }
-          signOutUser();
-        }}
-        className="flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3.5 text-sm text-red-500 shadow-[var(--shadow-sm)] active:opacity-70 mt-2"
-      >
-        <LogOut size={18} />
-        {isGuest ? '게스트 종료' : '로그아웃'}
-      </button>
+        />
+      </Card>
+
+      {/* 계정 */}
+      <SectionLabel>계정</SectionLabel>
+      <Card padding="none" className="divide-y divide-[var(--border-soft)]">
+        {!isStandalone && (
+          <ListRow
+            icon={<Download size={18} />}
+            label="앱으로 설치"
+            desc="홈 화면에 설치하면 푸시 알림이 크롬과 분리됩니다"
+            onClick={onInstallClick}
+          />
+        )}
+        <ListRow
+          icon={<LogOut size={18} />}
+          label={isGuest ? '게스트 종료' : '로그아웃'}
+          tone="danger"
+          onClick={onLogout}
+          chevron={false}
+        />
+      </Card>
     </div>
   );
 }
 
-function ToggleRow({
-  icon, label, desc, value, onToggle,
-}: { icon: React.ReactNode; label: string; desc?: string; value: boolean; onToggle: () => void }) {
+function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <button
-      onClick={onToggle}
-      className="flex w-full items-center gap-3 px-4 py-3.5 text-left active:opacity-70"
-    >
-      {icon}
-      <div className="flex-1">
-        <p className="text-sm text-[var(--fg-primary)]">{label}</p>
-        {desc && <p className="text-[10px] text-[var(--fg-faint)]">{desc}</p>}
-      </div>
-      <span
-        className={`relative h-5 w-9 rounded-full transition-colors ${
-          value ? 'bg-[var(--leaf)]' : 'bg-[var(--leaf-soft)]'
-        }`}
-      >
-        <span
-          className="absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform"
-          style={{ transform: `translateX(${value ? 18 : 2}px)` }}
-        />
-      </span>
-    </button>
+    <p className="px-1 pb-1.5 pt-4 text-xs font-medium text-[var(--fg-faint)]">{children}</p>
   );
 }

@@ -13,7 +13,7 @@ const buttonVariants = cva(
         ghost:     'hover:bg-[var(--leaf-soft)] text-[var(--fg-muted)]',
         outline:   'border border-[var(--border)] bg-transparent hover:bg-[var(--leaf-soft)]',
         bloom:     'bg-[var(--bloom)] text-white hover:opacity-90',
-        destructive: 'bg-red-100 text-red-700 hover:bg-red-200',
+        destructive: 'bg-[var(--danger)] text-white hover:opacity-90 active:opacity-80',
       },
       size: {
         default: 'h-10 px-4 py-2',
