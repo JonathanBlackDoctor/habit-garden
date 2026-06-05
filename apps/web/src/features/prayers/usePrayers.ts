@@ -89,15 +89,20 @@ export function useLatestWeeklyDigest() {
 export function useDayDoc(date: string) {
   const uid = useAppStore((s) => s.uid);
   const [dayDoc, setDayDoc] = useState<DayDoc | null>(null);
+  // 스냅샷 첫 도착 여부 — "로딩 중 null"과 "문서 없음 null"을 구분한다.
+  // (이걸 구분하지 않으면 dayDoc 로드 전에 prayerPlan을 '없음'으로 오판해 덮어쓴다.)
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     if (!uid) return;
+    setLoaded(false);
     return onSnapshot(doc(db, 'users', uid, 'days', date), (snap) => {
       setDayDoc(snap.exists() ? (snap.data() as DayDoc) : null);
+      setLoaded(true);
     });
   }, [uid, date]);
 
-  return dayDoc;
+  return { dayDoc, loaded };
 }
 
 // ── 오늘의 목록 계산 (서버 prayerPlan 우선, 없으면 클라이언트 fallback) ──
