@@ -4,7 +4,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
-import type { PrayerDoc, JournalEntryDoc } from 'shared/types/firestore';
+import type { PrayerDoc, JournalEntryDoc, DayDoc } from 'shared/types/firestore';
 import {
   usePrayers, usePrayerChecks, useDayDoc, useTodayPrayers, usePrayerActions,
   usePrayerGroups, usePrayerTargets, useLatestWeeklyDigest,
@@ -62,7 +62,7 @@ function PrayersInner() {
   const date = useAppStore((s) => s.currentDate);
   const prayers = usePrayers();
   const checks  = usePrayerChecks(date);
-  const dayDoc  = useDayDoc(date);
+  const { dayDoc, loaded: dayLoaded } = useDayDoc(date);
   const groups  = usePrayerGroups();
   const { quickAdd, addPrayerTarget } = usePrayerActions();
   const isPremium = useIsPremium();
@@ -154,7 +154,7 @@ function PrayersInner() {
       </div>
 
       {/* 본문 */}
-      {seg === 'today'    && <TodayView prayers={prayers} dayDoc={dayDoc} checks={checks} onOpen={openDetail} date={date} />}
+      {seg === 'today'    && <TodayView prayers={prayers} dayDoc={dayDoc} dayLoaded={dayLoaded} checks={checks} onOpen={openDetail} date={date} />}
       {seg === 'all'      && <AllView prayers={prayers} onOpen={openDetail} />}
       {seg === 'answered' && <ListView prayers={prayers.filter((p) => p.status === 'answered')} empty="아직 응답 기록이 없습니다." onOpen={openDetail} />}
       {seg === 'dormant'  && <ListView prayers={prayers.filter((p) => p.status === 'dormant')} empty="잠든 기도가 없습니다." onOpen={openDetail} />}
@@ -172,10 +172,11 @@ function PrayersInner() {
 
 // ── 오늘 화면 ─────────────────────────────────────────────
 function TodayView({
-  prayers, dayDoc, checks, onOpen, date,
+  prayers, dayDoc, dayLoaded, checks, onOpen, date,
 }: {
   prayers: PrayerDoc[];
-  dayDoc: ReturnType<typeof useDayDoc>;
+  dayDoc: DayDoc | null;
+  dayLoaded: boolean;
   checks: Record<string, { prayerId: string }>;
   onOpen: (p: PrayerDoc) => void;
   date: string;
@@ -187,14 +188,17 @@ function TodayView({
 
   // 오늘의 목록을 그날 한 번 확정 — 기도 체크로 lastPrayedAt 이 바뀌어도 목록이 흔들리지 않게.
   // 빈 계산은 영속화하지 않는다(prayers 로딩 전 빈 배열로 하루가 잠기는 것을 방지).
+  // dayDoc 스냅샷이 도착하기 전엔 영속화하지 않는다 — prayers 가 dayDoc 보다 먼저 와서
+  // '확정된 plan 없음'으로 오판하고, 라이브 재계산 결과로 기존 plan 을 덮어쓰는 레이스를 막는다.
   const planPersistedFor = useRef<string | null>(null);
   useEffect(() => {
+    if (!dayLoaded) return;
     if (fromPlan) return;
     if (pinnedIds.length + rotationIds.length === 0) return;
     if (planPersistedFor.current === date) return;
     planPersistedFor.current = date;
     void persistTodayPlan(date, pinnedIds, rotationIds);
-  }, [fromPlan, date, pinnedIds, rotationIds, persistTodayPlan]);
+  }, [dayLoaded, fromPlan, date, pinnedIds, rotationIds, persistTodayPlan]);
   // '더 받기' 결과는 DayDoc.prayerPlan.extraIds 에 영속화 — 탭 전환·새로고침에도 유지
   const extraIds = useMemo(() => dayDoc?.prayerPlan?.extraIds ?? [], [dayDoc]);
 
