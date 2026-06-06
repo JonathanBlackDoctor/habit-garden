@@ -137,7 +137,17 @@ export default function SwipeTabs() {
   }
 
   return (
-    <div ref={containerRef} className="h-full w-full overflow-hidden" style={{ touchAction: 'pan-y' }}>
+    <div
+      ref={containerRef}
+      className="h-full w-full overflow-hidden"
+      style={{ touchAction: 'pan-y' }}
+      // 트랙 위치는 transform(trackX)으로만 잡으므로 컨테이너의 scrollLeft 는 항상 0이어야 한다.
+      // 외부 코드(예: scrollIntoView)가 가로로 스크롤시키면 탭 정렬이 어긋나므로 즉시 되돌린다.
+      onScroll={(e) => {
+        if (e.currentTarget.scrollLeft !== 0) e.currentTarget.scrollLeft = 0;
+        if (e.currentTarget.scrollTop !== 0) e.currentTarget.scrollTop = 0;
+      }}
+    >
       <motion.div className="flex h-full" style={{ x: trackX, width: w ? tabs.length * w : '100%' }}>
         {tabs.map((t, i) => (
           <div

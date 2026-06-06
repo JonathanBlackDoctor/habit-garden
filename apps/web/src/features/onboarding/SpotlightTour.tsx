@@ -40,6 +40,21 @@ const STEPS: Step[] = [
 
 type Rect = { top: number; left: number; width: number; height: number };
 
+// 타깃을 세로 스크롤 컨테이너(SwipeTabs 활성 패널) 안에서만 보이도록 스크롤한다.
+// scrollIntoView 는 가로(overflow-hidden 트랙)까지 스크롤해 탭 정렬을 망가뜨리므로
+// 절대 쓰지 않고, 활성 패널의 세로 스크롤만 직접 조정한다.
+function scrollTargetIntoView(el: HTMLElement) {
+  const scroller = el.closest('[data-active-panel]') as HTMLElement | null;
+  if (!scroller) return; // 고정 요소(탭바 등)는 스크롤 불필요
+  const er = el.getBoundingClientRect();
+  const sr = scroller.getBoundingClientRect();
+  const margin = 24;
+  let delta = 0;
+  if (er.top < sr.top + margin) delta = er.top - sr.top - margin;
+  else if (er.bottom > sr.bottom - margin) delta = er.bottom - sr.bottom + margin;
+  if (delta !== 0) scroller.scrollBy({ top: delta, behavior: 'smooth' });
+}
+
 export default function SpotlightTour({ onDone }: { onDone: () => void }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -98,7 +113,7 @@ export default function SpotlightTour({ onDone }: { onDone: () => void }) {
       if (el) {
         if (!scrolled) {
           scrolled = true;
-          el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          scrollTargetIntoView(el);
         }
         measure(el);
       } else if (performance.now() - start > FIND_TIMEOUT) {
