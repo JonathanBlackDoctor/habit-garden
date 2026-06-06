@@ -4,8 +4,8 @@ import {
 import { db } from './firebase';
 import type { InquiryCategory } from 'shared/types/firestore';
 
-/** 앱 공유 링크 (Firebase Hosting 기본 도메인) */
-export const APP_SHARE_URL = 'https://planner-web-quick.web.app';
+/** 앱 공유 링크 (GitHub Pages 배포 주소) */
+export const APP_SHARE_URL = 'https://jonathanblackdoctor.github.io/habit-garden/';
 
 /**
  * 관리자 문의를 생성한다.
