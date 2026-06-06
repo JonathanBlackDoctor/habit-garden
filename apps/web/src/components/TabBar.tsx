@@ -11,7 +11,7 @@ export default function TabBar() {
     to === '/' ? location.pathname === '/' : location.pathname.startsWith(to);
   return (
     <nav className="tab-bar-safe fixed bottom-0 left-0 right-0 z-40 flex border-t border-[var(--border)] bg-[var(--bg-surface)]">
-      <div className="mx-auto flex w-full max-w-[480px] items-center justify-around">
+      <div data-tour="tabbar" className="mx-auto flex w-full max-w-[480px] items-center justify-around">
         {tabs.map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}

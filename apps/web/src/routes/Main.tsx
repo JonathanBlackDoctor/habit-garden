@@ -109,6 +109,7 @@ export default function Main() {
     <div className="flex min-h-full flex-col gap-3 p-4 pb-6">
       {/* ── 상단바 ── */}
       <motion.div
+        data-tour="hero"
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         className="relative overflow-hidden rounded-[var(--radius-lg)] px-5 py-4 text-white"
@@ -166,6 +167,7 @@ export default function Main() {
 
       {/* ── 오늘의 습관 ── */}
       <motion.section
+        data-tour="today"
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.05 }}

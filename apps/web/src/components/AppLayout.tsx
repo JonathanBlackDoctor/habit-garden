@@ -9,9 +9,12 @@ import { ScrollTopContext } from '@/lib/scrollContext';
 import { TabActiveContext } from '@/lib/tabActive';
 import { useVisibleTabs } from '@/lib/tabs';
 import SwipeTabs from './SwipeTabs';
+import OnboardingFlow from '@/features/onboarding/OnboardingFlow';
+import { useOnboardingTrigger } from '@/features/onboarding/useOnboardingTrigger';
 
 export default function AppLayout() {
   useLevelUpWatcher();
+  useOnboardingTrigger();
   const hostRef = useRef<HTMLDivElement>(null);
   const tabs = useVisibleTabs();
   const location = useLocation();
@@ -56,6 +59,7 @@ export default function AppLayout() {
           <TabBar />
           <CelebrationOverlay />
           <LevelUpModal />
+          <OnboardingFlow />
         </div>
       </TabActiveContext.Provider>
     </ScrollTopContext.Provider>
