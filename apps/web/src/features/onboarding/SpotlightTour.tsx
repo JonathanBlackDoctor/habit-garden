@@ -117,8 +117,9 @@ export default function SpotlightTour({ onDone }: { onDone: () => void }) {
   }, [index, step.target]);
 
   const vh = typeof window !== 'undefined' ? window.innerHeight : 800;
-  // 타깃이 화면 아래쪽이면 툴팁을 위에, 위쪽이면 아래에 배치
-  const placeAbove = rect ? rect.top + rect.height / 2 > vh * 0.52 : false;
+  // 타깃이 화면 아래쪽이면 툴팁을 상단에, 위쪽이면 하단에 고정한다.
+  // (타깃에 바짝 붙이면 모바일에서 카드가 화면 밖으로 밀려 버튼을 못 누름)
+  const pinTop = rect ? rect.top + rect.height / 2 > vh * 0.5 : false;
 
   const hole = rect
     ? {
@@ -173,21 +174,25 @@ export default function SpotlightTour({ onDone }: { onDone: () => void }) {
       {/* 탭 가로채기(밑 UI 클릭 방지) — 다크 영역 탭은 무시 */}
       <div className="absolute inset-0" />
 
-      {/* 툴팁 카드 */}
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={index}
-          initial={{ opacity: 0, y: placeAbove ? 12 : -12 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.32, ease: EASE }}
-          className="absolute left-1/2 w-[min(340px,calc(100vw-32px))] -translate-x-1/2"
-          style={
-            placeAbove
-              ? { bottom: rect ? `calc(100% - ${rect.top - PAD - 14}px)` : '24px' }
-              : { top: rect ? rect.top + rect.height + PAD + 14 : 80 }
-          }
-        >
+      {/* 툴팁 카드 — 타깃 위치와 무관하게 항상 화면 안(상단/하단)에 고정해 버튼 접근을 보장.
+          가로 중앙 정렬은 mx-auto 로 처리한다(framer 의 transform 이 translateX 를 덮어쓰는 문제 회피). */}
+      <div
+        className="pointer-events-none absolute inset-x-0 px-4"
+        style={
+          pinTop
+            ? { top: 'calc(env(safe-area-inset-top) + 16px)' }
+            : { bottom: 'calc(env(safe-area-inset-bottom) + 16px)' }
+        }
+      >
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={index}
+            initial={{ opacity: 0, y: pinTop ? -12 : 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.32, ease: EASE }}
+            className="pointer-events-auto mx-auto w-full max-w-[340px]"
+          >
           <div className="rounded-[var(--radius-lg)] border border-[var(--border-soft)] bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-md)]">
             <div className="flex items-center justify-between">
               <p className="text-[10.5px] uppercase tracking-[0.28em] text-[var(--fg-faint)]">
@@ -247,9 +252,10 @@ export default function SpotlightTour({ onDone }: { onDone: () => void }) {
                 </button>
               </div>
             </div>
-          </div>
-        </motion.div>
-      </AnimatePresence>
+            </div>
+          </motion.div>
+        </AnimatePresence>
+      </div>
     </div>
   );
 }
