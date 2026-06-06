@@ -88,6 +88,9 @@ export function PrayerCheckCard({
               <Flame size={10} />{prayer.streak}
             </span>
           )}
+          {tsToLabel(prayer.receivedAt) && (
+            <span className="text-[10px] text-[var(--fg-faint)]">· {tsToLabel(prayer.receivedAt)} 받음</span>
+          )}
         </div>
         {prayer.body && (
           <p className={cn(

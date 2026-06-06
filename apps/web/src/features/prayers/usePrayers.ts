@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   collection, onSnapshot, query, orderBy, doc, getDoc, setDoc, updateDoc, deleteDoc,
-  serverTimestamp, limit, Timestamp, writeBatch,
+  serverTimestamp, limit, Timestamp, writeBatch, runTransaction,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
@@ -240,18 +240,31 @@ export function usePrayerActions() {
   /**
    * 오늘의 목록을 그날 한 번 확정(prayerPlan.pinnedIds/rotationIds 영속화).
    * 체크 시 lastPrayedAt 이 갱신돼 로테이션이 재계산되면 목록이 흔들려 사라지는 문제를 막는다.
+   *
+   * 한 번 확정된 plan 은 절대 덮어쓰지 않는다 — 트랜잭션으로 서버의 권위 있는 상태를 읽어
+   * 이미 pinnedIds/rotationIds 가 있으면 그대로 보존한다. 탭 재진입·새로고침·오프라인 캐시
+   * 경합으로 dayDoc 이 잠깐 plan 없이 로드돼 '체크 이후' 축소된 목록이 재계산·재영속화되며
+   * 오전에 확정된 로테이션을 밀어내던 문제를 차단한다.
    * extraIds 등 기존 prayerPlan 필드는 중첩 머지로 보존된다.
    */
   const persistTodayPlan = async (forDate: string, pinnedIds: string[], rotationIds: string[]) => {
     if (!uid) return;
-    await setDoc(
-      doc(db, 'users', uid, 'days', forDate),
-      {
-        prayerPlan: { pinnedIds, rotationIds, generatedAt: serverTimestamp() },
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true },
-    );
+    const ref = doc(db, 'users', uid, 'days', forDate);
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(ref);
+      const plan = snap.exists() ? (snap.data() as DayDoc).prayerPlan : undefined;
+      const alreadyFixed =
+        (plan?.pinnedIds?.length ?? 0) > 0 || (plan?.rotationIds?.length ?? 0) > 0;
+      if (alreadyFixed) return; // 이미 그날 목록 확정됨 — 보존
+      tx.set(
+        ref,
+        {
+          prayerPlan: { pinnedIds, rotationIds, generatedAt: serverTimestamp() },
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true },
+      );
+    });
   };
 
   /** 기존 기도제목 부분 수정 */
