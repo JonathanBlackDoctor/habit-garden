@@ -7,6 +7,7 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import AppLayout from '@/components/AppLayout';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import SandboxBanner from '@/components/SandboxBanner';
+import OwnerAlertBanner from '@/components/OwnerAlertBanner';
 import ReminderActionHandler from '@/features/habits/ReminderActionHandler';
 
 import Login      from '@/routes/Login';
@@ -41,6 +42,7 @@ export default function App() {
       <HashRouter>
         <AuthInit>
           <SandboxBanner />
+          <OwnerAlertBanner />
           <ReminderActionHandler />
           <Toaster
             position="bottom-center"

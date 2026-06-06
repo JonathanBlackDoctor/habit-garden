@@ -24,6 +24,31 @@ export interface UserProfileDoc {
   approvedBy: string | null;
 }
 
+// ── 관리자 문의 (버그·문의) ───────────────────────────────
+// inquiries/{id} — 최상위 컬렉션. 작성자 본인과 owner만 읽고, owner만 답변(수정).
+export type InquiryCategory = 'bug' | 'question' | 'etc';
+export type InquiryStatus = 'open' | 'answered';
+
+export interface InquiryDoc {
+  id: string;
+  uid: string;                  // 작성자 실제 인증 uid
+  email: string | null;
+  displayName: string | null;
+  category: InquiryCategory;
+  message: string;
+  status: InquiryStatus;        // open=답변 대기, answered=답변 완료
+  reply: string | null;         // owner 답변
+  createdAt: Timestamp;
+  repliedAt: Timestamp | null;
+  repliedBy: string | null;     // 답변한 owner uid
+}
+
+export const INQUIRY_CATEGORY_LABELS: Record<InquiryCategory, string> = {
+  bug:      '버그 신고',
+  question: '문의',
+  etc:      '기타',
+};
+
 // ── 사용자 설정 ─────────────────────────────────────────
 // users/{uid}/settings/main
 export interface UserSettingsDoc {

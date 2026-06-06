@@ -5,14 +5,15 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
-import { SEED_PRAYERS } from 'shared/types/firestore';
-import type { HabitDoc, UserProfileDoc } from 'shared/types/firestore';
+import { SEED_PRAYERS, INQUIRY_CATEGORY_LABELS } from 'shared/types/firestore';
+import type { HabitDoc, UserProfileDoc, InquiryDoc } from 'shared/types/firestore';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { ChevronLeft, Trash2, Leaf, HandHeart, Check, X, FlaskConical } from 'lucide-react';
+import { ChevronLeft, Trash2, Leaf, HandHeart, Check, X, FlaskConical, MessageCircle, Send } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { isOwner } from '@/lib/auth';
+import { replyToInquiry, deleteInquiry } from '@/lib/inquiries';
 import { seedDefaultHabits } from '@/lib/seed';
 import { useProgress } from '@/features/garden/useGarden';
 
@@ -29,6 +30,9 @@ export default function Admin() {
   const [pending, setPending] = useState<UserProfileDoc[]>([]);
   const [approved, setApproved] = useState<UserProfileDoc[]>([]);
   const [actingUid, setActingUid] = useState<string | null>(null);
+  const [inquiries, setInquiries] = useState<InquiryDoc[]>([]);
+  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
+  const [replyingId, setReplyingId] = useState<string | null>(null);
   const showAdminControls = isOwner(realUid);
 
   // ── 개발자 테스트 (owner 전용): 포인트·경험치 자유 조절 ──
@@ -114,8 +118,38 @@ export default function Admin() {
       query(collection(db, 'userProfiles'), where('status', '==', 'approved')),
       (snap) => setApproved(snap.docs.map((d) => d.data() as UserProfileDoc)),
     );
-    return () => { unsubPending(); unsubApproved(); };
+    const unsubInquiries = onSnapshot(
+      query(collection(db, 'inquiries'), orderBy('createdAt', 'desc')),
+      (snap) => setInquiries(snap.docs.map((d) => d.data() as InquiryDoc)),
+    );
+    return () => { unsubPending(); unsubApproved(); unsubInquiries(); };
   }, [showAdminControls]);
+
+  const sendReply = async (id: string) => {
+    if (replyingId) return;
+    const text = (replyDrafts[id] ?? '').trim();
+    if (!text) { toast.error('답변을 입력하세요.'); return; }
+    setReplyingId(id);
+    try {
+      await replyToInquiry(id, text, realUid!);
+      setReplyDrafts((d) => ({ ...d, [id]: '' }));
+      toast('✅ 답변을 보냈습니다.');
+    } catch (e: any) {
+      toast.error(`전송 실패: ${e?.message ?? '오류'}`);
+    } finally {
+      setReplyingId(null);
+    }
+  };
+
+  const removeInquiry = async (id: string) => {
+    if (!confirm('이 문의를 삭제하시겠습니까?')) return;
+    try {
+      await deleteInquiry(id);
+      toast('문의를 삭제했습니다.');
+    } catch (e: any) {
+      toast.error(`삭제 실패: ${e?.message ?? '오류'}`);
+    }
+  };
 
   const decide = async (targetUid: string, action: 'approve' | 'reject') => {
     if (actingUid) return;
@@ -340,6 +374,68 @@ export default function Admin() {
               ))}
             </div>
           </div>
+        </section>
+      )}
+
+      {/* 문의 / 버그 신고 (owner 전용) */}
+      {showAdminControls && (
+        <section className="card p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <MessageCircle size={16} className="text-[var(--leaf)]" />
+            <h3 className="text-sm font-medium text-[var(--fg-primary)]">
+              문의 · 버그 신고 ({inquiries.filter((q) => q.status === 'open').length} 대기)
+            </h3>
+          </div>
+          {inquiries.length === 0 ? (
+            <p className="text-xs text-[var(--fg-faint)]">접수된 문의가 없습니다.</p>
+          ) : (
+            <div className="space-y-2">
+              {inquiries.map((q) => (
+                <div key={q.id} className="rounded-md bg-[var(--bg-base)] p-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full bg-[var(--leaf-soft)] px-2 py-0.5 text-[10px] font-medium text-[var(--leaf)]">
+                      {INQUIRY_CATEGORY_LABELS[q.category]}
+                    </span>
+                    <span className={`text-[10px] font-medium ${
+                      q.status === 'answered' ? 'text-[var(--leaf)]' : 'text-[var(--bloom)]'
+                    }`}>
+                      {q.status === 'answered' ? '답변 완료' : '답변 대기'}
+                    </span>
+                    <span className="ml-auto truncate text-[10px] text-[var(--fg-faint)]">
+                      {q.displayName ?? q.email ?? '익명'}
+                    </span>
+                    <button
+                      onClick={() => removeInquiry(q.id)}
+                      className="text-red-400 hover:text-red-500"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                  <p className="whitespace-pre-wrap text-sm text-[var(--fg-primary)]">{q.message}</p>
+                  {q.reply && (
+                    <p className="whitespace-pre-wrap rounded-md bg-[var(--leaf-soft)] p-2 text-xs text-[var(--fg-primary)]">
+                      ↳ {q.reply}
+                    </p>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <input
+                      value={replyDrafts[q.id] ?? ''}
+                      onChange={(e) => setReplyDrafts((d) => ({ ...d, [q.id]: e.target.value }))}
+                      placeholder={q.status === 'answered' ? '답변 수정…' : '답변 입력…'}
+                      className="min-w-0 flex-1 rounded-md border border-[var(--leaf-soft)] bg-[var(--bg-surface)] px-2 py-1.5 text-sm text-[var(--fg-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--leaf)]"
+                    />
+                    <button
+                      disabled={replyingId === q.id}
+                      onClick={() => sendReply(q.id)}
+                      className="flex items-center gap-1 rounded-md bg-[var(--leaf)] px-2.5 py-1.5 text-xs text-white disabled:opacity-40"
+                    >
+                      <Send size={12} /> 전송
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
       )}
 

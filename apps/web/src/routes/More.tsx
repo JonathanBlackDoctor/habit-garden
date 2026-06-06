@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
 import { signOutUser } from '@/lib/auth';
-import { Cloud, BookOpen, Settings, LogOut, Bell, Vibrate, Volume2, HandHeart, Download, GraduationCap, Palmtree, Thermometer, ShieldCheck, Sparkles } from 'lucide-react';
+import { Cloud, BookOpen, Settings, LogOut, Bell, Vibrate, Volume2, HandHeart, Download, GraduationCap, Palmtree, Thermometer, ShieldCheck, Sparkles, Share2, MessageCircle } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import { enablePushNotifications, disablePushNotifications, isFcmEnabled } from '@/lib/fcm';
@@ -14,6 +14,8 @@ import {
 } from '@/lib/feedback';
 import { useFaithEnabled, setFaithEnabled, useIsGuest, useIsPremium } from '@/lib/features';
 import { usePwaInstall } from '@/lib/pwaInstall';
+import { APP_SHARE_URL } from '@/lib/inquiries';
+import ContactDialog from '@/features/contact/ContactDialog';
 import SignupCTA from '@/components/SignupCTA';
 
 const items = [
@@ -33,6 +35,7 @@ export default function More() {
   const [sound, setSnd]   = useState(false);
   const [vacationUntil, setVacationUntil] = useState<string | null>(null);
   const [sickDays, setSickDays] = useState<{ month: string; daysUsed: number } | null>(null);
+  const [contactOpen, setContactOpen] = useState(false);
   const faithEnabled = useFaithEnabled();
   const isGuest = useIsGuest();
   const isPremium = useIsPremium();
@@ -107,6 +110,31 @@ export default function More() {
     await setFaithEnabled(uid, !faithEnabled);
   };
 
+  const onShare = async () => {
+    const shareData = {
+      title: '습관 정원',
+      text: '습관을 체크하면 정원이 자라는 앱, 습관 정원 🌱 같이 해요!',
+      url: APP_SHARE_URL,
+    };
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+        return;
+      }
+      await navigator.clipboard.writeText(APP_SHARE_URL);
+      toast.success('링크를 복사했어요. 친구에게 공유해보세요!');
+    } catch (e: any) {
+      // 사용자가 공유 시트를 취소한 경우(AbortError)는 무시
+      if (e?.name === 'AbortError') return;
+      try {
+        await navigator.clipboard.writeText(APP_SHARE_URL);
+        toast.success('링크를 복사했어요. 친구에게 공유해보세요!');
+      } catch {
+        toast.error('공유에 실패했어요. 링크: ' + APP_SHARE_URL);
+      }
+    }
+  };
+
   const onInstallClick = async () => {
     if (isIOS) {
       toast('Safari 공유 메뉴 → "홈 화면에 추가"를 눌러주세요', {
@@ -157,6 +185,31 @@ export default function More() {
         <Sparkles size={18} className="text-[var(--leaf)]" />
         튜토리얼 다시 보기
       </button>
+
+      {/* 공유 · 문의 */}
+      <p className="px-1 pt-3 text-[11px] font-medium text-[var(--fg-faint)]">함께하기</p>
+      <button
+        onClick={onShare}
+        className="flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3.5 text-sm text-[var(--fg-primary)] shadow-[var(--shadow-sm)] active:opacity-70 text-left"
+      >
+        <Share2 size={18} className="text-[var(--leaf)]" />
+        <div className="flex-1">
+          <p>친구에게 공유하기</p>
+          <p className="text-[10px] text-[var(--fg-faint)]">습관 정원을 더 많은 사람과 나눠보세요</p>
+        </div>
+      </button>
+      <button
+        onClick={() => setContactOpen(true)}
+        className="flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3.5 text-sm text-[var(--fg-primary)] shadow-[var(--shadow-sm)] active:opacity-70 text-left"
+      >
+        <MessageCircle size={18} className="text-[var(--leaf)]" />
+        <div className="flex-1">
+          <p>관리자에게 문의</p>
+          <p className="text-[10px] text-[var(--fg-faint)]">버그 신고·문의사항을 보내고 답변을 받아요</p>
+        </div>
+      </button>
+
+      <ContactDialog open={contactOpen} onOpenChange={setContactOpen} />
 
       {/* 피드백 / 알림 설정 (Phase 1-2, 3-1) */}
       <p className="px-1 pt-3 text-[11px] font-medium text-[var(--fg-faint)]">설정</p>
