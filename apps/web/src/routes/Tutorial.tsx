@@ -46,7 +46,7 @@ export default function Tutorial() {
         >
           <ChevronLeft size={22} />
         </button>
-        <h2 className="text-base font-semibold text-[var(--fg-primary)]">튜토리얼</h2>
+        <h2 className="text-base font-semibold text-[var(--fg-primary)]">사용 설명서</h2>
       </div>
 
       {/* Intro */}

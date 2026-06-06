@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
 import { signOutUser } from '@/lib/auth';
-import { Cloud, BookOpen, Settings, LogOut, Bell, Vibrate, Volume2, HandHeart, Download, GraduationCap, Palmtree, Thermometer, ShieldCheck } from 'lucide-react';
+import { Cloud, BookOpen, Settings, LogOut, Bell, Vibrate, Volume2, HandHeart, Download, GraduationCap, Palmtree, Thermometer, ShieldCheck, Sparkles } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import { enablePushNotifications, disablePushNotifications, isFcmEnabled } from '@/lib/fcm';
@@ -17,7 +17,7 @@ import { usePwaInstall } from '@/lib/pwaInstall';
 import SignupCTA from '@/components/SignupCTA';
 
 const items = [
-  { icon: GraduationCap, label: '튜토리얼', to: '/tutorial' },
+  { icon: GraduationCap, label: '사용 설명서', to: '/tutorial' },
   { icon: Cloud,         label: '컨디션',   to: '/condition' },
   { icon: BookOpen,      label: '플래너',   to: '/planner' },
   { icon: Settings,      label: '관리',     to: '/admin' },
@@ -25,6 +25,7 @@ const items = [
 
 export default function More() {
   const navigate = useNavigate();
+  const startOnboarding = useAppStore((s) => s.startOnboarding);
   const uid = useAppStore((s) => s.uid);
   const today = useAppStore((s) => s.currentDate);
   const [push, setPush]   = useState(false);
@@ -147,6 +148,15 @@ export default function More() {
           {label}
         </button>
       ))}
+
+      {/* 인터랙티브 온보딩 다시 보기 (웰컴 + 화면 가이드) */}
+      <button
+        onClick={startOnboarding}
+        className="flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3.5 text-sm text-[var(--fg-primary)] shadow-[var(--shadow-sm)] active:opacity-70"
+      >
+        <Sparkles size={18} className="text-[var(--leaf)]" />
+        튜토리얼 다시 보기
+      </button>
 
       {/* 피드백 / 알림 설정 (Phase 1-2, 3-1) */}
       <p className="px-1 pt-3 text-[11px] font-medium text-[var(--fg-faint)]">설정</p>

@@ -96,6 +96,8 @@ export default function Habits() {
   }, [bloomKey]);
 
   const groups = groupByTime(habits);
+  // 온보딩 스포트라이트가 가리킬 첫 습관 카드 (TIME_ORDER 기준 최상단)
+  const firstTourHabitId = TIME_ORDER.map((t) => groups[t]?.[0]).find(Boolean)?.id;
   const activeHabits   = habits.filter((h) => h.active);
   const totalActive    = activeHabits.length;
   const totalAchieved  = activeHabits.filter((h) => checks[h.id]?.achieved).length;
@@ -222,15 +224,16 @@ export default function Habits() {
                     groupSiblings={group}
                   />
                 ) : (
-                  <HabitCard
-                    key={habit.id}
-                    habit={habit}
-                    check={checks[habit.id]}
-                    streak={streaks[habit.id] ?? 0}
-                    isNow={isNow}
-                    onScore={(score) => save(habit, score, checks[habit.id], streaks[habit.id] ?? 0)}
-                    onClear={() => clear(habit, checks[habit.id])}
-                  />
+                  <div key={habit.id} data-tour={habit.id === firstTourHabitId ? 'habit-first' : undefined}>
+                    <HabitCard
+                      habit={habit}
+                      check={checks[habit.id]}
+                      streak={streaks[habit.id] ?? 0}
+                      isNow={isNow}
+                      onScore={(score) => save(habit, score, checks[habit.id], streaks[habit.id] ?? 0)}
+                      onClear={() => clear(habit, checks[habit.id])}
+                    />
+                  </div>
                 )
               ));
               // 현재 시간대 그룹은 탭 진입/재탭 시 살짝 확대되며 강조

@@ -59,6 +59,13 @@ interface AppState {
   /** 레벨업 창을 띄운다. 이미 열려 있으면 구간을 합쳐 가장 넓게 표시. */
   showLevelUp: (fromLevel: number, toLevel: number) => void;
   clearLevelUp: () => void;
+
+  // ── 온보딩(웰컴 + 인터랙티브 가이드) ──
+  // 첫 실행 시 useOnboardingTrigger 가 자동으로, 더보기에서 수동으로 연다.
+  // 완료/건너뛰기 시 onboardingState.markOnboarded() 는 플로우 컴포넌트가 호출한다.
+  onboardingOpen: boolean;
+  startOnboarding: () => void;
+  closeOnboarding: () => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -110,4 +117,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       },
     })),
   clearLevelUp: () => set({ levelUp: null }),
+
+  onboardingOpen: false,
+  startOnboarding: () => set({ onboardingOpen: true }),
+  closeOnboarding: () => set({ onboardingOpen: false }),
 }));
