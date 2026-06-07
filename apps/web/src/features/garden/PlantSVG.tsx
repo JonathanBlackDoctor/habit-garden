@@ -991,18 +991,17 @@ function renderBloom(speciesId: string, accent: string, withered: boolean | unde
   ]);
   if (NO_BLOOM_OVERLAY.has(speciesId)) return null;
 
-  // 코스모스: 곁가지에 맺힌 꽃봉오리 1개 (꽃잎과 겹치지 않게 아래 오른쪽에서 피어남)
+  // 코스모스: 곁가지에 맺힌 꽃봉오리 1개 (꽃잎을 가리지 않게 옆에서 피어남)
   if (speciesId === 'cosmos') {
     const stem = withered ? '#C7B68A' : ctx.stemFill;
     return (
       <g>
         {/* 곁가지 */}
-        <path d="M40 40 Q47 39 52 35" stroke={stem} strokeWidth="2" fill="none" strokeLinecap="round" />
-        {/* 꽃봉오리 (살짝 기울어진 물방울) + 초록 꽃받침 */}
-        <g transform="rotate(22 53 30)">
-          <path d="M53 24 Q49 29 53 34 Q57 29 53 24 Z" fill={c} opacity="0.92" />
-          <path d="M50 32 Q53 37 56 32 Q53 34 50 32 Z" fill={stem} opacity="0.9" />
-        </g>
+        <path d="M40 36 Q50 34 55 24" stroke={stem} strokeWidth="2" fill="none" strokeLinecap="round" />
+        {/* 꽃봉오리 */}
+        <ellipse cx="55" cy="22" rx="4" ry="6" fill={c} opacity="0.92" transform="rotate(30 55 22)" />
+        {/* 꽃받침 */}
+        <path d="M51.5 26 Q55 23 58.5 25" stroke={stem} strokeWidth="1.5" fill="none" strokeLinecap="round" />
       </g>
     );
   }
