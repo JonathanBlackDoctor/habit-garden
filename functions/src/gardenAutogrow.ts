@@ -8,26 +8,20 @@
 import * as admin from 'firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import {
-  PLANT_SPECIES,
-  DAILY_YIELD_BY_RARITY,
   POINT_PRICES,
   BADGE_DEFS,
   MAX_GARDEN_PLANTS,
   type ProgressDoc,
   type PlantInstance,
-  type PlantSpecies,
   type GardenStats,
 } from '../../shared/types/firestore';
+import { speciesOf, computePassiveYield } from '../../shared/lib/gardenYield';
 import { applyLevelUps } from './levelEngine';
 
 const db = admin.firestore();
 
 // 연약 전설 trait — 게을러진 날 시듦/죽음을 자체 처리하므로 일반 시들기 후보에서 제외한다.
 const FRAGILE_TRAIT_KINDS = new Set(['brittle', 'fragile', 'waning', 'regress', 'radiant']);
-
-function speciesOf(id: string): PlantSpecies | undefined {
-  return PLANT_SPECIES.find((s) => s.id === id);
-}
 
 /**
  * 현재 시각이 속한 '게임일'(YYYY-MM-DD, 04:00 KST 경계)을 반환.
@@ -49,10 +43,6 @@ function gameDayKST(): string {
 
 function maxStageOf(speciesId: string): number {
   return (speciesOf(speciesId)?.stages ?? 4) - 1;
-}
-
-function dailyYieldOf(sp: PlantSpecies): number {
-  return sp.dailyYield ?? DAILY_YIELD_BY_RARITY[sp.rarity];
 }
 
 /** 정원의 식물 중 미만개 식물 1개를 랜덤하게 +1 단계 성장 + autogrow 카운트 */
@@ -136,9 +126,14 @@ export async function processDailyGarden(
   let xpBumped = false;
   let stats: GardenStats = { ...(prog.gardenStats ?? {}) };
 
+  // 멱등성 가드: 오늘(게임일) 이미 정산했으면 재실행하지 않는다.
+  // Cloud Scheduler→Pub/Sub는 at-least-once 전달이라 dailyReset 이 같은 날 두 번 돌 수 있는데,
+  // 그때 passive yield·health 변동·스트릭 보너스 시드가 중복 적용되는 것을 막는다.
+  const gameDay = gameDayKST();
+  if (stats.lastDailyGardenDate === gameDay) return;
+
   // fast 트레잇 자동 성장은 서버 리셋과 클라이언트가 공유하는 게임일 마커로 하루 1회만 적용한다.
   // (스케줄드 리셋이 누락돼도 클라이언트가 같은 규칙으로 채워 넣을 수 있게 한 이중 경로)
-  const gameDay = gameDayKST();
   const canFastGrow = health >= 80 && garden.lastFastGrowDate !== gameDay;
   const willFastGrow = canFastGrow && plants.some((p) => {
     const sp = speciesOf(p.speciesId);
@@ -175,16 +170,8 @@ export async function processDailyGarden(
     }
   }
 
-  // 2) Passive Yield: 만개 식물의 dailyYield 합산
-  let passiveYield = 0;
-  for (const p of plants) {
-    const sp = speciesOf(p.speciesId);
-    if (!sp) continue;
-    const max = (sp.stages ?? 4) - 1;
-    if (p.stage >= max && !p.witheredSince) {
-      passiveYield += dailyYieldOf(sp);
-    }
-  }
+  // 2) Passive Yield: 만개 식물의 dailyYield 합산 (시들기·초월 죽음 처리 전 시점 — 오늘 만개분까지 인정)
+  const passiveYield = computePassiveYield(plants);
 
   // 3) health 변동 (보호된 날은 중립 — 실패 페널티 없음)
   if (yesterdaySuccess) {
@@ -329,6 +316,9 @@ export async function processDailyGarden(
 
   // 7) autogrowToday 0 리셋
   stats.autogrowToday = 0;
+
+  // 7.5) 오늘 정산 완료 마커 (중복 실행 시 위 멱등성 가드가 막는다)
+  stats.lastDailyGardenDate = gameDay;
 
   // 8) passiveYieldTotal 누적
   stats.passiveYieldTotal = (stats.passiveYieldTotal ?? 0) + passiveYield;

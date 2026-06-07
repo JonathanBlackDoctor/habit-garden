@@ -338,6 +338,7 @@ export interface GardenStats {
   autogrowTotal?: number;                     // 누적 자동 성장
   consecutiveHealthyDays?: number;            // 정원 생기≥80 연속일
   passiveYieldTotal?: number;                 // 누적 일일 자동 P
+  lastDailyGardenDate?: string;               // 일일 정산(processDailyGarden)을 마친 게임일(YYYY-MM-DD, 04:00 KST). 중복 실행 시 재정산 방지.
   starBoostBonus?: number;                    // ★3 종 누계로 인한 종합 효율 메타 (정보용)
   plantsLost?: number;                        // 게을러져 죽은(영구 제거된) 식물 누적 수
   dailyDirectPlants?: number;                 // 오늘 직접 심기 횟수 (04:00 KST 리셋)
