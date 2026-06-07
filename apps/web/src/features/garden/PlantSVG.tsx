@@ -990,6 +990,22 @@ function renderBloom(speciesId: string, accent: string, withered: boolean | unde
     'celestial_tree', 'eternal_bloom', 'galaxy_lily',
   ]);
   if (NO_BLOOM_OVERLAY.has(speciesId)) return null;
+
+  // 코스모스: 곁가지에 맺힌 꽃봉오리 1개 (꽃잎을 가리지 않게 옆에서 피어남)
+  if (speciesId === 'cosmos') {
+    const stem = withered ? '#C7B68A' : ctx.stemFill;
+    return (
+      <g>
+        {/* 곁가지 */}
+        <path d="M40 36 Q50 34 55 24" stroke={stem} strokeWidth="2" fill="none" strokeLinecap="round" />
+        {/* 꽃봉오리 */}
+        <ellipse cx="55" cy="22" rx="4" ry="6" fill={c} opacity="0.92" transform="rotate(30 55 22)" />
+        {/* 꽃받침 */}
+        <path d="M51.5 26 Q55 23 58.5 25" stroke={stem} strokeWidth="1.5" fill="none" strokeLinecap="round" />
+      </g>
+    );
+  }
+
   return (
     <>
       <circle cx="28" cy="32" r="8" fill={c} opacity="0.85" />
