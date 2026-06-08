@@ -7,36 +7,12 @@ const EASE = [0.22, 1, 0.36, 1] as const;
 const PAD = 8; // 타깃 주변 여백
 const FIND_TIMEOUT = 1600; // 타깃 등장 대기(ms) — 라우트 전환 대비
 
-type Step = {
+export type Step = {
   target: string; // data-tour 셀렉터
   title: string;
   body: string;
   route?: string; // 이 단계 진입 시 이동할 경로
 };
-
-const STEPS: Step[] = [
-  {
-    target: '[data-tour="hero"]',
-    title: '내 정원 현황',
-    body: '레벨 · 🔥스트릭 · 사용 가능 포인트를 여기서 한눈에 확인해요.',
-  },
-  {
-    target: '[data-tour="today"]',
-    title: '오늘의 습관',
-    body: '오늘 달성률과 시간대별 현황이 보여요. 탭하면 바로 체크 화면으로 이동합니다.',
-  },
-  {
-    target: '[data-tour="tabbar"]',
-    title: '화면 이동',
-    body: '하단 탭으로 오늘 · 습관 · 정원 · 진척 · 더보기를 자유롭게 오갈 수 있어요.',
-  },
-  {
-    target: '[data-tour="habit-first"]',
-    title: '습관 체크하기',
-    body: '습관을 눌러 0~5점을 매겨요. 둘러보기를 마치면 직접 한번 체크해보세요!',
-    route: '/habits',
-  },
-];
 
 type Rect = { top: number; left: number; width: number; height: number };
 
@@ -55,19 +31,19 @@ function scrollTargetIntoView(el: HTMLElement) {
   if (delta !== 0) scroller.scrollBy({ top: delta, behavior: 'smooth' });
 }
 
-export default function SpotlightTour({ onDone }: { onDone: () => void }) {
+export default function SpotlightTour({ steps, onDone }: { steps: Step[]; onDone: () => void }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [index, setIndex] = useState(0);
   const [rect, setRect] = useState<Rect | null>(null);
-  const step = STEPS[index];
-  const isLast = index === STEPS.length - 1;
+  const step = steps[index];
+  const isLast = index === steps.length - 1;
   const advanceRef = useRef<() => void>(() => {});
 
   const next = useCallback(() => {
     setRect(null);
-    setIndex((i) => Math.min(i + 1, STEPS.length - 1));
-  }, []);
+    setIndex((i) => Math.min(i + 1, steps.length - 1));
+  }, [steps.length]);
   const prev = useCallback(() => {
     setRect(null);
     setIndex((i) => Math.max(i - 1, 0));
@@ -211,7 +187,7 @@ export default function SpotlightTour({ onDone }: { onDone: () => void }) {
           <div className="rounded-[var(--radius-lg)] border border-[var(--border-soft)] bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-md)]">
             <div className="flex items-center justify-between">
               <p className="text-[10.5px] uppercase tracking-[0.28em] text-[var(--fg-faint)]">
-                STEP {index + 1} / {STEPS.length}
+                STEP {index + 1} / {steps.length}
               </p>
               <button
                 onClick={onDone}
@@ -231,7 +207,7 @@ export default function SpotlightTour({ onDone }: { onDone: () => void }) {
             {/* 진행 도트 + 컨트롤 */}
             <div className="mt-4 flex items-center justify-between">
               <div className="flex items-center gap-1.5">
-                {STEPS.map((_, i) => (
+                {steps.map((_, i) => (
                   <span
                     key={i}
                     className={`block h-1.5 rounded-full transition-all duration-300 ${

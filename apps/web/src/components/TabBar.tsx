@@ -16,6 +16,7 @@ export default function TabBar() {
           <NavLink
             key={to}
             to={to}
+            data-tour={to === '/prayers' ? 'prayer-tab' : undefined}
             end={to === '/'}
             onClick={() => { if (isActivePath(to)) scrollToTop(); }}
             className={({ isActive }) =>

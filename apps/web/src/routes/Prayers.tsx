@@ -97,6 +97,7 @@ function PrayersInner() {
     <div className="flex flex-col gap-3 p-4 pb-6">
       {/* 빠른 추가 — 항상 상단 */}
       <motion.div
+        data-tour="prayer-quickadd"
         initial={{ opacity: 0, y: -6 }}
         animate={{ opacity: 1, y: 0 }}
         className="flex gap-2"
@@ -122,7 +123,7 @@ function PrayersInner() {
       </motion.div>
 
       {/* 세그먼트 + 무더기 진입 */}
-      <div className="flex items-center gap-2">
+      <div data-tour="prayer-segments" className="flex items-center gap-2">
         <div className="flex flex-1 rounded-[var(--radius)] bg-[var(--bg-base)] p-0.5">
           {SEGMENTS.map((s) => (
             <button
@@ -146,6 +147,7 @@ function PrayersInner() {
         {isPremium && (
           <button
             onClick={() => setBulkOpen(true)}
+            data-tour="prayer-bulk"
             className="flex items-center gap-1 rounded-[var(--radius)] border border-[var(--border)] bg-white px-2.5 py-1.5 text-xs text-[var(--fg-muted)]"
           >
             <ClipboardList size={14} /> 무더기
