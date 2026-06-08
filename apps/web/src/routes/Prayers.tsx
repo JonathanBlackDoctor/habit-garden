@@ -147,6 +147,7 @@ function PrayersInner() {
         {isPremium && (
           <button
             onClick={() => setBulkOpen(true)}
+            data-tour="prayer-bulk"
             className="flex items-center gap-1 rounded-[var(--radius)] border border-[var(--border)] bg-white px-2.5 py-1.5 text-xs text-[var(--fg-muted)]"
           >
             <ClipboardList size={14} /> 무더기
