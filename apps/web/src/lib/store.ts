@@ -66,6 +66,12 @@ interface AppState {
   onboardingOpen: boolean;
   startOnboarding: () => void;
   closeOnboarding: () => void;
+
+  // ── 기도 튜토리얼 (신앙 기능 ON 시) ──
+  // 더보기에서 신앙 기능을 켤 때마다 기도 가이드를 띄운다(매번 진행).
+  prayerTourOpen: boolean;
+  startPrayerTour: () => void;
+  closePrayerTour: () => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -121,4 +127,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   onboardingOpen: false,
   startOnboarding: () => set({ onboardingOpen: true }),
   closeOnboarding: () => set({ onboardingOpen: false }),
+
+  prayerTourOpen: false,
+  startPrayerTour: () => set({ prayerTourOpen: true }),
+  closePrayerTour: () => set({ prayerTourOpen: false }),
 }));

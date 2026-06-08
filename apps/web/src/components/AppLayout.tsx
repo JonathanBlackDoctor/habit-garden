@@ -10,6 +10,7 @@ import { TabActiveContext } from '@/lib/tabActive';
 import { useVisibleTabs } from '@/lib/tabs';
 import SwipeTabs from './SwipeTabs';
 import OnboardingFlow from '@/features/onboarding/OnboardingFlow';
+import PrayerTour from '@/features/onboarding/PrayerTour';
 import { useOnboardingTrigger } from '@/features/onboarding/useOnboardingTrigger';
 
 export default function AppLayout() {
@@ -60,6 +61,7 @@ export default function AppLayout() {
           <CelebrationOverlay />
           <LevelUpModal />
           <OnboardingFlow />
+          <PrayerTour />
         </div>
       </TabActiveContext.Provider>
     </ScrollTopContext.Provider>

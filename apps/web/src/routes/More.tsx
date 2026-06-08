@@ -28,6 +28,7 @@ const items = [
 export default function More() {
   const navigate = useNavigate();
   const startOnboarding = useAppStore((s) => s.startOnboarding);
+  const startPrayerTour = useAppStore((s) => s.startPrayerTour);
   const uid = useAppStore((s) => s.uid);
   const today = useAppStore((s) => s.currentDate);
   const [push, setPush]   = useState(false);
@@ -107,7 +108,10 @@ export default function More() {
 
   const onFaithToggle = async () => {
     if (!uid) return;
-    await setFaithEnabled(uid, !faithEnabled);
+    const next = !faithEnabled;
+    await setFaithEnabled(uid, next);
+    // 신앙 기능을 켤 때마다 기도 튜토리얼을 진행한다.
+    if (next) startPrayerTour();
   };
 
   const onShare = async () => {
