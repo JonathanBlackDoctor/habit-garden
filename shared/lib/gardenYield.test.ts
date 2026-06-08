@@ -3,6 +3,7 @@ import {
   speciesOf,
   dailyYieldOf,
   computePassiveYield,
+  passiveYieldForDay,
   type YieldablePlant,
 } from './gardenYield';
 import { DAILY_YIELD_BY_RARITY } from '../types/firestore';
@@ -78,5 +79,19 @@ describe('computePassiveYield', () => {
       { ...mature('cosmos'), witheredSince: { seconds: 1 } },    // 시듦 → 0
     ];
     expect(computePassiveYield(plants)).toBe(2 + 4 + 28);
+  });
+});
+
+describe('passiveYieldForDay (서버·클라 공유 마커)', () => {
+  const today = '2026-06-08';
+  const cosmos = mature('cosmos'); // epic, 만개 → 10
+
+  it('오늘 아직 정산 전이면 수확량을 반환한다', () => {
+    expect(passiveYieldForDay([cosmos], undefined, today)).toBe(10);
+    expect(passiveYieldForDay([cosmos], '2026-06-07', today)).toBe(10); // 어제 정산 → 오늘은 다시 지급
+  });
+
+  it('오늘 이미 정산했으면(lastYieldDate === gameDay) 0 — 중복 지급 방지', () => {
+    expect(passiveYieldForDay([cosmos], today, today)).toBe(0);
   });
 });

@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { doc, onSnapshot, setDoc, serverTimestamp, collection, addDoc, Timestamp } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc, serverTimestamp, collection, addDoc, increment, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import { writePublicGarden } from '@/lib/features';
 import type { ProgressDoc, PlantInstance, GardenState } from 'shared/types/firestore';
 import { PLANT_SPECIES, POINT_PRICES, CODEX_SPECIES_COUNT, MAX_BEDS, PLANTS_PER_BED, DAILY_PLANT_LIMIT } from 'shared/types/firestore';
+import { computePassiveYield } from 'shared/lib/gardenYield';
 import { toast } from 'sonner';
 
 // 공개 정원 미러 중복 쓰기 방지: uid → 마지막 미러 해시. 모듈 레벨이라 다중 마운트 시 공유된다.
@@ -12,6 +13,9 @@ const gardenMirrorCache = new Map<string, string>();
 
 // fast 자동 성장 세션 가드: `${uid}:${gameDay}` 1회만 시도 (Firestore 마커 확정 전 중복 쓰기 방지).
 const fastGrowGuard = new Set<string>();
+
+// passive yield 세션 가드: `${uid}:${gameDay}` 1회만 정산 시도.
+const passiveYieldGuard = new Set<string>();
 
 // 미러 변경 감지용 해시 (Timestamp 원본은 비안정 형태라 제외).
 function gardenMirrorHash(gs: GardenState, level: number, nickname: string): string {
@@ -83,6 +87,56 @@ function maybeRunFastGrowth(uid: string, data: ProgressDoc): void {
   ).catch(() => fastGrowGuard.delete(key));           // 실패 시 다음 스냅샷에서 재시도 허용
 }
 
+/**
+ * 만개 식물의 일일 자동 수확(passive yield) — 클라이언트 이중 경로.
+ *
+ * 원래 매일 04:00 KST 스케줄드 서버 리셋(processDailyGarden)에서만 지급됐다.
+ * 그 함수가 누락/지연되면 "만개한 식물이 있는데 포인트가 안 들어오는" 증상이 생긴다.
+ * 서버와 동일한 게임일 마커(gardenStats.lastYieldDate)를 공유해, 둘 중 먼저 도는 쪽이
+ * 하루치를 정산하고 마커를 남긴다 → 중복 지급 없이 누락만 보완한다. (fast 성장과 동일 패턴)
+ *
+ * 주의: 포인트는 FieldValue.increment 로 가산해, 같은 시각 다른 동작(수확·심기 등)의
+ * 포인트 변경을 덮어쓰지 않는다.
+ */
+function maybeRunPassiveYield(uid: string, data: ProgressDoc): void {
+  const garden = data.gardenState;
+  if (!garden) return;
+
+  const gameDay = getGameDayKST();
+  const stats = data.gardenStats ?? {};
+  if (stats.lastYieldDate === gameDay) return;   // 오늘 이미 정산됨(서버 또는 클라이언트)
+
+  const key = `${uid}:yield:${gameDay}`;
+  if (passiveYieldGuard.has(key)) return;        // 세션 내 1회
+  passiveYieldGuard.add(key);
+
+  const grant = computePassiveYield(garden.plants ?? []);
+
+  // 정산 마커는 수확량이 0이어도 남긴다 → 그날의 정산 시점을 고정(서버 4시 정산과 동일 의미).
+  const patch: any = {
+    gardenStats: { lastYieldDate: gameDay },
+    updatedAt: serverTimestamp(),
+  };
+  if (grant > 0) {
+    patch.spendablePoints = increment(grant);
+    patch.totalPoints = increment(grant);
+    patch.gardenStats.passiveYieldTotal = increment(grant);
+  }
+
+  setDoc(doc(db, 'users', uid, 'progress', 'main'), patch, { merge: true })
+    .then(() => {
+      if (grant > 0) {
+        return addDoc(collection(db, 'users', uid, 'pointLedger'), {
+          delta: grant,
+          reason: 'passive_yield',
+          refId: 'daily-client',
+          createdAt: serverTimestamp(),
+        });
+      }
+    })
+    .catch(() => passiveYieldGuard.delete(key));  // 실패 시 다음 스냅샷에서 재시도 허용
+}
+
 // 게임 하루는 04:00 KST 기준으로 리셋된다.
 export function isWateredToday(wateredAt: { toMillis(): number }): boolean {
   const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
@@ -130,6 +184,8 @@ export function useProgress() {
 
         // 생기 자동 성장 보완 (스케줄드 서버 리셋 누락 대비) — 서버와 마커 공유로 중복 방지
         maybeRunFastGrowth(uid, data);
+        // 만개 식물 일일 수확 보완 (스케줄드 서버 리셋 누락 대비) — 서버와 마커 공유로 중복 방지
+        maybeRunPassiveYield(uid, data);
 
         // 공개 정원 미러 (둘러보기) — 닉네임 설정자만, 샌드박스·게스트 제외.
         // 닉네임 미설정 시 gardens/{uid} 문서가 생성되지 않아 둘러보기에 노출되지 않는다.

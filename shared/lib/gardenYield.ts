@@ -46,3 +46,18 @@ export function computePassiveYield(plants: readonly YieldablePlant[]): number {
   }
   return total;
 }
+
+/**
+ * 오늘(gameDay) 지급할 passive yield 를 계산한다.
+ *  - 이미 오늘 정산했으면(lastYieldDate === gameDay) 0 을 반환해 중복 지급을 막는다.
+ * 서버 리셋(processDailyGarden)과 클라이언트 폴백(maybeRunPassiveYield)이 동일 규칙·동일 마커를
+ * 공유하므로, 둘 중 먼저 도는 쪽이 하루치를 정산하고 다른 쪽은 0 이 된다.
+ */
+export function passiveYieldForDay(
+  plants: readonly YieldablePlant[],
+  lastYieldDate: string | undefined,
+  gameDay: string,
+): number {
+  if (lastYieldDate === gameDay) return 0;
+  return computePassiveYield(plants);
+}

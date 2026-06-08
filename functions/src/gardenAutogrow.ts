@@ -15,7 +15,7 @@ import {
   type PlantInstance,
   type GardenStats,
 } from '../../shared/types/firestore';
-import { speciesOf, computePassiveYield } from '../../shared/lib/gardenYield';
+import { speciesOf, passiveYieldForDay } from '../../shared/lib/gardenYield';
 import { applyLevelUps } from './levelEngine';
 
 const db = admin.firestore();
@@ -171,7 +171,8 @@ export async function processDailyGarden(
   }
 
   // 2) Passive Yield: 만개 식물의 dailyYield 합산 (시들기·초월 죽음 처리 전 시점 — 오늘 만개분까지 인정)
-  const passiveYield = computePassiveYield(plants);
+  //    클라이언트 폴백이 오늘 이미 정산했으면(lastYieldDate) 0 → 중복 지급 방지.
+  const passiveYield = passiveYieldForDay(plants, stats.lastYieldDate, gameDay);
 
   // 3) health 변동 (보호된 날은 중립 — 실패 페널티 없음)
   if (yesterdaySuccess) {
@@ -319,6 +320,8 @@ export async function processDailyGarden(
 
   // 7.5) 오늘 정산 완료 마커 (중복 실행 시 위 멱등성 가드가 막는다)
   stats.lastDailyGardenDate = gameDay;
+  // passive yield 정산 마커 — 클라이언트 폴백과 공유해 중복 지급 방지 (오늘분은 위에서 이미 반영)
+  stats.lastYieldDate = gameDay;
 
   // 8) passiveYieldTotal 누적
   stats.passiveYieldTotal = (stats.passiveYieldTotal ?? 0) + passiveYield;
