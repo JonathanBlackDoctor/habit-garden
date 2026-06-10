@@ -20,27 +20,28 @@ function calcFreezePrice(plants: PlantInstance[], prayerStreak: number): number 
     const maxStage = (species.stages ?? 4) - 1;
     const stageRatio = maxStage > 0 ? plant.stage / maxStage : 0;
     const { trait } = species;
+    const harvestYield = species.harvestYield ?? 0; // 수확 환급 없는 종은 위험가치 0
 
     if (trait.kind === 'brittle') {
       // 하루 실패로 즉사 — 현재 단계 수확량 전액 위험
-      bonus += Math.round(species.harvestYield * stageRatio);
+      bonus += Math.round(harvestYield * stageRatio);
     } else if (trait.kind === 'fragile') {
       // 실패→시듦→죽음 — 절반 위험
-      bonus += Math.round(species.harvestYield * stageRatio * 0.5);
+      bonus += Math.round(harvestYield * stageRatio * 0.5);
     } else if (trait.kind === 'regress') {
       // 실패마다 단계 퇴보 — 40% 위험
-      bonus += Math.round(species.harvestYield * stageRatio * 0.4);
+      bonus += Math.round(harvestYield * stageRatio * 0.4);
     } else if (trait.kind === 'waning') {
       // graceDays 연속 실패 시 죽음 — 30% 위험
-      bonus += Math.round(species.harvestYield * stageRatio * 0.3);
+      bonus += Math.round(harvestYield * stageRatio * 0.3);
     } else if (trait.kind === 'radiant') {
       // 만개 후 실패 즉사 — 만개 상태일 때만 위험
       if (plant.stage >= maxStage) {
-        bonus += Math.round(species.harvestYield * 0.8);
+        bonus += Math.round(harvestYield * 0.8);
       }
     } else if (trait.kind === 'streakSync' && prayerStreak > 0) {
       // 기도 스트릭 활성 중인 streakSync 식물 — 수확 보너스 50% 손실 위험
-      bonus += Math.round(species.harvestYield * 0.5 * stageRatio);
+      bonus += Math.round(harvestYield * 0.5 * stageRatio);
     } else if (trait.kind === 'transcendent') {
       // 초월: 하루 실패 즉사급. harvestYield가 0이므로 심기 원가(seedCost) 기준으로 위험가치 산정.
       bonus += Math.round((species.seedCost ?? 0) * (0.5 + 0.5 * stageRatio));

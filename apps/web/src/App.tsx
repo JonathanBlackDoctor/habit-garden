@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { HashRouter, Route, Routes } from 'react-router-dom';
-import { Toaster, toast } from 'sonner';
+import { Toaster } from 'sonner';
 import { useAuth } from '@/lib/auth';
 
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -53,7 +53,6 @@ export default function App() {
             mobileOffset={{ bottom: 'calc(72px + env(safe-area-inset-bottom))' }}
             toastOptions={{
               closeButtonAriaLabel: '알림 닫기',
-              onDismiss: () => toast.dismiss(),
               style: { background: 'var(--bloom-soft)', border: '1px solid var(--bloom)', color: 'var(--bloom)' },
             }}
           />
