@@ -231,6 +231,11 @@ export interface PrayerDoc {
   title: string;                // 한 줄 요약 (목록 표시)
   body?: string;                // 상세 / 원문 보존
   tags?: string[];              // 자유 태그(선택)
+  verse?: {                     // AI 추천 말씀 (개역개정) — 상세·기도 모드에 표시
+    reference: string;          // 예: "시편 46:10"
+    text: string;
+    reason?: string;            // 이 기도와의 연결 한 줄
+  };
 
   // ── 우선순위·로테이션 ───────────────────────
   priority: PrayerPriority;

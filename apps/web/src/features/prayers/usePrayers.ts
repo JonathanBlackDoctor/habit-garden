@@ -284,13 +284,13 @@ export function usePrayerActions() {
   };
 
   /** 오늘 기도 완료 체크 — prayerChecks 기록 (포인트·갱신은 prayerAward 함수) */
-  const checkPrayer = async (p: PrayerDoc) => {
+  const checkPrayer = async (p: PrayerDoc, opts?: { silent?: boolean }) => {
     if (!uid) return;
     await setDoc(doc(db, 'users', uid, 'days', date, 'prayerChecks', p.id), {
       prayerId: p.id,
       prayedAt: serverTimestamp(),
     } as any);
-    toast(`🙏 ${p.title}`, { description: '오늘 기도했어요 (+2P)' });
+    if (!opts?.silent) toast(`🙏 ${p.title}`, { description: '오늘 기도했어요 (+2P)' });
   };
 
   /** 체크 취소 — prayerChecks 삭제 (포인트 삭감은 prayerAward 함수) */
