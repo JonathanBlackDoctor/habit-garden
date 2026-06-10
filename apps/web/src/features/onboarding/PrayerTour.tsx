@@ -9,13 +9,7 @@ const BASE_STEPS: Step[] = [
   {
     target: '[data-tour="prayer-tab"]',
     title: '기도 탭이 열렸어요',
-    body: '하단 기도 탭에서 오늘의 기도제목을 모아보고 체크할 수 있어요.',
-    route: '/prayers',
-  },
-  {
-    target: '[data-tour="prayer-quickadd"]',
-    title: '기도제목 빠른 추가',
-    body: '한 줄로 적어 바로 추가해요. 예) #교회 청년부 부흥 high — 모임·우선순위까지 한 번에.',
+    body: '하단 기도 탭에서 오늘의 기도제목을 모아보고 체크할 수 있어요. 새 기도제목은 상단 + 추가 버튼으로 적어요.',
     route: '/prayers',
   },
   {

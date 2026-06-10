@@ -10,7 +10,7 @@ import { subDays, format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { callGeminiWithRetry, GEMINI_MODEL } from './geminiUtil';
-import type { PrayerDoc } from '../../shared/types/firestore';
+import type { PrayerDoc, NotificationTokenDoc } from '../../shared/types/firestore';
 
 const db = admin.firestore();
 const KST = 'Asia/Seoul';
@@ -152,4 +152,24 @@ async function processUserWeekly(uid: string, nowKst: Date): Promise<void> {
     oneLineEncouragement: encouragement,
     generatedAt: FieldValue.serverTimestamp(),
   });
+
+  // 8) 도착 푸시 — 실패해도 다이제스트 저장은 이미 끝난 상태
+  try {
+    const tokenSnap = await db.collection(`users/${uid}/notifications`).get();
+    const tokens = tokenSnap.docs.map((d) => (d.data() as NotificationTokenDoc).token).filter(Boolean);
+    if (tokens.length > 0) {
+      await admin.messaging().sendEachForMulticast({
+        tokens,
+        data: {
+          title: '🙏 주간 기도 돌아보기가 도착했어요',
+          body: encouragement.slice(0, 80),
+          action: 'prayer_weekly',
+          link: '/habit-garden/#/prayers',
+        },
+        webpush: { fcmOptions: { link: '/habit-garden/#/prayers' } },
+      });
+    }
+  } catch (e) {
+    console.error(`prayerWeekly push error uid=${uid}:`, e);
+  }
 }

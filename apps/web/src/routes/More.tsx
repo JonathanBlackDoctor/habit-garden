@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
 import { signOutUser } from '@/lib/auth';
-import { Cloud, BookOpen, Settings, LogOut, Bell, Vibrate, Volume2, HandHeart, Download, GraduationCap, Palmtree, Thermometer, ShieldCheck, Sparkles, Share2, MessageCircle } from 'lucide-react';
+import { Cloud, BookOpen, Settings, LogOut, Bell, BellRing, Vibrate, Volume2, HandHeart, Download, GraduationCap, Palmtree, Thermometer, ShieldCheck, Sparkles, Share2, MessageCircle, Tags } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import { enablePushNotifications, disablePushNotifications, isFcmEnabled } from '@/lib/fcm';
@@ -16,6 +16,7 @@ import { useFaithEnabled, setFaithEnabled, useIsGuest, useIsPremium } from '@/li
 import { usePwaInstall } from '@/lib/pwaInstall';
 import { APP_SHARE_URL } from '@/lib/inquiries';
 import ContactDialog from '@/features/contact/ContactDialog';
+import PrayerTaxonomyManager from '@/features/prayers/PrayerTaxonomyManager';
 import SignupCTA from '@/components/SignupCTA';
 
 const items = [
@@ -31,12 +32,14 @@ export default function More() {
   const startPrayerTour = useAppStore((s) => s.startPrayerTour);
   const uid = useAppStore((s) => s.uid);
   const today = useAppStore((s) => s.currentDate);
+  const prayerReminder = useAppStore((s) => s.settings?.prayerReminder);
   const [push, setPush]   = useState(false);
   const [haptic, setHapt] = useState(false);
   const [sound, setSnd]   = useState(false);
   const [vacationUntil, setVacationUntil] = useState<string | null>(null);
   const [sickDays, setSickDays] = useState<{ month: string; daysUsed: number } | null>(null);
   const [contactOpen, setContactOpen] = useState(false);
+  const [taxonomyOpen, setTaxonomyOpen] = useState(false);
   const faithEnabled = useFaithEnabled();
   const isGuest = useIsGuest();
   const isPremium = useIsPremium();
@@ -104,6 +107,13 @@ export default function More() {
     if (!uid) return;
     if (push) { await disablePushNotifications(); setPush(false); }
     else      { const t = await enablePushNotifications(uid); if (t) setPush(true); }
+  };
+
+  const savePrayerReminder = async (enabled: boolean, hour: number) => {
+    if (!uid) return;
+    await setDoc(doc(db, 'users', uid, 'settings', 'main'),
+      { prayerReminder: { enabled, hour }, updatedAt: serverTimestamp() }, { merge: true });
+    if (enabled) toast.success(`🙏 매일 ${hourLabel(hour)}에 기도 알림을 보내드릴게요`);
   };
 
   const onFaithToggle = async () => {
@@ -254,7 +264,47 @@ export default function More() {
           value={faithEnabled}
           onToggle={onFaithToggle}
         />
+        {isPremium && faithEnabled && push && (
+          <>
+            <ToggleRow
+              icon={<BellRing size={18} className="text-[var(--leaf)]" />}
+              label="기도 알림"
+              desc="설정한 시간에 남은 기도를 알려드려요"
+              value={prayerReminder?.enabled ?? false}
+              onToggle={() => savePrayerReminder(!(prayerReminder?.enabled ?? false), prayerReminder?.hour ?? 7)}
+            />
+            {prayerReminder?.enabled && (
+              <div className="flex items-center gap-3 px-4 py-3">
+                <span className="flex-1 pl-[30px] text-xs text-[var(--fg-muted)]">알림 시간</span>
+                <select
+                  value={prayerReminder.hour ?? 7}
+                  onChange={(e) => savePrayerReminder(true, Number(e.target.value))}
+                  className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-2 py-1.5 text-xs outline-none"
+                >
+                  {Array.from({ length: 24 }, (_, h) => (
+                    <option key={h} value={h}>{hourLabel(h)}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </>
+        )}
       </div>
+
+      {/* 기도 분류 관리 — 모임/대상 이름 변경·병합 */}
+      {faithEnabled && (
+        <button
+          onClick={() => setTaxonomyOpen(true)}
+          className="flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3.5 text-sm text-[var(--fg-primary)] shadow-[var(--shadow-sm)] active:opacity-70 text-left"
+        >
+          <Tags size={18} className="text-[var(--leaf)]" />
+          <div className="flex-1">
+            <p>기도 분류 관리</p>
+            <p className="text-[10px] text-[var(--fg-faint)]">모임·대상 이름을 바꾸거나 하나로 합쳐요</p>
+          </div>
+        </button>
+      )}
+      {faithEnabled && <PrayerTaxonomyManager open={taxonomyOpen} onOpenChange={setTaxonomyOpen} />}
 
       {/* 스트릭 보호 (B-4) */}
       <div className="mt-4 rounded-[var(--radius)] bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-sm)] space-y-3">
@@ -330,6 +380,12 @@ export default function More() {
       </button>
     </div>
   );
+}
+
+function hourLabel(h: number): string {
+  if (h === 0) return '자정';
+  if (h === 12) return '정오';
+  return h < 12 ? `오전 ${h}시` : `오후 ${h - 12}시`;
 }
 
 function ToggleRow({

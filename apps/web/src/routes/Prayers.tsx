@@ -10,16 +10,15 @@ import {
   usePrayerGroups, usePrayerTargets, useLatestWeeklyDigest,
 } from '@/features/prayers/usePrayers';
 import {
-  PrayerCheckCard, PrayerListCard, PrayerDetailDialog, GroupSelect,
+  PrayerCheckCard, PrayerListCard, PrayerDetailDialog,
   usePrayerSelection, BulkActionBar, AddPrayerDialog,
 } from '@/features/prayers/PrayerComponents';
 import BulkParse from '@/features/prayers/BulkParse';
-import { VoiceInputButton } from '@/features/prayers/VoiceInput';
+import PrayerMode from '@/features/prayers/PrayerMode';
 import { DuplicateFinder } from '@/features/prayers/DuplicateFinder';
 import { WeeklyDigestCard } from '@/features/prayers/WeeklyDigestCard';
-import { parseQuickAdd } from '@/features/prayers/parseQuickAdd';
 import { selectMorePrayers, type RotationInput } from 'shared/prayerRotation';
-import { Plus, ClipboardList, Search, Heart, ListChecks, Layers, ChevronDown, Pencil } from 'lucide-react';
+import { Plus, ClipboardList, Search, Heart, ListChecks, Layers, ChevronDown } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { Navigate } from 'react-router-dom';
@@ -63,13 +62,9 @@ function PrayersInner() {
   const prayers = usePrayers();
   const checks  = usePrayerChecks(date);
   const { dayDoc, loaded: dayLoaded } = useDayDoc(date);
-  const groups  = usePrayerGroups();
-  const { quickAdd, addPrayerTarget } = usePrayerActions();
   const isPremium = useIsPremium();
 
   const [seg, setSeg] = useState<Segment>('today');
-  const [quick, setQuick] = useState('');
-  const [lastGroup, setLastGroup] = useState<string>(groups[0] ?? '개인');
   const [bulkOpen, setBulkOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [selected, setSelected] = useState<PrayerDoc | null>(null);
@@ -82,47 +77,9 @@ function PrayersInner() {
     [selected, prayers]
   );
 
-  const submitQuick = async () => {
-    if (!quick.trim()) return;
-    const parsed = parseQuickAdd(quick);
-    const group = parsed.group ?? lastGroup;
-    const target = parsed.target ?? '나 자신';
-    if (parsed.target) await addPrayerTarget(parsed.target);
-    await quickAdd({ title: parsed.title, group, target, priority: parsed.priority });
-    if (parsed.group) setLastGroup(parsed.group);
-    setQuick('');
-  };
-
   return (
     <div className="flex flex-col gap-3 p-4 pb-6">
-      {/* 빠른 추가 — 항상 상단 */}
-      <motion.div
-        data-tour="prayer-quickadd"
-        initial={{ opacity: 0, y: -6 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex gap-2"
-      >
-        <input
-          value={quick}
-          onChange={(e) => setQuick(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && submitQuick()}
-          placeholder="예) #교회 청년부 부흥 high"
-          className="min-w-0 flex-1 rounded-[var(--radius)] border border-[var(--border)] bg-white px-4 py-2.5 text-sm outline-none focus:border-[var(--sky)]"
-        />
-        <VoiceInputButton
-          onTranscript={(t) => setQuick((prev) => (prev ? `${prev} ${t}` : t))}
-        />
-        <GroupSelect value={lastGroup} onChange={setLastGroup} className="w-20 shrink-0 px-1.5 text-xs" />
-        <button
-          onClick={submitQuick}
-          className="flex shrink-0 items-center justify-center rounded-[var(--radius)] bg-[var(--leaf)] px-3 text-white"
-          aria-label="추가"
-        >
-          <Plus size={18} />
-        </button>
-      </motion.div>
-
-      {/* 세그먼트 + 무더기 진입 */}
+      {/* 세그먼트 + 추가·무더기 */}
       <div data-tour="prayer-segments" className="flex items-center gap-2">
         <div className="flex flex-1 rounded-[var(--radius)] bg-[var(--bg-base)] p-0.5">
           {SEGMENTS.map((s) => (
@@ -140,9 +97,9 @@ function PrayersInner() {
         </div>
         <button
           onClick={() => setAddOpen(true)}
-          className="flex items-center gap-1 rounded-[var(--radius)] border border-[var(--border)] bg-white px-2.5 py-1.5 text-xs text-[var(--fg-muted)]"
+          className="flex items-center gap-1 rounded-[var(--radius)] bg-[var(--leaf)] px-3 py-1.5 text-xs font-medium text-white shadow-[var(--shadow-sm)]"
         >
-          <Pencil size={14} /> 자세히
+          <Plus size={14} /> 추가
         </button>
         {isPremium && (
           <button
@@ -166,7 +123,7 @@ function PrayersInner() {
         open={detailOpen}
         onOpenChange={setDetailOpen}
       />
-      <AddPrayerDialog open={addOpen} onOpenChange={setAddOpen} initialTitle={quick} />
+      <AddPrayerDialog open={addOpen} onOpenChange={setAddOpen} />
       {isPremium && <BulkParse open={bulkOpen} onOpenChange={setBulkOpen} />}
     </div>
   );
@@ -218,6 +175,8 @@ function TodayView({
   const done = all.filter((p) => checks[p.id]).length;
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
 
+  const [prayerModeOpen, setPrayerModeOpen] = useState(false);
+
   const loadMore = () => {
     const exclude = new Set([...planIds, ...extraIds]);
     const next = selectMorePrayers(toInputs(active), exclude, Date.now(), MORE_BATCH);
@@ -230,6 +189,22 @@ function TodayView({
   return (
     <div className="space-y-3">
       {digest && <WeeklyDigestCard digest={digest} />}
+
+      {/* 기도 모드 진입 — 어둡고 고요한 세션 */}
+      {total > 0 && (
+        <button
+          onClick={() => setPrayerModeOpen(true)}
+          className="flex w-full items-center justify-between rounded-[var(--radius-lg)] bg-gradient-to-br from-[#1B222C] to-[#10141A] px-5 py-4 text-left shadow-[var(--shadow-md)]"
+        >
+          <div>
+            <p className="text-sm font-medium text-[#E7E5DF]">🙏 기도 시작</p>
+            <p className="mt-0.5 text-xs text-[#9AA0A6]">
+              {total - done > 0 ? `남은 기도 ${total - done}개 · ` : ''}조용히 머무는 시간
+            </p>
+          </div>
+          <span className="text-[#8FBF6F]">→</span>
+        </button>
+      )}
 
       {/* 진행 표시 (목록이 있을 때만) */}
       {total > 0 ? (
@@ -306,6 +281,14 @@ function TodayView({
       )}
 
       <GratitudeSection date={date} />
+
+      <PrayerMode
+        open={prayerModeOpen}
+        onClose={() => setPrayerModeOpen(false)}
+        prayers={all}
+        checks={checks}
+        date={date}
+      />
     </div>
   );
 }
