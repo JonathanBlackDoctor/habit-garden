@@ -11,7 +11,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { subDays, format, parseISO } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import { processDailyGarden } from './gardenAutogrow';
-import { shouldBecomeDormant, type RotationInput } from '../../shared/prayerRotation';
+import { shouldBecomeDormant, selectTodayPrayers, type RotationInput } from '../../shared/prayerRotation';
 import { selectCarryOverItems, CARRY_LOOKBACK_DAYS, type CarryDay } from '../../shared/todoCarryover';
 import type { PrayerDoc, TodayTodoDoc } from '../../shared/types/firestore';
 
@@ -45,8 +45,9 @@ export const dailyReset = functions
       try {
         const { success, protected: protectedDay } = await processUserDay(uid, today, yesterday);
         await processDailyGarden(uid, success, protectedDay);  // 정원 트레잇·생기·시들기·보너스 시드
-        const dormantCount = await processDormantTransitions(uid);  // 잊혀짐 자동 전이 (설계 §5)
+        const { count: dormantCount, remainingActive } = await processDormantTransitions(uid);  // 잊혀짐 자동 전이 (설계 §5)
         if (dormantCount > 0) console.log(`dormant transition: uid=${uid}, n=${dormantCount}`);
+        await ensurePrayerPlan(uid, today, remainingActive);  // 오늘의 기도 목록 서버 확정 (설계 §3.4)
       } catch (e) {
         console.error(`dailyReset failed for uid=${uid}:`, e);
       }
@@ -59,17 +60,22 @@ function tsToMs(ts: unknown): number | undefined {
   return ts && typeof (ts as any).toMillis === 'function' ? (ts as any).toMillis() : undefined;
 }
 
-/** 활성 기도제목 중 망각 임계를 넘긴 항목을 dormant로 전이 (pinned 제외) */
-async function processDormantTransitions(uid: string): Promise<number> {
+/**
+ * 활성 기도제목 중 망각 임계를 넘긴 항목을 dormant로 전이 (pinned 제외).
+ * 전이 후에도 활성으로 남은 항목들의 RotationInput을 함께 반환한다(오늘 목록 계산용).
+ */
+async function processDormantTransitions(
+  uid: string,
+): Promise<{ count: number; remainingActive: RotationInput[] }> {
   const snap = await db.collection(`users/${uid}/prayers`).where('status', '==', 'active').get();
-  if (snap.empty) return 0;
+  if (snap.empty) return { count: 0, remainingActive: [] };
 
   const nowMs = Date.now();
   let count = 0;
+  const remainingActive: RotationInput[] = [];
   const batch = db.batch();
   for (const docSnap of snap.docs) {
     const p = docSnap.data() as PrayerDoc;
-    if (p.pinned) continue;
     const input: RotationInput = {
       id: p.id,
       priority: p.priority,
@@ -78,17 +84,52 @@ async function processDormantTransitions(uid: string): Promise<number> {
       receivedAtMs: tsToMs(p.receivedAt) ?? nowMs,
       lastPrayedAtMs: tsToMs(p.lastPrayedAt),
     };
-    if (shouldBecomeDormant(input, nowMs)) {
+    if (!p.pinned && shouldBecomeDormant(input, nowMs)) {
       batch.update(docSnap.ref, {
         status: 'dormant',
         dormantSince: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
       });
       count++;
+    } else {
+      remainingActive.push(input);
     }
   }
   if (count > 0) await batch.commit();
-  return count;
+  return { count, remainingActive };
+}
+
+/**
+ * 오늘의 기도 목록(prayerPlan)을 서버에서 확정한다 (설계 §3.4 — 클라이언트 persistTodayPlan과 동일 가드).
+ *  - 빈 계산은 쓰지 않는다(기도제목 없는 날을 빈 plan으로 잠그지 않음).
+ *  - 이미 pinnedIds/rotationIds가 있으면 보존 — 04:00 이전에 클라이언트가 먼저 확정했을 수 있다.
+ *  - 중첩 merge로 extraIds 등 기존 prayerPlan 필드를 보존한다.
+ */
+async function ensurePrayerPlan(
+  uid: string,
+  today: string,
+  activeInputs: RotationInput[],
+): Promise<void> {
+  if (activeInputs.length === 0) return;
+  const { pinnedIds, rotationIds } = selectTodayPrayers(activeInputs, Date.now());
+  if (pinnedIds.length + rotationIds.length === 0) return;
+
+  const dayRef = db.doc(`users/${uid}/days/${today}`);
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(dayRef);
+    const plan = snap.exists ? snap.data()?.prayerPlan : undefined;
+    const alreadyFixed =
+      (plan?.pinnedIds?.length ?? 0) > 0 || (plan?.rotationIds?.length ?? 0) > 0;
+    if (alreadyFixed) return;
+    tx.set(
+      dayRef,
+      {
+        prayerPlan: { pinnedIds, rotationIds, generatedAt: FieldValue.serverTimestamp() },
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
+  });
 }
 
 async function processUserDay(
