@@ -8,10 +8,10 @@
  *    여러 건을 한 번의 Gemini 호출로 처리해 레이트리밋 부담을 줄인다.
  *
  * 무료 티어 쿼터는 "프로젝트+모델" 단위로 분리된다. 다른 AI 기능들
- * (aiCoach·morningBrief 등)이 전부 GEMINI_MODEL(gemini-2.5-flash)을 쓰며
- * 일일 쿼터를 소진하므로, 말씀 추천은 그와 겹치지 않는 모델 체인을
- * 순서대로 시도한다. 체인이 전부 레이트리밋이면 키워드 기반의
- * 기본 말씀을 돌려줘 버튼이 항상 동작하게 한다.
+ * (aiCoach·morningBrief 등)이 전부 GEMINI_MODEL(gemini-3.5-flash)을 쓰며
+ * 일일 쿼터를 소진하므로, 말씀 추천은 쿼터가 분리된 라이트 모델을 먼저
+ * 시도하고, 마지막에만 GEMINI_MODEL 버킷을 쓴다. 체인이 전부
+ * 레이트리밋이면 키워드 기반의 기본 말씀을 돌려줘 버튼이 항상 동작하게 한다.
  */
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
@@ -19,8 +19,12 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { isRateLimit, isModelNotFound } from './geminiUtil';
 
 const REGION = 'asia-northeast3';
-/** 쿼터 버킷이 서로(그리고 GEMINI_MODEL과) 분리된 무료 티어 모델 체인 */
-const VERSE_MODELS = ['gemini-2.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-3-flash'];
+/**
+ * 말씀 추천용 모델 체인. 2.5 계열은 2026-06~07 종료 수순이라 제거했고,
+ * 'gemini-3.1-flash-lite'(GA, GEMINI_MODEL과 쿼터 분리) → 'gemini-3.5-flash'
+ * (메인 버킷, 최후 수단) 순으로 시도한다.
+ */
+const VERSE_MODELS = ['gemini-3.1-flash-lite', 'gemini-3.5-flash'];
 const MAX_BATCH = 20;
 
 const SYS_INSTRUCTION = `당신은 한국어 기도제목에 어울리는 성경 구절을 추천하는 도우미다.
