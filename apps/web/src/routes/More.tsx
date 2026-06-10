@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
 import { signOutUser } from '@/lib/auth';
-import { Cloud, BookOpen, Settings, LogOut, Bell, BellRing, Vibrate, Volume2, HandHeart, Download, GraduationCap, Palmtree, Thermometer, ShieldCheck, Sparkles, Share2, MessageCircle } from 'lucide-react';
+import { Cloud, BookOpen, Settings, LogOut, Bell, BellRing, Vibrate, Volume2, HandHeart, Download, GraduationCap, Palmtree, Thermometer, ShieldCheck, Sparkles, Share2, MessageCircle, Tags } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import { enablePushNotifications, disablePushNotifications, isFcmEnabled } from '@/lib/fcm';
@@ -16,6 +16,7 @@ import { useFaithEnabled, setFaithEnabled, useIsGuest, useIsPremium } from '@/li
 import { usePwaInstall } from '@/lib/pwaInstall';
 import { APP_SHARE_URL } from '@/lib/inquiries';
 import ContactDialog from '@/features/contact/ContactDialog';
+import PrayerTaxonomyManager from '@/features/prayers/PrayerTaxonomyManager';
 import SignupCTA from '@/components/SignupCTA';
 
 const items = [
@@ -38,6 +39,7 @@ export default function More() {
   const [vacationUntil, setVacationUntil] = useState<string | null>(null);
   const [sickDays, setSickDays] = useState<{ month: string; daysUsed: number } | null>(null);
   const [contactOpen, setContactOpen] = useState(false);
+  const [taxonomyOpen, setTaxonomyOpen] = useState(false);
   const faithEnabled = useFaithEnabled();
   const isGuest = useIsGuest();
   const isPremium = useIsPremium();
@@ -288,6 +290,21 @@ export default function More() {
           </>
         )}
       </div>
+
+      {/* 기도 분류 관리 — 모임/대상 이름 변경·병합 */}
+      {faithEnabled && (
+        <button
+          onClick={() => setTaxonomyOpen(true)}
+          className="flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3.5 text-sm text-[var(--fg-primary)] shadow-[var(--shadow-sm)] active:opacity-70 text-left"
+        >
+          <Tags size={18} className="text-[var(--leaf)]" />
+          <div className="flex-1">
+            <p>기도 분류 관리</p>
+            <p className="text-[10px] text-[var(--fg-faint)]">모임·대상 이름을 바꾸거나 하나로 합쳐요</p>
+          </div>
+        </button>
+      )}
+      {faithEnabled && <PrayerTaxonomyManager open={taxonomyOpen} onOpenChange={setTaxonomyOpen} />}
 
       {/* 스트릭 보호 (B-4) */}
       <div className="mt-4 rounded-[var(--radius)] bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-sm)] space-y-3">

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  collection, onSnapshot, query, orderBy, doc, getDoc, setDoc, updateDoc, deleteDoc,
+  collection, onSnapshot, query, orderBy, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc,
   serverTimestamp, limit, Timestamp, writeBatch, runTransaction,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -400,6 +400,54 @@ export function usePrayerActions() {
     return saved;
   };
 
+  /**
+   * 모임/대상 이름 변경(또는 기존 이름으로 병합).
+   * 전체 status의 기도제목을 청크 배치로 일괄 변경하고 settings 목록을 갱신한다.
+   * 변경된 기도제목 수를 반환.
+   */
+  const renameTaxonomy = async (kind: 'group' | 'target', from: string, to: string): Promise<number> => {
+    if (!uid) return 0;
+    const f = from.trim();
+    const t = to.trim();
+    if (!f || !t || f === t) return 0;
+
+    const fallback = kind === 'group' ? '개인' : '나 자신';
+    const snap = await getDocs(collection(db, 'users', uid, 'prayers'));
+    const matched = snap.docs.filter((d) => (((d.data() as PrayerDoc)[kind]) || fallback) === f);
+    for (let i = 0; i < matched.length; i += 400) {
+      const batch = writeBatch(db);
+      for (const d of matched.slice(i, i + 400)) {
+        batch.update(d.ref, { [kind]: t, updatedAt: serverTimestamp() });
+      }
+      await batch.commit();
+    }
+
+    const key = kind === 'group' ? 'prayerGroups' : 'prayerTargets';
+    const defaults: readonly string[] = kind === 'group' ? DEFAULT_PRAYER_GROUPS : DEFAULT_PRAYER_TARGETS;
+    const existing = useAppStore.getState().settings?.[key] ?? [];
+    const next = existing.filter((n) => n !== f);
+    if (!next.includes(t) && !defaults.includes(t)) next.push(t);
+    await setDoc(
+      doc(db, 'users', uid, 'settings', 'main'),
+      { [key]: next, updatedAt: serverTimestamp() },
+      { merge: true },
+    );
+    return matched.length;
+  };
+
+  /** 사용 중이지 않은 커스텀 모임/대상 항목을 설정 목록에서 제거 */
+  const removeTaxonomyEntry = async (kind: 'group' | 'target', name: string) => {
+    if (!uid) return;
+    const key = kind === 'group' ? 'prayerGroups' : 'prayerTargets';
+    const existing = useAppStore.getState().settings?.[key] ?? [];
+    if (!existing.includes(name)) return;
+    await setDoc(
+      doc(db, 'users', uid, 'settings', 'main'),
+      { [key]: existing.filter((n) => n !== name), updatedAt: serverTimestamp() },
+      { merge: true },
+    );
+  };
+
   /** 중복 기도제목 병합 — 가장 먼저 받은 항목으로 합치고 나머지는 삭제 */
   const mergePrayers = async (ids: string[]) => {
     if (!uid || ids.length < 2) return;
@@ -444,6 +492,7 @@ export function usePrayerActions() {
   return {
     quickAdd, addPrayerGroup, addPrayerTarget, appendTodayExtras, persistTodayPlan, updatePrayer, togglePin, checkPrayer, uncheckPrayer,
     markAnswered, awaken, removePrayer, removePrayers, updatePrayers, bulkSave, mergePrayers,
+    renameTaxonomy, removeTaxonomyEntry,
   };
 }
 
