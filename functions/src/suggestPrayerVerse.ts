@@ -10,8 +10,8 @@
  * 무료 티어 쿼터는 "프로젝트+모델" 단위로 분리된다. 다른 AI 기능들
  * (aiCoach·morningBrief 등)이 전부 GEMINI_MODEL(gemini-2.5-flash)을 쓰며
  * 일일 쿼터를 소진하므로, 말씀 추천은 그와 겹치지 않는 모델 체인을
- * 순서대로 시도한다. 체인이 전부 레이트리밋이면 키워드 기반의
- * 기본 말씀을 돌려줘 버튼이 항상 동작하게 한다.
+ * 순서대로 시도한다. 체인이 전부 실패하면(쿼터·모델 폐기·출력 불량 등
+ * 이유를 불문하고) 키워드 기반의 기본 말씀을 돌려줘 버튼이 항상 동작한다.
  */
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
@@ -19,8 +19,8 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { isRateLimit, isModelNotFound } from './geminiUtil';
 
 const REGION = 'asia-northeast3';
-/** 쿼터 버킷이 서로(그리고 GEMINI_MODEL과) 분리된 무료 티어 모델 체인 */
-const VERSE_MODELS = ['gemini-2.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-3-flash'];
+/** 쿼터 버킷이 서로(그리고 GEMINI_MODEL과) 분리된 안정판 모델 체인 */
+const VERSE_MODELS = ['gemini-2.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-3.5-flash'];
 const MAX_BATCH = 20;
 
 const SYS_INSTRUCTION = `당신은 한국어 기도제목에 어울리는 성경 구절을 추천하는 도우미다.
@@ -59,7 +59,7 @@ const BATCH_SCHEMA = {
 
 const REF_PATTERN = /^[가-힣0-9]+ ?\d+:\d+(-\d+)?$/;
 
-/** 체인의 모델을 순서대로 시도. 레이트리밋·모델 없음이면 다음 모델로 넘어간다. */
+/** 체인의 모델을 순서대로 시도. 실패 이유(429·404·400 등)를 불문하고 다음 모델로 넘어간다. */
 async function generateWithFallback(apiKey: string, schema: object, prompt: string) {
   const genAI = new GoogleGenerativeAI(apiKey);
   const build = (modelId: string) =>
@@ -76,8 +76,10 @@ async function generateWithFallback(apiKey: string, schema: object, prompt: stri
     try {
       return await build(modelId).generateContent(prompt);
     } catch (e) {
-      if (!isRateLimit(e) && !isModelNotFound(e)) throw e;
-      console.warn(`suggestPrayerVerse: ${modelId} unavailable, trying next —`, String((e as any)?.message ?? e));
+      console.warn(
+        `suggestPrayerVerse: ${modelId} failed (rateLimit=${isRateLimit(e)}, notFound=${isModelNotFound(e)}) —`,
+        String((e as any)?.message ?? e),
+      );
       lastErr = e;
     }
   }
@@ -231,12 +233,9 @@ ${list}`;
         if (out.length === 0) throw new Error('no valid verses in batch output');
         return { items: out };
       } catch (e) {
-        console.error('suggestPrayerVerse batch error', e);
-        if (isRateLimit(e)) {
-          // 모든 모델이 쿼터 초과 — 기본 말씀이라도 연결해 기능이 멈추지 않게
-          return { items: items.map((it, i) => ({ id: it.id, ...fallbackVerse(it.title, it.body, i) })) };
-        }
-        throw new functions.https.HttpsError('internal', '말씀 추천에 실패했습니다. 다시 시도해주세요.');
+        // AI가 어떤 이유로든 실패해도 기본 말씀을 연결해 기능이 멈추지 않게
+        console.error('suggestPrayerVerse batch error — using fallback verses', e);
+        return { items: items.map((it, i) => ({ id: it.id, ...fallbackVerse(it.title, it.body, i) })), fallback: true };
       }
     }
 
@@ -259,8 +258,8 @@ ${list}`;
       if (!verse) throw new Error('invalid verse output');
       return verse;
     } catch (e) {
-      console.error('suggestPrayerVerse error', e);
-      if (isRateLimit(e)) return fallbackVerse(title, body);
-      throw new functions.https.HttpsError('internal', '말씀 추천에 실패했습니다. 다시 시도해주세요.');
+      // AI가 어떤 이유로든 실패해도 기본 말씀을 연결해 기능이 멈추지 않게
+      console.error('suggestPrayerVerse error — using fallback verse', e);
+      return { ...fallbackVerse(title, body), fallback: true };
     }
   });
