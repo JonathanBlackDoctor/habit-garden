@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Check, ChevronRight, BookOpen } from 'lucide-react';
 import type { PrayerDoc } from 'shared/types/firestore';
@@ -153,7 +154,9 @@ export default function PrayerMode({
     advance();
   };
 
-  return (
+  // SwipeTabs 트랙의 translateX transform이 fixed의 기준이 되는 것을 피하기 위해
+  // body 포털로 띄운다 — 탭 패널 안에서 fixed를 쓰면 오버레이가 트랙 기준으로 밀려 깨진다.
+  return createPortal(
     <AnimatePresence>
       {open && (
         <motion.div
@@ -233,7 +236,7 @@ export default function PrayerMode({
 
             {/* 카드 기도 */}
             {step === 'pray' && current && (
-              <div className="flex flex-1 flex-col">
+              <div className="flex min-h-0 flex-1 flex-col">
                 <AnimatePresence mode="wait">
                   <motion.div
                     key={current.id}
@@ -241,9 +244,9 @@ export default function PrayerMode({
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -24 }}
                     transition={{ duration: 0.25 }}
-                    className="flex flex-1 flex-col justify-center"
+                    className="flex min-h-0 flex-1 flex-col justify-center py-3"
                   >
-                    <div className={cn('max-h-[70vh] overflow-y-auto rounded-[var(--radius-lg)] border p-6', DARK.card, DARK.border)}>
+                    <div className={cn('min-h-0 overflow-y-auto rounded-[var(--radius-lg)] border p-6', DARK.card, DARK.border)}>
                       <p className={cn('text-xs', DARK.muted)}>
                         {current.target || '나 자신'} · {current.group || '개인'}
                         {checks[current.id] && ' · 오늘 기도함 ✓'}
@@ -326,6 +329,7 @@ export default function PrayerMode({
           </div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }
