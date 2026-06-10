@@ -72,11 +72,25 @@ export default function SwipeTabs() {
     const clamp = (x: number) =>
       x > 0 ? x * 0.3 : x < minX ? minX + (x - minX) * 0.3 : x; // 양 끝 고무줄 저항
 
+    // 터치 지점에서 컨테이너까지 올라가며 실제로 가로 스크롤되는 요소가 있는지 검사.
+    // 1년 잔디 히트맵·칩 필터 등 내부 가로 스크롤 영역에서는 탭 스와이프를 양보해
+    // 네이티브 스크롤이 동작하게 한다.
+    const inHorizontalScroller = (tgt: Element | null) => {
+      for (let n = tgt; n && n !== el; n = n.parentElement) {
+        if (n.scrollWidth > n.clientWidth + 1) {
+          const ox = getComputedStyle(n).overflowX;
+          if (ox === 'auto' || ox === 'scroll') return true;
+        }
+      }
+      return false;
+    };
+
     const onStart = (e: TouchEvent) => {
       const g = gesture.current;
       if (e.touches.length !== 1) { g.ignore = true; return; }
       const tgt = e.target as Element;
       if (tgt.closest('[data-bed-pager]') || tgt.closest('[data-no-swipe]')) { g.ignore = true; return; }
+      if (inHorizontalScroller(tgt)) { g.ignore = true; return; }
       const t = e.touches[0];
       g.x = t.clientX; g.y = t.clientY; g.lastX = t.clientX; g.lastT = performance.now();
       g.locked = false; g.ignore = false; g.vx = 0;
