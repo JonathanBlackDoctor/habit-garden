@@ -426,11 +426,10 @@ export function TargetSelect({
 
 // ── 상세 추가 다이얼로그 (제목·상세·모임·대상·우선순위) ──────
 export function AddPrayerDialog({
-  open, onOpenChange, initialTitle = '',
+  open, onOpenChange,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  initialTitle?: string;
 }) {
   const groups = usePrayerGroups();
   const targets = usePrayerTargets();
@@ -445,7 +444,7 @@ export function AddPrayerDialog({
 
   useEffect(() => {
     if (!open) return;
-    setTitle(initialTitle);
+    setTitle('');
     setBody('');
     setGroup(groups[0] ?? '개인');
     setTarget(targets[0] ?? '나 자신');
