@@ -25,6 +25,7 @@ import { useCrisisWatcher } from '@/features/coach/useCrisisWatcher';
 import { useFaithEnabled, useIsPremium } from '@/lib/features';
 import HabitStatusDot from '@/features/habits/HabitStatusDot';
 import { statusOf } from '@/features/habits/habitStatus';
+import YesterdayRecapCard from '@/features/recap/YesterdayRecapCard';
 import { pointsForCheck } from 'shared/lib/habitPoints';
 
 const TIME_LABELS: Record<string, string> = {
@@ -164,6 +165,9 @@ export default function Main() {
           </div>
         </div>
       </motion.div>
+
+      {/* ── 어제 돌아보기 — 어제 미달성 습관·개선 포인트 다음날 피드백 ── */}
+      <YesterdayRecapCard habits={habits} />
 
       {/* ── 오늘의 습관 ── */}
       <motion.section
