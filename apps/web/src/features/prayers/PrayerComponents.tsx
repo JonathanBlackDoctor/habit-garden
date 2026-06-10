@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Timestamp } from 'firebase/firestore';
+import { Timestamp, deleteField } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 import type { PrayerDoc, PrayerPriority } from 'shared/types/firestore';
 import { PRAYER_PRIORITY_LABELS } from 'shared/types/firestore';
 import { PRAYER_ROTATION_DEFAULTS } from 'shared/types/firestore';
 import { usePrayerActions, usePrayerGroups, usePrayerTargets } from './usePrayers';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Check, Pin, Sparkles, Moon, Trash2, Flame, Pencil, Layers, Link2, X } from 'lucide-react';
+import { Check, Pin, Sparkles, Moon, Trash2, Flame, Pencil, Layers, Link2, X, BookOpen } from 'lucide-react';
+import { functions } from '@/lib/firebase';
+import { useIsPremium } from '@/lib/features';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
 const GROUP_COLORS = [
@@ -542,11 +546,36 @@ export function PrayerDetailDialog({
   onOpenChange: (v: boolean) => void;
 }) {
   const { updatePrayer, togglePin, markAnswered, awaken, removePrayer } = usePrayerActions();
+  const isPremium = useIsPremium();
   const [editing, setEditing] = useState(false);
   const [answerMode, setAnswerMode] = useState(false);
   const [answerNote, setAnswerNote] = useState('');
+  const [versing, setVersing] = useState(false);
 
   if (!prayer) return null;
+
+  /** Gemini로 어울리는 말씀 추천 → PrayerDoc.verse 에 저장 */
+  const suggestVerse = async () => {
+    if (versing) return;
+    setVersing(true);
+    try {
+      const fn = httpsCallable(functions, 'suggestPrayerVerse');
+      const res: any = await fn({ title: prayer.title, body: prayer.body ?? '' });
+      const v = res.data;
+      if (v?.reference && v?.text) {
+        await updatePrayer(prayer.id, {
+          verse: { reference: v.reference, text: v.text, ...(v.reason ? { reason: v.reason } : {}) },
+        });
+        toast(`📖 ${v.reference}`, { description: '말씀이 연결됐어요' });
+      }
+    } catch (e: any) {
+      toast.error(e?.message || '말씀 추천에 실패했습니다.');
+    } finally {
+      setVersing(false);
+    }
+  };
+
+  const removeVerse = () => updatePrayer(prayer.id, { verse: deleteField() } as any);
 
   const close = () => {
     setEditing(false); setAnswerMode(false); setAnswerNote('');
@@ -583,7 +612,37 @@ export function PrayerDetailDialog({
               </p>
             )}
 
+            {prayer.verse && (
+              <div className="rounded-[var(--radius)] bg-[var(--leaf-soft)] px-3 py-2.5">
+                <p className="flex items-start gap-1.5 text-sm text-[var(--fg-primary)]">
+                  <BookOpen size={14} className="mt-0.5 shrink-0 text-[var(--leaf)]" />
+                  <span className="leading-relaxed">{prayer.verse.text}</span>
+                </p>
+                <p className="mt-1 pl-5 text-xs text-[var(--fg-muted)]">— {prayer.verse.reference}</p>
+                {prayer.verse.reason && (
+                  <p className="mt-0.5 pl-5 text-[11px] text-[var(--fg-faint)]">{prayer.verse.reason}</p>
+                )}
+                {isPremium && (
+                  <div className="mt-1.5 flex gap-3 pl-5">
+                    <button onClick={suggestVerse} disabled={versing} className="text-[11px] font-medium text-[var(--leaf)] disabled:opacity-50">
+                      {versing ? '추천 중…' : '다시 추천'}
+                    </button>
+                    <button onClick={removeVerse} className="text-[11px] text-[var(--fg-faint)]">제거</button>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="flex flex-wrap gap-2 pt-1">
+              {isPremium && !prayer.verse && (
+                <button
+                  onClick={suggestVerse}
+                  disabled={versing}
+                  className="flex items-center gap-1 rounded-[var(--radius)] bg-[var(--sky-soft)] px-3 py-1.5 text-xs text-[var(--sky)] disabled:opacity-50"
+                >
+                  <BookOpen size={13} /> {versing ? '추천 중…' : '말씀 추천'}
+                </button>
+              )}
               <button
                 onClick={() => setEditing(true)}
                 className="flex items-center gap-1 rounded-[var(--radius)] bg-[var(--bg-base)] px-3 py-1.5 text-xs text-[var(--fg-muted)]"
