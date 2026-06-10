@@ -448,6 +448,20 @@ export function usePrayerActions() {
     );
   };
 
+  /** 일괄 말씀 추천 결과 저장 — 항목마다 다른 verse를 배치로 기록 */
+  const applyVerses = async (
+    entries: Array<{ id: string; verse: { reference: string; text: string; reason?: string } }>,
+  ) => {
+    if (!uid || entries.length === 0) return;
+    const batch = writeBatch(db);
+    for (const { id, verse } of entries) {
+      batch.update(doc(db, 'users', uid, 'prayers', id), {
+        verse, updatedAt: serverTimestamp(),
+      } as any);
+    }
+    await batch.commit();
+  };
+
   /** 중복 기도제목 병합 — 가장 먼저 받은 항목으로 합치고 나머지는 삭제 */
   const mergePrayers = async (ids: string[]) => {
     if (!uid || ids.length < 2) return;
@@ -492,7 +506,7 @@ export function usePrayerActions() {
   return {
     quickAdd, addPrayerGroup, addPrayerTarget, appendTodayExtras, persistTodayPlan, updatePrayer, togglePin, checkPrayer, uncheckPrayer,
     markAnswered, awaken, removePrayer, removePrayers, updatePrayers, bulkSave, mergePrayers,
-    renameTaxonomy, removeTaxonomyEntry,
+    renameTaxonomy, removeTaxonomyEntry, applyVerses,
   };
 }
 

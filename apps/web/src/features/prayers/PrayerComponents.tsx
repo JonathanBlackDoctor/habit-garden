@@ -204,14 +204,19 @@ export function usePrayerSelection() {
 }
 
 // ── 일괄 작업 하단 바 ──────────────────────────────────────
+const VERSE_BATCH_MAX = 20;
+
 export function BulkActionBar({
-  ids, onDone,
+  ids, onDone, prayers,
 }: {
   ids: string[];
   onDone: () => void;          // 작업 완료/취소 시 선택 모드 종료
+  prayers?: PrayerDoc[];       // 말씀 일괄 추천용 — 선택된 문서 조회
 }) {
-  const { removePrayers, mergePrayers } = usePrayerActions();
+  const { removePrayers, mergePrayers, applyVerses } = usePrayerActions();
+  const isPremium = useIsPremium();
   const [editOpen, setEditOpen] = useState(false);
+  const [versing, setVersing] = useState(false);
   const count = ids.length;
 
   const handleDelete = async () => {
@@ -228,11 +233,65 @@ export function BulkActionBar({
     onDone();
   };
 
+  /** 선택 항목 중 말씀이 없는 것들에 일괄 추천 — 한 번의 AI 호출로 처리 */
+  const handleVerses = async () => {
+    if (versing) return;
+    const selected = new Set(ids);
+    const targets = (prayers ?? []).filter((p) => selected.has(p.id) && !p.verse);
+    if (targets.length === 0) {
+      toast('선택한 기도제목에 모두 말씀이 연결돼 있어요');
+      return;
+    }
+    const slice = targets.slice(0, VERSE_BATCH_MAX);
+    setVersing(true);
+    try {
+      const fn = httpsCallable(functions, 'suggestPrayerVerse');
+      const res: any = await fn({
+        items: slice.map((p) => ({ id: p.id, title: p.title, body: p.body ?? '' })),
+      });
+      const items: any[] = res.data?.items ?? [];
+      const entries = items
+        .filter((it) => it?.id && it?.reference && it?.text)
+        .map((it) => ({
+          id: it.id as string,
+          verse: {
+            reference: it.reference as string,
+            text: it.text as string,
+            ...(it.reason ? { reason: it.reason as string } : {}),
+          },
+        }));
+      if (entries.length === 0) {
+        toast.error('말씀 추천에 실패했어요. 다시 시도해주세요.');
+        return;
+      }
+      await applyVerses(entries);
+      toast.success(`📖 ${entries.length}개에 말씀을 연결했어요`, {
+        description: targets.length > VERSE_BATCH_MAX
+          ? `한 번에 ${VERSE_BATCH_MAX}개까지 — 나머지는 다시 실행해주세요`
+          : undefined,
+      });
+      onDone();
+    } catch (e: any) {
+      toast.error(e?.message || '말씀 추천에 실패했어요.');
+    } finally {
+      setVersing(false);
+    }
+  };
+
   return (
     <>
       <div className="sticky top-0 z-10 -mx-4 flex items-center gap-2 border-b border-[var(--border)] bg-[var(--bg-surface)] px-4 py-2.5">
         <span className="text-xs font-medium text-[var(--fg-primary)]">{count}개 선택</span>
         <div className="ml-auto flex items-center gap-1.5">
+          {isPremium && prayers && (
+            <button
+              onClick={handleVerses}
+              disabled={count === 0 || versing}
+              className="flex items-center gap-1 rounded-[var(--radius)] bg-[var(--sky-soft)] px-2.5 py-1.5 text-xs text-[var(--sky)] disabled:opacity-40"
+            >
+              <BookOpen size={13} /> {versing ? '추천 중…' : '말씀'}
+            </button>
+          )}
           <button
             onClick={() => setEditOpen(true)}
             disabled={count === 0}
