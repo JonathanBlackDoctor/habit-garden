@@ -140,6 +140,8 @@ export interface HabitDoc {
   iconName: string;
   description?: string;
   active: boolean;
+  hibernatedSince?: string | null;  // YYYY-MM-DD, 휴면 시작일
+  hibernatedUntil?: string | null;  // YYYY-MM-DD, 휴면 종료(깨운)일. 비어있으면 현재 휴면 중
 }
 
 // ── 습관 체크 (일일) ──────────────────────────────────────

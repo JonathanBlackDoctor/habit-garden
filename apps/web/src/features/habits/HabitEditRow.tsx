@@ -2,8 +2,9 @@ import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import { Switch } from '@/components/ui/switch';
-import { ChevronUp, ChevronDown, Trash2 } from 'lucide-react';
+import { ChevronUp, ChevronDown, Trash2, Moon, Sunrise } from 'lucide-react';
 import type { HabitDoc } from 'shared/types/firestore';
+import { isHibernating } from 'shared/lib/hibernation';
 import { toast } from 'sonner';
 
 const TIME_OPTIONS: Array<HabitDoc['timeOfDay']> = [
@@ -20,6 +21,8 @@ interface Props {
 
 export default function HabitEditRow({ habit, groupSiblings }: Props) {
   const uid = useAppStore((s) => s.uid);
+  const today = useAppStore((s) => s.currentDate);
+  const hibernating = isHibernating(habit);
 
   const updateField = async (patch: Partial<HabitDoc>) => {
     if (!uid) return;
@@ -28,6 +31,18 @@ export default function HabitEditRow({ habit, groupSiblings }: Props) {
     } catch {
       toast.error('업데이트 실패');
     }
+  };
+
+  // 휴면 시작 — 깨울 때까지 일일 목록에서 빠진다. 자동 복귀 없음(수동으로만 깨움).
+  const startHibernate = async () => {
+    await updateField({ hibernatedSince: today, hibernatedUntil: null });
+    toast(`🌙 ${habit.title} 휴면`, { description: '깨울 때까지 쉬어요' });
+  };
+
+  // 깨우기 — 종료일을 기록(since는 유지)해 스트릭 브리지 구간을 보존한다.
+  const wake = async () => {
+    await updateField({ hibernatedUntil: today });
+    toast(`☀️ ${habit.title} 다시 시작!`);
   };
 
   const remove = async () => {
@@ -62,9 +77,14 @@ export default function HabitEditRow({ habit, groupSiblings }: Props) {
 
   return (
     <div
-      className={`card p-2 flex flex-col gap-2 ${habit.active ? '' : 'opacity-60'}`}
+      className={`card p-2 flex flex-col gap-2 ${habit.active && !hibernating ? '' : 'opacity-60'}`}
       style={{ background: 'rgba(255,255,255,0.85)' }}
     >
+      {hibernating && (
+        <span className="self-start rounded-full bg-[var(--leaf-soft)] px-2 py-0.5 text-[11px] text-[var(--leaf)]">
+          🌙 휴면 중
+        </span>
+      )}
       <div className="flex items-center gap-2">
         <input
           type="text"
@@ -125,6 +145,25 @@ export default function HabitEditRow({ habit, groupSiblings }: Props) {
         </select>
 
         <div className="ml-auto flex items-center gap-1">
+          {hibernating ? (
+            <button
+              onClick={wake}
+              className="rounded-full p-1 text-[var(--bloom)] hover:bg-[var(--leaf-soft)]"
+              aria-label="깨우기"
+              title="깨우기"
+            >
+              <Sunrise size={15} />
+            </button>
+          ) : (
+            <button
+              onClick={startHibernate}
+              className="rounded-full p-1 text-[var(--fg-muted)] hover:bg-[var(--leaf-soft)] hover:text-[var(--leaf)]"
+              aria-label="휴면"
+              title="휴면 (잠시 쉬기)"
+            >
+              <Moon size={15} />
+            </button>
+          )}
           <button
             onClick={() => swapOrder(-1)}
             disabled={!canUp}
