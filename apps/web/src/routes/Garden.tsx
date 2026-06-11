@@ -9,6 +9,7 @@ import { useAppStore } from '@/lib/store';
 import { useNickname } from '@/lib/features';
 import { PLANT_SPECIES, POINT_PRICES, DAILY_YIELD_BY_RARITY, PLANTS_PER_BED, PLANTS_PER_ROW, CODEX_SPECIES_COUNT, MAX_BEDS, DAILY_PLANT_LIMIT } from 'shared/types/firestore';
 import { getGameDayKST } from '@/features/garden/useGarden';
+import { computePassiveYield } from 'shared/lib/gardenYield';
 import type { PlantInstance, PlantSpecies } from 'shared/types/firestore';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
@@ -251,6 +252,7 @@ export default function Garden() {
   const vibe = healthVibe(gardenState.health ?? 100);
   const autogrowToday = progress.gardenStats?.autogrowToday ?? 0;
   const codexCount = progress.gardenStats?.codexEntries?.length ?? 0;
+  const dailyIncome = computePassiveYield(plants);  // 현재 만개 식물들의 하루 자동 수익(P)
 
   const gameDay = getGameDayKST();
   const prevPlantDate = progress.gardenStats?.dailyDirectPlantsDate ?? '';
@@ -301,6 +303,19 @@ export default function Garden() {
           </p>
         </div>
         <div className="flex items-center gap-1.5">
+          {/* 만개 수익 칩 — 현재 만개 식물들이 매일 벌어다 주는 포인트 */}
+          <span
+            className={cn(
+              'flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-medium tabular-nums',
+              dailyIncome > 0
+                ? 'bg-[#FFF3CC] text-[#8A6A1E]'
+                : 'bg-[var(--leaf-soft)]/40 text-[var(--fg-faint)]',
+            )}
+            title="만개한 식물이 매일 04:00에 벌어다 주는 포인트"
+          >
+            <Wheat size={11} />
+            만개 +{dailyIncome}P/일
+          </span>
           {/* 자동 성장 칩 */}
           <span className={cn(
             'flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-medium',
