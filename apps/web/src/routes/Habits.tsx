@@ -12,6 +12,7 @@ import HabitCard from '@/features/habits/HabitCard';
 import HabitEditRow from '@/features/habits/HabitEditRow';
 import PastDateBanner from '@/components/PastDateBanner';
 import type { HabitDoc } from 'shared/types/firestore';
+import { isHibernating } from 'shared/lib/hibernation';
 import { timeOfDay } from '@/lib/dayBoundary';
 import { useTabBloomKey } from '@/lib/tabActive';
 
@@ -95,10 +96,13 @@ export default function Habits() {
     return () => cancelAnimationFrame(raf);
   }, [bloomKey]);
 
-  const groups = groupByTime(habits);
+  // 휴면 중인 습관은 일일 목록·집계에서 빠지고, 편집 모드 전용 휴면 섹션에만 모인다.
+  const liveHabits        = habits.filter((h) => !isHibernating(h));
+  const hibernatingHabits = habits.filter((h) => isHibernating(h));
+  const groups = groupByTime(liveHabits);
   // 온보딩 스포트라이트가 가리킬 첫 습관 카드 (TIME_ORDER 기준 최상단)
   const firstTourHabitId = TIME_ORDER.map((t) => groups[t]?.[0]).find(Boolean)?.id;
-  const activeHabits   = habits.filter((h) => h.active);
+  const activeHabits   = liveHabits.filter((h) => h.active);
   const totalActive    = activeHabits.length;
   const totalAchieved  = activeHabits.filter((h) => checks[h.id]?.achieved).length;
   const totalChecked   = activeHabits.filter((h) => checks[h.id]?.score !== undefined && checks[h.id]?.score !== null).length;
@@ -148,6 +152,11 @@ export default function Habits() {
           {nudge && (
             <p className={`mt-0.5 text-xs font-medium ${remaining === 0 ? 'text-[var(--leaf)]' : 'text-[var(--bloom)]'}`}>
               {nudge}
+            </p>
+          )}
+          {!editMode && totalActive === 0 && hibernatingHabits.length > 0 && (
+            <p className="mt-0.5 text-xs font-medium text-[var(--fg-muted)]">
+              모든 습관이 휴면 중이에요 🌙 · 편집에서 깨울 수 있어요
             </p>
           )}
         </div>
@@ -255,6 +264,16 @@ export default function Habits() {
           </section>
         );
       })}
+
+      {/* 휴면 중인 습관 — 편집 모드 전용. 여기서 깨운다. */}
+      {editMode && hibernatingHabits.length > 0 && (
+        <section className="space-y-1.5 rounded-[var(--radius-lg)] bg-[var(--bg-surface)] p-2.5">
+          <h3 className="text-sm font-medium text-[var(--fg-muted)]">🌙 휴면 중인 습관</h3>
+          {hibernatingHabits.map((habit) => (
+            <HabitEditRow key={habit.id} habit={habit} groupSiblings={hibernatingHabits} />
+          ))}
+        </section>
+      )}
 
       {habits.length === 0 && (
         <div className="flex flex-col items-center gap-2 py-16 text-[var(--fg-faint)]">
