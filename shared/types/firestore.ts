@@ -350,6 +350,9 @@ export interface GardenStats {
   consecutiveHealthyDays?: number;            // 정원 생기≥80 연속일
   passiveYieldTotal?: number;                 // 누적 일일 자동 P
   lastDailyGardenDate?: string;               // 일일 정산(processDailyGarden)을 마친 게임일(YYYY-MM-DD, 04:00 KST). 중복 실행 시 재정산 방지.
+  lastPassiveYieldDate?: string;              // 만개 식물 passive yield 를 지급한 게임일(YYYY-MM-DD, 04:00 KST).
+                                              //   서버 일일 리셋과 클라이언트 이중 경로가 공유 → 하루 1회만 지급(스케줄드 누락 보완).
+  lastPassiveYieldAmount?: number;            // 마지막으로 지급한 passive yield 액수(P). 체감 토스트 표시에 사용.
   starBoostBonus?: number;                    // ★3 종 누계로 인한 종합 효율 메타 (정보용)
   plantsLost?: number;                        // 게을러져 죽은(영구 제거된) 식물 누적 수
   dailyDirectPlants?: number;                 // 오늘 직접 심기 횟수 (04:00 KST 리셋)

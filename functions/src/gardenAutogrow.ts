@@ -171,7 +171,10 @@ export async function processDailyGarden(
   }
 
   // 2) Passive Yield: 만개 식물의 dailyYield 합산 (시들기·초월 죽음 처리 전 시점 — 오늘 만개분까지 인정)
-  const passiveYield = computePassiveYield(plants);
+  //   클라이언트 이중 경로(useGarden.maybeRunPassiveYield)가 스케줄드 누락 시 먼저 지급할 수 있으므로,
+  //   passive yield 전용 마커(lastPassiveYieldDate)를 공유해 같은 게임일 중복 지급을 막는다.
+  const passiveAlreadyCredited = stats.lastPassiveYieldDate === gameDay;
+  const passiveYield = passiveAlreadyCredited ? 0 : computePassiveYield(plants);
 
   // 3) health 변동 (보호된 날은 중립 — 실패 페널티 없음)
   if (yesterdaySuccess) {
@@ -320,8 +323,12 @@ export async function processDailyGarden(
   // 7.5) 오늘 정산 완료 마커 (중복 실행 시 위 멱등성 가드가 막는다)
   stats.lastDailyGardenDate = gameDay;
 
-  // 8) passiveYieldTotal 누적
-  stats.passiveYieldTotal = (stats.passiveYieldTotal ?? 0) + passiveYield;
+  // 8) passiveYieldTotal 누적 + 지급 마커(체감 토스트·클라이언트 중복 방지용)
+  if (passiveYield > 0) {
+    stats.passiveYieldTotal = (stats.passiveYieldTotal ?? 0) + passiveYield;
+    stats.lastPassiveYieldDate = gameDay;
+    stats.lastPassiveYieldAmount = passiveYield;
+  }
 
   // 9) 일괄 저장 (progress + passive yield)
   const nextGarden: any = { ...garden, plants, health };

@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { doc, onSnapshot, setDoc, serverTimestamp, collection, addDoc, Timestamp } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc, serverTimestamp, collection, addDoc, Timestamp, increment } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import { writePublicGarden } from '@/lib/features';
 import type { ProgressDoc, PlantInstance, GardenState } from 'shared/types/firestore';
 import { PLANT_SPECIES, POINT_PRICES, CODEX_SPECIES_COUNT, MAX_BEDS, PLANTS_PER_BED, DAILY_PLANT_LIMIT } from 'shared/types/firestore';
+import { computePassiveYield } from 'shared/lib/gardenYield';
 import { toast } from 'sonner';
 
 // 공개 정원 미러 중복 쓰기 방지: uid → 마지막 미러 해시. 모듈 레벨이라 다중 마운트 시 공유된다.
@@ -12,6 +13,14 @@ const gardenMirrorCache = new Map<string, string>();
 
 // fast 자동 성장 세션 가드: `${uid}:${gameDay}` 1회만 시도 (Firestore 마커 확정 전 중복 쓰기 방지).
 const fastGrowGuard = new Set<string>();
+
+// passive yield 지급 세션 가드: `${uid}:${gameDay}` 1회만 시도 (Firestore 마커 확정 전 중복 쓰기 방지).
+const passiveYieldGuard = new Set<string>();
+
+// passive yield 체감 토스트를 띄운 게임일 (localStorage). uid별 1일 1회만 알린다.
+function passiveYieldToastKey(uid: string): string {
+  return `hg:pyToast:${uid}`;
+}
 
 // 미러 변경 감지용 해시 (Timestamp 원본은 비안정 형태라 제외).
 function gardenMirrorHash(gs: GardenState, level: number, nickname: string): string {
@@ -83,6 +92,80 @@ function maybeRunFastGrowth(uid: string, data: ProgressDoc): void {
   ).catch(() => fastGrowGuard.delete(key));           // 실패 시 다음 스냅샷에서 재시도 허용
 }
 
+/**
+ * 만개 식물 passive yield 보완 — 클라이언트 이중 경로.
+ *
+ * 원래 이 지급은 매일 04:00 KST 스케줄드 서버 리셋(processDailyGarden)에서만 일어났다.
+ * 스케줄드 함수가 누락/지연되면 "만개한 식물이 있는데 매일 포인트가 안 들어오는" 증상이 생긴다.
+ * fast 자동 성장과 마찬가지로, 서버와 게임일 마커(gardenStats.lastPassiveYieldDate)를 공유해
+ * 둘 중 먼저 도는 쪽이 하루 1회만 지급하고 마커를 기록한다 → 중복 지급 없이 누락만 보완한다.
+ */
+function maybeRunPassiveYield(uid: string, data: ProgressDoc): void {
+  const garden = data.gardenState;
+  if (!garden) return;
+
+  const gameDay = getGameDayKST();
+  const stats = data.gardenStats ?? {};
+  if (stats.lastPassiveYieldDate === gameDay) return;  // 오늘 이미 지급됨(서버 또는 클라이언트)
+
+  const key = `${uid}:${gameDay}`;
+  if (passiveYieldGuard.has(key)) return;              // 세션 내 1회
+  passiveYieldGuard.add(key);                          // 0 수익이어도 이번 게임일 재계산 방지
+
+  const amount = computePassiveYield(garden.plants ?? []);
+  if (amount <= 0) return;                             // 만개·수익 식물 없음 → 마커도 남기지 않음
+
+  setDoc(
+    doc(db, 'users', uid, 'progress', 'main'),
+    {
+      spendablePoints: increment(amount),
+      totalPoints:     increment(amount),
+      gardenStats: {
+        ...stats,
+        passiveYieldTotal:    (stats.passiveYieldTotal ?? 0) + amount,
+        lastPassiveYieldDate: gameDay,
+        lastPassiveYieldAmount: amount,
+      },
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true },
+  )
+    .then(() =>
+      addDoc(collection(db, 'users', uid, 'pointLedger'), {
+        delta: amount, reason: 'passive_yield', refId: 'daily-client',
+        createdAt: serverTimestamp(),
+      }),
+    )
+    .catch(() => passiveYieldGuard.delete(key));       // 실패 시 다음 스냅샷에서 재시도 허용
+}
+
+/**
+ * passive yield 체감 토스트 — 오늘 지급분이 있으면 uid별 1일 1회 알린다.
+ * 서버·클라이언트 어느 경로가 지급했든 동일하게 보이도록 마커(lastPassiveYieldDate)만 본다.
+ */
+function maybeShowPassiveYieldToast(uid: string, data: ProgressDoc): void {
+  const stats = data.gardenStats;
+  const yieldDate = stats?.lastPassiveYieldDate;
+  const amount = stats?.lastPassiveYieldAmount ?? 0;
+  if (!yieldDate || amount <= 0) return;
+  if (yieldDate !== getGameDayKST()) return;           // 오늘 지급분만 (며칠 지난 값은 알리지 않음)
+
+  let lastSeen: string | null = null;
+  try { lastSeen = localStorage.getItem(passiveYieldToastKey(uid)); } catch { /* ignore */ }
+  if (lastSeen === yieldDate) return;                  // 이미 오늘 알림
+
+  // 실제로 수익을 내는(만개·미시듦·수익>0) 식물 그루 수 — 초월 등 dailyYield 0 종은 제외.
+  const bloomed = (data.gardenState?.plants ?? []).filter(
+    (p) => computePassiveYield([p]) > 0,
+  ).length;
+
+  try { localStorage.setItem(passiveYieldToastKey(uid), yieldDate); } catch { /* ignore */ }
+  toast(`🌷 만개한 식물이 +${amount}P를 벌어다 줬어요!`, {
+    description: bloomed > 0 ? `만개 식물 ${bloomed}그루의 하루 수익이 적립됐어요.` : '하루 수익이 적립됐어요.',
+    duration: 5000,
+  });
+}
+
 // 게임 하루는 04:00 KST 기준으로 리셋된다.
 export function isWateredToday(wateredAt: { toMillis(): number }): boolean {
   const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
@@ -130,6 +213,12 @@ export function useProgress() {
 
         // 생기 자동 성장 보완 (스케줄드 서버 리셋 누락 대비) — 서버와 마커 공유로 중복 방지
         maybeRunFastGrowth(uid, data);
+
+        // 만개 식물 passive yield 보완 (스케줄드 리셋 누락 대비) — 서버와 마커 공유로 중복 방지
+        maybeRunPassiveYield(uid, data);
+
+        // 오늘 적립된 passive yield 체감 토스트 (서버·클라이언트 어느 경로든 1일 1회)
+        maybeShowPassiveYieldToast(uid, data);
 
         // 공개 정원 미러 (둘러보기) — 닉네임 설정자만, 샌드박스·게스트 제외.
         // 닉네임 미설정 시 gardens/{uid} 문서가 생성되지 않아 둘러보기에 노출되지 않는다.
