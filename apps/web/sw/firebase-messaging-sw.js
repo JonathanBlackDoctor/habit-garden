@@ -22,7 +22,9 @@ messaging.onBackgroundMessage((payload) => {
   self.registration.showNotification(title, {
     body,
     icon: '/habit-garden/icons/icon-192.png',
-    badge: '/habit-garden/icons/icon-192.png',
+    // badge 는 안드로이드 상태표시줄의 작은 아이콘 — 알파 채널만 흰 실루엣으로 렌더된다.
+    // 풀컬러 불투명 아이콘을 주면 회색 사각형으로만 보이므로 투명 모노크롬 전용 아이콘을 쓴다.
+    badge: '/habit-garden/icons/badge-96.png',
     data,
     tag: data.action || 'habit-reminder',
     renotify: true,
