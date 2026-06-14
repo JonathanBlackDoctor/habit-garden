@@ -9,11 +9,12 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import type {
-  HabitDoc, HabitCheckDoc, ProgressDoc, NotificationTokenDoc,
+  HabitDoc, HabitCheckDoc, ProgressDoc,
   UserSettingsDoc, DayDoc, PrayerDoc,
 } from '../../shared/types/firestore';
 import { PRAYER_ROTATION_DEFAULTS } from '../../shared/types/firestore';
 import { daysSince, type RotationInput } from '../../shared/prayerRotation';
+import { sendPush } from './notify';
 
 const db = admin.firestore();
 const REGION = 'asia-northeast3';
@@ -72,34 +73,23 @@ async function processUser(uid: string, hour: number, today: string): Promise<vo
   const unchecked = target.filter((h) => !checks[h.id]);
   if (unchecked.length === 0) return;
 
+  // 타입별 on/off — 습관 리마인더가 꺼져 있으면 발송하지 않는다 (미설정=on)
+  const settingsSnap = await db.doc(`users/${uid}/settings/main`).get();
+  if ((settingsSnap.data() as UserSettingsDoc | undefined)?.notifications?.habitReminder === false) return;
+
   const tokenSnap = await db.collection(`users/${uid}/notifications`).get();
-  const tokens = tokenSnap.docs.map((d) => (d.data() as NotificationTokenDoc).token).filter(Boolean);
-  if (tokens.length === 0) return;
+  if (tokenSnap.empty) return;
 
   const title = buildTitle(hour, unchecked.length);
   const body  = `${unchecked.slice(0, 2).map((h) => h.title).join(', ')}${unchecked.length > 2 ? ` 외 ${unchecked.length - 2}개` : ''}`;
 
-  try {
-    await admin.messaging().sendEachForMulticast({
-      tokens,
-      // data-only: 표시는 서비스워커가 전담한다(중복 알림/액션버튼 누락 방지).
-      data: {
-        title,
-        body,
-        tod: tod ?? 'anytime',
-        date: today,
-        action: 'habit_reminder',
-        habitIds: unchecked.map((h) => h.id).join(','),
-        link: '/habit-garden/#/habits',
-      },
-      webpush: {
-        fcmOptions: { link: '/habit-garden/#/habits' },
-        headers: { Urgency: 'high' },
-      },
-    });
-  } catch (e) {
-    console.error(`FCM send error for ${uid}:`, e);
-  }
+  await sendPush(uid, tokenSnap.docs, {
+    title,
+    body,
+    tod: tod ?? 'anytime',
+    date: today,
+    habitIds: unchecked.map((h) => h.id).join(','),
+  }, { link: '/habit-garden/#/habits', type: 'habit_reminder' });
 
   await db.doc(`users/${uid}/progress/main`).set({
     lastReminderAt: FieldValue.serverTimestamp(),
@@ -139,8 +129,7 @@ async function processPrayerReminder(uid: string, hour: number, today: string): 
   if (remaining === 0) return; // 이미 다 기도함 — 보내지 않음
 
   const tokenSnap = await db.collection(`users/${uid}/notifications`).get();
-  const tokens = tokenSnap.docs.map((d) => (d.data() as NotificationTokenDoc).token).filter(Boolean);
-  if (tokens.length === 0) return;
+  if (tokenSnap.empty) return;
 
   // 곧 잠들 기도 환기 (잠듦 임계 7일 전부터)
   const nowMs = Date.now();
@@ -163,25 +152,11 @@ async function processPrayerReminder(uid: string, hour: number, today: string): 
   let body = `남은 기도 ${remaining}개 — 조용히 머무는 시간을 가져보세요`;
   if (dormantSoon > 0) body += `\n잊혀가는 기도 ${dormantSoon}개가 곧 잠들어요`;
 
-  try {
-    await admin.messaging().sendEachForMulticast({
-      tokens,
-      data: {
-        title: '🙏 오늘의 기도',
-        body,
-        date: today,
-        action: 'prayer_reminder',
-        link: '/habit-garden/#/prayers',
-      },
-      webpush: {
-        fcmOptions: { link: '/habit-garden/#/prayers' },
-        headers: { Urgency: 'high' },
-      },
-    });
-  } catch (e) {
-    console.error(`prayer reminder FCM error for ${uid}:`, e);
-    return; // 발송 실패 시 마커를 남기지 않아 다음 시간대 재시도 여지를 둔다 — 아래 hour 일치 조건상 같은 날 재발송은 없음
-  }
+  await sendPush(uid, tokenSnap.docs, {
+    title: '🙏 오늘의 기도',
+    body,
+    date: today,
+  }, { link: '/habit-garden/#/prayers', type: 'prayer_reminder' });
 
   await progRef.set({
     _todayPrayerReminder: { date: today },

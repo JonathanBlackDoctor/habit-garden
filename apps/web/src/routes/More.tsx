@@ -3,10 +3,11 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
 import { signOutUser } from '@/lib/auth';
-import { Cloud, BookOpen, Settings, LogOut, Bell, BellRing, Vibrate, Volume2, HandHeart, Download, GraduationCap, Palmtree, Thermometer, ShieldCheck, Sparkles, Share2, MessageCircle, Tags, ScrollText } from 'lucide-react';
+import { Cloud, BookOpen, Settings, LogOut, Bell, ChevronRight, Vibrate, Volume2, HandHeart, Download, GraduationCap, Palmtree, Thermometer, ShieldCheck, Sparkles, Share2, MessageCircle, Tags, ScrollText } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
-import { enablePushNotifications, disablePushNotifications, isFcmEnabled } from '@/lib/fcm';
+import { isFcmEnabled } from '@/lib/fcm';
+import ToggleRow from '@/components/ToggleRow';
 import {
   isHapticEnabled, setHapticEnabled,
   isSoundEnabled,  setSoundEnabled,
@@ -32,7 +33,6 @@ export default function More() {
   const startPrayerTour = useAppStore((s) => s.startPrayerTour);
   const uid = useAppStore((s) => s.uid);
   const today = useAppStore((s) => s.currentDate);
-  const prayerReminder = useAppStore((s) => s.settings?.prayerReminder);
   const [push, setPush]   = useState(false);
   const [haptic, setHapt] = useState(false);
   const [sound, setSnd]   = useState(false);
@@ -102,19 +102,6 @@ export default function More() {
 
   const vacationActive = !!vacationUntil && vacationUntil >= today;
   const sickUsedThisMonth = sickDays?.month === today.slice(0, 7) ? sickDays.daysUsed : 0;
-
-  const onPushToggle = async () => {
-    if (!uid) return;
-    if (push) { await disablePushNotifications(); setPush(false); }
-    else      { const t = await enablePushNotifications(uid); if (t) setPush(true); }
-  };
-
-  const savePrayerReminder = async (enabled: boolean, hour: number) => {
-    if (!uid) return;
-    await setDoc(doc(db, 'users', uid, 'settings', 'main'),
-      { prayerReminder: { enabled, hour }, updatedAt: serverTimestamp() }, { merge: true });
-    if (enabled) toast.success(`🙏 매일 ${hourLabel(hour)}에 기도 알림을 보내드릴게요`);
-  };
 
   const onFaithToggle = async () => {
     if (!uid) return;
@@ -227,16 +214,22 @@ export default function More() {
 
       {/* 피드백 / 알림 설정 (Phase 1-2, 3-1) */}
       <p className="px-1 pt-3 text-[11px] font-medium text-[var(--fg-faint)]">설정</p>
+      {isPremium && (
+        <button
+          onClick={() => navigate('/settings/notifications')}
+          className="flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3.5 text-sm text-[var(--fg-primary)] shadow-[var(--shadow-sm)] active:opacity-70 text-left"
+        >
+          <Bell size={18} className="text-[var(--leaf)]" />
+          <div className="flex-1">
+            <p>푸시 알림</p>
+            <p className="text-[10px] text-[var(--fg-faint)]">
+              {push ? '켜짐 · 알림 종류·시간 설정' : '꺼짐 · 탭하여 켜기'}
+            </p>
+          </div>
+          <ChevronRight size={16} className="text-[var(--fg-faint)]" />
+        </button>
+      )}
       <div className="rounded-[var(--radius)] bg-[var(--bg-surface)] shadow-[var(--shadow-sm)] divide-y divide-[var(--leaf-soft)]">
-        {isPremium && (
-          <ToggleRow
-            icon={<Bell size={18} className="text-[var(--leaf)]" />}
-            label="푸시 알림"
-            desc="시간대별 리마인더 (FCM)"
-            value={push}
-            onToggle={onPushToggle}
-          />
-        )}
         <ToggleRow
           icon={<Vibrate size={18} className="text-[var(--leaf)]" />}
           label="햅틱"
@@ -264,31 +257,6 @@ export default function More() {
           value={faithEnabled}
           onToggle={onFaithToggle}
         />
-        {isPremium && faithEnabled && push && (
-          <>
-            <ToggleRow
-              icon={<BellRing size={18} className="text-[var(--leaf)]" />}
-              label="기도 알림"
-              desc="설정한 시간에 남은 기도를 알려드려요"
-              value={prayerReminder?.enabled ?? false}
-              onToggle={() => savePrayerReminder(!(prayerReminder?.enabled ?? false), prayerReminder?.hour ?? 7)}
-            />
-            {prayerReminder?.enabled && (
-              <div className="flex items-center gap-3 px-4 py-3">
-                <span className="flex-1 pl-[30px] text-xs text-[var(--fg-muted)]">알림 시간</span>
-                <select
-                  value={prayerReminder.hour ?? 7}
-                  onChange={(e) => savePrayerReminder(true, Number(e.target.value))}
-                  className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-2 py-1.5 text-xs outline-none"
-                >
-                  {Array.from({ length: 24 }, (_, h) => (
-                    <option key={h} value={h}>{hourLabel(h)}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-          </>
-        )}
       </div>
 
       {/* 말씀 적용 — 신앙 탭(말씀 적용)으로 이동 */}
@@ -396,35 +364,3 @@ export default function More() {
   );
 }
 
-function hourLabel(h: number): string {
-  if (h === 0) return '자정';
-  if (h === 12) return '정오';
-  return h < 12 ? `오전 ${h}시` : `오후 ${h - 12}시`;
-}
-
-function ToggleRow({
-  icon, label, desc, value, onToggle,
-}: { icon: React.ReactNode; label: string; desc?: string; value: boolean; onToggle: () => void }) {
-  return (
-    <button
-      onClick={onToggle}
-      className="flex w-full items-center gap-3 px-4 py-3.5 text-left active:opacity-70"
-    >
-      {icon}
-      <div className="flex-1">
-        <p className="text-sm text-[var(--fg-primary)]">{label}</p>
-        {desc && <p className="text-[10px] text-[var(--fg-faint)]">{desc}</p>}
-      </div>
-      <span
-        className={`relative h-5 w-9 rounded-full transition-colors ${
-          value ? 'bg-[var(--leaf)]' : 'bg-[var(--leaf-soft)]'
-        }`}
-      >
-        <span
-          className="absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform"
-          style={{ transform: `translateX(${value ? 18 : 2}px)` }}
-        />
-      </span>
-    </button>
-  );
-}

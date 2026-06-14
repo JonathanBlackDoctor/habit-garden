@@ -62,7 +62,31 @@ export interface UserSettingsDoc {
     enabled: boolean;
     hour: number;            // 0~23 (KST)
   };
+  notifications?: {          // 알림 타입별 on/off (미설정 = on). 푸시 알림이 켜진 경우에만 의미 있음
+    habitReminder?: boolean; // 시간대별 습관 리마인더 + 스누즈 재알림
+    morningBrief?: boolean;  // 매일 06:00 모닝 브리프
+    prayerWeekly?: boolean;  // 주간 기도 회고 도착 알림
+  };
   nickname?: string;         // 정원 둘러보기에서 다른 사용자에게 표시되는 닉네임 (중복 허용)
+  updatedAt: Timestamp;
+}
+
+// 알림 타입 — FCM data.action 값과 1:1 대응. 전달/오픈 트래킹 및 타입별 on/off 키로 사용.
+export type NotificationType =
+  | 'habit_reminder'
+  | 'prayer_reminder'
+  | 'morning_brief'
+  | 'prayer_weekly';
+
+// 알림 전달/오픈 트래킹 (일자별 집계) — users/{uid}/notifStats/{YYYY-MM-DD}
+//  - sent:   FCM 가 접수한 토큰 수 (디바이스 도달이 아닌 '발송 성공')
+//  - failed: FCM 접수 실패 토큰 수
+//  - opened: 사용자가 알림을 눌러 앱을 연(또는 포커스한) 횟수
+export interface NotificationStatsDoc {
+  date: string;
+  sent?: Partial<Record<NotificationType, number>>;
+  failed?: Partial<Record<NotificationType, number>>;
+  opened?: Partial<Record<NotificationType, number>>;
   updatedAt: Timestamp;
 }
 
