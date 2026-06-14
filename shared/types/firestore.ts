@@ -58,9 +58,6 @@ export interface UserSettingsDoc {
   prayerGroups?: string[];   // 기도제목을 받은 모임 목록 (직접 추가 가능). 미설정 시 기본값 사용
   prayerTargets?: string[];  // 기도 대상(요청자/나 자신) 목록 (직접 추가 가능). 미설정 시 기본값 사용
   habitGroups?: HabitGroup[];   // 습관 묶음(예: '학교') — 일괄 건너뛰기 단위. 사용자가 직접 만든다.
-  habitPenalty?: {              // 습관 미완료 패널티 (매일 04:00 어제 분 정산). 미설정 시 기본 ON.
-    enabled: boolean;
-  };
   prayerReminder?: {         // 기도 리마인더 (FCM) — 설정한 시각에 하루 1회
     enabled: boolean;
     hour: number;            // 0~23 (KST)
@@ -308,7 +305,7 @@ export interface PrayerWeeklyDigestDoc {
 // users/{uid}/applications/{id}
 // 적용(무엇을 실천할지)을 기록하고, 이후 며칠간 '오늘 실천했나?'를 체크해
 // 실천 횟수·연속일을 추적한다(기도제목 체크와 동일한 멱등 구조).
-export type ApplicationType = 'qt' | 'sermon' | 'meditation';   // 큐티 / 주일설교 / 말씀묵상
+export type ApplicationType = 'qt' | 'sermon' | 'meditation' | 'lgm' | 'etc';   // 큐티 / 주일설교 / 말씀묵상 / LGM / 기타
 export type ApplicationStatus = 'active' | 'completed' | 'archived';
 
 export interface ApplicationDoc {
@@ -340,6 +337,8 @@ export const APPLICATION_TYPE_LABELS: Record<ApplicationType, string> = {
   qt:         '큐티',
   sermon:     '주일설교',
   meditation: '말씀묵상',
+  lgm:        'LGM',
+  etc:        '기타',
 };
 
 export const APPLICATION_DEFAULT_TARGET_DAYS = 7;

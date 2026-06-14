@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import {
-  collection, onSnapshot, query, orderBy, doc, setDoc, updateDoc, deleteDoc, serverTimestamp,
+  collection, onSnapshot, query, orderBy, doc, setDoc, updateDoc, deleteDoc, serverTimestamp, writeBatch,
 } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { httpsCallable } from 'firebase/functions';
+import { db, functions } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import type {
   ApplicationDoc, ApplicationCheckDoc, ApplicationType,
@@ -54,6 +55,27 @@ export interface NewApplicationInput {
   targetDays?: number;
 }
 
+/** AI 노트 정리 결과 */
+export interface ParsedApplication {
+  reference: string;
+  insight: string;
+  applications: string[];
+  targetDays: number;
+}
+
+/** 노트 텍스트를 AI로 정리 (parseApplication callable). 승인 사용자 전용. */
+export async function parseApplicationNote(rawText: string): Promise<ParsedApplication> {
+  const fn = httpsCallable(functions, 'parseApplication');
+  const res: any = await fn({ rawText: rawText.trim() });
+  const d = res.data ?? {};
+  return {
+    reference: typeof d.reference === 'string' ? d.reference : '',
+    insight: typeof d.insight === 'string' ? d.insight : '',
+    applications: Array.isArray(d.applications) ? d.applications.filter((a: any) => typeof a === 'string' && a.trim()) : [],
+    targetDays: typeof d.targetDays === 'number' ? d.targetDays : 7,
+  };
+}
+
 export function useApplicationActions() {
   const uid = useAppStore((s) => s.uid);
   const today = useAppStore((s) => s.currentDate);
@@ -81,6 +103,40 @@ export function useApplicationActions() {
     await setDoc(ref, app);
     toast('🌱 말씀 적용 추가됨', { description: input.application.trim() });
     return ref.id;
+  };
+
+  /** 공통 메타(유형·본문·깨달음·목표일)를 공유하는 여러 적용점을 한 번에 저장 */
+  const addApplications = async (
+    common: Omit<NewApplicationInput, 'application'>,
+    applications: string[],
+  ): Promise<number> => {
+    if (!uid) return 0;
+    const list = applications.map((a) => a.trim()).filter(Boolean);
+    if (list.length === 0) return 0;
+    const batch = writeBatch(db);
+    const now = serverTimestamp();
+    for (const application of list) {
+      const ref = doc(collection(db, 'users', uid, 'applications'));
+      batch.set(ref, {
+        id: ref.id,
+        type: common.type,
+        date: common.date ?? today,
+        reference: common.reference?.trim() || undefined,
+        title: common.title?.trim() || undefined,
+        insight: common.insight?.trim() || undefined,
+        application,
+        status: 'active',
+        targetDays: common.targetDays ?? APPLICATION_DEFAULT_TARGET_DAYS,
+        practiceCount: 0,
+        practicedDates: [],
+        streak: 0,
+        createdAt: now,
+        updatedAt: now,
+      } as any);
+    }
+    await batch.commit();
+    toast(`🌱 적용 ${list.length}개를 추가했어요`);
+    return list.length;
   };
 
   const updateApplication = async (id: string, patch: Partial<ApplicationDoc>) => {
@@ -137,7 +193,7 @@ export function useApplicationActions() {
   };
 
   return {
-    addApplication, updateApplication, checkPractice, uncheckPractice,
+    addApplication, addApplications, updateApplication, checkPractice, uncheckPractice,
     completeApplication, archiveApplication, reactivateApplication, removeApplication,
   };
 }

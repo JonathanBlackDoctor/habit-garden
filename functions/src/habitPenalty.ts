@@ -7,8 +7,7 @@
  *   - 건너뛰기(score=null), 달성, 휴면, 보호된 날 → 제외
  *
  * 효과: 사용 포인트(spendable) 차감(레벨/누적 XP 는 보존) + 정원 생기 감소.
- * penaltyApplied 플래그로 하루 1회만 적용(멱등). 설정 habitPenalty.enabled 가
- * false 면 건너뛴다(미설정은 기본 ON).
+ * penaltyApplied 플래그로 하루 1회만 적용(멱등). 모든 사용자에게 항상 적용된다.
  */
 import * as admin from 'firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
@@ -16,7 +15,6 @@ import {
   HABIT_PENALTY,
   type HabitDoc,
   type HabitCheckDoc,
-  type UserSettingsDoc,
 } from '../../shared/types/firestore';
 import { inHibernationWindow } from '../../shared/lib/hibernation';
 import { SCALED_ACHIEVE_THRESHOLD } from '../../shared/lib/habitPoints';
@@ -36,11 +34,6 @@ export async function applyHabitPenalty(
   const daySnap = await dayRef.get();
   if (!daySnap.exists) return;                 // 그날 활동 자체가 없으면 건너뜀
   if (daySnap.data()?.penaltyApplied) return;  // 이미 정산함(멱등)
-
-  // 설정 — 미설정이면 기본 ON
-  const settingsSnap = await db.doc(`users/${uid}/settings/main`).get();
-  const settings = settingsSnap.exists ? (settingsSnap.data() as UserSettingsDoc) : null;
-  if (settings?.habitPenalty?.enabled === false) return;
 
   // 활성·비휴면 습관 + 어제의 체크
   const [habitsSnap, checksSnap] = await Promise.all([

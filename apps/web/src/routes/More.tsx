@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
 import { signOutUser } from '@/lib/auth';
-import { Cloud, BookOpen, Settings, LogOut, Bell, BellRing, Vibrate, Volume2, HandHeart, Download, GraduationCap, Palmtree, Thermometer, ShieldCheck, Sparkles, Share2, MessageCircle, Tags, ScrollText, TrendingDown } from 'lucide-react';
+import { Cloud, BookOpen, Settings, LogOut, Bell, BellRing, Vibrate, Volume2, HandHeart, Download, GraduationCap, Palmtree, Thermometer, ShieldCheck, Sparkles, Share2, MessageCircle, Tags, ScrollText } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import { enablePushNotifications, disablePushNotifications, isFcmEnabled } from '@/lib/fcm';
@@ -33,7 +33,6 @@ export default function More() {
   const uid = useAppStore((s) => s.uid);
   const today = useAppStore((s) => s.currentDate);
   const prayerReminder = useAppStore((s) => s.settings?.prayerReminder);
-  const penaltyEnabled = useAppStore((s) => s.settings?.habitPenalty?.enabled) ?? true;
   const [push, setPush]   = useState(false);
   const [haptic, setHapt] = useState(false);
   const [sound, setSnd]   = useState(false);
@@ -115,16 +114,6 @@ export default function More() {
     await setDoc(doc(db, 'users', uid, 'settings', 'main'),
       { prayerReminder: { enabled, hour }, updatedAt: serverTimestamp() }, { merge: true });
     if (enabled) toast.success(`🙏 매일 ${hourLabel(hour)}에 기도 알림을 보내드릴게요`);
-  };
-
-  const onPenaltyToggle = async () => {
-    if (!uid) return;
-    const next = !penaltyEnabled;
-    await setDoc(doc(db, 'users', uid, 'settings', 'main'),
-      { habitPenalty: { enabled: next }, updatedAt: serverTimestamp() }, { merge: true });
-    toast(next ? '습관 미완료 패널티를 켰어요' : '습관 미완료 패널티를 껐어요', {
-      description: next ? '매일 새벽, 어제 못 한 습관만큼 포인트·생기가 줄어요' : undefined,
-    });
   };
 
   const onFaithToggle = async () => {
@@ -267,13 +256,6 @@ export default function More() {
             const v = !sound; setSoundEnabled(v); setSnd(v);
             if (v) feedback('achieve');
           }}
-        />
-        <ToggleRow
-          icon={<TrendingDown size={18} className="text-[var(--leaf)]" />}
-          label="습관 미완료 패널티"
-          desc="매일 새벽, 어제 못 한 습관만큼 포인트·생기 차감 (건너뛰기 제외)"
-          value={penaltyEnabled}
-          onToggle={onPenaltyToggle}
         />
         <ToggleRow
           icon={<HandHeart size={18} className="text-[var(--leaf)]" />}

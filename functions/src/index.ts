@@ -17,6 +17,7 @@ export { generatePrayerWeekly } from './prayerWeekly';
 export { prayerAward, prayerAnsweredAward } from './prayerAward';
 export { todoAward } from './todoAward';
 export { applicationAward, applicationCompleteAward } from './applicationAward';
+export { parseApplication } from './parseApplication';
 export { aiCoach } from './aiCoach';
 export { sendScheduledReminder } from './reminders';
 export { flushReminderQueue } from './reminderQueue';
