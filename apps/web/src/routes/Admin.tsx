@@ -16,6 +16,8 @@ import { isOwner } from '@/lib/auth';
 import { replyToInquiry, deleteInquiry } from '@/lib/inquiries';
 import { seedDefaultHabits } from '@/lib/seed';
 import { useProgress } from '@/features/garden/useGarden';
+import { useIsPremium } from '@/lib/features';
+import NotificationStatsCard from '@/features/notifications/NotificationStatsCard';
 
 export default function Admin() {
   const uid = useAppStore((s) => s.uid);          // 데이터 경로용 유효 uid (샌드박스면 sandbox 네임스페이스)
@@ -34,6 +36,7 @@ export default function Admin() {
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
   const [replyingId, setReplyingId] = useState<string | null>(null);
   const showAdminControls = isOwner(realUid);
+  const isPremium = useIsPremium();
 
   // ── 개발자 테스트 (owner 전용): 포인트·경험치 자유 조절 ──
   const progress = useProgress();
@@ -302,6 +305,9 @@ export default function Admin() {
         </button>
         <h2 className="text-base font-semibold text-[var(--fg-primary)]">관리</h2>
       </div>
+
+      {/* 알림 통계 (전달/오픈 트래킹) — 본인 데이터 */}
+      {isPremium && <NotificationStatsCard />}
 
       {/* 사용자 승인 (owner 전용) */}
       {showAdminControls && (

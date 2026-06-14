@@ -23,6 +23,7 @@ import Devotion   from '@/routes/Devotion';
 import Prayers    from '@/routes/Prayers';
 import Admin      from '@/routes/Admin';
 import More       from '@/routes/More';
+import NotificationSettings from '@/routes/NotificationSettings';
 import Tutorial   from '@/routes/Tutorial';
 import PastDay    from '@/routes/PastDay';
 
@@ -75,6 +76,7 @@ export default function App() {
                 <Route path="/day/:date" element={<PastDay />} />
               </Route>
               <Route path="/admin" element={<Admin />} />
+              <Route path="/settings/notifications" element={<NotificationSettings />} />
             </Route>
           </Routes>
         </AuthInit>
