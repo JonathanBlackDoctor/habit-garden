@@ -32,8 +32,8 @@ const BULK_STEP: Step = {
 const APPLICATION_STEP: Step = {
   target: '[data-tour="application-add"]',
   title: '말씀 적용',
-  body: '큐티·주일설교·LGM·묵상에서 받은 ‘적용’(무엇을 실천할지)을 적어두고, 이후 며칠간 "오늘 실천했어요"를 체크해 정착시키는 곳이에요. + 버튼으로 추가하고, 정리한 노트를 붙여넣으면 AI가 본문·깨달음·여러 적용점까지 정리해줘요.',
-  route: '/applications',
+  body: '같은 신앙 탭의 ‘말씀 적용’에서 큐티·주일설교·LGM·묵상의 적용(무엇을 실천할지)을 적어두고, 이후 며칠간 "오늘 실천했어요"를 체크해 정착시켜요. 정리한 노트를 붙여넣으면 AI가 본문·깨달음·여러 적용점까지 정리해줘요.',
+  route: '/prayers?view=application',
 };
 
 /**
