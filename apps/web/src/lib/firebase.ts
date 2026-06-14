@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { connectAuthEmulator, getAuth } from 'firebase/auth';
+import { browserLocalPersistence, connectAuthEmulator, getAuth, setPersistence } from 'firebase/auth';
 import { connectFirestoreEmulator, enableIndexedDbPersistence, initializeFirestore } from 'firebase/firestore';
 import { connectFunctionsEmulator, getFunctions } from 'firebase/functions';
 import { connectStorageEmulator, getStorage } from 'firebase/storage';
@@ -26,6 +26,14 @@ if (import.meta.env.DEV) {
   connectFunctionsEmulator(functions, 'localhost', 5001);
   connectStorageEmulator(storage, 'localhost', 9199);
 }
+
+// persistence 는 여기서 1회만 설정한다.
+// 로그인 핸들러(클릭) 안에서 `await setPersistence(...)` 를 호출하면 사용자 제스처
+// 체인이 끊겨 모바일 브라우저가 signInWithPopup 의 팝업을 차단하고, 깨진
+// signInWithRedirect(앱 도메인 ≠ authDomain → 크로스도메인 스토리지 파티셔닝으로
+// 자격증명 유실) 폴백으로 떨어져 로그인 무한 루프가 발생한다.
+// 초기화 시점에 미리 설정해 두면 팝업이 클릭과 동기적으로 실행되어 정상 동작한다.
+setPersistence(auth, browserLocalPersistence).catch(() => {});
 
 enableIndexedDbPersistence(db).catch((err) => {
   if (err.code === 'failed-precondition') {

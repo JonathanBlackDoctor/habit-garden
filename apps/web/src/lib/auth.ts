@@ -1,11 +1,9 @@
 import {
   GoogleAuthProvider,
-  browserLocalPersistence,
   getRedirectResult,
   linkWithPopup,
   linkWithRedirect,
   onAuthStateChanged,
-  setPersistence,
   signInAnonymously,
   signInWithCredential,
   signInWithPopup,
@@ -29,7 +27,8 @@ export function isOwner(uid: string | null | undefined): boolean {
 
 export async function signInWithGoogle(): Promise<void> {
   const provider = new GoogleAuthProvider();
-  await setPersistence(auth, browserLocalPersistence).catch(() => {});
+  // persistence 는 firebase.ts 초기화 시 설정한다. 여기서 await 하면 클릭 제스처가
+  // 끊겨 모바일에서 팝업이 차단되고 깨진 redirect 폴백으로 빠진다(로그인 루프).
   try {
     await signInWithPopup(auth, provider);
   } catch (e: any) {
@@ -49,7 +48,6 @@ export async function signInWithGoogle(): Promise<void> {
 
 /** 가입 없이 둘러보기 — 익명 계정으로 진입. 같은 기기/브라우저에서 데이터 유지. */
 export async function signInAsGuest(): Promise<void> {
-  await setPersistence(auth, browserLocalPersistence).catch(() => {});
   const cred = await signInAnonymously(auth);
   // 신규 게스트 계정에 기본 습관을 1회 시딩 (빈 화면 방지)
   await seedGuestHabits(cred.user.uid).catch((e) =>
@@ -65,7 +63,6 @@ export async function signInAsGuest(): Promise<void> {
  */
 export async function upgradeGuestWithGoogle(): Promise<void> {
   const provider = new GoogleAuthProvider();
-  await setPersistence(auth, browserLocalPersistence).catch(() => {});
   const current = auth.currentUser;
 
   // 익명이 아니면(이미 정식 로그인) 일반 로그인 흐름으로 처리
