@@ -291,10 +291,10 @@ export default function More() {
         )}
       </div>
 
-      {/* 말씀 적용 — 큐티·설교에서 받은 적용을 매일 실천으로 추적 */}
+      {/* 말씀 적용 — 신앙 탭(말씀 적용)으로 이동 */}
       {faithEnabled && (
         <button
-          onClick={() => navigate('/applications')}
+          onClick={() => navigate('/prayers?view=application')}
           className="flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3.5 text-sm text-[var(--fg-primary)] shadow-[var(--shadow-sm)] active:opacity-70 text-left"
         >
           <ScrollText size={18} className="text-[var(--leaf)]" />
