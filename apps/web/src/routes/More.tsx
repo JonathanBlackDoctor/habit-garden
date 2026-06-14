@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
 import { signOutUser } from '@/lib/auth';
-import { Cloud, BookOpen, Settings, LogOut, Bell, BellRing, Vibrate, Volume2, HandHeart, Download, GraduationCap, Palmtree, Thermometer, ShieldCheck, Sparkles, Share2, MessageCircle, Tags } from 'lucide-react';
+import { Cloud, BookOpen, Settings, LogOut, Bell, BellRing, Vibrate, Volume2, HandHeart, Download, GraduationCap, Palmtree, Thermometer, ShieldCheck, Sparkles, Share2, MessageCircle, Tags, ScrollText } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import { enablePushNotifications, disablePushNotifications, isFcmEnabled } from '@/lib/fcm';
@@ -290,6 +290,20 @@ export default function More() {
           </>
         )}
       </div>
+
+      {/* 말씀 적용 — 큐티·설교에서 받은 적용을 매일 실천으로 추적 */}
+      {faithEnabled && (
+        <button
+          onClick={() => navigate('/applications')}
+          className="flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3.5 text-sm text-[var(--fg-primary)] shadow-[var(--shadow-sm)] active:opacity-70 text-left"
+        >
+          <ScrollText size={18} className="text-[var(--leaf)]" />
+          <div className="flex-1">
+            <p>말씀 적용</p>
+            <p className="text-[10px] text-[var(--fg-faint)]">큐티·주일설교·묵상의 적용을 매일 실천으로 확인해요</p>
+          </div>
+        </button>
+      )}
 
       {/* 기도 분류 관리 — 모임/대상 이름 변경·병합 */}
       {faithEnabled && (

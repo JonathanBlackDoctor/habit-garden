@@ -15,7 +15,7 @@ const MAX_UNRECORDED_CHIPS = 4;
  */
 export default function YesterdayRecapCard({ habits }: { habits: HabitDoc[] }) {
   const navigate = useNavigate();
-  const { recap, dayScore, yesterday, visible, dismiss } = useYesterdayRecap(habits);
+  const { recap, dayScore, penalty, yesterday, visible, dismiss } = useYesterdayRecap(habits);
 
   if (!visible || !recap) return null;
 
@@ -111,6 +111,19 @@ export default function YesterdayRecapCard({ habits }: { habits: HabitDoc[] }) {
           {chipsMore > 0 && (
             <span className="text-[11px] text-[var(--fg-faint)]">+{chipsMore}</span>
           )}
+        </div>
+      )}
+
+      {/* 미완료 패널티 — 어제 못 한 습관만큼 차감된 결과 */}
+      {penalty && (
+        <div className="flex items-center gap-1.5 rounded-md bg-[var(--wither)]/15 px-2.5 py-1.5 text-[11px] text-[var(--fg-muted)]">
+          <span className="text-[var(--wither)]">▾</span>
+          <span>
+            미완료 패널티
+            {penalty.points > 0 && <b className="text-[var(--fg-primary)]"> −{penalty.points}P</b>}
+            {penalty.healthLoss > 0 && <span> · 생기 −{penalty.healthLoss}</span>}
+            {penalty.count > 0 && <span className="text-[var(--fg-faint)]"> ({penalty.count}개)</span>}
+          </span>
         </div>
       )}
 

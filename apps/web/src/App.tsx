@@ -21,6 +21,7 @@ import Condition  from '@/routes/Condition';
 import Planner    from '@/routes/Planner';
 import Devotion   from '@/routes/Devotion';
 import Prayers    from '@/routes/Prayers';
+import Applications from '@/routes/Applications';
 import Admin      from '@/routes/Admin';
 import More       from '@/routes/More';
 import Tutorial   from '@/routes/Tutorial';
@@ -66,6 +67,7 @@ export default function App() {
                 <Route path="/reflection" element={<Reflection />} />
                 <Route path="/garden"    element={<Garden />} />
                 <Route path="/prayers"   element={<Prayers />} />
+                <Route path="/applications" element={<Applications />} />
                 <Route path="/progress"  element={<Progress />} />
                 <Route path="/condition" element={<Condition />} />
                 <Route path="/planner"   element={<Planner />} />

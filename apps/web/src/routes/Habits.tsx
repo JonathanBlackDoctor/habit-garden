@@ -7,7 +7,9 @@ import { toast } from 'sonner';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import { useHabits, useHabitChecks, useSaveHabitCheck, useClearHabitCheck } from '@/features/habits/useHabits';
+import { useHabitGroups, useBulkSkip } from '@/features/habits/useHabitGroups';
 import { useHabitStreaks } from '@/features/habits/useHabitStreaks';
+import { statusOf } from '@/features/habits/habitStatus';
 import HabitCard from '@/features/habits/HabitCard';
 import HabitEditRow from '@/features/habits/HabitEditRow';
 import PastDateBanner from '@/components/PastDateBanner';
@@ -65,6 +67,8 @@ export default function Habits() {
   const save   = useSaveHabitCheck(isPast ? date : undefined);
   const clear  = useClearHabitCheck(isPast ? date : undefined);
   const streaks = useHabitStreaks(habits);
+  const habitGroups = useHabitGroups();
+  const { bulkSkip, bulkUnskip } = useBulkSkip(date);
   const bloomKey = useTabBloomKey('/habits');
   const nowSectionRef = useRef<HTMLElement>(null);
 
@@ -187,6 +191,50 @@ export default function Habits() {
           </button>
         </div>
       </div>
+
+      {/* 습관 묶음 일괄 건너뛰기 — 오늘·비편집 모드에서만. 예: 등교 안 하는 날 '학교' 묶음 한 번에 건너뛰기 */}
+      {!editMode && !isPast && (() => {
+        const bars = habitGroups
+          .map((g) => ({ group: g, members: liveHabits.filter((h) => h.active && h.groupId === g.id) }))
+          .filter(({ members }) => members.length > 0);
+        if (bars.length === 0) return null;
+        return (
+          <div className="space-y-1.5">
+            {bars.map(({ group, members }) => {
+              const skipped = members.filter((h) => statusOf(checks[h.id]) === 'skipped').length;
+              const allSkipped = skipped === members.length;
+              return (
+                <div
+                  key={group.id}
+                  className="flex items-center gap-2 rounded-[var(--radius)] bg-[var(--bg-surface)] px-3 py-2 shadow-[var(--shadow-sm)]"
+                >
+                  <span className="text-base">🎒</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-[var(--fg-primary)]">{group.name}</p>
+                    <p className="text-[11px] text-[var(--fg-faint)] tabular-nums">
+                      습관 {members.length}개{skipped > 0 && ` · ${skipped} 건너뜀`}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() =>
+                      allSkipped
+                        ? bulkUnskip(group.name, members, checks)
+                        : bulkSkip(group.name, members, checks)
+                    }
+                    className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                      allSkipped
+                        ? 'bg-[var(--bg-base)] text-[var(--fg-muted)] hover:text-[var(--fg-primary)]'
+                        : 'bg-[var(--leaf-soft)] text-[var(--leaf)] hover:bg-[var(--leaf)] hover:text-white'
+                    }`}
+                  >
+                    {allSkipped ? '건너뛰기 해제' : '오늘 일괄 건너뛰기'}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
 
       {/* 시간대별 그룹 */}
       {TIME_ORDER.map((tod) => {
