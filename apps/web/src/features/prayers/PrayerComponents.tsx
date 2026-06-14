@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Timestamp, deleteField } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import type { PrayerDoc, PrayerPriority } from 'shared/types/firestore';
@@ -243,11 +243,18 @@ export function BulkActionBar({
       return;
     }
     const slice = targets.slice(0, VERSE_BATCH_MAX);
+    // 이미 다른 기도제목에 붙은 말씀은 피하도록 힌트로 넘긴다 (같은 말씀 과다 추천 방지)
+    const avoid = Array.from(new Set(
+      (prayers ?? [])
+        .filter((p) => !selected.has(p.id) && p.verse?.reference)
+        .map((p) => p.verse!.reference),
+    ));
     setVersing(true);
     try {
       const fn = httpsCallable(functions, 'suggestPrayerVerse');
       const res: any = await fn({
         items: slice.map((p) => ({ id: p.id, title: p.title, body: p.body ?? '' })),
+        avoid,
       });
       const items: any[] = res.data?.items ?? [];
       const entries = items
@@ -598,11 +605,12 @@ export function AddPrayerDialog({
 
 // ── 상세/편집 다이얼로그 ────────────────────────────────────
 export function PrayerDetailDialog({
-  prayer, open, onOpenChange,
+  prayer, open, onOpenChange, prayers,
 }: {
   prayer: PrayerDoc | null;
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  prayers?: PrayerDoc[];        // 말씀 중복 추천 방지용 — 다른 기도제목의 말씀 조회
 }) {
   const { updatePrayer, togglePin, markAnswered, awaken, removePrayer } = usePrayerActions();
   const isPremium = useIsPremium();
@@ -610,6 +618,13 @@ export function PrayerDetailDialog({
   const [answerMode, setAnswerMode] = useState(false);
   const [answerNote, setAnswerNote] = useState('');
   const [versing, setVersing] = useState(false);
+
+  // 이미 다른 기도제목에 붙은 말씀 — 같은 말씀 과다 추천을 막는 힌트
+  const avoid = useMemo(() => Array.from(new Set(
+    (prayers ?? [])
+      .filter((p) => p.id !== prayer?.id && p.verse?.reference)
+      .map((p) => p.verse!.reference),
+  )), [prayers, prayer?.id]);
 
   if (!prayer) return null;
 
@@ -619,7 +634,7 @@ export function PrayerDetailDialog({
     setVersing(true);
     try {
       const fn = httpsCallable(functions, 'suggestPrayerVerse');
-      const res: any = await fn({ title: prayer.title, body: prayer.body ?? '' });
+      const res: any = await fn({ title: prayer.title, body: prayer.body ?? '', avoid });
       const v = res.data;
       if (v?.reference && v?.text) {
         await updatePrayer(prayer.id, {
