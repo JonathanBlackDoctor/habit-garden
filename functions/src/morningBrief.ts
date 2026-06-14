@@ -13,7 +13,8 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { format, subDays } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import { callGeminiWithRetry, GEMINI_MODEL } from './geminiUtil';
-import type { HabitDoc, DayDoc, ProgressDoc, NotificationTokenDoc } from '../../shared/types/firestore';
+import type { HabitDoc, DayDoc, ProgressDoc, UserSettingsDoc } from '../../shared/types/firestore';
+import { sendPush } from './notify';
 
 const db = admin.firestore();
 const REGION = 'asia-northeast3';
@@ -74,25 +75,17 @@ async function processUser(uid: string, today: string, yesterday: string, recent
       { merge: true },
     );
 
-    // 푸시
+    // 푸시 — 브리프 카드는 인앱에도 남으므로, 알림만 타입별 설정으로 게이트한다 (미설정=on)
+    const settingsSnap = await db.doc(`users/${uid}/settings/main`).get();
+    if ((settingsSnap.data() as UserSettingsDoc | undefined)?.notifications?.morningBrief === false) return;
+
     const tokenSnap = await db.collection(`users/${uid}/notifications`).get();
-    const tokens = tokenSnap.docs.map((d) => (d.data() as NotificationTokenDoc).token).filter(Boolean);
-    if (tokens.length > 0) {
-      await admin.messaging().sendEachForMulticast({
-        tokens,
-        // data-only: 표시는 서비스워커가 전담한다.
-        data: {
-          title: '☀️ 오늘의 브리프',
-          body: top3.map((h) => h.title).join(' · '),
-          date: today,
-          action: 'morning_brief',
-          link: '/habit-garden/',
-        },
-        webpush: {
-          fcmOptions: { link: '/habit-garden/' },
-          headers: { Urgency: 'high' },
-        },
-      });
+    if (!tokenSnap.empty) {
+      await sendPush(uid, tokenSnap.docs, {
+        title: '☀️ 오늘의 브리프',
+        body: top3.map((h) => h.title).join(' · '),
+        date: today,
+      }, { link: '/habit-garden/', type: 'morning_brief' });
     }
   } catch (e) {
     console.error(`morningBrief failed for uid=${uid}:`, e);

@@ -30,7 +30,7 @@ messaging.onBackgroundMessage((payload) => {
     vibrate: [200, 100, 200],
     actions: isHabitReminder
       ? [
-          { action: 'check_all', title: '✓ 전부 완료' },
+          { action: 'open_habits', title: '📝 지금 체크' },
           { action: 'snooze_1h', title: '⏰ 1시간 뒤' },
         ]
       : [],
@@ -43,37 +43,46 @@ self.addEventListener('fetch', () => {});
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
 
+// notifOpen 파라미터를 HashRouter 가 읽는 해시 쿼리에 싣는다(오픈 트래킹용).
+function withNotifOpen(link, action) {
+  if (!action) return link;
+  if (link.indexOf('#') !== -1) {
+    const sep = link.indexOf('?') !== -1 ? '&' : '?';
+    return link + sep + 'notifOpen=' + encodeURIComponent(action);
+  }
+  const base = link.charAt(link.length - 1) === '/' ? link : link + '/';
+  return base + '#/?notifOpen=' + encodeURIComponent(action);
+}
+
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const data = event.notification.data || {};
   const act = event.action;
+  const type = data.action || ''; // 알림 타입 (habit_reminder 등)
 
-  // 액션 버튼 → 열린 클라이언트에 위임(인증된 쓰기). 없으면 딥링크로 앱 오픈.
-  const msg =
-    act === 'check_all'
-      ? { type: 'QUICK_CHECK', habitIds: data.habitIds || '', date: data.date || '' }
-      : act === 'snooze_1h'
-      ? { type: 'SNOOZE_REMINDER', habitIds: data.habitIds || '', date: data.date || '', minutes: 60 }
-      : null;
+  // 스누즈만 인증된 클라이언트 쓰기에 위임. 그 외(본문/‘지금 체크’ 클릭)는 앱 오픈 + 오픈 트래킹.
+  const isSnooze = act === 'snooze_1h';
+  const snoozeMsg = isSnooze
+    ? { type: 'SNOOZE_REMINDER', habitIds: data.habitIds || '', date: data.date || '', minutes: 60 }
+    : null;
 
   event.waitUntil(
     (async () => {
       const cls = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
       for (const c of cls) {
         if (c.url.includes('/habit-garden/')) {
-          if (msg) c.postMessage(msg);
+          if (snoozeMsg) c.postMessage(snoozeMsg);
+          else c.postMessage({ type: 'NOTIF_OPEN', action: type });
           if ('focus' in c) return c.focus();
         }
       }
-      // 열린 창이 없으면 쿼리 파라미터를 실어 앱을 띄운다 (앱 로드 시 처리).
-      let target = '/habit-garden/';
-      if (msg) {
-        const key = act === 'check_all' ? 'quickCheck' : 'snooze';
-        target = `/habit-garden/#/habits?${key}=${encodeURIComponent(data.habitIds || '')}&date=${encodeURIComponent(data.date || '')}`;
-      } else if (data.link) {
-        target = data.link;
+      // 열린 창이 없으면 앱을 띄운다 (앱 로드 시 딥링크/오픈 파라미터 처리).
+      if (snoozeMsg) {
+        const target = `/habit-garden/#/habits?snooze=${encodeURIComponent(data.habitIds || '')}&date=${encodeURIComponent(data.date || '')}`;
+        return self.clients.openWindow(target);
       }
-      return self.clients.openWindow(target);
+      const link = act === 'open_habits' ? '/habit-garden/#/habits' : (data.link || '/habit-garden/');
+      return self.clients.openWindow(withNotifOpen(link, type));
     })(),
   );
 });

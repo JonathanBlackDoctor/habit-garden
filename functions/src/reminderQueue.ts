@@ -7,7 +7,8 @@ import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
-import type { HabitDoc, HabitCheckDoc, NotificationTokenDoc } from '../../shared/types/firestore';
+import type { HabitDoc, HabitCheckDoc, UserSettingsDoc } from '../../shared/types/firestore';
+import { sendPush } from './notify';
 
 const db = admin.firestore();
 const REGION = 'asia-northeast3';
@@ -63,30 +64,19 @@ async function processUser(uid: string, today: string, nowMs: number): Promise<v
       titles.push(habit.title);
     });
 
-    if (pending.length > 0) {
+    // 습관 리마인더가 꺼져 있으면 재발송하지 않는다 (큐 항목은 아래에서 정리됨)
+    const settingsSnap = await db.doc(`users/${uid}/settings/main`).get();
+    const habitOff = (settingsSnap.data() as UserSettingsDoc | undefined)?.notifications?.habitReminder === false;
+
+    if (pending.length > 0 && !habitOff) {
       const tokenSnap = await db.collection(`users/${uid}/notifications`).get();
-      const tokens = tokenSnap.docs.map((d) => (d.data() as NotificationTokenDoc).token).filter(Boolean);
-      if (tokens.length > 0) {
-        try {
-          await admin.messaging().sendEachForMulticast({
-            tokens,
-            // data-only: 표시는 서비스워커가 전담한다.
-            data: {
-              title: `⏰ 다시 알림 — ${pending.length}개`,
-              body: `${titles.slice(0, 2).join(', ')}${pending.length > 2 ? ` 외 ${pending.length - 2}개` : ''}`,
-              date: today,
-              action: 'habit_reminder',
-              habitIds: pending.join(','),
-              link: '/habit-garden/#/habits',
-            },
-            webpush: {
-              fcmOptions: { link: '/habit-garden/#/habits' },
-              headers: { Urgency: 'high' },
-            },
-          });
-        } catch (e) {
-          console.error(`flushReminderQueue FCM error for ${uid}:`, e);
-        }
+      if (!tokenSnap.empty) {
+        await sendPush(uid, tokenSnap.docs, {
+          title: `⏰ 다시 알림 — ${pending.length}개`,
+          body: `${titles.slice(0, 2).join(', ')}${pending.length > 2 ? ` 외 ${pending.length - 2}개` : ''}`,
+          date: today,
+          habitIds: pending.join(','),
+        }, { link: '/habit-garden/#/habits', type: 'habit_reminder' });
       }
     }
   }

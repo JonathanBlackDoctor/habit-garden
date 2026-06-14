@@ -33,6 +33,7 @@ export default function More() {
   const uid = useAppStore((s) => s.uid);
   const today = useAppStore((s) => s.currentDate);
   const prayerReminder = useAppStore((s) => s.settings?.prayerReminder);
+  const notif = useAppStore((s) => s.settings?.notifications);
   const [push, setPush]   = useState(false);
   const [haptic, setHapt] = useState(false);
   const [sound, setSnd]   = useState(false);
@@ -114,6 +115,15 @@ export default function More() {
     await setDoc(doc(db, 'users', uid, 'settings', 'main'),
       { prayerReminder: { enabled, hour }, updatedAt: serverTimestamp() }, { merge: true });
     if (enabled) toast.success(`🙏 매일 ${hourLabel(hour)}에 기도 알림을 보내드릴게요`);
+  };
+
+  const saveNotifPref = async (
+    key: 'habitReminder' | 'morningBrief' | 'prayerWeekly',
+    value: boolean,
+  ) => {
+    if (!uid) return;
+    await setDoc(doc(db, 'users', uid, 'settings', 'main'),
+      { notifications: { [key]: value }, updatedAt: serverTimestamp() }, { merge: true });
   };
 
   const onFaithToggle = async () => {
@@ -236,6 +246,33 @@ export default function More() {
             value={push}
             onToggle={onPushToggle}
           />
+        )}
+        {isPremium && push && (
+          <>
+            <ToggleRow
+              icon={<BellRing size={18} className="text-[var(--leaf)]" />}
+              label="습관 리마인더"
+              desc="시간대별 미체크 습관 알림"
+              value={notif?.habitReminder ?? true}
+              onToggle={() => saveNotifPref('habitReminder', !(notif?.habitReminder ?? true))}
+            />
+            <ToggleRow
+              icon={<Sparkles size={18} className="text-[var(--leaf)]" />}
+              label="모닝 브리프"
+              desc="매일 아침 오늘의 핵심 습관 알림"
+              value={notif?.morningBrief ?? true}
+              onToggle={() => saveNotifPref('morningBrief', !(notif?.morningBrief ?? true))}
+            />
+            {faithEnabled && (
+              <ToggleRow
+                icon={<HandHeart size={18} className="text-[var(--leaf)]" />}
+                label="주간 기도 회고"
+                desc="매주 일요일 저녁 회고 도착 알림"
+                value={notif?.prayerWeekly ?? true}
+                onToggle={() => saveNotifPref('prayerWeekly', !(notif?.prayerWeekly ?? true))}
+              />
+            )}
+          </>
         )}
         <ToggleRow
           icon={<Vibrate size={18} className="text-[var(--leaf)]" />}
