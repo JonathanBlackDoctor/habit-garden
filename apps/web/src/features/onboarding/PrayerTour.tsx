@@ -28,6 +28,14 @@ const BULK_STEP: Step = {
   route: '/prayers',
 };
 
+// 말씀 적용 — 큐티·설교에서 받은 적용을 매일 실천으로 추적
+const APPLICATION_STEP: Step = {
+  target: '[data-tour="application-add"]',
+  title: '말씀 적용',
+  body: '같은 신앙 탭의 ‘말씀 적용’에서 큐티·주일설교·LGM·묵상의 적용(무엇을 실천할지)을 적어두고, 이후 며칠간 "오늘 실천했어요"를 체크해 정착시켜요. 정리한 노트를 붙여넣으면 AI가 본문·깨달음·여러 적용점까지 정리해줘요.',
+  route: '/prayers?view=application',
+};
+
 /**
  * 기도 튜토리얼 오케스트레이터.
  * 더보기에서 신앙 기능을 켤 때마다(startPrayerTour) 기도 화면으로 이동해 가이드를 진행한다.
@@ -40,7 +48,9 @@ export default function PrayerTour() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const steps = isPremium ? [...BASE_STEPS, BULK_STEP] : BASE_STEPS;
+  const steps = isPremium
+    ? [...BASE_STEPS, BULK_STEP, APPLICATION_STEP]
+    : [...BASE_STEPS, APPLICATION_STEP];
 
   // 열릴 때 기도 화면으로 이동(탭이 막 활성화됐을 수 있음)
   useEffect(() => {

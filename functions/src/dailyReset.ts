@@ -11,6 +11,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { subDays, format, parseISO } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import { processDailyGarden } from './gardenAutogrow';
+import { applyHabitPenalty } from './habitPenalty';
 import { shouldBecomeDormant, selectTodayPrayers, type RotationInput } from '../../shared/prayerRotation';
 import { selectCarryOverItems, CARRY_LOOKBACK_DAYS, type CarryDay } from '../../shared/todoCarryover';
 import type { PrayerDoc, TodayTodoDoc } from '../../shared/types/firestore';
@@ -45,6 +46,7 @@ export const dailyReset = functions
       try {
         const { success, protected: protectedDay } = await processUserDay(uid, today, yesterday);
         await processDailyGarden(uid, success, protectedDay);  // 정원 트레잇·생기·시들기·보너스 시드
+        await applyHabitPenalty(uid, yesterday, protectedDay); // 어제 미완료 습관 패널티 (포인트·생기 차감)
         const { count: dormantCount, remainingActive } = await processDormantTransitions(uid);  // 잊혀짐 자동 전이 (설계 §5)
         if (dormantCount > 0) console.log(`dormant transition: uid=${uid}, n=${dormantCount}`);
         await ensurePrayerPlan(uid, today, remainingActive);  // 오늘의 기도 목록 서버 확정 (설계 §3.4)

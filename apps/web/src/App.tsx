@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { HashRouter, Route, Routes } from 'react-router-dom';
+import { HashRouter, Route, Routes, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { useAuth } from '@/lib/auth';
 
@@ -67,6 +67,8 @@ export default function App() {
                 <Route path="/reflection" element={<Reflection />} />
                 <Route path="/garden"    element={<Garden />} />
                 <Route path="/prayers"   element={<Prayers />} />
+                {/* 말씀 적용은 신앙 탭에 통합됨 — 옛 경로·딥링크는 신앙 탭으로 보낸다 */}
+                <Route path="/applications" element={<Navigate to="/prayers?view=application" replace />} />
                 <Route path="/progress"  element={<Progress />} />
                 <Route path="/condition" element={<Condition />} />
                 <Route path="/planner"   element={<Planner />} />

@@ -57,6 +57,7 @@ export interface UserSettingsDoc {
   };
   prayerGroups?: string[];   // 기도제목을 받은 모임 목록 (직접 추가 가능). 미설정 시 기본값 사용
   prayerTargets?: string[];  // 기도 대상(요청자/나 자신) 목록 (직접 추가 가능). 미설정 시 기본값 사용
+  habitGroups?: HabitGroup[];   // 습관 묶음(예: '학교') — 일괄 건너뛰기 단위. 사용자가 직접 만든다.
   prayerReminder?: {         // 기도 리마인더 (FCM) — 설정한 시각에 하루 1회
     enabled: boolean;
     hour: number;            // 0~23 (KST)
@@ -109,6 +110,13 @@ export interface DayDoc {
   todosCarriedOver?: boolean;       // 전날 미완료 할 일 이월이 끝났는지 (하루 1회만 실행 — 멱등 가드)
   prayerCountedIds?: string[];    // 오늘 기도 카운트·스트릭이 반영된 기도제목 id (영구; 체크↔해제 반복 시 prayCount/스트릭 폭증 방지)
   prayerListCompleted?: boolean;  // 오늘 목록 완료 보너스 지급 여부
+  applicationCheckAwardedIds?: string[]; // 오늘 말씀 적용 실천 체크 포인트가 적립돼 있는 application id (해제 시 삭감)
+  applicationCountedIds?: string[];      // 오늘 실천 카운트·연속이 반영된 application id (영구; 체크↔해제 반복 시 폭증 방지)
+  // ── 습관 미완료 패널티 (dailyReset 가 어제 분에 1회 적용; penaltyApplied 멱등 게이트) ──
+  penaltyApplied?: boolean;       // 이 날짜에 패널티 정산을 이미 마쳤는지
+  penaltyPoints?: number;         // 차감된 포인트(절댓값)
+  penaltyHealthLoss?: number;     // 감소된 정원 생기(절댓값)
+  penaltyCount?: number;          // 패널티 대상 습관 수 (미기록+미달성)
   morningBrief?: MorningBrief;    // 매일 06:00 생성되는 개인화 모닝 브리프
   updatedAt: Timestamp;
 }
@@ -151,6 +159,13 @@ export interface WeatherSnapshot {
   fetchedAt: Timestamp;
 }
 
+// ── 습관 묶음 ────────────────────────────────────────────
+// UserSettingsDoc.habitGroups[] — 예: '학교'. 등교일에만 하는 습관을 묶어 일괄 건너뛰기 한다.
+export interface HabitGroup {
+  id: string;
+  name: string;
+}
+
 // ── 습관 정의 ────────────────────────────────────────────
 // users/{uid}/habits/{id}
 export interface HabitDoc {
@@ -164,6 +179,7 @@ export interface HabitDoc {
   iconName: string;
   description?: string;
   active: boolean;
+  groupId?: string | null;          // 소속 습관 묶음 id (HabitGroup.id). 없으면 묶음 없음.
   hibernatedSince?: string | null;  // YYYY-MM-DD, 휴면 시작일
   hibernatedUntil?: string | null;  // YYYY-MM-DD, 휴면 종료(깨운)일. 비어있으면 현재 휴면 중
 }
@@ -308,6 +324,56 @@ export interface PrayerWeeklyDigestDoc {
   oneLineEncouragement: string;       // AI 생성 격려 두 문장
   generatedAt: Timestamp;
 }
+
+// ── 말씀 적용 (큐티·주일설교·말씀묵상 → 삶의 적용 다회 실천 추적) ──────────
+// users/{uid}/applications/{id}
+// 적용(무엇을 실천할지)을 기록하고, 이후 며칠간 '오늘 실천했나?'를 체크해
+// 실천 횟수·연속일을 추적한다(기도제목 체크와 동일한 멱등 구조).
+export type ApplicationType = 'qt' | 'sermon' | 'meditation' | 'lgm' | 'etc';   // 큐티 / 주일설교 / 말씀묵상 / LGM / 기타
+export type ApplicationStatus = 'active' | 'completed' | 'archived';
+
+export interface ApplicationDoc {
+  id: string;
+  type: ApplicationType;
+  date: string;               // 'YYYY-MM-DD' — 말씀을 받은(작성) 날
+  reference?: string;         // 본문 (예: '요한복음 3:16')
+  title?: string;             // 설교 제목 / 묵상 주제 (선택)
+  insight?: string;           // 깨달은 말씀 — 무엇을 말씀하셨나 (선택)
+  application: string;        // 구체적 적용 — 무엇을 실천할지 (필수)
+  status: ApplicationStatus;
+  targetDays: number;         // 며칠간 실천할 목표 (기본 7)
+  practiceCount: number;      // 누적 실천 횟수 (= practicedDates.length)
+  practicedDates: string[];   // 실천 체크한 날짜들 ('YYYY-MM-DD'); 서버(applicationAward)가 관리
+  streak: number;             // 연속 실천일
+  lastPracticedAt?: Timestamp;
+  completedAt?: Timestamp;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+// 일일 실천 체크 — users/{uid}/days/{YYYY-MM-DD}/applicationChecks/{appId}
+export interface ApplicationCheckDoc {
+  applicationId: string;
+  practicedAt: Timestamp;
+}
+
+export const APPLICATION_TYPE_LABELS: Record<ApplicationType, string> = {
+  qt:         '큐티',
+  sermon:     '주일설교',
+  meditation: '말씀묵상',
+  lgm:        'LGM',
+  etc:        '기타',
+};
+
+export const APPLICATION_DEFAULT_TARGET_DAYS = 7;
+
+export const APPLICATION_POINT_EARN = {
+  PRACTICE_CHECK: 3,   // 하루 1건 실천 체크
+  COMPLETE:       20,  // 적용을 '완료'로 마무리 (간증/정착)
+} as const;
+
+// 하루 실천 체크 포인트 상한 (인플레이션 방지)
+export const APPLICATION_DAILY_CHECK_CAP = 30;
 
 // ── 플래너 ──────────────────────────────────────────────
 export interface LongTodoDoc {
@@ -519,6 +585,19 @@ export const PRAYER_DAILY_CHECK_CAP = 30;
 
 // 하루 습관 체크 포인트 상한 (수백 개 습관 생성 악용 방지)
 export const HABIT_DAILY_CHECK_CAP = 300;
+
+// ── 습관 미완료 패널티 (설계: 매일 04:00 어제 분 정산) ────────────────────
+// 대상: 손도 안 댄(미기록) + 시도했으나 미달성. 건너뛰기·휴면·보호된 날은 제외.
+// 미기록(방치)은 미달성(시도)보다 무겁게 본다(MISSED_FACTOR 로 감경).
+// 포인트는 사용 포인트(spendable)만 차감하며 레벨/누적 XP 는 보존(레벨 후퇴 없음).
+export const HABIT_PENALTY = {
+  POINT_PER_WEIGHT: 1,     // 미기록 습관 1개당 가중치 × 이 값 P 차감
+  MISSED_FACTOR: 0.5,      // 미달성(시도)은 위 패널티의 절반만
+  DAILY_POINT_CAP: 40,     // 하루 포인트 차감 상한
+  HEALTH_PER_TODO: 2,      // 미기록 1개당 정원 생기 감소
+  HEALTH_PER_MISSED: 1,    // 미달성 1개당 정원 생기 감소
+  DAILY_HEALTH_CAP: 12,    // 하루 생기 감소 상한
+} as const;
 
 // ── 할 일(todo) 포인트 상수 ───────────────────────────────
 export const TODO_POINT_EARN = {
