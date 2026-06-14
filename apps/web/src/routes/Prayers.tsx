@@ -189,6 +189,7 @@ function PrayerSection({
         prayer={liveSelected}
         open={detailOpen}
         onOpenChange={setDetailOpen}
+        prayers={prayers}
       />
       <AddPrayerDialog open={addOpen} onOpenChange={setAddOpen} />
       {isPremium && <BulkParse open={bulkOpen} onOpenChange={setBulkOpen} />}
@@ -244,11 +245,12 @@ function TodayView({
 
   const [prayerModeOpen, setPrayerModeOpen] = useState(false);
 
-  const loadMore = () => {
+  const loadMore = (): PrayerDoc[] => {
     const exclude = new Set([...planIds, ...extraIds]);
     const next = selectMorePrayers(toInputs(active), exclude, Date.now(), MORE_BATCH);
-    if (next.length === 0) return;
+    if (next.length === 0) return [];
     void appendTodayExtras(date, [...extraIds, ...next]);
+    return next.map((id) => byId.get(id)).filter(Boolean) as PrayerDoc[];
   };
 
   const hasMore = active.some((p) => !p.pinned && !planIds.has(p.id) && !extraIds.includes(p.id));
@@ -355,6 +357,8 @@ function TodayView({
         prayers={all}
         checks={checks}
         date={date}
+        onLoadMore={loadMore}
+        hasMore={hasMore}
       />
     </div>
   );
