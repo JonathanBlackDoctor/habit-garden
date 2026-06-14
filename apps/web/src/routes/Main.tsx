@@ -505,18 +505,29 @@ export default function Main() {
         </motion.div>
       )}
 
-      {/* ── 기도 ── */}
+      {/* ── 기도 · 말씀 적용 ── */}
       {faithEnabled && (
-        <motion.button
+        <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.25 }}
-          onClick={() => navigate('/prayers')}
-          className="card px-4 py-3 text-left flex items-center justify-between"
+          className="grid grid-cols-2 gap-3"
         >
-          <span className="text-sm text-[var(--sky)]">🙏 오늘의 기도 · 감사</span>
-          <ArrowRight size={14} className="text-[var(--fg-faint)]" />
-        </motion.button>
+          <button
+            onClick={() => navigate('/prayers')}
+            className="card px-4 py-3 text-left flex items-center justify-between"
+          >
+            <span className="text-sm text-[var(--sky)]">🙏 오늘의 기도</span>
+            <ArrowRight size={14} className="text-[var(--fg-faint)]" />
+          </button>
+          <button
+            onClick={() => navigate('/applications')}
+            className="card px-4 py-3 text-left flex items-center justify-between"
+          >
+            <span className="text-sm text-[var(--sky)]">📖 말씀 적용</span>
+            <ArrowRight size={14} className="text-[var(--fg-faint)]" />
+          </button>
+        </motion.div>
       )}
     </div>
   );

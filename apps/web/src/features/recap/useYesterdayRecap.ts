@@ -26,6 +26,7 @@ export function useYesterdayRecap(habits: HabitDoc[]) {
 
   const [checks, setChecks] = useState<Record<string, HabitCheckDoc> | null>(null);
   const [dayScore, setDayScore] = useState<number | undefined>(undefined);
+  const [penalty, setPenalty] = useState<{ points: number; healthLoss: number; count: number } | null>(null);
   const [dismissed, setDismissed] = useState(() => {
     try { return localStorage.getItem(DISMISS_KEY) === today; } catch { return false; }
   });
@@ -46,7 +47,13 @@ export function useYesterdayRecap(habits: HabitDoc[]) {
       const map: Record<string, HabitCheckDoc> = {};
       checkSnap.docs.forEach((d) => { map[d.id] = d.data() as HabitCheckDoc; });
       setChecks(map);
-      setDayScore(daySnap.exists() ? (daySnap.data() as DayDoc).dayScore : undefined);
+      const day = daySnap.exists() ? (daySnap.data() as DayDoc) : null;
+      setDayScore(day?.dayScore);
+      setPenalty(
+        day?.penaltyApplied && ((day.penaltyPoints ?? 0) > 0 || (day.penaltyHealthLoss ?? 0) > 0)
+          ? { points: day.penaltyPoints ?? 0, healthLoss: day.penaltyHealthLoss ?? 0, count: day.penaltyCount ?? 0 }
+          : null,
+      );
     })();
     return () => { cancelled = true; };
   }, [uid, yesterday]);
@@ -64,6 +71,7 @@ export function useYesterdayRecap(habits: HabitDoc[]) {
   return {
     recap,
     dayScore,
+    penalty,
     yesterday,
     visible: recap !== null && !dismissed,
     dismiss,

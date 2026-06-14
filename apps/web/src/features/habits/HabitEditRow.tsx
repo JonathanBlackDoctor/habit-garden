@@ -5,6 +5,7 @@ import { Switch } from '@/components/ui/switch';
 import { ChevronUp, ChevronDown, Trash2, Moon, Sunrise } from 'lucide-react';
 import type { HabitDoc } from 'shared/types/firestore';
 import { isHibernating } from 'shared/lib/hibernation';
+import { useHabitGroups, useHabitGroupActions } from '@/features/habits/useHabitGroups';
 import { toast } from 'sonner';
 
 const TIME_OPTIONS: Array<HabitDoc['timeOfDay']> = [
@@ -23,6 +24,20 @@ export default function HabitEditRow({ habit, groupSiblings }: Props) {
   const uid = useAppStore((s) => s.uid);
   const today = useAppStore((s) => s.currentDate);
   const hibernating = isHibernating(habit);
+  const groups = useHabitGroups();
+  const { addGroup, assignHabit } = useHabitGroupActions();
+
+  const onGroupChange = async (value: string) => {
+    if (value === '__none') { await assignHabit(habit.id, null); return; }
+    if (value === '__new') {
+      const name = prompt('새 습관 묶음 이름 (예: 학교)');
+      if (!name?.trim()) return;
+      const id = await addGroup(name);
+      if (id) await assignHabit(habit.id, id);
+      return;
+    }
+    await assignHabit(habit.id, value);
+  };
 
   const updateField = async (patch: Partial<HabitDoc>) => {
     if (!uid) return;
@@ -142,6 +157,19 @@ export default function HabitEditRow({ habit, groupSiblings }: Props) {
         >
           <option value="binary">완료형</option>
           <option value="scaled">5점</option>
+        </select>
+
+        <select
+          value={habit.groupId ?? '__none'}
+          onChange={(e) => onGroupChange(e.target.value)}
+          title="습관 묶음 (일괄 건너뛰기 단위)"
+          className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-1.5 py-0.5 text-xs text-[var(--fg-primary)] focus:border-[var(--leaf)] focus:outline-none"
+        >
+          <option value="__none">묶음 없음</option>
+          {groups.map((g) => (
+            <option key={g.id} value={g.id}>{g.name}</option>
+          ))}
+          <option value="__new">+ 새 묶음…</option>
         </select>
 
         <div className="ml-auto flex items-center gap-1">
