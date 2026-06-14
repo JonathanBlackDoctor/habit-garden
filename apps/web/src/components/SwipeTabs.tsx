@@ -7,16 +7,15 @@ import Main from '@/routes/Main';
 import Habits from '@/routes/Habits';
 import Garden from '@/routes/Garden';
 import Prayers from '@/routes/Prayers';
-import Progress from '@/routes/Progress';
 import More from '@/routes/More';
 
 // 탭 페이지를 한 번만 마운트해 트랙에 나란히 유지(keep-alive)
+// 진척(/progress)은 하단 탭이 아니라 더보기 안의 일반 라우트라 여기 포함하지 않는다.
 const TAB_ELEMENTS: Record<string, ReactElement> = {
   '/': <Main />,
   '/habits': <Habits />,
   '/garden': <Garden />,
   '/prayers': <Prayers />,
-  '/progress': <Progress />,
   '/more': <More />,
 };
 
