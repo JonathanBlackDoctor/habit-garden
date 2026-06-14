@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
-import { signOutUser } from '@/lib/auth';
+import { signOutUser, isOwner } from '@/lib/auth';
 import { Cloud, BookOpen, Settings, LogOut, Bell, ChevronRight, Vibrate, Volume2, HandHeart, Download, GraduationCap, Palmtree, Thermometer, ShieldCheck, Sparkles, Share2, MessageCircle, Tags, ScrollText } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
@@ -32,6 +32,7 @@ export default function More() {
   const startOnboarding = useAppStore((s) => s.startOnboarding);
   const startPrayerTour = useAppStore((s) => s.startPrayerTour);
   const uid = useAppStore((s) => s.uid);
+  const realUid = useAppStore((s) => s.realUid);
   const today = useAppStore((s) => s.currentDate);
   const [push, setPush]   = useState(false);
   const [haptic, setHapt] = useState(false);
@@ -166,7 +167,7 @@ export default function More() {
 
       <p className="px-1 pt-2 text-[11px] font-medium text-[var(--fg-faint)]">바로가기</p>
       {items
-        .filter((it) => !(isGuest && it.to === '/admin'))
+        .filter((it) => !(it.to === '/admin' && !isOwner(realUid)))
         .map(({ icon: Icon, label, to }) => (
         <button
           key={to}

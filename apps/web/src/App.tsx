@@ -4,6 +4,7 @@ import { Toaster } from 'sonner';
 import { useAuth } from '@/lib/auth';
 
 import ProtectedRoute from '@/components/ProtectedRoute';
+import OwnerRoute from '@/components/OwnerRoute';
 import AppLayout from '@/components/AppLayout';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import SandboxBanner from '@/components/SandboxBanner';
@@ -77,7 +78,9 @@ export default function App() {
                 <Route path="/tutorial"  element={<Tutorial />} />
                 <Route path="/day/:date" element={<PastDay />} />
               </Route>
-              <Route path="/admin" element={<Admin />} />
+              <Route element={<OwnerRoute />}>
+                <Route path="/admin" element={<Admin />} />
+              </Route>
               <Route path="/settings/notifications" element={<NotificationSettings />} />
             </Route>
           </Routes>
