@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
-import { ArrowRight, CheckCircle2, Lightbulb, Sunrise, Target, X } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Lightbulb, Sunrise, Target } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import { formatKoreanDate } from '@/lib/dayBoundary';
@@ -23,7 +23,7 @@ const MAX_UNRECORDED_CHIPS = 4;
  *  2. 어제 미달·미기록 습관과 개선 포인트(focus)를 요약한다.
  *  3. 서버가 만든 모닝 브리프(AI 한 줄·핵심 습관)도 함께 노출한다.
  *
- * X 로 닫으면 그날은 다시 뜨지 않는다.
+ * 다른 위젯과 동일하게 닫기 없이 항상 노출된다(보여줄 내용이 있을 때).
  */
 export default function MorningBriefingCard({
   habits,
@@ -37,7 +37,7 @@ export default function MorningBriefingCard({
   const navigate = useNavigate();
   const uid = useAppStore((s) => s.uid);
   const today = useAppStore((s) => s.currentDate);
-  const { recap, dayScore, penalty, yesterday, resolution, visible, dismiss } = useYesterdayRecap(habits);
+  const { recap, dayScore, penalty, yesterday, resolution, visible } = useYesterdayRecap(habits);
 
   // 어제의 다짐 실천 체크 — 오늘 DayDoc.resolutionPracticed 에 저장
   const [practiced, setPracticed] = useState(false);
@@ -74,21 +74,12 @@ export default function MorningBriefingCard({
         <div className="flex items-center gap-1.5 text-xs font-semibold text-[var(--bloom)]">
           <Sunrise size={14} /> 아침 브리핑 · {formatKoreanDate(yesterday)}
         </div>
-        <div className="flex items-center gap-1">
-          {recap && (
-            <span className="text-[11px] tabular-nums text-[var(--fg-muted)]">
-              어제 {recap.achieved}/{recap.intended}
-              {dayScore !== undefined && ` · ${dayScore}점`}
-            </span>
-          )}
-          <button
-            onClick={dismiss}
-            aria-label="닫기"
-            className="-mr-1 rounded-full p-1 text-[var(--fg-faint)] hover:text-[var(--fg-muted)]"
-          >
-            <X size={14} />
-          </button>
-        </div>
+        {recap && (
+          <span className="text-[11px] tabular-nums text-[var(--fg-muted)]">
+            어제 {recap.achieved}/{recap.intended}
+            {dayScore !== undefined && ` · ${dayScore}점`}
+          </span>
+        )}
       </div>
 
       {/* 모닝 브리프 — 서버가 만든 AI 한 줄 */}

@@ -5,8 +5,6 @@ import { useAppStore } from '@/lib/store';
 import type { DayDoc, HabitCheckDoc, HabitDoc } from 'shared/types/firestore';
 import { buildYesterdayRecap, type YesterdayRecap } from './yesterdayRecap';
 
-const DISMISS_KEY = 'yesterdayRecap.dismissedOn';
-
 /** YYYY-MM-DD 문자열의 전날 키 */
 export function prevDateKey(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00Z');
@@ -17,7 +15,7 @@ export function prevDateKey(dateStr: string): string {
 /**
  * 어제 돌아보기 — 어제의 habitChecks·dayScore 를 1회 조회(리스너 아님)해
  * 다음날 메인에서 보여줄 피드백 요약을 만든다.
- * 닫기(X)는 localStorage 에 오늘 날짜로 기록 — 하루 지나면 다시 노출.
+ * 다른 위젯처럼 닫기 없이 항상 노출(보여줄 내용이 있을 때).
  */
 export function useYesterdayRecap(habits: HabitDoc[]) {
   const uid = useAppStore((s) => s.uid);
@@ -29,13 +27,6 @@ export function useYesterdayRecap(habits: HabitDoc[]) {
   const [penalty, setPenalty] = useState<{ points: number; healthLoss: number; count: number } | null>(null);
   // 어제 회고의 '내일 딱 한 가지 더 잘하고 싶은 것(q_tomorrow)' — 오늘 실천할 다짐
   const [resolution, setResolution] = useState<string | undefined>(undefined);
-  const [dismissed, setDismissed] = useState(() => {
-    try { return localStorage.getItem(DISMISS_KEY) === today; } catch { return false; }
-  });
-
-  useEffect(() => {
-    try { setDismissed(localStorage.getItem(DISMISS_KEY) === today); } catch { /* private mode */ }
-  }, [today]);
 
   useEffect(() => {
     if (!uid) return;
@@ -66,20 +57,13 @@ export function useYesterdayRecap(habits: HabitDoc[]) {
     [habits, checks],
   );
 
-  const dismiss = () => {
-    try { localStorage.setItem(DISMISS_KEY, today); } catch { /* private mode */ }
-    setDismissed(true);
-  };
-
   return {
     recap,
     dayScore,
     penalty,
     yesterday,
     resolution,
-    dismissed,
-    // 보여줄 내용이 있고(어제 요약 또는 어제의 다짐) 닫지 않았을 때만 노출
-    visible: (recap !== null || resolution !== undefined) && !dismissed,
-    dismiss,
+    // 보여줄 내용(어제 요약 또는 어제의 다짐)이 있을 때 노출 — 닫기 없이 항상 유지
+    visible: recap !== null || resolution !== undefined,
   };
 }
