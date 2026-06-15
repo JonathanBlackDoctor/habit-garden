@@ -4,6 +4,7 @@ import { useProgress, useGardenActions, isWateredToday } from '@/features/garden
 import PlantSVG from '@/features/garden/PlantSVG';
 import PlantCodex from '@/features/garden/PlantCodex';
 import GardenBrowse from '@/features/garden/GardenBrowse';
+import DailyGardenRecapCard from '@/features/garden/DailyGardenRecapCard';
 import TranscendAtmosphere from '@/features/garden/TranscendAtmosphere';
 import { useAppStore } from '@/lib/store';
 import { useNickname } from '@/lib/features';
@@ -345,6 +346,9 @@ export default function Garden() {
           />
         </div>
       </div>
+
+      {/* 어젯밤 정원 소식 — 날짜가 바뀐 뒤 정산 요약(포인트·XP·생기·성장·시듦) */}
+      {uid && <DailyGardenRecapCard recap={progress.gardenStats?.lastDailyRecap} uid={uid} />}
 
       {/* 탭 바 */}
       <div className="flex gap-2 border-b border-[var(--leaf-soft)]">

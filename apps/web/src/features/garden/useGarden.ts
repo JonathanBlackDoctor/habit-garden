@@ -3,9 +3,9 @@ import { doc, onSnapshot, setDoc, serverTimestamp, collection, addDoc, Timestamp
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import { writePublicGarden } from '@/lib/features';
-import type { ProgressDoc, PlantInstance, GardenState } from 'shared/types/firestore';
+import type { ProgressDoc, PlantInstance, GardenState, DailyGardenRecap } from 'shared/types/firestore';
 import { PLANT_SPECIES, POINT_PRICES, CODEX_SPECIES_COUNT, MAX_BEDS, PLANTS_PER_BED, DAILY_PLANT_LIMIT } from 'shared/types/firestore';
-import { computePassiveYield } from 'shared/lib/gardenYield';
+import { computePassiveYield, computeYieldBreakdown } from 'shared/lib/gardenYield';
 import { toast } from 'sonner';
 
 // 공개 정원 미러 중복 쓰기 방지: uid → 마지막 미러 해시. 모듈 레벨이라 다중 마운트 시 공유된다.
@@ -115,6 +115,28 @@ function maybeRunPassiveYield(uid: string, data: ProgressDoc): void {
   const amount = computePassiveYield(garden.plants ?? []);
   if (amount <= 0) return;                             // 만개·수익 식물 없음 → 마커도 남기지 않음
 
+  // 서버 정산이 누락된 경우를 대비한 '일부' 정산 요약 — 오늘 번 포인트(식물별)만 채운다.
+  // 서버가 같은 게임일에 이미 전체 요약을 남겼다면 덮어쓰지 않는다(부분이 전체를 가리지 않게).
+  const health = garden.health ?? 100;
+  const partialRecap: DailyGardenRecap = {
+    gameDay,
+    yesterdaySuccess: false,
+    protectedDay: false,
+    pointsEarned: amount,
+    upkeepPaid: 0,
+    xpGained: 0,
+    healthBefore: health,
+    healthAfter: health,
+    grown: 0, bloomed: 0, withered: 0, regressed: 0, lost: 0,
+    streakSeed: false,
+    plants: computeYieldBreakdown(garden.plants ?? []).map((b) => ({
+      plantId: b.plantId, speciesId: b.speciesId, events: [], yield: b.yield,
+    })),
+    partial: true,
+    createdAt: Timestamp.now() as any,
+  };
+  const writeRecap = stats.lastDailyRecap?.gameDay !== gameDay;
+
   setDoc(
     doc(db, 'users', uid, 'progress', 'main'),
     {
@@ -125,6 +147,7 @@ function maybeRunPassiveYield(uid: string, data: ProgressDoc): void {
         passiveYieldTotal:    (stats.passiveYieldTotal ?? 0) + amount,
         lastPassiveYieldDate: gameDay,
         lastPassiveYieldAmount: amount,
+        ...(writeRecap ? { lastDailyRecap: partialRecap } : {}),
       },
       updatedAt: serverTimestamp(),
     },
@@ -162,7 +185,12 @@ function maybeShowPassiveYieldToast(uid: string, data: ProgressDoc): void {
   try { localStorage.setItem(passiveYieldToastKey(uid), yieldDate); } catch { /* ignore */ }
   toast(`🌷 만개한 식물이 +${amount}P를 벌어다 줬어요!`, {
     description: bloomed > 0 ? `만개 식물 ${bloomed}그루의 하루 수익이 적립됐어요.` : '하루 수익이 적립됐어요.',
-    duration: 5000,
+    duration: 6000,
+    action: {
+      label: '정원에서 보기',
+      // HashRouter — 해시 변경으로 정원 탭(어젯밤 정원 소식)으로 이동.
+      onClick: () => { window.location.hash = '#/garden'; },
+    },
   });
 }
 
