@@ -2,9 +2,11 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useVisibleTabs } from '@/lib/tabs';
 import { useScrollToTop } from '@/lib/scrollContext';
+import { useTabBadges } from '@/lib/tabBadges';
 
 export default function TabBar() {
   const tabs = useVisibleTabs();
+  const badges = useTabBadges();
   const location = useLocation();
   const navigate = useNavigate();
   const scrollToTop = useScrollToTop();
@@ -33,7 +35,9 @@ export default function TabBar() {
   return (
     <nav className="tab-bar-safe fixed bottom-0 left-0 right-0 z-40 flex border-t border-[var(--border)] bg-[var(--bg-surface)]">
       <div data-tour="tabbar" className="mx-auto flex w-full max-w-[480px] items-center justify-around">
-        {tabs.map(({ to, icon: Icon, label }) => (
+        {tabs.map(({ to, icon: Icon, label }) => {
+          const badge = badges[to] ?? 0;
+          return (
           <NavLink
             key={to}
             to={to}
@@ -51,16 +55,27 @@ export default function TabBar() {
           >
             {({ isActive }) => (
               <>
-                <Icon
-                  size={22}
-                  strokeWidth={isActive ? 2.2 : 1.8}
-                  className={isActive ? 'text-[var(--leaf)]' : 'text-[var(--fg-faint)]'}
-                />
+                <span className="relative">
+                  <Icon
+                    size={22}
+                    strokeWidth={isActive ? 2.2 : 1.8}
+                    className={isActive ? 'text-[var(--leaf)]' : 'text-[var(--fg-faint)]'}
+                  />
+                  {badge > 0 && (
+                    <span
+                      aria-label={`${badge}개 할 일`}
+                      className="absolute -right-2.5 -top-1.5 flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-[var(--bg-surface)]"
+                    >
+                      {badge > 99 ? '99+' : badge}
+                    </span>
+                  )}
+                </span>
                 <span>{label}</span>
               </>
             )}
           </NavLink>
-        ))}
+          );
+        })}
       </div>
     </nav>
   );

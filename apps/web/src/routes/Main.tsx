@@ -28,6 +28,7 @@ import HabitStatusDot from '@/features/habits/HabitStatusDot';
 import { statusOf } from '@/features/habits/habitStatus';
 import MorningBriefingCard from '@/features/recap/MorningBriefingCard';
 import { pointsForCheck } from 'shared/lib/habitPoints';
+import TodayApplicationCard from '@/features/applications/TodayApplicationCard';
 import {
   useMainWidgetOrder,
   useHiddenWidgets,
@@ -336,15 +337,12 @@ export default function Main() {
     ) : null,
 
     faith: faithEnabled ? (
-      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="grid grid-cols-2 gap-3">
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="space-y-3">
         <button onClick={() => navigate('/prayers')} className="card px-4 py-3 text-left flex items-center justify-between">
           <span className="text-sm text-[var(--sky)]">🙏 오늘의 기도</span>
           <ArrowRight size={14} className="text-[var(--fg-faint)]" />
         </button>
-        <button onClick={() => navigate('/prayers?view=application')} className="card px-4 py-3 text-left flex items-center justify-between">
-          <span className="text-sm text-[var(--sky)]">📖 말씀 적용</span>
-          <ArrowRight size={14} className="text-[var(--fg-faint)]" />
-        </button>
+        <TodayApplicationCard />
       </motion.div>
     ) : null,
   };
