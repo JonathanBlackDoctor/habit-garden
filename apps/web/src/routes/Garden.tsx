@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useProgress, useGardenActions, isWateredToday } from '@/features/garden/useGarden';
 import PlantSVG from '@/features/garden/PlantSVG';
@@ -108,7 +109,11 @@ export default function Garden() {
   const bloomKey = useTabBloomKey('/garden');
   const [selected, setSelected] = useState<PlantInstance | null>(null);
   const [tab, setTab] = useState<Tab>('garden');
-  const [subTab, setSubTab] = useState<SubTab>('mine');
+  // 내 정원 ↔ 둘러보기 — URL ?view=browse 로 딥링크·탭 더블탭 연동 (신앙 탭과 동일 패턴)
+  const [searchParams, setSearchParams] = useSearchParams();
+  const subTab: SubTab = searchParams.get('view') === 'browse' ? 'browse' : 'mine';
+  const setSubTab = (v: SubTab) =>
+    setSearchParams(v === 'browse' ? { view: 'browse' } : {}, { replace: true });
   const uid = useAppStore((s) => s.uid);
   const sandbox = useAppStore((s) => s.sandbox);
   const user = useAppStore((s) => s.user);

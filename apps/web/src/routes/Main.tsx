@@ -15,7 +15,7 @@ import ProgressRing from '@/components/ProgressRing';
 import type { DayDoc, TodayTodoDoc } from 'shared/types/firestore';
 import { PLANT_SPECIES } from 'shared/types/firestore';
 import { motion } from 'framer-motion';
-import { Flame, ArrowRight, CheckCircle2, RefreshCw, Sparkles, X, Sunrise, PenLine } from 'lucide-react';
+import { ArrowRight, CheckCircle2, RefreshCw, Sparkles, X, PenLine } from 'lucide-react';
 import { useComeback } from '@/features/comeback/useComeback';
 import OneYearAgoCard from '@/features/stats/OneYearAgoCard';
 import WeeklyQuestCard from '@/features/quests/WeeklyQuestCard';
@@ -25,7 +25,7 @@ import { useCrisisWatcher } from '@/features/coach/useCrisisWatcher';
 import { useFaithEnabled, useIsPremium } from '@/lib/features';
 import HabitStatusDot from '@/features/habits/HabitStatusDot';
 import { statusOf } from '@/features/habits/habitStatus';
-import YesterdayRecapCard from '@/features/recap/YesterdayRecapCard';
+import MorningBriefingCard from '@/features/recap/MorningBriefingCard';
 import { pointsForCheck } from 'shared/lib/habitPoints';
 
 const TIME_LABELS: Record<string, string> = {
@@ -83,8 +83,6 @@ export default function Main() {
   const health        = progress?.gardenState?.health ?? 100;
   const plants        = progress?.gardenState?.plants ?? [];
   const hasReflection = !!dayDoc?.reflection;
-  // 저녁·밤에 아직 회고를 안 썼으면 메인에서 강조 (꼭 작성하도록 넛지)
-  const reflectionDue = !hasReflection && (currentTOD === 'evening' || currentTOD === 'night');
 
   // 시간대별 요약
   const groupedHabits = TIME_ORDER.map((tod) => {
@@ -95,6 +93,10 @@ export default function Main() {
 
   // 미기록(아직 손대지 않은) 습관 수 + 격려 넛지
   const remaining = habits.filter((h) => checks[h.id] === undefined).length;
+  // 회고 작성 넛지 — 저녁·밤이거나, 오늘 습관을 모두 기록해 마무리할 때 강조.
+  // (회고를 더 자주·확실히 쓰도록 노출 시점을 넓힌다)
+  const habitsSettled = totalHabits > 0 && remaining === 0;
+  const reflectionDue = !hasReflection && (currentTOD === 'evening' || currentTOD === 'night' || habitsSettled);
   // 건너뜀(score=null)은 오늘 목표에서 제외 — 미이행으로 취급하지 않음
   const skippedCount = habits.filter((h) => checks[h.id]?.score === null).length;
   const intended = Math.max(totalHabits - skippedCount, 0);
@@ -166,8 +168,12 @@ export default function Main() {
         </div>
       </motion.div>
 
-      {/* ── 어제 돌아보기 — 어제 미달성 습관·개선 포인트 다음날 피드백 ── */}
-      <YesterdayRecapCard habits={habits} />
+      {/* ── 아침 브리핑 — 어제 돌아보기 + 오늘의 브리프 + 어제 다짐 실천 ── */}
+      <MorningBriefingCard
+        habits={habits}
+        morningBrief={dayDoc?.morningBrief}
+        resolutionPracticed={dayDoc?.resolutionPracticed}
+      />
 
       {/* ── 오늘의 습관 ── */}
       <motion.section
@@ -277,7 +283,7 @@ export default function Main() {
           </motion.div>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-[var(--bloom)]">오늘 회고를 작성해 주세요</p>
-            <p className="text-xs text-[var(--fg-muted)]">하루를 돌아보고 +20P · 스마트폰 사용 시간도 함께 기록</p>
+            <p className="text-xs text-[var(--fg-muted)]">‘내일의 다짐’이 내일 아침 실천 카드로 이어져요 · +20P</p>
           </div>
           <ArrowRight size={16} className="shrink-0 text-[var(--bloom)]" />
         </motion.button>
@@ -441,31 +447,6 @@ export default function Main() {
         </div>
         <ArrowRight size={14} className="text-[var(--fg-faint)]" />
       </motion.button>
-
-      {/* ── 모닝 브리프 (B-8/B-32) ── */}
-      {dayDoc?.morningBrief && (
-        <motion.div
-          initial={{ opacity: 0, y: -6 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="rounded-[var(--radius)] border border-[var(--bloom)]/20 bg-gradient-to-br from-[#FFF6E5] to-[#FFE9C2] p-3"
-        >
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-[var(--bloom)]">
-            <Sunrise size={14} /> 오늘의 브리프
-          </div>
-          <p className="mt-1 text-sm leading-snug text-[var(--fg-primary)]">{dayDoc.morningBrief.message}</p>
-          <div className="mt-2 flex items-center gap-2 text-[11px] text-[var(--fg-muted)]">
-            <span className="tabular-nums">어제 {dayDoc.morningBrief.yesterdayScore}점</span>
-            {dayDoc.morningBrief.streak > 0 && <span className="tabular-nums">🔥 {dayDoc.morningBrief.streak}일</span>}
-          </div>
-          <div className="mt-1.5 flex flex-wrap gap-1.5">
-            {dayDoc.morningBrief.priorityHabits.map((h) => (
-              <span key={h.id} className="rounded-full bg-white/70 px-2 py-0.5 text-[11px] text-[var(--fg-primary)]">
-                ⭐ {h.title}
-              </span>
-            ))}
-          </div>
-        </motion.div>
-      )}
 
       {/* ── AI 코치 한 줄 (Phase 3-3) — 승인 사용자 전용 ── */}
       {isPremium ? (
