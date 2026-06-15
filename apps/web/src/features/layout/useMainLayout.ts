@@ -9,12 +9,11 @@ import { useAppStore } from '@/lib/store';
  * 여기 나열된 순서가 신규 사용자·미설정 사용자의 기본 순서가 된다.
  */
 export const MAIN_WIDGET_IDS = [
-  'recap',        // 어제 돌아보기
+  'recap',        // 아침 브리핑 (어제 돌아보기 + 오늘의 브리프 + 어제 다짐 실천)
   'habits',       // 오늘의 습관
   'todos',        // 할 일 · 회고
   'garden',       // 정원 미리보기
   'condition',    // 컨디션
-  'morningBrief', // 오늘의 브리프
   'coach',        // AI 코치
   'weeklyQuest',  // 주간 퀘스트
   'season',       // 시즌 챌린지

@@ -122,6 +122,7 @@ export interface DayDoc {
   penaltyHealthLoss?: number;     // 감소된 정원 생기(절댓값)
   penaltyCount?: number;          // 패널티 대상 습관 수 (미기록+미달성)
   morningBrief?: MorningBrief;    // 매일 06:00 생성되는 개인화 모닝 브리프
+  resolutionPracticed?: boolean;  // 어제 회고의 '내일의 다짐(q_tomorrow)'을 오늘 실천했는지 — 회고 피드백 루프
   updatedAt: Timestamp;
 }
 

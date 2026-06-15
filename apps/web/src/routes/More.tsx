@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
 import { signOutUser, isOwner } from '@/lib/auth';
-import { Cloud, BookOpen, Settings, LogOut, Bell, ChevronRight, Vibrate, Volume2, HandHeart, Download, GraduationCap, Palmtree, Thermometer, ShieldCheck, Sparkles, Share2, MessageCircle, Tags, ScrollText, BarChart2, LayoutGrid } from 'lucide-react';
+import { Cloud, BookOpen, Settings, LogOut, Bell, ChevronRight, Vibrate, Volume2, HandHeart, Download, GraduationCap, Palmtree, Thermometer, ShieldCheck, Sparkles, Share2, MessageCircle, Tags, BarChart2, LayoutGrid } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import { isFcmEnabled } from '@/lib/fcm';
@@ -273,20 +273,6 @@ export default function More() {
           <p className="text-[10px] text-[var(--fg-faint)]">위젯 순서를 바꾸거나 필요 없는 위젯을 숨겨요</p>
         </div>
       </button>
-
-      {/* 말씀 적용 — 신앙 탭(말씀 적용)으로 이동 */}
-      {faithEnabled && (
-        <button
-          onClick={() => navigate('/prayers?view=application')}
-          className="flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3.5 text-sm text-[var(--fg-primary)] shadow-[var(--shadow-sm)] active:opacity-70 text-left"
-        >
-          <ScrollText size={18} className="text-[var(--leaf)]" />
-          <div className="flex-1">
-            <p>말씀 적용</p>
-            <p className="text-[10px] text-[var(--fg-faint)]">큐티·주일설교·묵상의 적용을 매일 실천으로 확인해요</p>
-          </div>
-        </button>
-      )}
 
       {/* 기도 분류 관리 — 모임/대상 이름 변경·병합 */}
       {faithEnabled && (
