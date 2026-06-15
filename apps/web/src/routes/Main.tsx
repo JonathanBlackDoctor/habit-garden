@@ -7,6 +7,8 @@ import { useHabits, useHabitChecks } from '@/features/habits/useHabits';
 import { useProgress } from '@/features/garden/useGarden';
 import PlantSVG from '@/features/garden/PlantSVG';
 import TodayGrowth from '@/features/garden/TodayGrowth';
+import ForecastCard from '@/features/garden/ForecastCard';
+import { useForecastNudge } from '@/features/garden/useForecastNudge';
 import { formatKoreanDate, timeOfDay } from '@/lib/dayBoundary';
 import { xpForLevel, cn } from '@/lib/utils';
 import BloomBadge from '@/components/BloomBadge';
@@ -49,6 +51,7 @@ const WIDGET_LABELS: Record<MainWidgetId, string> = {
   habits: '오늘의 습관',
   todos: '할 일 · 회고',
   garden: '정원 미리보기',
+  forecast: '내일 정원 예보',
   condition: '컨디션',
   coach: 'AI 코치',
   weeklyQuest: '주간 퀘스트',
@@ -169,6 +172,7 @@ export default function Main() {
 
   const comeback = useComeback();
   useCrisisWatcher();
+  useForecastNudge();
   const totalAchieved = Object.values(checks).filter((c) => c.achieved).length;
   const totalHabits   = habits.length;
   const forecastPoints = habits.reduce((sum, h) => {
@@ -348,6 +352,8 @@ export default function Main() {
         </div>
       </motion.section>
     ),
+
+    forecast: <ForecastCard />,
 
     condition: (
       <motion.button

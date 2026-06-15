@@ -12,6 +12,7 @@ import { subDays, format, parseISO } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import { processDailyGarden } from './gardenAutogrow';
 import { applyHabitPenalty } from './habitPenalty';
+import { HEALTH_RULES } from '../../shared/lib/healthForecast';
 import { shouldBecomeDormant, selectTodayPrayers, type RotationInput } from '../../shared/prayerRotation';
 import { selectCarryOverItems, CARRY_LOOKBACK_DAYS, type CarryDay } from '../../shared/todoCarryover';
 import type { PrayerDoc, TodayTodoDoc } from '../../shared/types/firestore';
@@ -172,7 +173,7 @@ async function processUserDay(
     const scored   = checks.docs.filter((d) => d.data().score !== null);
     const total    = scored.length;
     const achieved = scored.filter((d) => d.data().achieved).length;
-    success  = total > 0 && achieved / total >= 0.6;
+    success  = total > 0 && achieved / total >= HEALTH_RULES.SUCCESS_THRESHOLD;
 
     if (!success) {
       const progressRef = db.doc(`users/${uid}/progress/main`);

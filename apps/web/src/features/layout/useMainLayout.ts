@@ -13,6 +13,7 @@ export const MAIN_WIDGET_IDS = [
   'habits',       // 오늘의 습관
   'todos',        // 할 일 · 회고
   'garden',       // 정원 미리보기
+  'forecast',     // 내일 정원 예보 (선제적 생기 피드백)
   'condition',    // 컨디션
   'coach',        // AI 코치
   'weeklyQuest',  // 주간 퀘스트

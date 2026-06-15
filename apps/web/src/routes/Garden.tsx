@@ -6,6 +6,7 @@ import PlantSVG from '@/features/garden/PlantSVG';
 import PlantCodex from '@/features/garden/PlantCodex';
 import GardenBrowse from '@/features/garden/GardenBrowse';
 import DailyGardenRecapCard from '@/features/garden/DailyGardenRecapCard';
+import ForecastCard from '@/features/garden/ForecastCard';
 import TranscendAtmosphere from '@/features/garden/TranscendAtmosphere';
 import { useAppStore } from '@/lib/store';
 import { useNickname } from '@/lib/features';
@@ -351,6 +352,9 @@ export default function Garden() {
           />
         </div>
       </div>
+
+      {/* 내일 정원 예보 — 오늘 행동이 내일 생기에 어떻게 반영될지 선제적으로 보여 줌 */}
+      <ForecastCard />
 
       {/* 어젯밤 정원 소식 — 날짜가 바뀐 뒤 정산 요약(포인트·XP·생기·성장·시듦) */}
       {uid && <DailyGardenRecapCard gardenStats={progress.gardenStats} gardenState={gardenState} uid={uid} />}
