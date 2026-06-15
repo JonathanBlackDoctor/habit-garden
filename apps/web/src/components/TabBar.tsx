@@ -14,13 +14,20 @@ export default function TabBar() {
     to === '/' ? location.pathname === '/' : location.pathname.startsWith(to);
 
   // 이미 활성화된 탭을 다시 눌렀을 때의 동작.
-  // 신앙 탭(/prayers)은 기도 ↔ 말씀 적용 뷰를 토글하고, 그 외 탭은 맨 위로 스크롤한다.
+  // 신앙 탭(/prayers)은 기도 ↔ 말씀 적용, 정원 탭(/garden)은 내 정원 ↔ 둘러보기 뷰를
+  // 토글하고, 그 외 탭은 맨 위로 스크롤한다.
   const handleReTap = (e: React.MouseEvent, to: string) => {
     if (!isActivePath(to)) return; // 다른 탭으로 이동 — NavLink 기본 동작
     if (to === '/prayers') {
       e.preventDefault();
       const isApp = new URLSearchParams(location.search).get('view') === 'application';
       navigate(isApp ? '/prayers' : '/prayers?view=application');
+      return;
+    }
+    if (to === '/garden') {
+      e.preventDefault();
+      const isBrowse = new URLSearchParams(location.search).get('view') === 'browse';
+      navigate(isBrowse ? '/garden' : '/garden?view=browse');
       return;
     }
     scrollToTop();
