@@ -213,7 +213,7 @@ export default function ConditionAnalysis() {
         </p>
       )}
 
-      {/* 원인(독립변수) — 참고용. 상세 분석은 삼성 헬스가 맡는다. */}
+      {/* 원인(독립변수) — 참고용. */}
       {hasDriverAvg && (
         <div className="space-y-1.5 rounded-[var(--radius-sm)] bg-[var(--sky)]/10 px-3 py-2">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-[var(--fg-muted)]">
@@ -224,7 +224,6 @@ export default function ConditionAnalysis() {
               <span className="tabular-nums">평균 {Math.floor(avgDuration)}시간 {Math.round((avgDuration % 1) * 60)}분</span>
             )}
           </div>
-          <p className="text-[10px] text-[var(--fg-faint)]">수면·에너지의 상세 분석은 삼성 헬스에 맡기고, 여기선 하루 결과와의 관계만 봐요.</p>
         </div>
       )}
     </section>
