@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Moon, X, Coins, Sparkles, Heart, Sprout, ChevronDown, ChevronUp } from 'lucide-react';
 import { PLANT_SPECIES } from 'shared/types/firestore';
-import type { DailyGardenRecap, DailyGardenRecapPlant } from 'shared/types/firestore';
+import type { DailyGardenRecap, DailyGardenRecapPlant, GardenStats, GardenState } from 'shared/types/firestore';
+import { computeYieldBreakdown } from 'shared/lib/gardenYield';
 import { formatKoreanDate } from '@/lib/dayBoundary';
 import { cn } from '@/lib/utils';
 import PlantSVG from '@/features/garden/PlantSVG';
@@ -45,18 +46,62 @@ function StatChip({ icon, label, tone }: { icon?: React.ReactNode; label: string
 }
 
 /**
+ * 오늘 게임일에 보여 줄 요약을 고른다.
+ *  1) 서버/클라이언트가 남긴 상세 요약(lastDailyRecap)이 오늘 것이면 그대로 사용(성장·시듦까지 포함).
+ *  2) 없으면 — 서버 정산이 상세 요약을 안 남겼더라도 — 오늘 적립된 passive yield 마커로
+ *     최소 요약을 합성한다. 이렇게 하면 토스트가 뜨는 날엔 카드도 반드시 함께 뜬다.
+ */
+function deriveTodayRecap(
+  today: string,
+  gardenStats: GardenStats | undefined,
+  gardenState: GardenState | undefined,
+): DailyGardenRecap | undefined {
+  const stored = gardenStats?.lastDailyRecap;
+  if (stored && stored.gameDay === today) return stored;
+
+  const yieldDate = gardenStats?.lastPassiveYieldDate;
+  const amount = gardenStats?.lastPassiveYieldAmount ?? 0;
+  if (yieldDate === today && amount > 0) {
+    const health = gardenState?.health ?? 100;
+    return {
+      gameDay: today,
+      yesterdaySuccess: false,
+      protectedDay: false,
+      pointsEarned: amount,
+      upkeepPaid: 0,
+      xpGained: 0,
+      healthBefore: health,
+      healthAfter: health,
+      grown: 0, bloomed: 0, withered: 0, regressed: 0, lost: 0,
+      streakSeed: false,
+      plants: computeYieldBreakdown(gardenState?.plants ?? []).map((b) => ({
+        plantId: b.plantId, speciesId: b.speciesId, events: [], yield: b.yield,
+      })),
+      partial: true,
+    };
+  }
+  return undefined;
+}
+
+/**
  * 어젯밤 정원 소식 — 매일 04:00 정산(processDailyGarden)에서 일어난 변화를
  * 정원 탭 상단에서 한눈에·자세히 보여 준다. 토스트로만 스쳐 가던 정보를 여기서 차분히 확인한다.
  * X 로 닫으면 그 게임일에는 다시 뜨지 않는다(localStorage).
  */
 export default function DailyGardenRecapCard({
-  recap,
+  gardenStats,
+  gardenState,
   uid,
 }: {
-  recap: DailyGardenRecap | undefined;
+  gardenStats: GardenStats | undefined;
+  gardenState: GardenState | undefined;
   uid: string;
 }) {
   const today = getGameDayKST();
+  const recap = useMemo(
+    () => deriveTodayRecap(today, gardenStats, gardenState),
+    [today, gardenStats, gardenState],
+  );
   const [dismissedDay, setDismissedDay] = useState<string | null>(() => {
     try { return localStorage.getItem(DISMISS_KEY(uid)); } catch { return null; }
   });

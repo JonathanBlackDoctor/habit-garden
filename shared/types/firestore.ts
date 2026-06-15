@@ -486,7 +486,7 @@ export interface DailyGardenRecap {
   streakSeed: boolean;        // 7일 스트릭 보너스 씨앗을 받았는지
   plants: DailyGardenRecapPlant[]; // 변화·기여가 있는 식물별 상세
   partial?: boolean;          // 클라이언트 이중 경로가 일부만 채운 요약
-  createdAt: Timestamp;
+  createdAt?: Timestamp;      // 서버 정산이 남긴 생성 시각(표시용 합성 요약에는 없을 수 있음)
 }
 
 // ── 시즌 진행 상태 ──────────────────────────────────────
