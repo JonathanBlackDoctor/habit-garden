@@ -1,9 +1,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { HashRouter, Route, Routes } from 'react-router-dom';
+import { HashRouter, Route, Routes, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { useAuth } from '@/lib/auth';
 
 import ProtectedRoute from '@/components/ProtectedRoute';
+import OwnerRoute from '@/components/OwnerRoute';
 import AppLayout from '@/components/AppLayout';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import SandboxBanner from '@/components/SandboxBanner';
@@ -21,9 +22,9 @@ import Condition  from '@/routes/Condition';
 import Planner    from '@/routes/Planner';
 import Devotion   from '@/routes/Devotion';
 import Prayers    from '@/routes/Prayers';
-import Applications from '@/routes/Applications';
 import Admin      from '@/routes/Admin';
 import More       from '@/routes/More';
+import NotificationSettings from '@/routes/NotificationSettings';
 import Tutorial   from '@/routes/Tutorial';
 import PastDay    from '@/routes/PastDay';
 
@@ -67,7 +68,8 @@ export default function App() {
                 <Route path="/reflection" element={<Reflection />} />
                 <Route path="/garden"    element={<Garden />} />
                 <Route path="/prayers"   element={<Prayers />} />
-                <Route path="/applications" element={<Applications />} />
+                {/* 말씀 적용은 신앙 탭에 통합됨 — 옛 경로·딥링크는 신앙 탭으로 보낸다 */}
+                <Route path="/applications" element={<Navigate to="/prayers?view=application" replace />} />
                 <Route path="/progress"  element={<Progress />} />
                 <Route path="/condition" element={<Condition />} />
                 <Route path="/planner"   element={<Planner />} />
@@ -76,7 +78,10 @@ export default function App() {
                 <Route path="/tutorial"  element={<Tutorial />} />
                 <Route path="/day/:date" element={<PastDay />} />
               </Route>
-              <Route path="/admin" element={<Admin />} />
+              <Route element={<OwnerRoute />}>
+                <Route path="/admin" element={<Admin />} />
+              </Route>
+              <Route path="/settings/notifications" element={<NotificationSettings />} />
             </Route>
           </Routes>
         </AuthInit>

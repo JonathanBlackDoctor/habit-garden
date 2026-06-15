@@ -1,10 +1,9 @@
 import { useState } from 'react';
-import { useNavigate, Navigate } from 'react-router-dom';
-import { ChevronLeft, Plus, Flame, Check, CheckCircle2, Archive, Trash2, BookOpen, RotateCcw, Wand2, Loader2, PenLine } from 'lucide-react';
+import { Plus, Flame, Check, CheckCircle2, Archive, Trash2, BookOpen, RotateCcw, Wand2, Loader2, PenLine, ChevronLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { useAppStore } from '@/lib/store';
-import { useFaithEnabled, useIsPremium } from '@/lib/features';
+import { useIsPremium } from '@/lib/features';
 import { formatKoreanDate } from '@/lib/dayBoundary';
 import { cn } from '@/lib/utils';
 import {
@@ -21,14 +20,8 @@ const TYPE_EMOJI: Record<ApplicationType, string> = {
   qt: '🌅', sermon: '⛪', meditation: '📖', lgm: '👥', etc: '📝',
 };
 
-export default function Applications() {
-  const faithEnabled = useFaithEnabled();
-  if (!faithEnabled) return <Navigate to="/" replace />;
-  return <ApplicationsInner />;
-}
-
-function ApplicationsInner() {
-  const navigate = useNavigate();
+/** 말씀 적용 패널 — 신앙 탭(Prayers)의 '말씀 적용' 세그먼트에 임베드된다. */
+export function ApplicationsPanel() {
   const date = useAppStore((s) => s.currentDate);
   const apps = useApplications();
   const checks = useApplicationChecks(date);
@@ -39,23 +32,17 @@ function ApplicationsInner() {
   const finished = apps.filter((a) => a.status !== 'active');
 
   return (
-    <div className="min-h-screen p-4 space-y-4 pb-10">
-      {/* 헤더 */}
-      <div className="flex items-center gap-2 py-1">
-        <button onClick={() => navigate(-1)} className="text-[var(--fg-muted)]" aria-label="뒤로">
-          <ChevronLeft size={22} />
-        </button>
-        <div className="flex-1">
-          <h2 className="text-base font-semibold text-[var(--fg-primary)]">말씀 적용</h2>
-          <p className="text-[11px] text-[var(--fg-faint)]">큐티·설교·묵상에서 받은 적용을 매일 실천으로</p>
-        </div>
+    <div className="space-y-4">
+      {/* 안내 + 추가 버튼 */}
+      <div className="flex items-center gap-2">
+        <p className="flex-1 text-[11px] text-[var(--fg-faint)]">큐티·설교·LGM·묵상에서 받은 적용을 매일 실천으로</p>
         <button
           data-tour="application-add"
           onClick={() => setShowForm((v) => !v)}
-          className="flex items-center justify-center rounded-full bg-[var(--leaf)] p-2 text-white active:opacity-80"
+          className="flex items-center gap-1 rounded-[var(--radius)] bg-[var(--leaf)] px-3 py-1.5 text-xs font-medium text-white shadow-[var(--shadow-sm)] active:opacity-80"
           aria-label="적용 추가"
         >
-          <Plus size={18} className={cn('transition-transform', showForm && 'rotate-45')} />
+          <Plus size={14} className={cn('transition-transform', showForm && 'rotate-45')} /> 추가
         </button>
       </div>
 

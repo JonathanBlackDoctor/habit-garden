@@ -10,7 +10,8 @@ import { subDays, format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { callGeminiWithRetry, GEMINI_MODEL } from './geminiUtil';
-import type { PrayerDoc, NotificationTokenDoc } from '../../shared/types/firestore';
+import type { PrayerDoc, UserSettingsDoc } from '../../shared/types/firestore';
+import { sendPush } from './notify';
 
 const db = admin.firestore();
 const KST = 'Asia/Seoul';
@@ -153,23 +154,15 @@ async function processUserWeekly(uid: string, nowKst: Date): Promise<void> {
     generatedAt: FieldValue.serverTimestamp(),
   });
 
-  // 8) 도착 푸시 — 실패해도 다이제스트 저장은 이미 끝난 상태
-  try {
-    const tokenSnap = await db.collection(`users/${uid}/notifications`).get();
-    const tokens = tokenSnap.docs.map((d) => (d.data() as NotificationTokenDoc).token).filter(Boolean);
-    if (tokens.length > 0) {
-      await admin.messaging().sendEachForMulticast({
-        tokens,
-        data: {
-          title: '🙏 주간 기도 돌아보기가 도착했어요',
-          body: encouragement.slice(0, 80),
-          action: 'prayer_weekly',
-          link: '/habit-garden/#/prayers',
-        },
-        webpush: { fcmOptions: { link: '/habit-garden/#/prayers' } },
-      });
-    }
-  } catch (e) {
-    console.error(`prayerWeekly push error uid=${uid}:`, e);
+  // 8) 도착 푸시 — 회고는 인앱에 저장되므로 알림만 타입별 설정으로 게이트한다 (미설정=on)
+  const settingsSnap = await db.doc(`users/${uid}/settings/main`).get();
+  if ((settingsSnap.data() as UserSettingsDoc | undefined)?.notifications?.prayerWeekly === false) return;
+
+  const tokenSnap = await db.collection(`users/${uid}/notifications`).get();
+  if (!tokenSnap.empty) {
+    await sendPush(uid, tokenSnap.docs, {
+      title: '🙏 주간 기도 돌아보기가 도착했어요',
+      body: encouragement.slice(0, 80),
+    }, { link: '/habit-garden/#/prayers', type: 'prayer_weekly', urgency: 'normal' });
   }
 }

@@ -18,12 +18,13 @@ import PrayerMode from '@/features/prayers/PrayerMode';
 import { DuplicateFinder } from '@/features/prayers/DuplicateFinder';
 import { WeeklyDigestCard } from '@/features/prayers/WeeklyDigestCard';
 import { selectMorePrayers, type RotationInput } from 'shared/prayerRotation';
-import { Plus, ClipboardList, Search, Heart, ListChecks, Layers, ChevronDown } from 'lucide-react';
+import { Plus, ClipboardList, Search, Heart, ListChecks, Layers, ChevronDown, HandHeart, BookOpen } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import { useFaithEnabled, useIsPremium } from '@/lib/features';
 import { useTabBloomKey } from '@/lib/tabActive';
+import { ApplicationsPanel } from '@/routes/Applications';
 
 type Segment = 'today' | 'all' | 'answered' | 'dormant';
 const SEGMENTS: { id: Segment; label: string }[] = [
@@ -64,6 +65,13 @@ function PrayersInner() {
   const { dayDoc, loaded: dayLoaded } = useDayDoc(date);
   const isPremium = useIsPremium();
 
+  // 신앙 탭 상단 전환 — 기도 / 말씀 적용. URL ?view=application 로 딥링크·튜토리얼 연동.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const view: 'prayer' | 'application' =
+    searchParams.get('view') === 'application' ? 'application' : 'prayer';
+  const setView = (v: 'prayer' | 'application') =>
+    setSearchParams(v === 'application' ? { view: 'application' } : {}, { replace: true });
+
   const [seg, setSeg] = useState<Segment>('today');
   const [bulkOpen, setBulkOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
@@ -79,6 +87,65 @@ function PrayersInner() {
 
   return (
     <div className="flex flex-col gap-3 p-4 pb-6">
+      {/* 신앙 탭 상단 전환 — 기도 / 말씀 적용 */}
+      <div className="flex rounded-[var(--radius)] bg-[var(--bg-base)] p-0.5">
+        <FaithViewTab active={view === 'prayer'} onClick={() => setView('prayer')} icon={<HandHeart size={15} />} label="기도" />
+        <FaithViewTab active={view === 'application'} onClick={() => setView('application')} icon={<BookOpen size={15} />} label="말씀 적용" />
+      </div>
+
+      {view === 'application' ? (
+        <ApplicationsPanel />
+      ) : (
+        <PrayerSection
+          prayers={prayers} checks={checks} dayDoc={dayDoc} dayLoaded={dayLoaded}
+          isPremium={isPremium} date={date}
+          seg={seg} setSeg={setSeg}
+          addOpen={addOpen} setAddOpen={setAddOpen}
+          bulkOpen={bulkOpen} setBulkOpen={setBulkOpen}
+          detailOpen={detailOpen} setDetailOpen={setDetailOpen}
+          liveSelected={liveSelected} openDetail={openDetail}
+        />
+      )}
+    </div>
+  );
+}
+
+function FaithViewTab({ active, onClick, icon, label }: {
+  active: boolean; onClick: () => void; icon: React.ReactNode; label: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        'flex flex-1 items-center justify-center gap-1.5 rounded-[calc(var(--radius)-2px)] py-2 text-sm font-medium transition-colors',
+        active ? 'bg-white text-[var(--leaf)] shadow-[var(--shadow-sm)]' : 'text-[var(--fg-muted)]',
+      )}
+    >
+      {icon} {label}
+    </button>
+  );
+}
+
+function PrayerSection({
+  prayers, checks, dayDoc, dayLoaded, isPremium, date,
+  seg, setSeg, addOpen, setAddOpen, bulkOpen, setBulkOpen,
+  detailOpen, setDetailOpen, liveSelected, openDetail,
+}: {
+  prayers: PrayerDoc[];
+  checks: Record<string, { prayerId: string }>;
+  dayDoc: DayDoc | null;
+  dayLoaded: boolean;
+  isPremium: boolean;
+  date: string;
+  seg: Segment; setSeg: (s: Segment) => void;
+  addOpen: boolean; setAddOpen: (v: boolean) => void;
+  bulkOpen: boolean; setBulkOpen: (v: boolean) => void;
+  detailOpen: boolean; setDetailOpen: (v: boolean) => void;
+  liveSelected: PrayerDoc | null;
+  openDetail: (p: PrayerDoc) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-3">
       {/* 세그먼트 + 추가·무더기 */}
       <div data-tour="prayer-segments" className="flex items-center gap-2">
         <div className="flex flex-1 rounded-[var(--radius)] bg-[var(--bg-base)] p-0.5">
@@ -122,6 +189,7 @@ function PrayersInner() {
         prayer={liveSelected}
         open={detailOpen}
         onOpenChange={setDetailOpen}
+        prayers={prayers}
       />
       <AddPrayerDialog open={addOpen} onOpenChange={setAddOpen} />
       {isPremium && <BulkParse open={bulkOpen} onOpenChange={setBulkOpen} />}
@@ -177,11 +245,12 @@ function TodayView({
 
   const [prayerModeOpen, setPrayerModeOpen] = useState(false);
 
-  const loadMore = () => {
+  const loadMore = (): PrayerDoc[] => {
     const exclude = new Set([...planIds, ...extraIds]);
     const next = selectMorePrayers(toInputs(active), exclude, Date.now(), MORE_BATCH);
-    if (next.length === 0) return;
+    if (next.length === 0) return [];
     void appendTodayExtras(date, [...extraIds, ...next]);
+    return next.map((id) => byId.get(id)).filter(Boolean) as PrayerDoc[];
   };
 
   const hasMore = active.some((p) => !p.pinned && !planIds.has(p.id) && !extraIds.includes(p.id));
@@ -288,6 +357,8 @@ function TodayView({
         prayers={all}
         checks={checks}
         date={date}
+        onLoadMore={loadMore}
+        hasMore={hasMore}
       />
     </div>
   );

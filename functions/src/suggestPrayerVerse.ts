@@ -24,11 +24,35 @@ const VERSE_MODELS = ['gemini-2.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-
 const MAX_BATCH = 20;
 
 const SYS_INSTRUCTION = `당신은 한국어 기도제목에 어울리는 성경 구절을 추천하는 도우미다.
-- 반드시 잘 알려진 구절만 고른다. 확신이 없으면 시편 등 널리 알려진 위로·간구 구절을 보수적으로 선택한다.
+- 잘 알려진 구절을 고르되, 같은 구절이 반복되지 않도록 성경 전체에서 다양하게 추천한다.
+  시편·빌립보서 4:6-7 등 흔한 구절에만 치우치지 말고 각 기도제목의 맥락에 맞는 구절을 폭넓게 고른다.
+- 여러 기도제목을 한꺼번에 받으면 서로 다른 구절을 추천해 중복을 피한다.
+- '이미 사용 중인 말씀'으로 주어진 구절은 가능하면 피한다.
 - text는 개역개정 본문을 그대로 쓴다. 본문을 창작하거나 바꿔 쓰지 않는다.
 - reference는 "시편 46:10" 또는 "빌립보서 4:6-7" 형식의 한국어 책 이름으로 쓴다.
 - reason은 이 기도제목과 구절의 연결을 한 줄(40자 이내)로 적는다.
 - 출력은 반드시 JSON 스키마만.`;
+
+const MAX_AVOID = 60;
+
+/** 클라이언트가 보낸 '이미 사용 중인 말씀' 레퍼런스 목록을 정규화 */
+function parseAvoid(data: any): string[] {
+  if (!Array.isArray(data?.avoid)) return [];
+  return Array.from(
+    new Set(
+      (data.avoid as any[])
+        .map((r) => (r ?? '').toString().trim())
+        .filter(Boolean),
+    ),
+  ).slice(0, MAX_AVOID);
+}
+
+/** 프롬프트에 덧붙일 '피해야 할 말씀' 안내문 — 없으면 빈 문자열 */
+function avoidLine(avoid: string[]): string {
+  return avoid.length
+    ? `\n이미 다른 기도제목에 사용된 말씀이니 가능하면 피하고 다른 구절을 추천하라: ${avoid.join(', ')}`
+    : '';
+}
 
 const VERSE_PROPS = {
   reference: { type: 'string' },
@@ -161,10 +185,30 @@ const GENERAL_VERSES: FallbackEntry[] = [
   },
 ];
 
-function fallbackVerse(title: string, body: string, salt = 0): { reference: string; text: string; reason: string } {
+function fallbackVerse(
+  title: string,
+  body: string,
+  salt = 0,
+  avoid?: Set<string>,
+): { reference: string; text: string; reason: string } {
   const haystack = `${title} ${body}`;
+  const ok = (ref: string) => !avoid || !avoid.has(ref);
+
+  // 키워드 매칭이 중복이 아니면 우선 사용
   const hit = KEYWORD_VERSES.find((v) => v.keywords!.test(haystack));
-  const { reference, text, reason } = hit ?? GENERAL_VERSES[(haystack.length + salt) % GENERAL_VERSES.length];
+  if (hit && ok(hit.reference)) {
+    return { reference: hit.reference, text: hit.text, reason: hit.reason };
+  }
+  // 일반 구절 중 아직 쓰지 않은 것을 순환 탐색
+  const start = (haystack.length + salt) % GENERAL_VERSES.length;
+  for (let i = 0; i < GENERAL_VERSES.length; i++) {
+    const cand = GENERAL_VERSES[(start + i) % GENERAL_VERSES.length];
+    if (ok(cand.reference)) {
+      return { reference: cand.reference, text: cand.text, reason: cand.reason };
+    }
+  }
+  // 모두 중복이면(후보 소진) 키워드 또는 기본 구절로 폴백
+  const { reference, text, reason } = hit ?? GENERAL_VERSES[start];
   return { reference, text, reason };
 }
 
@@ -210,11 +254,13 @@ export const suggestPrayerVerse = functions
         throw new functions.https.HttpsError('invalid-argument', 'items가 비어 있습니다.');
       }
 
+      const avoid = parseAvoid(data);
       const list = items
         .map((it) => `- id: ${it.id}\n  기도제목: ${it.title}${it.body ? `\n  상세: ${it.body}` : ''}`)
         .join('\n');
       const prompt = `다음 기도제목 각각에 어울리는 성경 구절을 하나씩 추천하라.
-응답의 id는 입력의 id를 그대로 사용한다.
+가능한 한 서로 다른 구절을 사용해 같은 말씀이 반복되지 않게 하라.
+응답의 id는 입력의 id를 그대로 사용한다.${avoidLine(avoid)}
 ${list}`;
 
       try {
@@ -233,8 +279,16 @@ ${list}`;
       } catch (e) {
         console.error('suggestPrayerVerse batch error', e);
         if (isRateLimit(e)) {
-          // 모든 모델이 쿼터 초과 — 기본 말씀이라도 연결해 기능이 멈추지 않게
-          return { items: items.map((it, i) => ({ id: it.id, ...fallbackVerse(it.title, it.body, i) })) };
+          // 모든 모델이 쿼터 초과 — 기본 말씀이라도 연결해 기능이 멈추지 않게.
+          // 이미 쓰인 말씀 + 같은 배치에서 고른 말씀을 누적해 중복을 최대한 피한다.
+          const used = new Set(avoid);
+          return {
+            items: items.map((it, i) => {
+              const v = fallbackVerse(it.title, it.body, i, used);
+              used.add(v.reference);
+              return { id: it.id, ...v };
+            }),
+          };
         }
         throw new functions.https.HttpsError('internal', '말씀 추천에 실패했습니다. 다시 시도해주세요.');
       }
@@ -250,8 +304,9 @@ ${list}`;
       throw new functions.https.HttpsError('invalid-argument', '내용이 너무 깁니다.');
     }
 
+    const avoid = parseAvoid(data);
     const prompt = `다음 기도제목에 어울리는 성경 구절 하나를 추천하라.
-기도제목: ${title}${body ? `\n상세: ${body}` : ''}`;
+기도제목: ${title}${body ? `\n상세: ${body}` : ''}${avoidLine(avoid)}`;
 
     try {
       const res = await generateWithFallback(apiKey, SINGLE_SCHEMA, prompt);
@@ -260,7 +315,7 @@ ${list}`;
       return verse;
     } catch (e) {
       console.error('suggestPrayerVerse error', e);
-      if (isRateLimit(e)) return fallbackVerse(title, body);
+      if (isRateLimit(e)) return fallbackVerse(title, body, 0, new Set(avoid));
       throw new functions.https.HttpsError('internal', '말씀 추천에 실패했습니다. 다시 시도해주세요.');
     }
   });

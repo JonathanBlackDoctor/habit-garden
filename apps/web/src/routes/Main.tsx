@@ -525,7 +525,7 @@ export default function Main() {
             <ArrowRight size={14} className="text-[var(--fg-faint)]" />
           </button>
           <button
-            onClick={() => navigate('/applications')}
+            onClick={() => navigate('/prayers?view=application')}
             className="card px-4 py-3 text-left flex items-center justify-between"
           >
             <span className="text-sm text-[var(--sky)]">📖 말씀 적용</span>

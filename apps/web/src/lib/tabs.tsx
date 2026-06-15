@@ -14,7 +14,7 @@ export const baseTabs: TabDef[] = [
   { to: '/',         icon: Home,           label: '오늘',   faith: false },
   { to: '/habits',   icon: CheckSquare,    label: '습관',   faith: false },
   { to: '/garden',   icon: Flower2,        label: '정원',   faith: false },
-  { to: '/prayers',  icon: HandHeart,      label: '기도',   faith: true  },
+  { to: '/prayers',  icon: HandHeart,      label: '신앙',   faith: true  },
   { to: '/more',     icon: MoreHorizontal, label: '더보기', faith: false },
 ];
 

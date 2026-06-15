@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Check, ChevronRight, BookOpen } from 'lucide-react';
+import { X, Check, ChevronRight, ChevronLeft, Plus, BookOpen } from 'lucide-react';
 import type { PrayerDoc } from 'shared/types/firestore';
 import { pickDailyVerse } from 'shared/prayerVerses';
 import { usePrayerActions } from './usePrayers';
@@ -64,18 +64,21 @@ function useWakeLock(active: boolean) {
 }
 
 export default function PrayerMode({
-  open, onClose, prayers, checks, date,
+  open, onClose, prayers, checks, date, onLoadMore, hasMore,
 }: {
   open: boolean;
   onClose: () => void;
   prayers: PrayerDoc[];                       // 오늘 목록 (고정→로테이션→더받음 순)
   checks: Record<string, { prayerId: string }>;
   date: string;
+  onLoadMore?: () => PrayerDoc[];             // '기도제목 더 받기' — 새로 받은 기도제목 반환
+  hasMore?: boolean;                          // 더 받을 후보가 남아 있는지
 }) {
   const { checkPrayer } = usePrayerActions();
   const [step, setStep] = useState<Step>('setup');
   const [durationMin, setDurationMin] = useState<number | null>(null);
   const [sessionIds, setSessionIds] = useState<string[]>([]);
+  const [extraPrayers, setExtraPrayers] = useState<PrayerDoc[]>([]); // 세션 중 더 받은 기도제목
   const [index, setIndex] = useState(0);
   const [checkedInSession, setCheckedInSession] = useState<Set<string>>(new Set());
   const [startedAt, setStartedAt] = useState(0);
@@ -89,6 +92,7 @@ export default function PrayerMode({
     const unchecked = prayers.filter((p) => !checks[p.id]).map((p) => p.id);
     const done = prayers.filter((p) => !!checks[p.id]).map((p) => p.id);
     setSessionIds([...unchecked, ...done]);
+    setExtraPrayers([]);
     setStep('setup');
     setIndex(0);
     setCheckedInSession(new Set());
@@ -121,7 +125,10 @@ export default function PrayerMode({
   }, [open, step]);
 
   const verse = useMemo(() => pickDailyVerse(date), [date]);
-  const byId = useMemo(() => new Map(prayers.map((p) => [p.id, p] as const)), [prayers]);
+  const byId = useMemo(
+    () => new Map([...prayers, ...extraPrayers].map((p) => [p.id, p] as const)),
+    [prayers, extraPrayers],
+  );
   const ordered = sessionIds.map((id) => byId.get(id)).filter(Boolean) as PrayerDoc[];
   const current = ordered[index];
 
@@ -152,6 +159,28 @@ export default function PrayerMode({
       void checkPrayer(current, { silent: true });
     }
     advance();
+  };
+
+  // 이전 기도제목으로 — 첫 카드에서는 막는다
+  const goBack = () => setIndex((i) => Math.max(0, i - 1));
+
+  // '기도제목 더 받기' — 더 받은 항목을 세션 순서 끝에 이어 붙인다.
+  // jump=true 면(요약 화면에서) 새 카드로 곧장 이동해 기도를 이어간다.
+  const loadMoreInto = (jump: boolean) => {
+    const added = onLoadMore?.() ?? [];
+    if (added.length === 0) return;
+    setExtraPrayers((prev) => {
+      const have = new Set(prev.map((p) => p.id));
+      return [...prev, ...added.filter((p) => !have.has(p.id))];
+    });
+    setSessionIds((prev) => {
+      const have = new Set(prev);
+      return [...prev, ...added.map((p) => p.id).filter((id) => !have.has(id))];
+    });
+    if (jump) {
+      setIndex(ordered.length); // 기존 카드 뒤 — 새로 받은 첫 카드
+      setStep('pray');
+    }
   };
 
   // SwipeTabs 트랙의 translateX transform이 fixed의 기준이 되는 것을 피하기 위해
@@ -274,10 +303,18 @@ export default function PrayerMode({
                   </p>
                 )}
 
-                <div className="flex gap-3">
+                <div className="flex gap-2">
+                  <button
+                    onClick={goBack}
+                    disabled={index === 0}
+                    aria-label="이전 기도제목"
+                    className={cn('flex items-center justify-center gap-1 rounded-[var(--radius)] border px-3 py-3.5 text-sm disabled:opacity-30', DARK.border, DARK.muted)}
+                  >
+                    <ChevronLeft size={15} /> 이전
+                  </button>
                   <button
                     onClick={advance}
-                    className={cn('flex items-center justify-center gap-1 rounded-[var(--radius)] border px-4 py-3.5 text-sm', DARK.border, DARK.muted)}
+                    className={cn('flex items-center justify-center gap-1 rounded-[var(--radius)] border px-3 py-3.5 text-sm', DARK.border, DARK.muted)}
                   >
                     건너뛰기 <ChevronRight size={15} />
                   </button>
@@ -289,6 +326,15 @@ export default function PrayerMode({
                     <Check size={16} /> 기도했어요
                   </button>
                 </div>
+
+                {hasMore && (
+                  <button
+                    onClick={() => loadMoreInto(false)}
+                    className={cn('mt-3 flex w-full items-center justify-center gap-1.5 rounded-[var(--radius)] border border-dashed py-2.5 text-xs', DARK.border, DARK.muted)}
+                  >
+                    <Plus size={14} /> 기도제목 더 받기
+                  </button>
+                )}
               </div>
             )}
 
@@ -317,13 +363,23 @@ export default function PrayerMode({
                     {fmtClock(elapsed)} 머물렀어요
                   </p>
                 </motion.div>
-                <button
-                  onClick={onClose}
-                  className="rounded-[var(--radius)] px-8 py-3 text-sm font-medium text-[#10141A]"
-                  style={{ backgroundColor: DARK.accent }}
-                >
-                  마치기
-                </button>
+                <div className="flex flex-col items-center gap-3">
+                  {hasMore && (
+                    <button
+                      onClick={() => loadMoreInto(true)}
+                      className={cn('flex items-center justify-center gap-1.5 rounded-[var(--radius)] border border-dashed px-6 py-2.5 text-sm', DARK.border, DARK.muted)}
+                    >
+                      <Plus size={15} /> 기도제목 더 받기
+                    </button>
+                  )}
+                  <button
+                    onClick={onClose}
+                    className="rounded-[var(--radius)] px-8 py-3 text-sm font-medium text-[#10141A]"
+                    style={{ backgroundColor: DARK.accent }}
+                  >
+                    마치기
+                  </button>
+                </div>
               </div>
             )}
           </div>

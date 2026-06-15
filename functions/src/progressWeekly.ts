@@ -8,10 +8,10 @@
  */
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
-import { FieldValue } from 'firebase-admin/firestore';
 import { format, subDays } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
-import type { DayDoc, ProgressDoc, NotificationTokenDoc } from '../../shared/types/firestore';
+import { sendPush } from './notify';
+import type { DayDoc, ProgressDoc, UserSettingsDoc } from '../../shared/types/firestore';
 
 const db = admin.firestore();
 const REGION = 'asia-northeast3';
@@ -42,7 +42,6 @@ async function processUser(uid: string, recentDates: string[]): Promise<void> {
 
     const prog = progSnap.exists ? (progSnap.data() as ProgressDoc) : null;
     const streak = prog?.globalStreak ?? 0;
-    const level = prog?.level ?? 1;
 
     const scores = daySnaps.map((s) => (s.exists ? (s.data() as DayDoc).dayScore ?? 0 : 0));
     const activeDays = scores.filter((v) => v > 0).length;
@@ -51,33 +50,20 @@ async function processUser(uid: string, recentDates: string[]): Promise<void> {
     // 한 주 동안 아무 기록이 없으면 보내지 않는다 (스팸 방지).
     if (activeDays === 0) return;
 
+    // 타입별 알림 설정 게이트 (미설정 = on)
+    const settingsSnap = await db.doc(`users/${uid}/settings/main`).get();
+    if ((settingsSnap.data() as UserSettingsDoc | undefined)?.notifications?.progressWeekly === false) return;
+
     const avg = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+    const body = buildBody({ avg, achievedDays, streak });
 
     const tokenSnap = await db.collection(`users/${uid}/notifications`).get();
-    const tokens = tokenSnap.docs.map((d) => (d.data() as NotificationTokenDoc).token).filter(Boolean);
-    if (tokens.length === 0) return;
+    if (tokenSnap.empty) return;
 
-    const body = buildBody({ avg, achievedDays, streak, level });
-
-    await admin.messaging().sendEachForMulticast({
-      tokens,
-      // data-only: 표시는 서비스워커가 전담한다(중복 알림 방지).
-      data: {
-        title: '📊 이번 주 진척 돌아보기',
-        body,
-        action: 'progress_weekly',
-        link: '/habit-garden/#/progress',
-      },
-      webpush: {
-        fcmOptions: { link: '/habit-garden/#/progress' },
-        headers: { Urgency: 'high' },
-      },
-    });
-
-    await db.doc(`users/${uid}/progress/main`).set({
-      _lastProgressWeeklyAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-    }, { merge: true });
+    await sendPush(uid, tokenSnap.docs, {
+      title: '📊 이번 주 진척 돌아보기',
+      body,
+    }, { link: '/habit-garden/#/progress', type: 'progress_weekly', urgency: 'normal' });
   } catch (e) {
     console.error(`progressWeekly failed for uid=${uid}:`, e);
   }
@@ -87,7 +73,6 @@ interface WeeklyCtx {
   avg: number;
   achievedDays: number;
   streak: number;
-  level: number;
 }
 
 function buildBody(ctx: WeeklyCtx): string {
