@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { doc, getDoc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot, setDoc, serverTimestamp, deleteField } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import { DEFAULT_REFLECTION_QUESTIONS, type DayDoc } from 'shared/types/firestore';
 import { Button } from '@/components/ui/button';
+import { Slider } from '@/components/ui/slider';
 import { toast } from 'sonner';
-import { ChevronLeft, CheckCircle2, Smartphone, Target } from 'lucide-react';
+import { ChevronLeft, CheckCircle2, Smartphone, Target, Gauge } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import PastDateBanner from '@/components/PastDateBanner';
 import { prevDateKey } from '@/features/recap/useYesterdayRecap';
@@ -23,6 +24,8 @@ export default function Reflection() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [screenHours, setScreenHours] = useState('');
   const [screenMins, setScreenMins] = useState('0');
+  // 오늘 하루를 얼마나 잘 살았는지 자기평가 (1-10). 미입력은 null 로 구분.
+  const [daySatisfaction, setDaySatisfaction] = useState<number | null>(null);
   const [completed, setCompleted] = useState(false);
   const [saving, setSaving] = useState(false);
   // 어제 회고에 적은 '내일의 다짐(q_tomorrow)' — 오늘 실천 여부를 돌아본다 (피드백 루프)
@@ -40,6 +43,9 @@ export default function Reflection() {
         if (typeof total === 'number') {
           setScreenHours(String(Math.floor(total / 60)));
           setScreenMins(String(total % 60));
+        }
+        if (typeof data.reflection.daySatisfaction === 'number') {
+          setDaySatisfaction(data.reflection.daySatisfaction);
         }
         setCompleted(true);
       }
@@ -86,7 +92,13 @@ export default function Reflection() {
       await setDoc(
         doc(db, 'users', uid, 'days', date),
         {
-          reflection: { answers, screenTimeMinutes, completedAt: serverTimestamp() },
+          reflection: {
+            answers,
+            screenTimeMinutes,
+            // null 로 지운 경우엔 기존 저장값까지 제거 (merge 는 누락 필드를 지우지 않으므로 deleteField 사용)
+            daySatisfaction: daySatisfaction !== null ? daySatisfaction : deleteField(),
+            completedAt: serverTimestamp(),
+          },
           updatedAt: serverTimestamp(),
         },
         { merge: true }
@@ -181,6 +193,40 @@ export default function Reflection() {
             </div>
           );
         })}
+      </div>
+
+      {/* 오늘 하루 만족도 — 주관적 자기평가 (컨디션 분석의 종속변수) */}
+      <div className="card p-4 space-y-2.5">
+        <div className="flex items-center justify-between">
+          <label className="flex items-center gap-1.5 text-sm font-medium text-[var(--fg-primary)]">
+            <Gauge size={15} className="text-[var(--bloom)]" />
+            오늘 하루, 얼마나 잘 살았나요?
+          </label>
+          {daySatisfaction !== null ? (
+            <span className="flex items-center gap-2">
+              <span className="tabular-nums font-semibold text-[var(--fg-primary)]">{daySatisfaction}/10</span>
+              <button
+                type="button"
+                onClick={() => setDaySatisfaction(null)}
+                className="text-[11px] text-[var(--fg-faint)] active:text-[var(--fg-muted)]"
+              >
+                지우기
+              </button>
+            </span>
+          ) : (
+            <span className="text-xs text-[var(--fg-faint)]">– /10 · 밀어서 기록</span>
+          )}
+        </div>
+        <Slider
+          min={1}
+          max={10}
+          step={1}
+          value={[daySatisfaction ?? 5]}
+          onValueChange={([v]) => setDaySatisfaction(v)}
+        />
+        <p className="text-[11px] text-[var(--fg-faint)]">
+          점수·달성률과 별개로, 스스로 느낀 하루의 충실함을 기록해요.
+        </p>
       </div>
 
       {/* 오늘 스마트폰 사용 시간 */}

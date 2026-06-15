@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
-import { ArrowRight, CheckCircle2, ChevronDown, Lightbulb, Sunrise, Target, X } from 'lucide-react';
+import { ArrowRight, CheckCircle2, ChevronDown, Lightbulb, Sunrise, Target } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import { formatKoreanDate } from '@/lib/dayBoundary';
@@ -27,7 +27,7 @@ const MAX_UNRECORDED_CHIPS = 4;
  *  └────────────────────────────────────────────────
  *
  * '오늘'은 행동을 유도하므로 항상 펼쳐 두고, '어제'는 회고 성격이라 기본 접어
- * 메인 상단의 시선 부담을 줄인다. X 로 닫으면 그날은 다시 뜨지 않는다.
+ * 메인 상단의 시선 부담을 줄인다. 다른 위젯과 동일하게 닫기 없이 항상 노출된다.
  */
 export default function MorningBriefingCard({
   habits,
@@ -41,7 +41,7 @@ export default function MorningBriefingCard({
   const navigate = useNavigate();
   const uid = useAppStore((s) => s.uid);
   const today = useAppStore((s) => s.currentDate);
-  const { recap, dayScore, penalty, yesterday, resolution, visible, dismiss } = useYesterdayRecap(habits);
+  const { recap, dayScore, penalty, yesterday, resolution, visible } = useYesterdayRecap(habits);
 
   // 어제의 다짐 실천 체크 — 오늘 DayDoc.resolutionPracticed 에 저장
   const [practiced, setPracticed] = useState(false);
@@ -82,13 +82,6 @@ export default function MorningBriefingCard({
         <div className="flex items-center gap-1.5 text-xs font-semibold text-[var(--bloom)]">
           <Sunrise size={14} /> 아침 브리핑 · {formatKoreanDate(today)}
         </div>
-        <button
-          onClick={dismiss}
-          aria-label="닫기"
-          className="-mr-1 rounded-full p-1 text-[var(--fg-faint)] hover:text-[var(--fg-muted)]"
-        >
-          <X size={14} />
-        </button>
       </div>
 
       {/* ════ 오늘 ════ */}

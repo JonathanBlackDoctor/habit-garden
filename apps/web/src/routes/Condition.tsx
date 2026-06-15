@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { doc, setDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, onSnapshot, serverTimestamp, deleteField } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import { Slider } from '@/components/ui/slider';
@@ -51,6 +51,22 @@ export default function Condition() {
   const set = (k: keyof ConditionData, v: unknown) =>
     setCond((prev) => ({ ...prev, [k]: v }));
 
+  // 미기록으로 되돌린다. merge 저장은 중첩 맵을 병합하므로, 서버에서도 지우려면 deleteField 가 필요하다.
+  const clear = (k: keyof ConditionData) => {
+    setCond((prev) => {
+      const next = { ...prev };
+      delete next[k];
+      return next;
+    });
+    if (uid) {
+      void setDoc(
+        doc(db, 'users', uid, 'days', date),
+        { condition: { [k]: deleteField() }, updatedAt: serverTimestamp() },
+        { merge: true },
+      );
+    }
+  };
+
   if (!loaded) return null;
 
   return (
@@ -68,26 +84,43 @@ export default function Condition() {
       <section className="card p-4 space-y-6">
         <RulerPicker
           label="수면 점수"
-          value={cond.sleepScore ?? 0}
+          value={cond.sleepScore}
           onChange={(v) => set('sleepScore', v)}
+          onClear={() => clear('sleepScore')}
           min={0} max={100} step={1} majorEvery={10}
+          defaultValue={70}
           color="var(--sky)"
         />
         <RulerPicker
           label="에너지"
-          value={cond.energyScore ?? 0}
+          value={cond.energyScore}
           onChange={(v) => set('energyScore', v)}
+          onClear={() => clear('energyScore')}
           min={0} max={100} step={1} majorEvery={10}
+          defaultValue={70}
           color="var(--leaf)"
         />
         <p className="text-center text-[11px] text-[var(--fg-faint)]">
-          눈금을 좌우로 밀어 가운데 표시에 맞추세요
+          밀거나 ＋ / －로 조절 · 70부터 시작해요 (미기록은 “–”)
         </p>
 
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
             <span className="text-[var(--fg-muted)]">기분</span>
-            <span className="tabular-nums font-medium text-[var(--fg-primary)]">{cond.moodScore ?? 1}/10</span>
+            {cond.moodScore !== undefined ? (
+              <span className="flex items-center gap-2">
+                <span className="tabular-nums font-medium text-[var(--fg-primary)]">{cond.moodScore}/10</span>
+                <button
+                  type="button"
+                  onClick={() => clear('moodScore')}
+                  className="text-[11px] text-[var(--fg-faint)] active:text-[var(--fg-muted)]"
+                >
+                  지우기
+                </button>
+              </span>
+            ) : (
+              <span className="text-[var(--fg-faint)]">– /10 · 밀어서 기록</span>
+            )}
           </div>
           <Slider
             min={1} max={10} step={1}

@@ -7,7 +7,8 @@ import type { ConditionData, DayDoc } from 'shared/types/firestore';
 export interface ConditionDay {
   date: string;
   condition: ConditionData;
-  dayScore?: number;
+  dayScore?: number;          // 습관 가중평균 (0-100) — 객관적 '하루 이행' 종속변수
+  daySatisfaction?: number;   // 회고 자기평가 (1-10) — 주관적 '하루 만족' 종속변수
 }
 
 /** 'YYYY-MM-DD' 에서 days 만큼 이전 날짜 문자열. */
@@ -36,8 +37,13 @@ export function useConditionHistory(windowDays = 35): ConditionDay[] {
       (snap) => {
         const rows = snap.docs
           .map((d) => d.data() as DayDoc)
-          .filter((d) => hasAnyCondition(d.condition))
-          .map((d) => ({ date: d.date, condition: d.condition, dayScore: d.dayScore }))
+          .filter((d) => hasAnyCondition(d.condition) || typeof d.reflection?.daySatisfaction === 'number')
+          .map((d) => ({
+            date: d.date,
+            condition: d.condition ?? {},
+            dayScore: d.dayScore,
+            daySatisfaction: d.reflection?.daySatisfaction,
+          }))
           .sort((a, b) => (a.date > b.date ? -1 : 1));
         setDays(rows);
       },

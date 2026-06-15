@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { TrendingUp, TrendingDown, Minus, Moon, Zap, Smile, BarChart3, Sparkles } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Moon, Smile, Gauge, ListChecks, BarChart3, Sparkles } from 'lucide-react';
 import { useConditionHistory, type ConditionDay } from './useConditionHistory';
 
 /** 'HH:mm' 두 시각으로 수면 시간(시간 단위) 계산. 기상이 취침보다 이르면 자정을 넘긴 것으로 본다. */
@@ -39,6 +39,27 @@ function metricStat(days: ConditionDay[], pick: (c: ConditionDay) => number | un
   }
   const sparkSource = withVal.filter((v): v is number => v !== null).slice(0, 10).reverse();
   return { recent: avg(recentVals), prev: avg(prevVals), spark: sparkSource, max };
+}
+
+/**
+ * 원인(수면·에너지) → 결과(기분·하루 만족·습관 이행) 상관 인사이트.
+ * 원인 값이 있는 날을 중앙값으로 둘로 나눠, 두 집단의 결과 평균 차이를 본다.
+ */
+function driverGap(
+  days: ConditionDay[],
+  driver: (d: ConditionDay) => number | undefined,
+  outcome: (d: ConditionDay) => number | undefined,
+): { gap: number; n: number } | null {
+  const paired = days
+    .map((d) => ({ x: driver(d), y: outcome(d) }))
+    .filter((p): p is { x: number; y: number } => typeof p.x === 'number' && typeof p.y === 'number');
+  if (paired.length < 6) return null;
+  const sorted = [...paired].sort((a, b) => a.x - b.x);
+  const mid = Math.floor(sorted.length / 2);
+  const lowAvg = avg(sorted.slice(0, mid).map((p) => p.y));
+  const highAvg = avg(sorted.slice(sorted.length - mid).map((p) => p.y));
+  if (lowAvg === null || highAvg === null) return null;
+  return { gap: highAvg - lowAvg, n: paired.length };
 }
 
 function Trend({ delta }: { delta: number }) {
@@ -93,36 +114,52 @@ function MetricTile({
 }
 
 /**
- * 컨디션 분석 — 최근 기록을 바탕으로 수면·에너지·기분의 평균과 추세,
- * 평균 수면 시간, 그리고 수면과 컨디션의 관계 인사이트를 보여준다.
+ * 컨디션 분석 — 기분·하루 만족·습관 이행(종속변수)을 중심으로 추세를 보여주고,
+ * 수면·에너지(원인, 삼성 헬스에서 상세 분석) 가 그 결과에 주는 영향을 인사이트로 정리한다.
  */
 export default function ConditionAnalysis() {
   const days = useConditionHistory(35);
 
+  // ── 결과(종속변수) — 분석의 주역 ──
+  const mood = useMemo(() => metricStat(days, (d) => d.condition.moodScore, 10), [days]);
+  const satisfaction = useMemo(() => metricStat(days, (d) => d.daySatisfaction, 10), [days]);
+  const dayScore = useMemo(() => metricStat(days, (d) => d.dayScore, 100), [days]);
+
+  // ── 원인(독립변수) — 참고 지표 (상세 분석은 삼성 헬스) ──
   const sleep = useMemo(() => metricStat(days, (d) => d.condition.sleepScore, 100), [days]);
   const energy = useMemo(() => metricStat(days, (d) => d.condition.energyScore, 100), [days]);
-  const mood = useMemo(() => metricStat(days, (d) => d.condition.moodScore, 10), [days]);
-
   const durations = useMemo(
     () => days.map((d) => sleepHours(d.condition.bedTime, d.condition.wakeTime)).filter((h): h is number => h !== null),
     [days],
   );
   const avgDuration = avg(durations);
 
-  // 수면↔에너지 인사이트 — 수면 점수가 기록된 날을 중앙값으로 나눠 에너지 평균을 비교.
-  const insight = useMemo(() => {
-    const paired = days
-      .map((d) => ({ s: d.condition.sleepScore, e: d.condition.energyScore }))
-      .filter((p): p is { s: number; e: number } => typeof p.s === 'number' && typeof p.e === 'number');
-    if (paired.length < 6) return null;
-    const sorted = [...paired].sort((a, b) => a.s - b.s);
-    const mid = Math.floor(sorted.length / 2);
-    const lowAvg = avg(sorted.slice(0, mid).map((p) => p.e));
-    const highAvg = avg(sorted.slice(sorted.length - mid).map((p) => p.e));
-    if (lowAvg === null || highAvg === null) return null;
-    const gap = highAvg - lowAvg;
-    if (gap < 6) return '수면 점수와 에너지의 뚜렷한 연관은 아직 보이지 않아요.';
-    return `잘 잔 날의 에너지가 평균 ${Math.round(gap)}점 높았어요. 수면이 컨디션을 끌어올리고 있어요.`;
+  // ── 원인 → 결과 인사이트 — 가장 뚜렷한 1~2개만 ──
+  const insights = useMemo(() => {
+    const drivers = [
+      { key: 'sleep', phrase: '잘 잔 날', pick: (d: ConditionDay) => d.condition.sleepScore },
+      { key: 'energy', phrase: '에너지가 높았던 날', pick: (d: ConditionDay) => d.condition.energyScore },
+    ];
+    const outcomes = [
+      { key: 'mood', label: '기분', max: 10, unit: '점', pick: (d: ConditionDay) => d.condition.moodScore, fmt: (g: number) => g.toFixed(1) },
+      { key: 'sat', label: '하루 만족도', max: 10, unit: '점', pick: (d: ConditionDay) => d.daySatisfaction, fmt: (g: number) => g.toFixed(1) },
+      { key: 'day', label: '습관 이행', max: 100, unit: '점', pick: (d: ConditionDay) => d.dayScore, fmt: (g: number) => Math.round(g).toString() },
+    ];
+    const found: { strength: number; text: string }[] = [];
+    for (const dr of drivers) {
+      for (const oc of outcomes) {
+        const res = driverGap(days, dr.pick, oc.pick);
+        if (!res) continue;
+        const strength = res.gap / oc.max; // 정규화 (상한 대비)
+        if (strength < 0.1) continue;      // 기분/만족 1점, 습관 10점 미만은 '뚜렷함' 아님
+        found.push({
+          strength,
+          text: `${dr.phrase} ${oc.label}이(가) 평균 ${oc.fmt(res.gap)}${oc.unit} 높았어요.`,
+        });
+      }
+    }
+    found.sort((a, b) => b.strength - a.strength);
+    return found.slice(0, 2).map((f) => f.text);
   }, [days]);
 
   const recordedCount = days.length;
@@ -135,11 +172,13 @@ export default function ConditionAnalysis() {
           <h3 className="text-sm font-medium text-[var(--fg-primary)]">컨디션 분석</h3>
         </div>
         <p className="text-xs text-[var(--fg-faint)]">
-          며칠 더 기록하면 수면·에너지·기분의 추세와 인사이트를 보여드릴게요. (현재 {recordedCount}일 기록)
+          며칠 더 기록하면 기분·하루 만족·습관 이행의 추세와, 수면·에너지가 그날에 준 영향을 보여드릴게요. (현재 {recordedCount}일 기록)
         </p>
       </section>
     );
   }
+
+  const hasDriverAvg = sleep.recent !== null || energy.recent !== null || avgDuration !== null;
 
   return (
     <section className="card p-4 space-y-3">
@@ -149,28 +188,42 @@ export default function ConditionAnalysis() {
         <span className="ml-auto text-[10px] text-[var(--fg-faint)]">최근 {recordedCount}일</span>
       </div>
 
+      {/* 결과(종속변수) — 기분·하루 만족·습관 이행 */}
+      <p className="text-[11px] font-medium text-[var(--fg-muted)]">오늘을 어떻게 살았나 — 결과 지표</p>
       <div className="flex gap-2">
-        <MetricTile icon={<Moon size={12} />} label="수면" stat={sleep} unit="점" color="var(--sky)" />
-        <MetricTile icon={<Zap size={12} />} label="에너지" stat={energy} unit="점" color="var(--leaf)" />
         <MetricTile icon={<Smile size={12} />} label="기분" stat={mood} unit="/10" color="var(--bloom)" decimals={1} />
+        <MetricTile icon={<Gauge size={12} />} label="하루 만족" stat={satisfaction} unit="/10" color="var(--leaf)" decimals={1} />
+        <MetricTile icon={<ListChecks size={12} />} label="습관 이행" stat={dayScore} unit="점" color="var(--sky)" />
       </div>
-
       <p className="text-[10px] text-[var(--fg-faint)]">최근 7일 평균 · 화살표는 그 이전 7일과 비교</p>
 
-      {avgDuration !== null && (
-        <div className="flex items-center gap-2 rounded-[var(--radius-sm)] bg-[var(--sky)]/10 px-3 py-2">
-          <Moon size={14} className="text-[var(--sky)]" />
-          <span className="text-xs text-[var(--fg-muted)]">평균 수면 시간</span>
-          <span className="ml-auto text-sm font-semibold tabular-nums text-[var(--fg-primary)]">
-            {Math.floor(avgDuration)}시간 {Math.round((avgDuration % 1) * 60)}분
-          </span>
+      {/* 원인 → 결과 인사이트 */}
+      {insights.length > 0 ? (
+        <div className="space-y-1.5">
+          {insights.map((text, i) => (
+            <div key={i} className="flex items-start gap-2 rounded-[var(--radius-sm)] bg-[var(--leaf-soft)] px-3 py-2">
+              <Sparkles size={14} className="mt-0.5 shrink-0 text-[var(--leaf)]" />
+              <p className="text-xs leading-snug text-[var(--fg-primary)]">{text}</p>
+            </div>
+          ))}
         </div>
+      ) : (
+        <p className="text-[11px] text-[var(--fg-faint)]">
+          수면·에너지가 기분·하루에 주는 영향은 아직 뚜렷하지 않아요. 조금 더 기록해볼까요?
+        </p>
       )}
 
-      {insight && (
-        <div className="flex items-start gap-2 rounded-[var(--radius-sm)] bg-[var(--leaf-soft)] px-3 py-2">
-          <Sparkles size={14} className="mt-0.5 shrink-0 text-[var(--leaf)]" />
-          <p className="text-xs leading-snug text-[var(--fg-primary)]">{insight}</p>
+      {/* 원인(독립변수) — 참고용. */}
+      {hasDriverAvg && (
+        <div className="space-y-1.5 rounded-[var(--radius-sm)] bg-[var(--sky)]/10 px-3 py-2">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-[var(--fg-muted)]">
+            <span className="flex items-center gap-1"><Moon size={12} className="text-[var(--sky)]" /> 원인 지표</span>
+            {sleep.recent !== null && <span className="tabular-nums">수면 {Math.round(sleep.recent)}점</span>}
+            {energy.recent !== null && <span className="tabular-nums">에너지 {Math.round(energy.recent)}점</span>}
+            {avgDuration !== null && (
+              <span className="tabular-nums">평균 {Math.floor(avgDuration)}시간 {Math.round((avgDuration % 1) * 60)}분</span>
+            )}
+          </div>
         </div>
       )}
     </section>
