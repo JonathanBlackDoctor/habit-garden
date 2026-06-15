@@ -46,3 +46,29 @@ export function computePassiveYield(plants: readonly YieldablePlant[]): number {
   }
   return total;
 }
+
+/** 식물 id 가 있는 passive yield 판정용 입력 (정산 요약의 식물별 수익 분해에 사용). */
+export interface IdentifiedPlant extends YieldablePlant {
+  id: string;
+}
+
+/**
+ * 만개·미시듦 식물별로 그날 벌어다 준 수익(P)을 분해한다.
+ * 합계는 computePassiveYield 와 동일하되, '어떤 식물이 얼마를 벌었는지'를 정원 탭에서 보여주기 위함.
+ * 수익이 0 인(미성숙·시듦·초월·알 수 없는 종) 식물은 결과에서 제외한다.
+ */
+export function computeYieldBreakdown(
+  plants: readonly IdentifiedPlant[],
+): { plantId: string; speciesId: string; yield: number }[] {
+  const out: { plantId: string; speciesId: string; yield: number }[] = [];
+  for (const p of plants) {
+    const sp = speciesOf(p.speciesId);
+    if (!sp) continue;
+    const max = (sp.stages ?? 4) - 1;
+    if (p.stage >= max && !p.witheredSince) {
+      const y = dailyYieldOf(sp);
+      if (y > 0) out.push({ plantId: p.id, speciesId: p.speciesId, yield: y });
+    }
+  }
+  return out;
+}
