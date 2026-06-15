@@ -66,8 +66,11 @@ export interface UserSettingsDoc {
     habitReminder?: boolean; // 시간대별 습관 리마인더 + 스누즈 재알림
     morningBrief?: boolean;  // 매일 06:00 모닝 브리프
     prayerWeekly?: boolean;  // 주간 기도 회고 도착 알림
+    progressWeekly?: boolean; // 주간 진척 요약 (일요일 20:00)
   };
   nickname?: string;         // 정원 둘러보기에서 다른 사용자에게 표시되는 닉네임 (중복 허용)
+  mainWidgetOrder?: string[];   // 오늘 탭 위젯 표시 순서 (위젯 id 배열). 미설정 시 기본 순서 사용
+  mainHiddenWidgets?: string[]; // 오늘 탭에서 숨길 위젯 id 목록
   updatedAt: Timestamp;
 }
 
@@ -76,7 +79,8 @@ export type NotificationType =
   | 'habit_reminder'
   | 'prayer_reminder'
   | 'morning_brief'
-  | 'prayer_weekly';
+  | 'prayer_weekly'
+  | 'progress_weekly';
 
 // 알림 전달/오픈 트래킹 (일자별 집계) — users/{uid}/notifStats/{YYYY-MM-DD}
 //  - sent:   FCM 가 접수한 토큰 수 (디바이스 도달이 아닌 '발송 성공')
@@ -448,6 +452,46 @@ export interface GardenStats {
   plantsLost?: number;                        // 게을러져 죽은(영구 제거된) 식물 누적 수
   dailyDirectPlants?: number;                 // 오늘 직접 심기 횟수 (04:00 KST 리셋)
   dailyDirectPlantsDate?: string;             // 'YYYY-MM-DD' 게임일 기준
+  lastDailyRecap?: DailyGardenRecap;          // 마지막 일일 정산 요약 (정원 탭에서 '어젯밤 정원 소식'으로 표시)
+}
+
+// 한 식물이 어젯밤 일일 정산에서 겪은 변화·기여를 정리한 항목.
+// events 는 발생한 사건, 나머지는 그 식물이 가져다준(또는 낸) 수치.
+export interface DailyGardenRecapPlant {
+  plantId: string;
+  speciesId: string;
+  events: ('grew' | 'bloomed' | 'withered' | 'regressed' | 'died')[];
+  yield?: number;     // 그 식물이 벌어다 준 포인트(P)
+  xp?: number;        // 그 식물이 가져다준 경험치(XP)
+  vitality?: number;  // 그 식물이 회복시킨 정원 생기
+  upkeep?: number;    // 그 식물 유지에 든 포인트(P)
+}
+
+/**
+ * 일일 정산 요약 — 매일 04:00 KST 정원 처리(processDailyGarden)에서 일어난 변화를
+ * 한 번에 정리해 정원 탭에서 자세히 볼 수 있게 한다. (gameDay 가 오늘이면 노출)
+ *
+ * 서버 정산이 누락돼 클라이언트 이중 경로가 passive yield 만 지급한 경우에는 partial=true 로
+ * 일부(포인트 수익)만 채워진 요약이 들어갈 수 있다.
+ */
+export interface DailyGardenRecap {
+  gameDay: string;            // 이 요약이 다루는 게임일 'YYYY-MM-DD' (04:00 KST)
+  yesterdaySuccess: boolean;  // 어제를 성공일로 마쳤는지
+  protectedDay: boolean;      // 보호된 날(휴가·그레이스·freeze)이었는지
+  pointsEarned: number;       // 만개 식물 passive yield 합계(P)
+  upkeepPaid: number;         // 초월 식물 유지비 합계(P)
+  xpGained: number;           // 식물이 가져다준 경험치 합계(XP)
+  healthBefore: number;       // 정산 전 정원 생기
+  healthAfter: number;        // 정산 후 정원 생기
+  grown: number;              // 한 단계 이상 자란 식물 수
+  bloomed: number;            // 이날 만개에 도달한 식물 수
+  withered: number;           // 새로 시든 식물 수
+  regressed: number;          // 한 단계 시든(stage↓) 식물 수
+  lost: number;               // 영구히 떠나보낸 식물 수
+  streakSeed: boolean;        // 7일 스트릭 보너스 씨앗을 받았는지
+  plants: DailyGardenRecapPlant[]; // 변화·기여가 있는 식물별 상세
+  partial?: boolean;          // 클라이언트 이중 경로가 일부만 채운 요약
+  createdAt: Timestamp;
 }
 
 // ── 시즌 진행 상태 ──────────────────────────────────────

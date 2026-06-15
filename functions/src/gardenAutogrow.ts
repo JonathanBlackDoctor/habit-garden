@@ -14,8 +14,10 @@ import {
   type ProgressDoc,
   type PlantInstance,
   type GardenStats,
+  type DailyGardenRecap,
+  type DailyGardenRecapPlant,
 } from '../../shared/types/firestore';
-import { speciesOf, computePassiveYield } from '../../shared/lib/gardenYield';
+import { speciesOf, computePassiveYield, computeYieldBreakdown } from '../../shared/lib/gardenYield';
 import { applyLevelUps } from './levelEngine';
 
 const db = admin.firestore();
@@ -121,10 +123,37 @@ export async function processDailyGarden(
   if (!garden) return;
 
   let health = garden.health ?? 100;
+  const healthBefore = health;
   let plants: PlantInstance[] = [...(garden.plants ?? [])];
   let xpInLevel = prog.xpInLevel ?? 0;
   let xpBumped = false;
   let stats: GardenStats = { ...(prog.gardenStats ?? {}) };
+
+  // ── 일일 정산 요약('어젯밤 정원 소식') 수집기 ──
+  // 식물 id 별로 이날 일어난 사건과 기여(수익·XP·생기·유지비)를 모아 두었다가
+  // 마지막에 stats.lastDailyRecap 으로 묶어 저장한다 → 정원 탭에서 자세히 보여 준다.
+  type RecapEvent = DailyGardenRecapPlant['events'][number];
+  type RecapAcc = {
+    speciesId: string;
+    events: Set<RecapEvent>;
+    yield: number; xp: number; vitality: number; upkeep: number;
+  };
+  const recap = new Map<string, RecapAcc>();
+  const recapOf = (p: PlantInstance): RecapAcc => {
+    let e = recap.get(p.id);
+    if (!e) {
+      e = { speciesId: p.speciesId, events: new Set<RecapEvent>(), yield: 0, xp: 0, vitality: 0, upkeep: 0 };
+      recap.set(p.id, e);
+    }
+    return e;
+  };
+  // 죽은 식물은 다른 사건·기여를 덮고 'died' 만 남긴다 (자란 뒤 굶어 죽는 등 모순 표시 방지).
+  const markDied = (p: PlantInstance) => {
+    const e = recapOf(p);
+    e.events = new Set<RecapEvent>(['died']);
+    e.yield = 0; e.xp = 0; e.vitality = 0; e.upkeep = 0;
+  };
+  let streakSeedGiven = false;
 
   // 멱등성 가드: 오늘(게임일) 이미 정산했으면 재실행하지 않는다.
   // Cloud Scheduler→Pub/Sub는 at-least-once 전달이라 dailyReset 이 같은 날 두 번 돌 수 있는데,
@@ -140,6 +169,14 @@ export async function processDailyGarden(
     return sp?.trait?.kind === 'fast' && p.stage < ((sp.stages ?? 4) - 1);
   });
 
+  // 한 단계 성장 + 요약 기록 (만개 도달 시 'bloomed' 도 함께).
+  const grow = (p: PlantInstance, max: number): PlantInstance => {
+    const e = recapOf(p);
+    e.events.add('grew');
+    if (p.stage + 1 >= max) e.events.add('bloomed');
+    return { ...p, stage: p.stage + 1, witheredSince: undefined };
+  };
+
   // 1) 트레잇 적용 (성장 계열): fast + bloomer
   plants = plants.map((p) => {
     const sp = speciesOf(p.speciesId);
@@ -148,15 +185,15 @@ export async function processDailyGarden(
     if (p.stage >= max) return p;
     // bloomer (생명나무): 항상 +1 (health 무관)
     if (sp.trait?.kind === 'bloomer') {
-      return { ...p, stage: p.stage + 1, witheredSince: undefined };
+      return grow(p, max);
     }
     // transcendent (초월): 살아있으면 매일 한 단계씩 자라 만개에 이른다 (health 무관)
     if (sp.trait?.kind === 'transcendent') {
-      return { ...p, stage: p.stage + 1, witheredSince: undefined };
+      return grow(p, max);
     }
     // fast (대나무·민트·등): 생기 80 이상 + 오늘 아직 미적용일 때 +1
     if (sp.trait?.kind === 'fast' && canFastGrow) {
-      return { ...p, stage: p.stage + 1, witheredSince: undefined };
+      return grow(p, max);
     }
     return p;
   });
@@ -167,6 +204,7 @@ export async function processDailyGarden(
     if (sp?.trait?.kind === 'beauty') {
       xpInLevel += sp.trait.xp;
       xpBumped = true;
+      recapOf(p).xp += sp.trait.xp;
     }
   }
 
@@ -175,6 +213,14 @@ export async function processDailyGarden(
   //   passive yield 전용 마커(lastPassiveYieldDate)를 공유해 같은 게임일 중복 지급을 막는다.
   const passiveAlreadyCredited = stats.lastPassiveYieldDate === gameDay;
   const passiveYield = passiveAlreadyCredited ? 0 : computePassiveYield(plants);
+  // 식물별 수익 분해(표시용). 같은 게임일에 클라이언트가 먼저 지급했어도 그 식물이 번 액수는 동일하다.
+  for (const b of computeYieldBreakdown(plants)) {
+    recap.get(b.plantId)
+      ? (recap.get(b.plantId)!.yield = b.yield)
+      : recap.set(b.plantId, { speciesId: b.speciesId, events: new Set<RecapEvent>(), yield: b.yield, xp: 0, vitality: 0, upkeep: 0 });
+  }
+  // 오늘 실제 적립된 수익(서버가 지급했으면 passiveYield, 클라이언트가 먼저 지급했으면 그 액수).
+  const earnedToday = passiveAlreadyCredited ? (stats.lastPassiveYieldAmount ?? 0) : passiveYield;
 
   // 3) health 변동 (보호된 날은 중립 — 실패 페널티 없음)
   if (yesterdaySuccess) {
@@ -198,18 +244,23 @@ export async function processDailyGarden(
       const trait = sp?.trait;
       if (trait?.kind !== 'transcendent') { survivors.push(p); continue; }
       // 유지비 미납 → 굶어 죽음
-      if (budget < trait.upkeep) { plantsLost++; continue; }
+      if (budget < trait.upkeep) { markDied(p); plantsLost++; continue; }
       // 게으른 하루(보호 안 됨) → 즉시 죽음 (유지비 차감 없음)
-      if (!yesterdaySuccess && !protectedDay) { plantsLost++; continue; }
+      if (!yesterdaySuccess && !protectedDay) { markDied(p); plantsLost++; continue; }
       // 생존: 유지비 차감 + 일일 경험치(유지비에 상응) + 종별 고유 보조 효과
       budget -= trait.upkeep;
       totalUpkeep += trait.upkeep;
+      const re = recapOf(p);
+      re.upkeep += trait.upkeep;
       if (trait.dailyXp > 0) {
         xpInLevel += trait.dailyXp;
         xpBumped = true;
+        re.xp += trait.dailyXp;
       }
       if (trait.effect === 'vitality') {
+        const before = health;
         health = Math.min(100, health + trait.amount);
+        re.vitality += health - before;
       } else if (trait.effect === 'guardian') {
         guardianSlots += trait.amount;
       }
@@ -231,6 +282,7 @@ export async function processDailyGarden(
     if (candidates.length > 0) {
       candidates.sort((a, b) => a.p.stage - b.p.stage);
       const target = candidates[0].idx;
+      recapOf(candidates[0].p).events.add('withered');
       plants = plants.map((p, idx) =>
         idx === target ? { ...p, witheredSince: admin.firestore.Timestamp.now() as any } : p,
       );
@@ -270,26 +322,29 @@ export async function processDailyGarden(
       case 'brittle': {
         // 단 하루도 못 거른다 → 즉시 죽음
         const g = tryGuard(); if (g) return g;
-        plantsLost++;
+        markDied(p); plantsLost++;
         return [];
       }
       case 'fragile':
         // 시든 채 또 거르면 죽음, 아니면 시듦
-        if (p.witheredSince) { const g = tryGuard(); if (g) return g; plantsLost++; return []; }
+        if (p.witheredSince) { const g = tryGuard(); if (g) return g; markDied(p); plantsLost++; return []; }
+        recapOf(p).events.add('withered');
         return [{ ...p, neglectStreak, witheredSince: now }];
       case 'waning': {
         // graceDays 연속 거르면 죽음
         const grace = (sp!.trait as { kind: 'waning'; graceDays: number }).graceDays;
-        if (neglectStreak >= grace) { const g = tryGuard(); if (g) return g; plantsLost++; return []; }
+        if (neglectStreak >= grace) { const g = tryGuard(); if (g) return g; markDied(p); plantsLost++; return []; }
+        recapOf(p).events.add('withered');
         return [{ ...p, neglectStreak, witheredSince: now }];
       }
       case 'regress':
         // 거른 날마다 한 단계 시듦, stage 0 에서 또 거르면 죽음
-        if (p.stage <= 0) { const g = tryGuard(); if (g) return g; plantsLost++; return []; }
+        if (p.stage <= 0) { const g = tryGuard(); if (g) return g; markDied(p); plantsLost++; return []; }
+        recapOf(p).events.add('regressed');
         return [{ ...p, neglectStreak, stage: p.stage - 1, witheredSince: now }];
       case 'radiant':
         // 평소 시들지 않음. 만개(최고 stage)의 영광을 거르면 즉시 죽음
-        if (p.stage >= max) { const g = tryGuard(); if (g) return g; plantsLost++; return []; }
+        if (p.stage >= max) { const g = tryGuard(); if (g) return g; markDied(p); plantsLost++; return []; }
         return [{ ...p, neglectStreak }];
       default:
         return [p];
@@ -310,6 +365,7 @@ export async function processDailyGarden(
       stage: 0,
       plantedAt: admin.firestore.Timestamp.now() as any,
     });
+    streakSeedGiven = true;
   }
 
   // 6) consecutiveHealthyDays 갱신
@@ -328,6 +384,57 @@ export async function processDailyGarden(
     stats.passiveYieldTotal = (stats.passiveYieldTotal ?? 0) + passiveYield;
     stats.lastPassiveYieldDate = gameDay;
     stats.lastPassiveYieldAmount = passiveYield;
+  }
+
+  // 8.5) 일일 정산 요약 묶기 — 정원 탭 '어젯밤 정원 소식'으로 자세히 보여준다.
+  {
+    const recapPlants: DailyGardenRecapPlant[] = [];
+    let recapXp = 0;
+    let grownCount = 0, bloomedCount = 0, witheredCount = 0, regressedCount = 0;
+    for (const [plantId, e] of recap) {
+      const events = Array.from(e.events);
+      const hasContribution = e.yield > 0 || e.xp > 0 || e.vitality > 0 || e.upkeep > 0;
+      if (events.length === 0 && !hasContribution) continue;
+      recapXp += e.xp;
+      if (e.events.has('grew')) grownCount++;
+      if (e.events.has('bloomed')) bloomedCount++;
+      if (e.events.has('withered')) witheredCount++;
+      if (e.events.has('regressed')) regressedCount++;
+      recapPlants.push({
+        plantId,
+        speciesId: e.speciesId,
+        events,
+        ...(e.yield > 0 ? { yield: e.yield } : {}),
+        ...(e.xp > 0 ? { xp: e.xp } : {}),
+        ...(e.vitality > 0 ? { vitality: e.vitality } : {}),
+        ...(e.upkeep > 0 ? { upkeep: e.upkeep } : {}),
+      });
+    }
+    // 알릴 거리가 하나라도 있을 때만 요약을 남긴다 (조용한 날은 빈 카드를 띄우지 않음).
+    const hasContent =
+      earnedToday > 0 || totalUpkeep > 0 || recapXp > 0 ||
+      health !== healthBefore || recapPlants.length > 0 || streakSeedGiven;
+    if (hasContent) {
+      const dailyRecap: DailyGardenRecap = {
+        gameDay,
+        yesterdaySuccess,
+        protectedDay,
+        pointsEarned: earnedToday,
+        upkeepPaid: totalUpkeep,
+        xpGained: recapXp,
+        healthBefore,
+        healthAfter: health,
+        grown: grownCount,
+        bloomed: bloomedCount,
+        withered: witheredCount,
+        regressed: regressedCount,
+        lost: plantsLost,
+        streakSeed: streakSeedGiven,
+        plants: recapPlants,
+        createdAt: admin.firestore.Timestamp.now() as any,
+      };
+      stats.lastDailyRecap = dailyRecap;
+    }
   }
 
   // 9) 일괄 저장 (progress + passive yield)

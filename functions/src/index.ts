@@ -22,4 +22,5 @@ export { aiCoach } from './aiCoach';
 export { sendScheduledReminder } from './reminders';
 export { flushReminderQueue } from './reminderQueue';
 export { morningBrief } from './morningBrief';
+export { progressWeekly } from './progressWeekly';
 export { ensureUserProfile, approveUser, listPendingUsers } from './userProfile';

@@ -3,7 +3,9 @@ import {
   speciesOf,
   dailyYieldOf,
   computePassiveYield,
+  computeYieldBreakdown,
   type YieldablePlant,
+  type IdentifiedPlant,
 } from './gardenYield';
 import { DAILY_YIELD_BY_RARITY } from '../types/firestore';
 
@@ -78,5 +80,34 @@ describe('computePassiveYield', () => {
       { ...mature('cosmos'), witheredSince: { seconds: 1 } },    // 시듦 → 0
     ];
     expect(computePassiveYield(plants)).toBe(2 + 4 + 28);
+  });
+});
+
+describe('computeYieldBreakdown', () => {
+  const id = (speciesId: string, n: string): IdentifiedPlant => {
+    const sp = speciesOf(speciesId)!;
+    return { id: n, speciesId, stage: sp.stages - 1 };
+  };
+
+  it('수익을 내는 식물만 id·종·수익으로 분해한다 (합계는 computePassiveYield 와 동일)', () => {
+    const plants: IdentifiedPlant[] = [
+      id('sprout', 'a'),        // +2
+      id('crystal_rose', 'b'),  // +28
+      id('celestial_tree', 'c'),// +0 (초월) → 제외
+      { id: 'd', speciesId: 'maple', stage: 1 },                       // 미성숙 → 제외
+      { ...id('cosmos', 'e'), witheredSince: { seconds: 1 } },         // 시듦 → 제외
+    ];
+    const breakdown = computeYieldBreakdown(plants);
+    expect(breakdown).toEqual([
+      { plantId: 'a', speciesId: 'sprout', yield: 2 },
+      { plantId: 'b', speciesId: 'crystal_rose', yield: 28 },
+    ]);
+    const sum = breakdown.reduce((t, b) => t + b.yield, 0);
+    expect(sum).toBe(computePassiveYield(plants));
+  });
+
+  it('빈 정원·수익 식물 없음은 빈 배열', () => {
+    expect(computeYieldBreakdown([])).toEqual([]);
+    expect(computeYieldBreakdown([{ id: 'x', speciesId: 'sprout', stage: 0 }])).toEqual([]);
   });
 });

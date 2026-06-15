@@ -72,6 +72,12 @@ interface AppState {
   prayerTourOpen: boolean;
   startPrayerTour: () => void;
   closePrayerTour: () => void;
+
+  // ── 오늘 탭 위젯 편집 모드 ──
+  // 더보기 설정에서 버튼을 누르면 오늘 탭으로 이동하면서 편집 모드가 자동으로 열린다.
+  widgetEditOpen: boolean;
+  openWidgetEdit: () => void;
+  closeWidgetEdit: () => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -131,4 +137,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   prayerTourOpen: false,
   startPrayerTour: () => set({ prayerTourOpen: true }),
   closePrayerTour: () => set({ prayerTourOpen: false }),
+
+  widgetEditOpen: false,
+  openWidgetEdit: () => set({ widgetEditOpen: true }),
+  closeWidgetEdit: () => set({ widgetEditOpen: false }),
 }));

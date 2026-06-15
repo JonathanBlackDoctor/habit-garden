@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
 import { signOutUser, isOwner } from '@/lib/auth';
-import { Cloud, BookOpen, Settings, LogOut, Bell, ChevronRight, Vibrate, Volume2, HandHeart, Download, GraduationCap, Palmtree, Thermometer, ShieldCheck, Sparkles, Share2, MessageCircle, Tags } from 'lucide-react';
+import { Cloud, BookOpen, Settings, LogOut, Bell, ChevronRight, Vibrate, Volume2, HandHeart, Download, GraduationCap, Palmtree, Thermometer, ShieldCheck, Sparkles, Share2, MessageCircle, Tags, BarChart2, LayoutGrid } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import { isFcmEnabled } from '@/lib/fcm';
@@ -21,6 +21,7 @@ import PrayerTaxonomyManager from '@/features/prayers/PrayerTaxonomyManager';
 import SignupCTA from '@/components/SignupCTA';
 
 const items = [
+  { icon: BarChart2,     label: '진척 현황', to: '/progress' },
   { icon: GraduationCap, label: '사용 설명서', to: '/tutorial' },
   { icon: Cloud,         label: '컨디션',   to: '/condition' },
   { icon: BookOpen,      label: '플래너',   to: '/planner' },
@@ -31,6 +32,7 @@ export default function More() {
   const navigate = useNavigate();
   const startOnboarding = useAppStore((s) => s.startOnboarding);
   const startPrayerTour = useAppStore((s) => s.startPrayerTour);
+  const openWidgetEdit  = useAppStore((s) => s.openWidgetEdit);
   const uid = useAppStore((s) => s.uid);
   const realUid = useAppStore((s) => s.realUid);
   const today = useAppStore((s) => s.currentDate);
@@ -259,6 +261,18 @@ export default function More() {
           onToggle={onFaithToggle}
         />
       </div>
+
+      {/* 오늘 탭 위젯 순서 편집 */}
+      <button
+        onClick={() => { openWidgetEdit(); navigate('/'); }}
+        className="flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3.5 text-sm text-[var(--fg-primary)] shadow-[var(--shadow-sm)] active:opacity-70 text-left"
+      >
+        <LayoutGrid size={18} className="text-[var(--leaf)]" />
+        <div className="flex-1">
+          <p>오늘 탭 위젯 편집</p>
+          <p className="text-[10px] text-[var(--fg-faint)]">위젯 순서를 바꾸거나 필요 없는 위젯을 숨겨요</p>
+        </div>
+      </button>
 
       {/* 기도 분류 관리 — 모임/대상 이름 변경·병합 */}
       {faithEnabled && (
