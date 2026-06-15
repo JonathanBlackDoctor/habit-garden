@@ -353,7 +353,7 @@ export default function Garden() {
       </div>
 
       {/* 어젯밤 정원 소식 — 날짜가 바뀐 뒤 정산 요약(포인트·XP·생기·성장·시듦) */}
-      {uid && <DailyGardenRecapCard recap={progress.gardenStats?.lastDailyRecap} uid={uid} />}
+      {uid && <DailyGardenRecapCard gardenStats={progress.gardenStats} gardenState={gardenState} uid={uid} />}
 
       {/* 탭 바 */}
       <div className="flex gap-2 border-b border-[var(--leaf-soft)]">
