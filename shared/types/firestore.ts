@@ -66,6 +66,7 @@ export interface UserSettingsDoc {
     habitReminder?: boolean; // 시간대별 습관 리마인더 + 스누즈 재알림
     morningBrief?: boolean;  // 매일 06:00 모닝 브리프
     prayerWeekly?: boolean;  // 주간 기도 회고 도착 알림
+    progressWeekly?: boolean; // 주간 진척 요약 (일요일 20:00)
   };
   nickname?: string;         // 정원 둘러보기에서 다른 사용자에게 표시되는 닉네임 (중복 허용)
   updatedAt: Timestamp;
@@ -76,7 +77,8 @@ export type NotificationType =
   | 'habit_reminder'
   | 'prayer_reminder'
   | 'morning_brief'
-  | 'prayer_weekly';
+  | 'prayer_weekly'
+  | 'progress_weekly';
 
 // 알림 전달/오픈 트래킹 (일자별 집계) — users/{uid}/notifStats/{YYYY-MM-DD}
 //  - sent:   FCM 가 접수한 토큰 수 (디바이스 도달이 아닌 '발송 성공')

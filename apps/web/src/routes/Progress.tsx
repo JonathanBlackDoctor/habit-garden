@@ -15,10 +15,10 @@ import { plannerDate } from '@/lib/dayBoundary';
 import { Flame, Star, Award } from 'lucide-react';
 import HabitHeatmap from '@/features/stats/HabitHeatmap';
 import WeeklyReport from '@/features/stats/WeeklyReport';
-import SeasonCard from '@/features/seasons/SeasonCard';
 import WeeklyInsightCard from '@/features/coach/WeeklyInsightCard';
 import CorrelationCard from '@/features/insights/CorrelationCard';
 import SignupCTA from '@/components/SignupCTA';
+// 시즌 챌린지(SeasonCard)는 오늘 탭으로 이동했다 — 보상 트랜잭션 중복을 막기 위해 여기선 렌더하지 않는다.
 import { useIsPremium } from '@/lib/features';
 
 export default function Progress() {
@@ -166,9 +166,6 @@ export default function Progress() {
 
       {/* 무드-습관 상관 (B-16) */}
       <CorrelationCard />
-
-      {/* 시즌 챌린지 */}
-      <SeasonCard />
 
       {/* 주간 리포트 */}
       <WeeklyReport />

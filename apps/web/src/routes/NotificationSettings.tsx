@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { toast } from 'sonner';
-import { ChevronLeft, Bell, BellRing, Sparkles, HandHeart } from 'lucide-react';
+import { ChevronLeft, Bell, BellRing, Sparkles, HandHeart, BarChart2 } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import { enablePushNotifications, disablePushNotifications, isFcmEnabled } from '@/lib/fcm';
@@ -38,7 +38,7 @@ export default function NotificationSettings() {
   };
 
   const saveNotifPref = async (
-    key: 'habitReminder' | 'morningBrief' | 'prayerWeekly',
+    key: 'habitReminder' | 'morningBrief' | 'prayerWeekly' | 'progressWeekly',
     value: boolean,
   ) => {
     if (!uid) return;
@@ -94,6 +94,13 @@ export default function NotificationSettings() {
                   desc="매일 아침 6시 오늘의 핵심 습관 알림"
                   value={notif?.morningBrief ?? true}
                   onToggle={() => saveNotifPref('morningBrief', !(notif?.morningBrief ?? true))}
+                />
+                <ToggleRow
+                  icon={<BarChart2 size={18} className="text-[var(--leaf)]" />}
+                  label="주간 진척 요약"
+                  desc="매주 일요일 저녁 한 주의 평균·달성·스트릭 요약"
+                  value={notif?.progressWeekly ?? true}
+                  onToggle={() => saveNotifPref('progressWeekly', !(notif?.progressWeekly ?? true))}
                 />
                 {faithEnabled && (
                   <>

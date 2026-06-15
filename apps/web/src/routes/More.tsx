@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
 import { signOutUser, isOwner } from '@/lib/auth';
-import { Cloud, BookOpen, Settings, LogOut, Bell, ChevronRight, Vibrate, Volume2, HandHeart, Download, GraduationCap, Palmtree, Thermometer, ShieldCheck, Sparkles, Share2, MessageCircle, Tags, ScrollText } from 'lucide-react';
+import { Cloud, BookOpen, Settings, LogOut, Bell, ChevronRight, Vibrate, Volume2, HandHeart, Download, GraduationCap, Palmtree, Thermometer, ShieldCheck, Sparkles, Share2, MessageCircle, Tags, ScrollText, BarChart2 } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import { isFcmEnabled } from '@/lib/fcm';
@@ -21,6 +21,7 @@ import PrayerTaxonomyManager from '@/features/prayers/PrayerTaxonomyManager';
 import SignupCTA from '@/components/SignupCTA';
 
 const items = [
+  { icon: BarChart2,     label: '진척 현황', to: '/progress' },
   { icon: GraduationCap, label: '사용 설명서', to: '/tutorial' },
   { icon: Cloud,         label: '컨디션',   to: '/condition' },
   { icon: BookOpen,      label: '플래너',   to: '/planner' },

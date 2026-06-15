@@ -19,6 +19,7 @@ import { Flame, ArrowRight, CheckCircle2, RefreshCw, Sparkles, X, Sunrise, PenLi
 import { useComeback } from '@/features/comeback/useComeback';
 import OneYearAgoCard from '@/features/stats/OneYearAgoCard';
 import WeeklyQuestCard from '@/features/quests/WeeklyQuestCard';
+import SeasonCard from '@/features/seasons/SeasonCard';
 import CoachCard from '@/features/coach/CoachCard';
 import SignupCTA from '@/components/SignupCTA';
 import { useCrisisWatcher } from '@/features/coach/useCrisisWatcher';
@@ -479,6 +480,9 @@ export default function Main() {
 
       {/* ── 주간 퀘스트 (Phase 4-1) ── */}
       <WeeklyQuestCard />
+
+      {/* ── 시즌 챌린지 (Phase 4-2) — 진척 탭에서 오늘로 이동: 기간 한정 도전이라 매일 보이는 곳에 둔다 ── */}
+      <SeasonCard />
 
       {/* ── 1년 전 오늘 (Phase 2-5) ── */}
       <OneYearAgoCard />
