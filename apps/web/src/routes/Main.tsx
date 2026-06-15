@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { collection, doc, onSnapshot, query } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
@@ -14,7 +14,7 @@ import { useTabBloomKey } from '@/lib/tabActive';
 import ProgressRing from '@/components/ProgressRing';
 import type { DayDoc, TodayTodoDoc } from 'shared/types/firestore';
 import { PLANT_SPECIES } from 'shared/types/firestore';
-import { motion, Reorder } from 'framer-motion';
+import { motion, Reorder, useDragControls } from 'framer-motion';
 import { ArrowRight, CheckCircle2, RefreshCw, Sparkles, X, PenLine, GripVertical, Pencil, Check, RotateCcw, Eye, EyeOff } from 'lucide-react';
 import { useComeback } from '@/features/comeback/useComeback';
 import OneYearAgoCard from '@/features/stats/OneYearAgoCard';
@@ -58,10 +58,59 @@ const WIDGET_LABELS: Record<MainWidgetId, string> = {
   faith: '기도 · 말씀',
 };
 
+/**
+ * 위젯 편집 행 — 손잡이(GripVertical)를 잡았을 때만 순서를 바꿀 수 있다.
+ * dragListener={false} 로 행 전체 드래그를 끄고, 손잡이 onPointerDown 에서만
+ * dragControls.start 로 드래그를 시작한다. (스크롤·숨김 버튼 탭과 충돌 방지)
+ */
+function WidgetEditItem({
+  id, label, hidden, onToggleHidden,
+}: {
+  id: MainWidgetId;
+  label: string;
+  hidden: boolean;
+  onToggleHidden: (id: MainWidgetId) => void;
+}) {
+  const controls = useDragControls();
+  return (
+    <Reorder.Item
+      value={id}
+      dragListener={false}
+      dragControls={controls}
+      className={cn(
+        'flex items-center gap-3 rounded-[var(--radius)] border border-dashed border-[var(--border)] bg-[var(--bg-surface)] px-3 py-3',
+        hidden && 'opacity-40',
+      )}
+    >
+      <button
+        type="button"
+        aria-label="순서 변경 손잡이"
+        onPointerDown={(e) => controls.start(e)}
+        className="-m-1 cursor-grab touch-none p-1 text-[var(--fg-faint)] active:cursor-grabbing"
+        style={{ touchAction: 'none' }}
+      >
+        <GripVertical size={18} />
+      </button>
+      <span className={cn('flex-1 text-sm font-medium', hidden ? 'text-[var(--fg-faint)] line-through' : 'text-[var(--fg-primary)]')}>
+        {label}
+      </span>
+      <button
+        type="button"
+        onClick={() => onToggleHidden(id)}
+        aria-label={hidden ? '표시' : '숨기기'}
+        className="rounded-full p-1.5 text-[var(--fg-faint)] transition-colors hover:bg-[var(--leaf-soft)]"
+      >
+        {hidden ? <EyeOff size={16} /> : <Eye size={16} />}
+      </button>
+    </Reorder.Item>
+  );
+}
+
 export default function Main() {
   const uid      = useAppStore((s) => s.uid);
   const date     = useAppStore((s) => s.currentDate);
   const navigate = useNavigate();
+  const location = useLocation();
   const faithEnabled = useFaithEnabled();
   const isPremium = useIsPremium();
   const habits   = useHabits();
@@ -86,6 +135,15 @@ export default function Main() {
   useEffect(() => {
     if (widgetEditOpen) { setEditMode(true); closeWidgetEdit(); }
   }, [widgetEditOpen, closeWidgetEdit]);
+
+  // 오늘 탭은 keep-alive 로 유지돼 다른 탭으로 이동해도 언마운트되지 않는다.
+  // 뒤로 가기·다른 탭 이동 등으로 '/' 를 벗어나면 편집 내용을 저장하고 편집창을 닫는다.
+  useEffect(() => {
+    if (location.pathname !== '/' && editMode) {
+      void saveLayout(draftOrder, draftHidden);
+      setEditMode(false);
+    }
+  }, [location.pathname, editMode, draftOrder, draftHidden, saveLayout]);
 
   // 편집 중이 아닐 때는 저장된 값을 그대로 따라간다(다른 기기 변경 등 반영).
   useEffect(() => {
@@ -430,35 +488,18 @@ export default function Main() {
       {editMode ? (
         <>
           <p className="text-xs text-[var(--fg-muted)] px-1">
-            손잡이로 순서를 바꾸고 <EyeOff size={11} className="inline" />로 숨길 수 있어요
+            손잡이를 잡아 순서를 바꾸고 <EyeOff size={11} className="inline" />로 숨길 수 있어요
           </p>
           <Reorder.Group axis="y" values={draftOrder} onReorder={setDraftOrder} className="flex flex-col gap-2">
-            {draftOrder.map((id) => {
-              const hidden = draftHidden.includes(id);
-              return (
-                <Reorder.Item
-                  key={id}
-                  value={id}
-                  className={cn(
-                    'flex items-center gap-3 rounded-[var(--radius)] border border-dashed border-[var(--border)] bg-[var(--bg-surface)] px-3 py-3 active:cursor-grabbing',
-                    hidden && 'opacity-40',
-                  )}
-                >
-                  <GripVertical size={18} className="shrink-0 text-[var(--fg-faint)]" />
-                  <span className={cn('flex-1 text-sm font-medium', hidden ? 'text-[var(--fg-faint)] line-through' : 'text-[var(--fg-primary)]')}>
-                    {WIDGET_LABELS[id]}
-                  </span>
-                  <button
-                    onPointerDown={(e) => e.stopPropagation()}
-                    onClick={() => toggleHidden(id)}
-                    aria-label={hidden ? '표시' : '숨기기'}
-                    className="rounded-full p-1.5 text-[var(--fg-faint)] transition-colors hover:bg-[var(--leaf-soft)]"
-                  >
-                    {hidden ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </Reorder.Item>
-              );
-            })}
+            {draftOrder.map((id) => (
+              <WidgetEditItem
+                key={id}
+                id={id}
+                label={WIDGET_LABELS[id]}
+                hidden={draftHidden.includes(id)}
+                onToggleHidden={toggleHidden}
+              />
+            ))}
           </Reorder.Group>
           <div className="flex items-center justify-end gap-2 pt-1">
             <button

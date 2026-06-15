@@ -32,7 +32,10 @@ export default function SeasonCard() {
       },
       { merge: true },
     ).catch(() => {});
-  }, [uid, instanceId, progress?.seasonProgress?.seasonId]);
+    // progress 를 의존성에 포함: 최초 사용자는 progress 로드 시 seasonProgress 가 없어
+    // seasonId 가 undefined→undefined 로 머물러 초기화가 누락될 수 있다. progress 로드 시
+    // 한 번 더 평가되도록 한다. 이미 같은 시즌이면 위 가드로 멈춘다.
+  }, [uid, instanceId, progress, progress?.seasonProgress?.seasonId]);
 
   // 진행률은 days.dayScore 기반 — 시즌 시작 이후 누적 체크 수
   useEffect(() => {

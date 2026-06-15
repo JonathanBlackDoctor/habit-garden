@@ -81,7 +81,10 @@ export function useWeeklyQuest() {
       },
       { merge: true },
     ).catch(() => {});
-  }, [uid, ws, weekQuests.length]);
+    // progress 를 의존성에 포함: progress 가 uid 보다 늦게 로드될 때(일반적인 순서),
+    // weekQuests.length 가 0 으로 머물러 deps 가 바뀌지 않으면 첫 주차 픽이 누락된다.
+    // progress 로드(null→객체) 시 한 번 더 평가되도록 한다. 픽 이후엔 weekQuests.length>0 가드로 멈춘다.
+  }, [uid, ws, progress, weekQuests.length]);
 
   const quests = useMemo<QuestState[]>(() => {
     return weekQuests

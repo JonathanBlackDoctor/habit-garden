@@ -12,33 +12,33 @@ export const SEASON_DEFS: SeasonDef[] = [
   {
     id: 'spring', title: '봄의 정원', emoji: '🌸', startMonth: 3, endMonth: 5,
     tiers: [
-      { at: 30,  rewardId: 'deco_butterfly', title: '나비 장식' },
-      { at: 80,  rewardId: 'plant_cherry',   title: '벚꽃 묘목' },
-      { at: 150, rewardId: 'badge_spring',   title: '봄 정원사 배지' },
+      { at: 20,  rewardId: 'deco_butterfly', title: '나비 장식' },
+      { at: 45,  rewardId: 'plant_cherry',   title: '벚꽃 묘목' },
+      { at: 75,  rewardId: 'badge_spring',   title: '봄 정원사 배지' },
     ],
   } as unknown as SeasonDef,
   {
     id: 'summer', title: '여름의 햇살', emoji: '☀️', startMonth: 6, endMonth: 8,
     tiers: [
-      { at: 30,  rewardId: 'deco_lantern',  title: '풍등' },
-      { at: 80,  rewardId: 'plant_lemon',   title: '레몬 나무' },
-      { at: 150, rewardId: 'badge_summer',  title: '여름 정원사 배지' },
+      { at: 20,  rewardId: 'deco_lantern',  title: '풍등' },
+      { at: 45,  rewardId: 'plant_lemon',   title: '레몬 나무' },
+      { at: 75,  rewardId: 'badge_summer',  title: '여름 정원사 배지' },
     ],
   } as unknown as SeasonDef,
   {
     id: 'autumn', title: '가을의 결실', emoji: '🍂', startMonth: 9, endMonth: 11,
     tiers: [
-      { at: 30,  rewardId: 'deco_pumpkin',  title: '호박' },
-      { at: 80,  rewardId: 'plant_persim',  title: '감나무' },
-      { at: 150, rewardId: 'badge_autumn',  title: '가을 정원사 배지' },
+      { at: 20,  rewardId: 'deco_pumpkin',  title: '호박' },
+      { at: 45,  rewardId: 'plant_persim',  title: '감나무' },
+      { at: 75,  rewardId: 'badge_autumn',  title: '가을 정원사 배지' },
     ],
   } as unknown as SeasonDef,
   {
     id: 'winter', title: '겨울의 인내', emoji: '❄️', startMonth: 12, endMonth: 2,
     tiers: [
-      { at: 30,  rewardId: 'deco_snowman',  title: '눈사람' },
-      { at: 80,  rewardId: 'plant_pine',    title: '소나무' },
-      { at: 150, rewardId: 'badge_winter',  title: '겨울 정원사 배지' },
+      { at: 20,  rewardId: 'deco_snowman',  title: '눈사람' },
+      { at: 45,  rewardId: 'plant_pine',    title: '소나무' },
+      { at: 75,  rewardId: 'badge_winter',  title: '겨울 정원사 배지' },
     ],
   } as unknown as SeasonDef,
 ];
