@@ -278,52 +278,60 @@ export default function Main() {
       </motion.section>
     ),
 
-    todos: (
-      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }} className="grid grid-cols-2 gap-3">
-        {(() => {
-          const remainingTodos = todos.filter((t) => !t.done);
-          const total = todos.length;
-          const allDone = total > 0 && remainingTodos.length === 0;
-          return (
-            <button
-              onClick={() => navigate('/planner')}
-              className={`p-3 text-left space-y-1 rounded-[var(--radius)] shadow-[var(--shadow-sm)] ${remainingTodos.length > 0 ? 'bg-[var(--bloom-soft)] ring-1 ring-[var(--bloom)]/25' : 'bg-[var(--bg-surface)]'}`}
-            >
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-medium text-[var(--fg-muted)]">할 일</p>
-                {remainingTodos.length > 0 && (
-                  <span className="rounded-full bg-[var(--bloom)] px-1.5 py-0.5 text-[10px] font-semibold text-white tabular-nums">{remainingTodos.length}개 남음</span>
-                )}
-              </div>
-              {total === 0 ? (
-                <p className="text-xs text-[var(--fg-faint)]">없음</p>
-              ) : allDone ? (
-                <div className="flex items-center gap-1 text-[var(--leaf)]"><CheckCircle2 size={14} /><span className="text-xs">오늘 할 일 완수 🌿</span></div>
-              ) : (
-                <>
-                  {remainingTodos.slice(0, 3).map((t) => <p key={t.id} className="text-xs text-[var(--fg-primary)] truncate">□ {t.title}</p>)}
-                  {remainingTodos.length > 3 && <p className="text-[11px] text-[var(--fg-muted)]">+{remainingTodos.length - 3}개 더</p>}
-                </>
-              )}
-            </button>
-          );
-        })()}
+    // 회고 작성 넛지가 상단 배너(reflectionDue)로 떠 있을 땐 여기 회고 카드를 숨겨 중복을 없앤다.
+    // 카드를 숨기면 '할 일'은 전체 폭으로 펼쳐져 더 잘 보인다.
+    todos: (() => {
+      const showReflectionCard = !reflectionDue;
+      const remainingTodos = todos.filter((t) => !t.done);
+      const total = todos.length;
+      const allDone = total > 0 && remainingTodos.length === 0;
+      const todoCard = (
         <button
-          onClick={() => navigate('/reflection')}
-          className={`p-3 text-left space-y-1 rounded-[var(--radius)] shadow-[var(--shadow-sm)] ${!hasReflection ? 'bg-[var(--bloom-soft)] ring-1 ring-[var(--bloom)]/25' : 'bg-[var(--bg-surface)]'}`}
+          onClick={() => navigate('/planner')}
+          className={`p-3 text-left space-y-1 rounded-[var(--radius)] shadow-[var(--shadow-sm)] ${remainingTodos.length > 0 ? 'bg-[var(--bloom-soft)] ring-1 ring-[var(--bloom)]/25' : 'bg-[var(--bg-surface)]'}`}
         >
           <div className="flex items-center justify-between">
-            <p className="text-xs font-medium text-[var(--fg-muted)]">하루 회고</p>
-            {reflectionDue && <span className="rounded-full bg-[var(--bloom)] px-1.5 py-0.5 text-[10px] font-semibold text-white">작성하기</span>}
+            <p className="text-xs font-medium text-[var(--fg-muted)]">할 일</p>
+            {remainingTodos.length > 0 && (
+              <span className="rounded-full bg-[var(--bloom)] px-1.5 py-0.5 text-[10px] font-semibold text-white tabular-nums">{remainingTodos.length}개 남음</span>
+            )}
           </div>
-          {hasReflection ? (
-            <div className="flex items-center gap-1 text-[var(--leaf)]"><CheckCircle2 size={14} /><span className="text-xs">작성 완료</span></div>
+          {total === 0 ? (
+            <p className="text-xs text-[var(--fg-faint)]">없음</p>
+          ) : allDone ? (
+            <div className="flex items-center gap-1 text-[var(--leaf)]"><CheckCircle2 size={14} /><span className="text-xs">오늘 할 일 완수 🌿</span></div>
           ) : (
-            <div className="flex items-center gap-1 text-[var(--bloom)]"><PenLine size={13} /><span className="text-xs">{reflectionDue ? '지금 작성 (+20P)' : '저녁에 작성하기'}</span></div>
+            <>
+              {remainingTodos.slice(0, 3).map((t) => <p key={t.id} className="text-xs text-[var(--fg-primary)] truncate">□ {t.title}</p>)}
+              {remainingTodos.length > 3 && <p className="text-[11px] text-[var(--fg-muted)]">+{remainingTodos.length - 3}개 더</p>}
+            </>
           )}
         </button>
-      </motion.div>
-    ),
+      );
+      return (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}
+          className={cn('gap-3', showReflectionCard ? 'grid grid-cols-2' : 'flex flex-col')}
+        >
+          {todoCard}
+          {showReflectionCard && (
+            <button
+              onClick={() => navigate('/reflection')}
+              className={`p-3 text-left space-y-1 rounded-[var(--radius)] shadow-[var(--shadow-sm)] ${!hasReflection ? 'bg-[var(--bloom-soft)] ring-1 ring-[var(--bloom)]/25' : 'bg-[var(--bg-surface)]'}`}
+            >
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium text-[var(--fg-muted)]">하루 회고</p>
+              </div>
+              {hasReflection ? (
+                <div className="flex items-center gap-1 text-[var(--leaf)]"><CheckCircle2 size={14} /><span className="text-xs">작성 완료</span></div>
+              ) : (
+                <div className="flex items-center gap-1 text-[var(--bloom)]"><PenLine size={13} /><span className="text-xs">저녁에 작성하기</span></div>
+              )}
+            </button>
+          )}
+        </motion.div>
+      );
+    })(),
 
     garden: (
       <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="card p-4 space-y-2 flex-1 flex flex-col">
@@ -396,10 +404,6 @@ export default function Main() {
 
     faith: faithEnabled ? (
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="space-y-3">
-        <button onClick={() => navigate('/prayers')} className="card px-4 py-3 text-left flex items-center justify-between">
-          <span className="text-sm text-[var(--sky)]">🙏 오늘의 기도</span>
-          <ArrowRight size={14} className="text-[var(--fg-faint)]" />
-        </button>
         <TodayApplicationCard />
       </motion.div>
     ) : null,

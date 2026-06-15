@@ -1,13 +1,19 @@
 import * as React from 'react';
+import { Minus, Plus, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface RulerPickerProps {
-  value: number;
+  /** 기록된 값. undefined 이면 '미기록' 상태로, 눈금은 defaultValue 위치에서 시작한다. */
+  value: number | undefined;
   onChange: (v: number) => void;
+  /** 미기록 상태를 다시 비우는 핸들러 (있으면 '지우기' 버튼 노출). */
+  onClear?: () => void;
   min?: number;
   max?: number;
   step?: number;
   majorEvery?: number; // majorEvery * step 마다 굵은 눈금 + 라벨
+  /** 미기록일 때 눈금을 가운데 맞춰 시작할 값 (예: 70). 미지정 시 min. */
+  defaultValue?: number;
   gap?: number;        // 눈금 1칸 px
   unit?: string;
   label?: string;
@@ -15,16 +21,26 @@ interface RulerPickerProps {
   className?: string;
 }
 
-// 사진 기울기·타이머 설정에서 쓰는 가로 스크롤 눈금 휠.
-// 가운데 포인터에 맞춰 좌우로 밀어 값을 조절한다 — 미세 조정이 쉽다.
+/** 살짝 진동 — 지원 기기에서만. */
+function tick() {
+  if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+    navigator.vibrate(1);
+  }
+}
+
+// 가로 스크롤 눈금 휠 — 가운데 포인터에 맞춰 좌우로 밀어 값을 조절한다.
+// 미기록(value===undefined)과 0 을 구분한다: 미기록이면 placeholder('–')를 보여주고
+// 눈금만 defaultValue 위치에 두며, 실제 값은 사용자가 조작할 때 비로소 확정된다.
 export function RulerPicker({
   value,
   onChange,
+  onClear,
   min = 0,
   max = 100,
   step = 1,
   majorEvery = 10,
-  gap = 12,
+  defaultValue,
+  gap = 14,
   unit = '',
   label,
   color = 'var(--leaf)',
@@ -35,11 +51,26 @@ export function RulerPicker({
   const programmaticRef = React.useRef(false);
   const rafRef = React.useRef<number>();
   const commitRef = React.useRef<ReturnType<typeof setTimeout>>();
-  const [display, setDisplay] = React.useState(value);
+  const lastTickRef = React.useRef<number>();
+
+  // 미기록이면 눈금을 둘 기준 위치 (값은 아직 확정 안 함).
+  const start = defaultValue ?? min;
+  const effective = value ?? start;
+  const isSet = value !== undefined;
+  // 사용자가 한 번이라도 만졌으면(스크롤·버튼) 숫자를 보여준다.
+  const [touched, setTouched] = React.useState(isSet);
+  const [display, setDisplay] = React.useState(effective);
 
   const count = Math.round((max - min) / step); // 눈금 간격 개수
   const clampIdx = (i: number) => Math.min(Math.max(i, 0), count);
   const indexOf = (v: number) => clampIdx(Math.round((v - min) / step));
+  const clampVal = (v: number) => Math.min(Math.max(v, min), max);
+
+  // value 가 외부에서 비워지면(지우기) 다시 미기록 표시로.
+  React.useEffect(() => {
+    if (value === undefined) setTouched(false);
+    else setTouched(true);
+  }, [value]);
 
   // 컨테이너 너비 측정 → 양끝 여백(가운데 정렬용)
   React.useLayoutEffect(() => {
@@ -52,21 +83,21 @@ export function RulerPicker({
     return () => ro.disconnect();
   }, [gap]);
 
-  // 외부 value → 스크롤 위치 동기화 (초기/리셋)
+  // 외부 value(또는 미기록 기준값) → 스크롤 위치 동기화 (초기/리셋)
   React.useEffect(() => {
     const el = scrollRef.current;
     if (!el || halfW === 0) return;
-    const target = indexOf(value) * gap;
+    const target = indexOf(effective) * gap;
     if (Math.abs(el.scrollLeft - target) > 1) {
       programmaticRef.current = true;
       el.scrollLeft = target;
-      setDisplay(value);
+      setDisplay(effective);
       requestAnimationFrame(() => {
         programmaticRef.current = false;
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value, halfW, gap, min, max, step]);
+  }, [effective, halfW, gap, min, max, step]);
 
   const onScroll = () => {
     const el = scrollRef.current;
@@ -75,7 +106,12 @@ export function RulerPicker({
     rafRef.current = requestAnimationFrame(() => {
       const i = clampIdx(Math.round(el.scrollLeft / gap));
       const v = min + i * step;
+      setTouched(true);
       setDisplay(v);
+      if (lastTickRef.current !== v) {
+        lastTickRef.current = v;
+        tick();
+      }
       // 스크롤이 멈추면 값 확정
       if (commitRef.current) clearTimeout(commitRef.current);
       commitRef.current = setTimeout(() => {
@@ -84,13 +120,20 @@ export function RulerPicker({
     });
   };
 
+  const nudge = (dir: 1 | -1) => {
+    const next = clampVal((value ?? start) + dir * step);
+    setTouched(true);
+    tick();
+    onChange(next);
+  };
+
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
       e.preventDefault();
-      onChange(Math.min(value + step, max));
+      nudge(1);
     } else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
       e.preventDefault();
-      onChange(Math.max(value - step, min));
+      nudge(-1);
     }
   };
 
@@ -99,18 +142,49 @@ export function RulerPicker({
     [count]
   );
 
+  const showNumber = isSet || touched;
+
   return (
     <div className={cn('flex flex-col items-center gap-1', className)}>
-      <div className="flex items-baseline gap-1">
-        <span className="text-3xl font-bold tabular-nums text-[var(--fg-primary)]">{display}</span>
-        {unit && <span className="text-sm text-[var(--fg-faint)]">{unit}</span>}
+      <div className="flex w-full items-center justify-center gap-3">
+        {/* − 미세 조정 */}
+        <button
+          type="button"
+          aria-label={`${label ?? ''} 1 감소`}
+          onClick={() => nudge(-1)}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[var(--border)] text-[var(--fg-muted)] active:scale-95 active:bg-[var(--bg-surface)]"
+        >
+          <Minus size={15} />
+        </button>
+
+        <div className="flex min-w-[4.5rem] items-baseline justify-center gap-1">
+          <span
+            className={cn(
+              'text-3xl font-bold tabular-nums',
+              showNumber ? 'text-[var(--fg-primary)]' : 'text-[var(--fg-faint)]',
+            )}
+          >
+            {showNumber ? display : '–'}
+          </span>
+          {unit && <span className="text-sm text-[var(--fg-faint)]">{unit}</span>}
+        </div>
+
+        {/* + 미세 조정 */}
+        <button
+          type="button"
+          aria-label={`${label ?? ''} 1 증가`}
+          onClick={() => nudge(1)}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[var(--border)] text-[var(--fg-muted)] active:scale-95 active:bg-[var(--bg-surface)]"
+        >
+          <Plus size={15} />
+        </button>
       </div>
 
       <div className="relative w-full">
         {/* 가운데 포인터 */}
         <div
           className="pointer-events-none absolute left-1/2 top-0 z-10 h-9 w-0.5 -translate-x-1/2"
-          style={{ backgroundColor: color }}
+          style={{ backgroundColor: showNumber ? color : 'var(--fg-faint)' }}
         />
         <div
           className="pointer-events-none absolute left-1/2 top-0 z-10 -translate-x-1/2"
@@ -119,7 +193,7 @@ export function RulerPicker({
             height: 0,
             borderLeft: '5px solid transparent',
             borderRight: '5px solid transparent',
-            borderTop: `6px solid ${color}`,
+            borderTop: `6px solid ${showNumber ? color : 'var(--fg-faint)'}`,
           }}
         />
 
@@ -129,7 +203,7 @@ export function RulerPicker({
           tabIndex={0}
           aria-valuemin={min}
           aria-valuemax={max}
-          aria-valuenow={display}
+          aria-valuenow={showNumber ? display : undefined}
           aria-label={label}
           onScroll={onScroll}
           onKeyDown={onKeyDown}
@@ -165,7 +239,18 @@ export function RulerPicker({
         </div>
       </div>
 
-      {label && <span className="mt-1 text-sm text-[var(--fg-muted)]">{label}</span>}
+      <div className="mt-1 flex items-center gap-2">
+        {label && <span className="text-sm text-[var(--fg-muted)]">{label}</span>}
+        {isSet && onClear && (
+          <button
+            type="button"
+            onClick={onClear}
+            className="flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[11px] text-[var(--fg-faint)] active:text-[var(--fg-muted)]"
+          >
+            <RotateCcw size={11} /> 지우기
+          </button>
+        )}
+      </div>
     </div>
   );
 }

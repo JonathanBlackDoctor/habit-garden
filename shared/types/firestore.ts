@@ -248,6 +248,7 @@ export interface HabitStreakData {
 export interface ReflectionData {
   answers: Record<string, string>;
   screenTimeMinutes?: number;     // 오늘 스마트폰 사용 시간(분)
+  daySatisfaction?: number;       // 오늘 하루를 얼마나 잘 살았는지 자기평가 (1-10, 주관적 종속변수)
   completedAt: Timestamp;
 }
 
