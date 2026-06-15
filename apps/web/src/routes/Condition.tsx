@@ -9,6 +9,7 @@ import type { ConditionData } from 'shared/types/firestore';
 import { ChevronLeft } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import PastDateBanner from '@/components/PastDateBanner';
+import ConditionAnalysis from '@/features/condition/ConditionAnalysis';
 
 function useDebouncedSave(uid: string | null, date: string, data: ConditionData) {
   useEffect(() => {
@@ -127,6 +128,9 @@ export default function Condition() {
           />
         </div>
       </section>
+
+      {/* 컨디션 분석 — 최근 기록 기반 추세·인사이트 (오늘 보기에서만) */}
+      {!isPast && <ConditionAnalysis />}
     </div>
   );
 }
