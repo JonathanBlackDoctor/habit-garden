@@ -10,6 +10,7 @@ const TYPE_LABELS: Record<NotificationType, string> = {
   prayer_reminder: '기도 알림',
   morning_brief: '모닝 브리프',
   prayer_weekly: '주간 기도 회고',
+  progress_weekly: '주간 진척 요약',
 };
 const TYPES = Object.keys(TYPE_LABELS) as NotificationType[];
 const DAYS = 30;
