@@ -28,6 +28,7 @@ import HabitStatusDot from '@/features/habits/HabitStatusDot';
 import { statusOf } from '@/features/habits/habitStatus';
 import YesterdayRecapCard from '@/features/recap/YesterdayRecapCard';
 import { pointsForCheck } from 'shared/lib/habitPoints';
+import TodayApplicationCard from '@/features/applications/TodayApplicationCard';
 
 const TIME_LABELS: Record<string, string> = {
   morning: '아침', afternoon: '점심', evening: '저녁', night: '밤', anytime: '언제든',
@@ -515,7 +516,7 @@ export default function Main() {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.25 }}
-          className="grid grid-cols-2 gap-3"
+          className="space-y-3"
         >
           <button
             onClick={() => navigate('/prayers')}
@@ -524,13 +525,7 @@ export default function Main() {
             <span className="text-sm text-[var(--sky)]">🙏 오늘의 기도</span>
             <ArrowRight size={14} className="text-[var(--fg-faint)]" />
           </button>
-          <button
-            onClick={() => navigate('/prayers?view=application')}
-            className="card px-4 py-3 text-left flex items-center justify-between"
-          >
-            <span className="text-sm text-[var(--sky)]">📖 말씀 적용</span>
-            <ArrowRight size={14} className="text-[var(--fg-faint)]" />
-          </button>
+          <TodayApplicationCard />
         </motion.div>
       )}
     </div>

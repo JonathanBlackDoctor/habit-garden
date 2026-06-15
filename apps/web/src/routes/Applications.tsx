@@ -15,8 +15,8 @@ import {
   APPLICATION_TYPE_LABELS, APPLICATION_DEFAULT_TARGET_DAYS,
 } from 'shared/types/firestore';
 
-const TYPE_ORDER: ApplicationType[] = ['qt', 'sermon', 'meditation', 'lgm', 'etc'];
-const TYPE_EMOJI: Record<ApplicationType, string> = {
+export const TYPE_ORDER: ApplicationType[] = ['qt', 'sermon', 'meditation', 'lgm', 'etc'];
+export const TYPE_EMOJI: Record<ApplicationType, string> = {
   qt: '🌅', sermon: '⛪', meditation: '📖', lgm: '👥', etc: '📝',
 };
 
