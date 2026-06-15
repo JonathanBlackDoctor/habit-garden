@@ -69,6 +69,8 @@ export interface UserSettingsDoc {
     progressWeekly?: boolean; // 주간 진척 요약 (일요일 20:00)
   };
   nickname?: string;         // 정원 둘러보기에서 다른 사용자에게 표시되는 닉네임 (중복 허용)
+  mainWidgetOrder?: string[];   // 오늘 탭 위젯 표시 순서 (위젯 id 배열). 미설정 시 기본 순서 사용
+  mainHiddenWidgets?: string[]; // 오늘 탭에서 숨길 위젯 id 목록
   updatedAt: Timestamp;
 }
 
