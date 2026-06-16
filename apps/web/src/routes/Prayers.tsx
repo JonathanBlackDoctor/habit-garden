@@ -7,7 +7,7 @@ import { useAppStore } from '@/lib/store';
 import type { PrayerDoc, JournalEntryDoc, DayDoc } from 'shared/types/firestore';
 import {
   usePrayers, usePrayerChecks, useDayDoc, useTodayPrayers, usePrayerActions,
-  usePrayerGroups, usePrayerTargets, useLatestWeeklyDigest,
+  usePrayerGroups, usePrayerTargets, useLatestWeeklyDigest, useDormantSoon,
 } from '@/features/prayers/usePrayers';
 import {
   PrayerCheckCard, PrayerListCard, PrayerDetailDialog,
@@ -180,7 +180,7 @@ function PrayerSection({
       </div>
 
       {/* 본문 */}
-      {seg === 'today'    && <TodayView prayers={prayers} dayDoc={dayDoc} dayLoaded={dayLoaded} checks={checks} onOpen={openDetail} date={date} />}
+      {seg === 'today'    && <TodayView prayers={prayers} dayDoc={dayDoc} dayLoaded={dayLoaded} checks={checks} onOpen={openDetail} date={date} onOpenAll={() => setSeg('all')} />}
       {seg === 'all'      && <AllView prayers={prayers} onOpen={openDetail} />}
       {seg === 'answered' && <ListView prayers={prayers.filter((p) => p.status === 'answered')} empty="아직 응답 기록이 없습니다." onOpen={openDetail} />}
       {seg === 'dormant'  && <ListView prayers={prayers.filter((p) => p.status === 'dormant')} empty="잠든 기도가 없습니다." onOpen={openDetail} />}
@@ -199,7 +199,7 @@ function PrayerSection({
 
 // ── 오늘 화면 ─────────────────────────────────────────────
 function TodayView({
-  prayers, dayDoc, dayLoaded, checks, onOpen, date,
+  prayers, dayDoc, dayLoaded, checks, onOpen, date, onOpenAll,
 }: {
   prayers: PrayerDoc[];
   dayDoc: DayDoc | null;
@@ -207,10 +207,13 @@ function TodayView({
   checks: Record<string, { prayerId: string }>;
   onOpen: (p: PrayerDoc) => void;
   date: string;
+  onOpenAll: () => void;
 }) {
   const { checkPrayer, uncheckPrayer, appendTodayExtras, persistTodayPlan } = usePrayerActions();
   const { pinned, rotation, fromPlan, pinnedIds, rotationIds } = useTodayPrayers(prayers, dayDoc);
   const digest = useLatestWeeklyDigest();
+  const dormantSoon = useDormantSoon(prayers);
+  const isPremium = useIsPremium();
   const prayerBloomKey = useTabBloomKey('/prayers'); // 기도 탭 진입 시 진행바 재생
 
   // 오늘의 목록을 그날 한 번 확정 — 기도 체크로 lastPrayedAt 이 바뀌어도 목록이 흔들리지 않게.
@@ -255,9 +258,21 @@ function TodayView({
 
   const hasMore = active.some((p) => !p.pinned && !planIds.has(p.id) && !extraIds.includes(p.id));
 
+  // 곧 잠드는 기도를 오늘 목록에 살리기 (이미 오늘 목록에 있으면 무시)
+  const prayNow = (p: PrayerDoc) => {
+    if (planIds.has(p.id) || extraIds.includes(p.id)) return;
+    void appendTodayExtras(date, [...extraIds, p.id]);
+  };
+
   return (
     <div className="space-y-3">
-      {digest && <WeeklyDigestCard digest={digest} />}
+      <WeeklyDigestCard
+        digest={digest}
+        dormantSoon={dormantSoon}
+        pendingToday={total - done}
+        onPrayNow={prayNow}
+        onOpenDuplicates={isPremium && active.length >= 5 ? onOpenAll : undefined}
+      />
 
       {/* 기도 모드 진입 — 어둡고 고요한 세션 */}
       {total > 0 && (

@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { usePrayers, usePrayerGroups, usePrayerTargets, usePrayerActions } from './usePrayers';
 import { DEFAULT_PRAYER_GROUPS, DEFAULT_PRAYER_TARGETS } from 'shared/types/firestore';
+import { adaptiveDailyLimit } from 'shared/prayerRotation';
+import { useAppStore } from '@/lib/store';
 import { Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -21,9 +23,14 @@ export default function PrayerTaxonomyManager({
   const prayers = usePrayers();           // 전체 status — answered/dormant 포함해 변경해야 한다
   const knownGroups = usePrayerGroups();
   const knownTargets = usePrayerTargets();
-  const { renameTaxonomy, removeTaxonomyEntry } = usePrayerActions();
+  const { renameTaxonomy, removeTaxonomyEntry, setDailyPrayerLimit } = usePrayerActions();
   const [kind, setKind] = useState<Kind>('group');
   const [busy, setBusy] = useState(false);
+
+  // 하루 기도 개수 (E) — 미설정/0 = 자동
+  const dailyLimit = useAppStore((s) => s.settings?.dailyPrayerLimit) ?? 0;
+  const activeCount = useMemo(() => prayers.filter((p) => p.status === 'active').length, [prayers]);
+  const autoLimit = adaptiveDailyLimit(activeCount);
 
   const fallback = kind === 'group' ? '개인' : '나 자신';
   const known = kind === 'group' ? knownGroups : knownTargets;
@@ -127,6 +134,41 @@ export default function PrayerTaxonomyManager({
         <p className="text-[11px] leading-snug text-[var(--fg-faint)]">
           이름을 바꾸면 응답·잠든 기도를 포함한 모든 기도제목에 적용돼요. 기존 이름을 입력하면 하나로 병합됩니다.
         </p>
+
+        {/* 하루 기도 개수 (E) */}
+        <div className="space-y-1.5 border-t border-[var(--border)] pt-3">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-[var(--fg-primary)]">하루 기도 개수</p>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setDailyPrayerLimit(null)}
+                className={cn(
+                  'rounded-full px-2.5 py-1 text-xs font-medium',
+                  dailyLimit === 0 ? 'bg-[var(--leaf)] text-white' : 'bg-[var(--bg-base)] text-[var(--fg-muted)]',
+                )}
+              >
+                자동
+              </button>
+              <input
+                type="number"
+                min={1}
+                max={30}
+                value={dailyLimit > 0 ? dailyLimit : ''}
+                placeholder={String(autoLimit)}
+                onChange={(e) => {
+                  const n = parseInt(e.target.value, 10);
+                  setDailyPrayerLimit(Number.isFinite(n) ? n : null);
+                }}
+                className="w-16 rounded-[var(--radius)] border border-[var(--border)] bg-white px-2 py-1 text-center text-sm"
+              />
+            </div>
+          </div>
+          <p className="text-[11px] leading-snug text-[var(--fg-faint)]">
+            {dailyLimit > 0
+              ? `오늘의 로테이션을 매일 ${dailyLimit}개까지 보여줘요.`
+              : `자동: 활성 기도제목 수에 맞춰 조절돼요 (지금 약 ${autoLimit}개). 고정 기도는 별도로 항상 노출돼요.`}
+          </p>
+        </div>
       </DialogContent>
     </Dialog>
   );

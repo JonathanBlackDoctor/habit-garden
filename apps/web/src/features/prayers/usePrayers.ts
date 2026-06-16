@@ -9,8 +9,8 @@ import type {
   PrayerDoc, PrayerCheckDoc, DayDoc,
   PrayerPriority, PrayerWeeklyDigestDoc,
 } from 'shared/types/firestore';
-import { DEFAULT_PRAYER_GROUPS, DEFAULT_PRAYER_TARGETS } from 'shared/types/firestore';
-import { selectTodayPrayers, type RotationInput } from 'shared/prayerRotation';
+import { DEFAULT_PRAYER_GROUPS, DEFAULT_PRAYER_TARGETS, PRAYER_ROTATION_DEFAULTS } from 'shared/types/firestore';
+import { selectTodayPrayers, daysSince, type RotationInput } from 'shared/prayerRotation';
 import { plannerDate } from '@/lib/dayBoundary';
 import { toast } from 'sonner';
 
@@ -115,6 +115,7 @@ function tsToMs(ts?: Timestamp | { toMillis?: () => number }): number | undefine
 }
 
 export function useTodayPrayers(prayers: PrayerDoc[], dayDoc: DayDoc | null) {
+  const dailyPrayerLimit = useAppStore((s) => s.settings?.dailyPrayerLimit);
   return useMemo(() => {
     const active = prayers.filter((p) => p.status === 'active');
     const byId = new Map(active.map((p) => [p.id, p] as const));
@@ -142,8 +143,9 @@ export function useTodayPrayers(prayers: PrayerDoc[], dayDoc: DayDoc | null) {
         rotationDays: p.rotationDays,
         receivedAtMs: tsToMs(p.receivedAt as any) ?? now,
         lastPrayedAtMs: tsToMs(p.lastPrayedAt as any),
+        target: p.target,
       }));
-      const res = selectTodayPrayers(inputs, now);
+      const res = selectTodayPrayers(inputs, now, { override: dailyPrayerLimit });
       pinnedIds = res.pinnedIds;
       rotationIds = res.rotationIds;
       fromPlan = false;
@@ -157,7 +159,39 @@ export function useTodayPrayers(prayers: PrayerDoc[], dayDoc: DayDoc | null) {
 
     // fromPlan=false 면 아직 그날 목록이 확정되지 않은 상태 — 호출부에서 영속화한다.
     return { pinned, rotation, fromPlan, pinnedIds, rotationIds };
-  }, [prayers, dayDoc]);
+  }, [prayers, dayDoc, dailyPrayerLimit]);
+}
+
+export interface DormantSoonItem {
+  prayer: PrayerDoc;
+  daysLeft: number;   // 잠들기까지 남은 일수(올림)
+}
+
+/**
+ * 곧 잠드는 기도 (D) — 활성·비고정 중 잠듦 임계 7일 전 이내 항목을
+ * 남은 일수 오름차순으로 반환. 서버 weekly 필드가 아니라 실시간 계산이라 항상 최신.
+ */
+export function useDormantSoon(prayers: PrayerDoc[], max = 3): DormantSoonItem[] {
+  return useMemo(() => {
+    const now = Date.now();
+    const out: DormantSoonItem[] = [];
+    for (const p of prayers) {
+      if (p.status !== 'active' || p.pinned) continue;
+      const input: RotationInput = {
+        id: p.id,
+        priority: p.priority,
+        pinned: p.pinned,
+        rotationDays: p.rotationDays,
+        receivedAtMs: tsToMs(p.receivedAt as any) ?? now,
+        lastPrayedAtMs: tsToMs(p.lastPrayedAt as any),
+      };
+      const threshold = PRAYER_ROTATION_DEFAULTS[p.priority].dormantThreshold;
+      const daysLeft = threshold - daysSince(input, now);
+      if (daysLeft > 0 && daysLeft <= 7) out.push({ prayer: p, daysLeft: Math.ceil(daysLeft) });
+    }
+    out.sort((a, b) => a.daysLeft - b.daysLeft);
+    return out.slice(0, Math.max(0, max));
+  }, [prayers, max]);
 }
 
 // ── 액션 ──────────────────────────────────────────────────
@@ -209,6 +243,17 @@ export function usePrayerActions() {
     await setDoc(
       doc(db, 'users', uid, 'settings', 'main'),
       { prayerGroups: [...existing, trimmed], updatedAt: serverTimestamp() },
+      { merge: true },
+    );
+  };
+
+  /** 하루 기도 개수 직접 지정. 0/null = 자동(활성 수 기반). (E) */
+  const setDailyPrayerLimit = async (limit: number | null) => {
+    if (!uid) return;
+    const v = limit && limit > 0 ? Math.round(limit) : 0;
+    await setDoc(
+      doc(db, 'users', uid, 'settings', 'main'),
+      { dailyPrayerLimit: v, updatedAt: serverTimestamp() },
       { merge: true },
     );
   };
@@ -504,7 +549,7 @@ export function usePrayerActions() {
   };
 
   return {
-    quickAdd, addPrayerGroup, addPrayerTarget, appendTodayExtras, persistTodayPlan, updatePrayer, togglePin, checkPrayer, uncheckPrayer,
+    quickAdd, addPrayerGroup, addPrayerTarget, setDailyPrayerLimit, appendTodayExtras, persistTodayPlan, updatePrayer, togglePin, checkPrayer, uncheckPrayer,
     markAnswered, awaken, removePrayer, removePrayers, updatePrayers, bulkSave, mergePrayers,
     renameTaxonomy, removeTaxonomyEntry, applyVerses,
   };

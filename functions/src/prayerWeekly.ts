@@ -122,15 +122,13 @@ async function processUserWeekly(uid: string, nowKst: Date): Promise<void> {
 - 응답된 기도: ${answeredItems.length}건
 - 잊혀가는 기도: ${forgottenWarning.length}건
 
-위 데이터를 인용하며 3~4문장(250~450자)으로 격려하라.
-구성:
-1) 이번 주 기도의 결을 데이터로 짧게 묘사(체크 횟수·집중 모임).
-2) 응답된 기도가 있으면 그 의미, 없으면 꾸준함 자체의 의미를 한 줄.
-3) 잊혀가는 기도가 있으면 비난 없이 다음 주 다시 떠올리도록 권유.
-4) 다음 한 주를 향한 짧은 한 줄 권면.`;
+위 데이터를 인용하며 1~2문장(60~120자)으로 간결하게 격려하라.
+- 체크 횟수 또는 집중 모임을 한 번 짚고, 꾸준함이나 응답의 의미를 짧게 더한다.
+- 잊혀가는 기도가 있으면 비난 없이 한 마디만 환기한다.
+- 군더더기 없이 핵심만. 길게 늘이지 않는다.`;
       const res = await callGeminiWithRetry(() => model.generateContent(prompt));
       const t = res.response.text().trim();
-      if (t) encouragement = t.slice(0, 700);
+      if (t) encouragement = t.slice(0, 160);
     } catch (e) {
       console.error('weekly gemini error', e);
     }
