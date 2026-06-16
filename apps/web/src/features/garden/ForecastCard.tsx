@@ -2,6 +2,10 @@ import { motion } from 'framer-motion';
 import { Sunrise, TrendingUp, TrendingDown, Heart, AlertTriangle, Sprout } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useHealthForecast } from '@/features/garden/useHealthForecast';
+import { HEALTH_RULES } from 'shared/lib/healthForecast';
+
+// 오늘 하루를 실패→성공으로 바꿀 때 갈리는 생기 폭(= 성공 보상 − 실패 델타). '하루의 무게'를 한 숫자로 보여준다.
+const DAY_SWING = HEALTH_RULES.SUCCESS_DELTA - HEALTH_RULES.FAILURE_DELTA;
 
 /** 요약 통계 칩 (DailyGardenRecapCard 와 동일 패턴). */
 function StatChip({ icon, label, tone }: { icon?: React.ReactNode; label: string; tone: string }) {
@@ -62,11 +66,11 @@ export default function ForecastCard() {
             />
           </div>
 
-          {/* 걸린 것 — 성공까지 N개 더 (실패 -10 → 성공 +3 으로 뒤집히는 큰 차이 강조) */}
+          {/* 걸린 것 — 성공까지 N개 더 (실패 → 성공 으로 뒤집히는 큰 차이를 한 숫자로 강조) */}
           {!f.daySuccess && !f.intoWitheringZone && f.flipsToSuccessNeeded > 0 && (
             <p className="flex items-center gap-1.5 text-[11px] text-[var(--leaf-strong,var(--leaf))]">
               <TrendingUp size={12} />
-              {f.flipsToSuccessNeeded}개 더 달성하면 오늘을 성공으로 마쳐 내일 생기가 올라요!
+              {f.flipsToSuccessNeeded}개 더 달성하면 오늘이 실패(−{-HEALTH_RULES.FAILURE_DELTA})에서 성공(+{HEALTH_RULES.SUCCESS_DELTA})으로 — 내일 생기가 {DAY_SWING} 갈려요!
             </p>
           )}
 

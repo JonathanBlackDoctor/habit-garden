@@ -224,9 +224,10 @@ export async function processDailyGarden(
   const earnedToday = passiveAlreadyCredited ? (stats.lastPassiveYieldAmount ?? 0) : passiveYield;
 
   // 3) health 변동 (보호된 날은 중립 — 실패 페널티 없음)
-  if (yesterdaySuccess) {
-    health = Math.min(100, health + HEALTH_RULES.SUCCESS_DELTA);
-  } else if (!protectedDay) {
+  //   양(陽)의 변동(성공 보상 + 초월 생기)은 healthGain 에 모았다가 DAILY_GAIN_CAP 으로 묶어
+  //   초월 처리 직후 한 번에 적용한다(시들기 판정 전). 음(陰)의 실패 델타만 여기서 즉시 반영.
+  let healthGain = yesterdaySuccess ? HEALTH_RULES.SUCCESS_DELTA : 0;
+  if (!yesterdaySuccess && !protectedDay) {
     health = Math.max(0, health + HEALTH_RULES.FAILURE_DELTA);
   }
 
@@ -259,9 +260,8 @@ export async function processDailyGarden(
         re.xp += trait.dailyXp;
       }
       if (trait.effect === 'vitality') {
-        const before = health;
-        health = Math.min(100, health + trait.amount);
-        re.vitality += health - before;
+        healthGain += trait.amount;        // 하루 상한은 아래에서 일괄 적용
+        re.vitality += trait.amount;
       } else if (trait.effect === 'guardian') {
         guardianSlots += trait.amount;
       }
@@ -269,6 +269,10 @@ export async function processDailyGarden(
     }
     plants = survivors;
   }
+
+  // 양의 생기 변동을 하루 상한으로 묶어 한 번에 적용 (시들기 판정 전 — 예보와 동일 순서)
+  const dailyGain = Math.min(healthGain, HEALTH_RULES.DAILY_GAIN_CAP);
+  if (dailyGain > 0) health = Math.min(100, health + dailyGain);
 
   // 4) 시들기 후보 (health 낮을 때 + hardy 면역 + 연약 전설·초월은 자체 처리하므로 제외)
   if (health <= HEALTH_RULES.WITHER_AT && plants.length > 0) {

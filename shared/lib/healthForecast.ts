@@ -28,8 +28,9 @@ import { speciesOf } from './gardenYield';
  */
 export const HEALTH_RULES = {
   SUCCESS_THRESHOLD: 0.6, // dayScore(달성/기록) 이 값 이상이면 성공
-  SUCCESS_DELTA: 3,       // 성공일 → 생기 +3
-  FAILURE_DELTA: -10,     // 실패일(보호 안 됨) → 생기 -10
+  SUCCESS_DELTA: 5,       // 성공일 → 생기 +5
+  FAILURE_DELTA: -14,     // 실패일(보호 안 됨) → 생기 -14
+  DAILY_GAIN_CAP: 8,      // 하루 생기 상승 상한(성공 보상 + 초월 생기 보너스 합산) — 양방향 모두 bounded
   WITHER_AT: 50,          // 생기 이 값 이하이면 식물 하나가 시들 수 있음
 } as const;
 
@@ -119,10 +120,14 @@ export function projectTomorrowHealth(input: HealthForecastInput): HealthForecas
   }
 
   // ── 종합 (서버 적용 순서·클램프 그대로) ──
+  // 음(陰)의 변동(실패 델타) → 양(陽)의 변동(성공 보상 + 초월 생기, 하루 상한 적용) → 습관 패널티.
   let h = current;
-  if (daySuccess) h = Math.min(100, h + HEALTH_RULES.SUCCESS_DELTA);
-  else if (!protectedDay) h = Math.max(0, h + HEALTH_RULES.FAILURE_DELTA);
-  h = Math.min(100, h + transcendentVitality);
+  if (!daySuccess && !protectedDay) h = Math.max(0, h + HEALTH_RULES.FAILURE_DELTA);
+  const dailyGain = Math.min(
+    (daySuccess ? HEALTH_RULES.SUCCESS_DELTA : 0) + transcendentVitality,
+    HEALTH_RULES.DAILY_GAIN_CAP,
+  );
+  h = Math.min(100, h + dailyGain);
   const projected = Math.max(0, h - habitHealthLoss);
 
   return {

@@ -640,9 +640,9 @@ export const HABIT_PENALTY = {
   POINT_PER_WEIGHT: 1,     // 미기록 습관 1개당 가중치 × 이 값 P 차감
   MISSED_FACTOR: 0.5,      // 미달성(시도)은 위 패널티의 절반만
   DAILY_POINT_CAP: 40,     // 하루 포인트 차감 상한
-  HEALTH_PER_TODO: 2,      // 미기록 1개당 정원 생기 감소
+  HEALTH_PER_TODO: 3,      // 미기록 1개당 정원 생기 감소
   HEALTH_PER_MISSED: 1,    // 미달성 1개당 정원 생기 감소
-  DAILY_HEALTH_CAP: 12,    // 하루 생기 감소 상한
+  DAILY_HEALTH_CAP: 16,    // 하루 생기 감소 상한
 } as const;
 
 // ── 할 일(todo) 포인트 상수 ───────────────────────────────
