@@ -18,6 +18,7 @@ import {
   type DailyGardenRecapPlant,
 } from '../../shared/types/firestore';
 import { speciesOf, computePassiveYield, computeYieldBreakdown } from '../../shared/lib/gardenYield';
+import { HEALTH_RULES } from '../../shared/lib/healthForecast';
 import { applyLevelUps } from './levelEngine';
 
 const db = admin.firestore();
@@ -224,9 +225,9 @@ export async function processDailyGarden(
 
   // 3) health 변동 (보호된 날은 중립 — 실패 페널티 없음)
   if (yesterdaySuccess) {
-    health = Math.min(100, health + 3);
+    health = Math.min(100, health + HEALTH_RULES.SUCCESS_DELTA);
   } else if (!protectedDay) {
-    health = Math.max(0, health - 10);
+    health = Math.max(0, health + HEALTH_RULES.FAILURE_DELTA);
   }
 
   let plantsLost = 0;
@@ -270,7 +271,7 @@ export async function processDailyGarden(
   }
 
   // 4) 시들기 후보 (health 낮을 때 + hardy 면역 + 연약 전설·초월은 자체 처리하므로 제외)
-  if (health <= 50 && plants.length > 0) {
+  if (health <= HEALTH_RULES.WITHER_AT && plants.length > 0) {
     const candidates = plants
       .map((p, idx) => ({ p, idx, sp: speciesOf(p.speciesId) }))
       .filter(({ p, sp }) =>
