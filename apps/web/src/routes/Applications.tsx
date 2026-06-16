@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Plus, Flame, Check, CheckCircle2, Archive, Trash2, BookOpen, RotateCcw, Wand2, Loader2, PenLine, ChevronLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
+import { deleteField } from 'firebase/firestore';
 import { useAppStore } from '@/lib/store';
 import { useIsPremium } from '@/lib/features';
 import { formatKoreanDate } from '@/lib/dayBoundary';
@@ -321,14 +322,78 @@ function TargetDaysInput({ value, onChange }: { value: number; onChange: (n: num
   );
 }
 
+/** 기존 적용 수정 — 카드 안에 인라인으로 펼쳐진다. */
+function EditForm({ app, onDone }: { app: ApplicationDoc; onDone: () => void }) {
+  const { updateApplication } = useApplicationActions();
+  const [type, setType] = useState<ApplicationType>(app.type);
+  const [reference, setReference] = useState(app.reference ?? '');
+  const [insight, setInsight] = useState(app.insight ?? '');
+  const [application, setApplication] = useState(app.application);
+  const [targetDays, setTargetDays] = useState(app.targetDays);
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    if (!application.trim() || saving) return;
+    setSaving(true);
+    try {
+      // 비운 본문·깨달음은 deleteField로 실제 제거 (ignoreUndefinedProperties 환경에선 undefined가 무시됨)
+      await updateApplication(app.id, {
+        type,
+        reference: reference.trim() || (deleteField() as any),
+        insight: insight.trim() || (deleteField() as any),
+        application: application.trim(),
+        targetDays: Math.max(1, Math.min(60, targetDays)),
+      });
+      toast('✏️ 적용을 수정했어요');
+      onDone();
+    } catch {
+      toast.error('수정 실패');
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-2.5">
+      <TypeSelector type={type} setType={setType} />
+      <input value={reference} onChange={(e) => setReference(e.target.value)}
+        placeholder="본문 (예: 요한복음 3:16) · 선택" className={FIELD_CLS} />
+      <input value={insight} onChange={(e) => setInsight(e.target.value)}
+        placeholder="깨달은 말씀 · 선택" className={FIELD_CLS} />
+      <textarea value={application} onChange={(e) => setApplication(e.target.value)}
+        placeholder="적용 — 무엇을 실천할까요? (필수)"
+        rows={2} className={cn(FIELD_CLS, 'resize-none')} />
+      <div className="flex items-center justify-between gap-2">
+        <TargetDaysInput value={targetDays} onChange={setTargetDays} />
+        <div className="flex gap-2">
+          <button onClick={onDone}
+            className="rounded-full bg-[var(--bg-base)] px-4 py-2 text-sm text-[var(--fg-muted)]">취소</button>
+          <button onClick={save} disabled={!application.trim() || saving}
+            className="flex items-center gap-1.5 rounded-full bg-[var(--leaf)] px-5 py-2 text-sm font-medium text-white disabled:opacity-40">
+            {saving ? <Loader2 size={15} className="animate-spin" /> : '저장'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ApplicationCard({ app, practicedToday }: { app: ApplicationDoc; practicedToday: boolean }) {
   const { checkPractice, uncheckPractice, completeApplication, archiveApplication, reactivateApplication, removeApplication } =
     useApplicationActions();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   const goalMet = app.practiceCount >= app.targetDays;
   const progress = Math.min(app.practiceCount / Math.max(app.targetDays, 1), 1);
   const isActive = app.status === 'active';
+
+  if (editing) {
+    return (
+      <motion.div layout className="card p-3.5">
+        <EditForm app={app} onDone={() => setEditing(false)} />
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div layout className="card space-y-2 p-3.5">
@@ -403,6 +468,12 @@ function ApplicationCard({ app, practicedToday }: { app: ApplicationDoc; practic
             exit={{ height: 0, opacity: 0 }}
             className="flex flex-wrap gap-2 overflow-hidden pt-1"
           >
+            <button
+              onClick={() => { setEditing(true); setMenuOpen(false); }}
+              className="flex items-center gap-1 rounded-full bg-[var(--bg-base)] px-3 py-1.5 text-xs text-[var(--fg-muted)]"
+            >
+              <PenLine size={13} /> 수정
+            </button>
             {isActive && (
               <button
                 onClick={() => { completeApplication(app); setMenuOpen(false); }}
