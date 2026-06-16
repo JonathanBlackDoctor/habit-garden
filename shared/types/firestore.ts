@@ -57,6 +57,7 @@ export interface UserSettingsDoc {
   };
   prayerGroups?: string[];   // 기도제목을 받은 모임 목록 (직접 추가 가능). 미설정 시 기본값 사용
   prayerTargets?: string[];  // 기도 대상(요청자/나 자신) 목록 (직접 추가 가능). 미설정 시 기본값 사용
+  dailyPrayerLimit?: number; // 오늘의 기도 목록 상한 직접 지정. 미설정/0 = 활성 수 기반 자동(adaptiveDailyLimit)
   habitGroups?: HabitGroup[];   // 습관 묶음(예: '학교') — 일괄 건너뛰기 단위. 사용자가 직접 만든다.
   prayerReminder?: {         // 기도 리마인더 (FCM) — 설정한 시각에 하루 1회
     enabled: boolean;
@@ -653,8 +654,11 @@ export const TODO_POINT_EARN = {
 // 하루 할 일 완료 포인트 상한 (인플레이션 방지)
 export const TODO_DAILY_CHECK_CAP = 30;
 
-// 오늘의 기도 로테이션 목록 상한 N
+// 오늘의 기도 로테이션 목록 상한 N (활성 수가 적을 때의 하한·기본값)
 export const PRAYER_ROTATION_LIMIT = 9;
+
+// 하루에 새로 노출하는 '미시작' 기도제목 상한 (무더기 입력 시 폭주 방지 — A)
+export const PRAYER_NEW_PER_DAY = 3;
 
 // ── 우선순위별 로테이션 기본값 (설계 §5.1) ────────────────
 // baseInterval: 기본 노출 주기(일), dormantThreshold: 잠듦 임계(일)

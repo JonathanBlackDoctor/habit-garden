@@ -85,6 +85,7 @@ async function processDormantTransitions(
       rotationDays: p.rotationDays,
       receivedAtMs: tsToMs(p.receivedAt) ?? nowMs,
       lastPrayedAtMs: tsToMs(p.lastPrayedAt),
+      target: p.target,
     };
     if (!p.pinned && shouldBecomeDormant(input, nowMs)) {
       batch.update(docSnap.ref, {
@@ -113,7 +114,10 @@ async function ensurePrayerPlan(
   activeInputs: RotationInput[],
 ): Promise<void> {
   if (activeInputs.length === 0) return;
-  const { pinnedIds, rotationIds } = selectTodayPrayers(activeInputs, Date.now());
+  // 사용자가 직접 지정한 하루 기도 개수(dailyPrayerLimit)가 있으면 적용 (없으면 활성 수 기반 자동)
+  const settingsSnap = await db.doc(`users/${uid}/settings/main`).get();
+  const override = settingsSnap.exists ? (settingsSnap.data()?.dailyPrayerLimit as number | undefined) : undefined;
+  const { pinnedIds, rotationIds } = selectTodayPrayers(activeInputs, Date.now(), { override });
   if (pinnedIds.length + rotationIds.length === 0) return;
 
   const dayRef = db.doc(`users/${uid}/days/${today}`);
