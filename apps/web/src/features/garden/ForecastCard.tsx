@@ -3,13 +3,6 @@ import { Sunrise, TrendingUp, TrendingDown, Heart, AlertTriangle, Sprout } from 
 import { cn } from '@/lib/utils';
 import { useHealthForecast } from '@/features/garden/useHealthForecast';
 
-/** 예보 생기 값에 대한 톤·라벨 — Garden.tsx healthVibe 와 같은 임계(≤30 / ≤70 / else). */
-function vibeOf(h: number): { label: string; bar: string } {
-  if (h <= 30) return { label: '정원이 시들고 있어요', bar: 'bg-[#D9544A]' };
-  if (h <= 70) return { label: '생기를 회복하세요', bar: 'bg-[#E8B544]' };
-  return { label: '활기찬 정원', bar: 'bg-[var(--leaf)]' };
-}
-
 /** 요약 통계 칩 (DailyGardenRecapCard 와 동일 패턴). */
 function StatChip({ icon, label, tone }: { icon?: React.ReactNode; label: string; tone: string }) {
   return (
@@ -33,7 +26,6 @@ export default function ForecastCard() {
   if (!f || f.noHabits) return null;
 
   const positive = f.delta > 0;
-  const vibe = vibeOf(f.projected);
 
   return (
     <motion.section
@@ -68,28 +60,6 @@ export default function ForecastCard() {
               }
               label={`생기 ${f.current}→${f.projected} (${f.delta > 0 ? '+' : ''}${f.delta})`}
             />
-          </div>
-
-          {/* 예보 생기 바 — 현재값 위치를 눈금으로, 예보값까지 채움 */}
-          <div className="space-y-1">
-            <div className="flex justify-between text-[11px]">
-              <span className="text-[var(--fg-muted)]">{vibe.label}</span>
-              <span className="tabular-nums text-[var(--fg-muted)]">{f.projected}%</span>
-            </div>
-            <div className="relative h-2 w-full overflow-hidden rounded-full bg-[var(--leaf-soft)]">
-              <motion.div
-                className={cn('h-full rounded-full', vibe.bar)}
-                initial={{ width: 0 }}
-                animate={{ width: `${f.projected}%` }}
-                transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-              />
-              {/* 현재 생기 눈금 */}
-              <div
-                className="absolute top-0 h-full w-[2px] bg-[var(--fg-primary)]/40"
-                style={{ left: `calc(${f.current}% - 1px)` }}
-                aria-hidden
-              />
-            </div>
           </div>
 
           {/* 걸린 것 — 성공까지 N개 더 (실패 -10 → 성공 +3 으로 뒤집히는 큰 차이 강조) */}
