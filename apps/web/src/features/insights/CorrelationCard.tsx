@@ -19,7 +19,7 @@ interface Row {
  */
 export default function CorrelationCard() {
   const reflections = useRecentReflections(30);
-  const habits = useHabits({ includeInactive: true });
+  const habits = useHabits({ includeInactive: true, includeHibernating: true });
 
   const rows = useMemo<Row[]>(() => {
     const titleMap = new Map(habits.map((h) => [h.id, h.title]));

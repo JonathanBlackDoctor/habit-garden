@@ -62,7 +62,7 @@ export default function Habits() {
   const date   = dateParam ?? today;
   const isPast = !!dateParam && dateParam !== today;
   const [editMode, setEditMode] = useState(false);
-  const habits = useHabits({ includeInactive: editMode });
+  const habits = useHabits({ includeInactive: editMode, includeHibernating: true });
   const checks = useHabitChecks(date);
   const save   = useSaveHabitCheck(isPast ? date : undefined);
   const clear  = useClearHabitCheck(isPast ? date : undefined);
