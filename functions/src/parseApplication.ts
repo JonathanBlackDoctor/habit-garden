@@ -10,6 +10,8 @@ import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { callGeminiWithRetry, throwIfRateLimit, GEMINI_MODEL } from './geminiUtil';
+import { formatLifeContext } from '../../shared/lib/lifeContext';
+import type { UserSettingsDoc } from '../../shared/types/firestore';
 
 const REGION = 'asia-northeast3';
 
@@ -25,6 +27,8 @@ const SYS_INSTRUCTION = `당신은 한국어 큐티·설교·말씀묵상 노트
     예: (X) "기도 많이 하기" → (O) "매일 밤 자기 전 5분간 가족 한 명을 위해 기도하기".
   · 막연한 다짐·추상적 표어는 금지. 빈도·대상·시간·장소 같은 실행 단서를 최소 하나 포함한다.
   · 서로 겹치지 않게 다양한 각도(관계·습관·마음·시간·섬김 등)로, 노트의 메시지에 충실하게.
+  · 사용자의 생활 환경(직업·가정·일과·관계·고민)이 주어지면 반드시 그 안에서 와닿게 구체화한다.
+    그 환경에 등장하는 실제 사람·장소·시간대를 짚어 "막연한 모범답안"이 아니라 "이 사람의 오늘"이 되게 한다.
 - targetDays: 이 적용을 며칠간 꾸준히 실천하면 좋을지 추천(7~21 사이 정수, 기본 7).
 추측으로 본문·내용을 지어내지 않는다. 출력은 반드시 JSON 스키마만.`;
 
@@ -48,10 +52,18 @@ export const parseApplication = functions
       throw new functions.https.HttpsError('unauthenticated', 'Sign in required');
     }
     const db = admin.firestore();
-    const profSnap = await db.doc(`userProfiles/${context.auth.uid}`).get();
+    const uid = context.auth.uid;
+    const profSnap = await db.doc(`userProfiles/${uid}`).get();
     if (!profSnap.exists || profSnap.data()?.status !== 'approved') {
       throw new functions.https.HttpsError('permission-denied', 'Not approved');
     }
+
+    // 사용자가 입력한 생활 환경을 읽어 적용점을 실제 삶에 맞게 구체화한다(있을 때만).
+    const settingsSnap = await db.doc(`users/${uid}/settings/main`).get();
+    const lifeContext = settingsSnap.exists
+      ? (settingsSnap.data() as UserSettingsDoc).lifeContext
+      : undefined;
+    const lifeBlock = formatLifeContext(lifeContext);
 
     const rawText: string = (data?.rawText ?? '').toString().trim();
     if (!rawText) {
@@ -73,7 +85,17 @@ export const parseApplication = functions
       },
     });
 
-    const prompt = `아래 노트를 읽고 본문·깨달음·다양한 적용점·추천 실천일수를 정리하라:
+    const contextSection = lifeBlock
+      ? `먼저 이 사용자의 생활 환경이다. 적용점은 반드시 이 환경 안에서 오늘 당장 실행할 수 있게,
+구체적인 사람·장소·시간을 이 정보에 근거해 짚어 제시하라(노트 메시지에는 충실하게):
+"""
+${lifeBlock}
+"""
+
+`
+      : '';
+
+    const prompt = `${contextSection}아래 노트를 읽고 본문·깨달음·다양한 적용점·추천 실천일수를 정리하라:
 """
 ${rawText}
 """`;

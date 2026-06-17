@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
 import { signOutUser, isOwner } from '@/lib/auth';
-import { Cloud, BookOpen, Settings, LogOut, Bell, ChevronRight, Vibrate, Volume2, HandHeart, Download, GraduationCap, Palmtree, Thermometer, ShieldCheck, Sparkles, Share2, MessageCircle, Tags, BarChart2, LayoutGrid } from 'lucide-react';
+import { Cloud, BookOpen, Settings, LogOut, Bell, ChevronRight, Vibrate, Volume2, HandHeart, Download, GraduationCap, Palmtree, Thermometer, ShieldCheck, Sparkles, Share2, MessageCircle, Tags, BarChart2, LayoutGrid, Leaf } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import { isFcmEnabled } from '@/lib/fcm';
@@ -18,6 +18,8 @@ import { usePwaInstall } from '@/lib/pwaInstall';
 import { APP_SHARE_URL } from '@/lib/inquiries';
 import ContactDialog from '@/features/contact/ContactDialog';
 import PrayerTaxonomyManager from '@/features/prayers/PrayerTaxonomyManager';
+import LifeContextEditor from '@/features/applications/LifeContextEditor';
+import { hasLifeContext } from 'shared/lib/lifeContext';
 import SignupCTA from '@/components/SignupCTA';
 
 const items = [
@@ -44,6 +46,8 @@ export default function More() {
   const [sickDays, setSickDays] = useState<{ month: string; daysUsed: number } | null>(null);
   const [contactOpen, setContactOpen] = useState(false);
   const [taxonomyOpen, setTaxonomyOpen] = useState(false);
+  const [lifeCtxOpen, setLifeCtxOpen] = useState(false);
+  const lifeCtxSet = useAppStore((s) => hasLifeContext(s.settings?.lifeContext));
   const faithEnabled = useFaithEnabled();
   const isGuest = useIsGuest();
   const isPremium = useIsPremium();
@@ -289,6 +293,26 @@ export default function More() {
         </button>
       )}
       {faithEnabled && <PrayerTaxonomyManager open={taxonomyOpen} onOpenChange={setTaxonomyOpen} />}
+
+      {/* 말씀 적용 — 내 생활 환경 (AI 정리는 승인 사용자 전용) */}
+      {faithEnabled && isPremium && (
+        <button
+          onClick={() => setLifeCtxOpen(true)}
+          className="flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3.5 text-sm text-[var(--fg-primary)] shadow-[var(--shadow-sm)] active:opacity-70 text-left"
+        >
+          <Leaf size={18} className="text-[var(--leaf)]" />
+          <div className="flex-1">
+            <p>말씀 적용 — 내 생활 환경</p>
+            <p className="text-[10px] text-[var(--fg-faint)]">
+              {lifeCtxSet
+                ? '입력됨 · AI가 내 삶에 맞게 적용을 추천해요'
+                : '직업·가정·일과를 알려주면 더 와닿는 적용이 나와요'}
+            </p>
+          </div>
+          <ChevronRight size={16} className="text-[var(--fg-faint)]" />
+        </button>
+      )}
+      {faithEnabled && isPremium && <LifeContextEditor open={lifeCtxOpen} onOpenChange={setLifeCtxOpen} />}
 
       {/* 스트릭 보호 (B-4) */}
       <div className="mt-4 rounded-[var(--radius)] bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-sm)] space-y-3">
