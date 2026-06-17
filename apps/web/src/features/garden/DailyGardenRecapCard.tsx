@@ -247,7 +247,8 @@ export default function DailyGardenRecapCard({
           </p>
         ) : (
           <p className="flex items-center gap-1.5 text-[11px] text-[var(--fg-muted)]">
-            <Sprout size={12} /> 자라거나 시든 식물 없이 잔잔한 하루였어요.
+            <Sprout size={12} className="shrink-0" />
+            <span className="break-keep">자라거나 시든 식물 없이 잔잔한 하루였어요.</span>
           </p>
         )
       )}
@@ -307,12 +308,15 @@ export default function DailyGardenRecapCard({
         </div>
       )}
 
-      {/* 부분 요약 안내 — 전체 정산(성장·시듦·경험치)이 아직 반영되기 전 */}
+      {/* 부분 요약 안내 — 전체 정산(성장·시듦·경험치)이 아직 반영되기 전.
+          텍스트는 한 덩어리(span)로 감싸 아이콘과 둘만 flex 아이템이 되게 하고(굵게가 별도
+          아이템으로 쪼개지지 않게), break-keep 으로 한국어가 단어 중간에서 줄바꿈되지 않게 한다. */}
       {isPartial && (
         <p className="flex items-start gap-1.5 rounded-md bg-[#FFF3CC] px-2.5 py-1.5 text-[11px] leading-snug text-[#8A6A1E]">
           <Sparkles size={12} className="mt-0.5 shrink-0" />
-          지금은 <b>오늘 번 포인트</b>만 먼저 보여 줘요. 성장·시듦·경험치·생기 변화는 오늘 정산이
-          마무리되면 자동으로 채워집니다.
+          <span className="break-keep">
+            지금은 <b>오늘 번 포인트</b>만 먼저 보여 줘요. 성장·시듦·경험치·생기 변화는 오늘 정산이 마무리되면 자동으로 채워집니다.
+          </span>
         </p>
       )}
     </motion.section>
