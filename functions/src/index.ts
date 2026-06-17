@@ -7,6 +7,7 @@ admin.initializeApp();
 admin.firestore().settings({ ignoreUndefinedProperties: true });
 
 export { dailyReset }  from './dailyReset';
+export { runGardenSettlementNow } from './runGardenSettlement';
 export { awardEngine, reflectionAward } from './awardEngine';
 export { generateFeedback } from './feedback';
 export { monthlyBackup } from './backup';
