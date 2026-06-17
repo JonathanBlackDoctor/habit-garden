@@ -158,15 +158,26 @@ export default function DailyGardenRecapCard({
     setDismissedDay(today);
   };
 
-  const net = recap.pointsEarned - recap.upkeepPaid;
-  const healthDelta = recap.healthAfter - recap.healthBefore;
-  const hasSummary = recap.grown > 0 || recap.bloomed > 0 || recap.withered > 0
-    || recap.regressed > 0 || recap.lost > 0 || recap.streakSeed;
-
   // 같은 종끼리 묶어 ×N 으로 정리.
   const groups = groupBySpecies(recap.plants);
   const shown = expanded ? groups : groups.slice(0, MAX_PLANT_ROWS);
   const moreCount = groups.length - shown.length;
+
+  // 헤더 수익은 '식물별 합계'와 항상 일치하도록 분해 합으로 표기 (저장본의 pointsEarned 와
+  // 분해가 어긋나도 카드가 모순돼 보이지 않게 — 서버 정산이 둘을 일치시키면 같은 값이 된다).
+  const earnedFromPlants = groups.reduce((t, g) => t + g.yield, 0);
+  const earned = earnedFromPlants > 0 ? earnedFromPlants : recap.pointsEarned;
+  const net = earned - recap.upkeepPaid;
+  const healthDelta = recap.healthAfter - recap.healthBefore;
+  const hasSummary = recap.grown > 0 || recap.bloomed > 0 || recap.withered > 0
+    || recap.regressed > 0 || recap.lost > 0 || recap.streakSeed;
+
+  // 'partial(부분 요약)'은 플래그만 믿지 않고 실제 내용으로 판정한다.
+  // 서버 전체 정산이 클라이언트 부분 요약 위에 merge 되면 stale 한 partial=true 가 남을 수 있어,
+  // 경험치·성장·시듦·생기변화 등 풍부한 내용이 있으면 전체 정산으로 간주한다.
+  const richContent = recap.xpGained > 0 || recap.upkeepPaid > 0 || hasSummary
+    || recap.healthBefore !== recap.healthAfter;
+  const isPartial = !!recap.partial && !richContent;
 
   return (
     <motion.section
@@ -197,10 +208,10 @@ export default function DailyGardenRecapCard({
             label={`${net > 0 ? '+' : ''}${net}P`}
           />
         )}
-        {recap.upkeepPaid > 0 && recap.pointsEarned > 0 && (
+        {recap.upkeepPaid > 0 && earned > 0 && (
           <StatChip
             tone="bg-[var(--leaf-soft)]/50 text-[var(--fg-muted)]"
-            label={`수익 +${recap.pointsEarned}P · 유지비 −${recap.upkeepPaid}P`}
+            label={`수익 +${earned}P · 유지비 −${recap.upkeepPaid}P`}
           />
         )}
         {/* 경험치 — 전체 정산일 때만 의미 있는 값. 0이면 숨김. */}
@@ -224,7 +235,7 @@ export default function DailyGardenRecapCard({
       </div>
 
       {/* 변화 요약 한 줄 — 전체 정산일 때만. (부분 요약은 성장·시듦을 알 수 없으므로 아래 안내로 대체) */}
-      {!recap.partial && (
+      {!isPartial && (
         hasSummary ? (
           <p className="flex flex-wrap gap-x-2.5 gap-y-0.5 text-[11px] text-[var(--fg-muted)] tabular-nums">
             {recap.grown > 0 && <span>🌱 자람 {recap.grown}</span>}
@@ -297,7 +308,7 @@ export default function DailyGardenRecapCard({
       )}
 
       {/* 부분 요약 안내 — 전체 정산(성장·시듦·경험치)이 아직 반영되기 전 */}
-      {recap.partial && (
+      {isPartial && (
         <p className="flex items-start gap-1.5 rounded-md bg-[#FFF3CC] px-2.5 py-1.5 text-[11px] leading-snug text-[#8A6A1E]">
           <Sparkles size={12} className="mt-0.5 shrink-0" />
           지금은 <b>오늘 번 포인트</b>만 먼저 보여 줘요. 성장·시듦·경험치·생기 변화는 오늘 정산이

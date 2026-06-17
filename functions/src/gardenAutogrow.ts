@@ -213,8 +213,21 @@ export async function processDailyGarden(
   //   passive yield 전용 마커(lastPassiveYieldDate)를 공유해 같은 게임일 중복 지급을 막는다.
   const passiveAlreadyCredited = stats.lastPassiveYieldDate === gameDay;
   const passiveYield = passiveAlreadyCredited ? 0 : computePassiveYield(plants);
-  // 식물별 수익 분해(표시용). 같은 게임일에 클라이언트가 먼저 지급했어도 그 식물이 번 액수는 동일하다.
-  for (const b of computeYieldBreakdown(plants)) {
+
+  // 식물별 수익 분해(표시용) — 헤더 합계(earnedToday)와 반드시 일치시킨다.
+  //   · 서버가 지급하는 경우: 지금 만개분(computeYieldBreakdown(plants)) = passiveYield 와 동일.
+  //   · 클라이언트가 먼저 지급한 경우: 그 시점(이번 정산 성장 前)의 만개분만 적립됐으므로,
+  //     클라이언트가 남긴 부분 요약의 분해를 그대로 쓴다. 정산 성장으로 '오늘 막 만개한' 식물을
+  //     post-growth 로 다시 분해하면 적립액보다 커져 헤더와 어긋난다(예: 132 적립인데 분해 328).
+  const priorRecap = prog.gardenStats?.lastDailyRecap;
+  const priorBreakdown =
+    passiveAlreadyCredited && priorRecap?.gameDay === gameDay
+      ? priorRecap.plants
+          .filter((p) => (p.yield ?? 0) > 0)
+          .map((p) => ({ plantId: p.plantId, speciesId: p.speciesId, yield: p.yield as number }))
+      : null;
+  const yieldBreakdown = priorBreakdown ?? computeYieldBreakdown(plants);
+  for (const b of yieldBreakdown) {
     recap.get(b.plantId)
       ? (recap.get(b.plantId)!.yield = b.yield)
       : recap.set(b.plantId, { speciesId: b.speciesId, events: new Set<RecapEvent>(), yield: b.yield, xp: 0, vitality: 0, upkeep: 0 });
@@ -431,6 +444,7 @@ export async function processDailyGarden(
         lost: plantsLost,
         streakSeed: streakSeedGiven,
         plants: recapPlants,
+        partial: false,   // 전체 정산본 — merge 시 클라이언트 부분 요약의 stale partial=true 를 덮어쓴다.
         createdAt: admin.firestore.Timestamp.now() as any,
       };
       stats.lastDailyRecap = dailyRecap;
