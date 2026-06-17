@@ -24,13 +24,14 @@ import { FieldValue } from 'firebase-admin/firestore';
 import {
   POINT_EARN,
   HABIT_DAILY_CHECK_CAP,
+  SPRINGWATER_EARN,
   BADGE_DEFS,
   type HabitDoc,
   type HabitCheckDoc,
   type ProgressDoc,
 } from '../../shared/types/firestore';
 import { pointsForCheck, SCALED_ACHIEVE_THRESHOLD } from '../../shared/lib/habitPoints';
-import { growRandomPlant } from './gardenAutogrow';
+import { grantSpringWater } from './gardenAutogrow';
 import { applyLevelUps } from './levelEngine';
 
 const db = admin.firestore();
@@ -161,7 +162,7 @@ export const awardEngine = functions
 
     await updateDayScore(uid, date);
     if (finalDelta !== 0 || bonusFinalDelta !== 0) await checkBadges(uid);
-    if (shouldGrow) await growRandomPlant(uid);  // 정원 자동 성장 (지급 시에만)
+    if (shouldGrow) await grantSpringWater(uid, SPRINGWATER_EARN.HABIT_ACHIEVED);  // 습관 달성 → 샘물
     void POINT_EARN; // 미사용 경고 방지
   });
 
@@ -216,7 +217,7 @@ export const reflectionAward = functions
     // 회고가 새로 완료된 경우만
     if (!before?.reflection && after?.reflection) {
       await creditPoints(uid, POINT_EARN.REFLECTION, 'reflection', date);
-      await growRandomPlant(uid);  // 정원 자동 성장
+      await grantSpringWater(uid, SPRINGWATER_EARN.REFLECTION);  // 회고 작성 → 샘물
     }
   });
 

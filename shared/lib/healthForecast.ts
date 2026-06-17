@@ -26,10 +26,13 @@ import { speciesOf } from './gardenYield';
  * 서버 생기 계산이 쓰는 임계·델타. 현재 dailyReset/gardenAutogrow 에 인라인 리터럴로
  * 흩어져 있던 값을 한곳에 모은다. 서버도 이 상수를 import 해서 예보와 항상 일치시킨다.
  */
+// 생기 변화폭 확대(매우 강하게) + 자연 감소: 하루 습관 성과로 생기가 크게 출렁이고,
+// 보호되지 않은 날은 매일 자연히 줄어 '계속 가꿔야 유지되는' 자원이 된다.
 export const HEALTH_RULES = {
   SUCCESS_THRESHOLD: 0.6, // dayScore(달성/기록) 이 값 이상이면 성공
-  SUCCESS_DELTA: 3,       // 성공일 → 생기 +3
-  FAILURE_DELTA: -10,     // 실패일(보호 안 됨) → 생기 -10
+  SUCCESS_DELTA: 15,      // 성공일 → 생기 +15
+  FAILURE_DELTA: -35,     // 실패일(보호 안 됨) → 생기 -35
+  DAILY_DECAY: 5,         // 자연 감소 — 보호 안 된 날은 성공·실패와 무관하게 매일 -5
   WITHER_AT: 50,          // 생기 이 값 이하이면 식물 하나가 시들 수 있음
 } as const;
 
@@ -48,7 +51,8 @@ export interface HealthForecast {
   projected: number;
   delta: number;
   daySuccess: boolean;
-  successDelta: number;          // +3 / 0(보호) / -10
+  successDelta: number;          // 성공 +SUCCESS_DELTA / 0(보호) / 실패 FAILURE_DELTA
+  dailyDecay: number;            // 자연 감소 (보호된 날은 0)
   habitHealthLoss: number;       // 습관 미완료 패널티 (상한 적용)
   transcendentVitality: number;  // eternal_bloom 등 초월 식물 생기 보너스
   flipsToSuccessNeeded: number;  // 성공 임계를 넘기려면 추가로 달성해야 할 습관 수
@@ -90,6 +94,9 @@ export function projectTomorrowHealth(input: HealthForecastInput): HealthForecas
       ? 0
       : HEALTH_RULES.FAILURE_DELTA;
 
+  // 자연 감소(3-3) — 보호된 날은 면제, 그 외엔 성공·실패 무관하게 매일 빠진다.
+  const dailyDecay = protectedDay ? 0 : HEALTH_RULES.DAILY_DECAY;
+
   // ── 3) 초월(eternal_bloom 등) 생기 보너스 — 유지비를 낼 수 있고, 성공·보호된 날에만 생존 ──
   let budget = spendablePoints;
   let transcendentVitality = 0;
@@ -123,6 +130,7 @@ export function projectTomorrowHealth(input: HealthForecastInput): HealthForecas
   if (daySuccess) h = Math.min(100, h + HEALTH_RULES.SUCCESS_DELTA);
   else if (!protectedDay) h = Math.max(0, h + HEALTH_RULES.FAILURE_DELTA);
   h = Math.min(100, h + transcendentVitality);
+  if (dailyDecay) h = Math.max(0, h - dailyDecay);
   const projected = Math.max(0, h - habitHealthLoss);
 
   return {
@@ -131,6 +139,7 @@ export function projectTomorrowHealth(input: HealthForecastInput): HealthForecas
     delta: projected - current,
     daySuccess,
     successDelta,
+    dailyDecay,
     habitHealthLoss,
     transcendentVitality,
     flipsToSuccessNeeded: flipsToSuccess(habits, checks, scored.length, achievedScored),

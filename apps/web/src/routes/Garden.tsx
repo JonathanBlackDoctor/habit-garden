@@ -10,7 +10,7 @@ import ForecastCard from '@/features/garden/ForecastCard';
 import TranscendAtmosphere from '@/features/garden/TranscendAtmosphere';
 import { useAppStore } from '@/lib/store';
 import { useNickname } from '@/lib/features';
-import { PLANT_SPECIES, POINT_PRICES, DAILY_YIELD_BY_RARITY, PLANTS_PER_BED, PLANTS_PER_ROW, CODEX_SPECIES_COUNT, MAX_BEDS, DAILY_PLANT_LIMIT } from 'shared/types/firestore';
+import { PLANT_SPECIES, POINT_PRICES, SPRINGWATER_COST, DAILY_YIELD_BY_RARITY, PLANTS_PER_BED, PLANTS_PER_ROW, CODEX_SPECIES_COUNT, MAX_BEDS, DAILY_PLANT_LIMIT } from 'shared/types/firestore';
 import { getGameDayKST } from '@/features/garden/useGarden';
 import { computePassiveYield } from 'shared/lib/gardenYield';
 import type { PlantInstance, PlantSpecies } from 'shared/types/firestore';
@@ -62,10 +62,10 @@ function traitLabel(t?: PlantSpecies['trait']): string | null {
     case 'lucky':      return '🍀 행운 (드롭↑·1/5 시작)';
     case 'beauty':     return `✿ 매일 +${t.xp} XP`;
     case 'hardy':      return '🛡️ 시들기 면역';
-    case 'fast':       return '⚡ 생기 80 이상 시 매일 자동 성장';
+    case 'fast':       return '⚡ 물주기 1회에 2단계씩 자람';
     case 'healer':     return `🪷 만개 시 생기 +${t.heal}`;
     case 'streakSync': return '✨ 기도 연속 시 수확 +50%';
-    case 'bloomer':    return '🌳 매일 자동 성장 (확실)';
+    case 'bloomer':    return '🌳 물주기 1회에 2단계씩 자람';
     case 'brittle':    return '💎 거른 날 즉시 사라짐 (물 회복 불가)';
     case 'fragile':    return '✨ 거르면 시들고, 이어 거르면 죽음';
     case 'waning':     return `🌌 ${t.graceDays}일 연속 거르면 죽음`;
@@ -283,9 +283,10 @@ export default function Garden() {
   }
 
   const { gardenState, spendablePoints } = progress;
+  const springWater = progress.springWater ?? 0;
   const plants = gardenState.plants;
   const vibe = healthVibe(gardenState.health ?? 100);
-  const autogrowToday = progress.gardenStats?.autogrowToday ?? 0;
+  const pendingGrowthCount = plants.filter((p) => p.pendingGrowth).length;  // 다음 정산에 자랄 식물 수
   const codexCount = progress.gardenStats?.codexEntries?.length ?? 0;
   const dailyIncome = computePassiveYield(plants);  // 현재 만개 식물들의 하루 자동 수익(P)
 
@@ -351,15 +352,15 @@ export default function Garden() {
             <Wheat size={11} />
             만개 +{dailyIncome}P/일
           </span>
-          {/* 자동 성장 칩 */}
+          {/* 샘물 칩 — 성장 전용 자원(습관 이행으로 모임). 물 준 식물은 내일 자란다. */}
           <span className={cn(
-            'flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-medium',
-            autogrowToday > 0
-              ? 'bg-[var(--leaf-soft)] text-[var(--leaf-strong,var(--leaf))]'
+            'flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-medium tabular-nums',
+            springWater > 0
+              ? 'bg-[#DCEEFF] text-[#1E5A8A]'
               : 'bg-[var(--leaf-soft)]/40 text-[var(--fg-faint)]',
           )}>
-            <Sparkles size={11} />
-            오늘 자동 +{autogrowToday}
+            <Droplets size={11} />
+            샘물 {springWater}{pendingGrowthCount > 0 ? ` · 내일 +${pendingGrowthCount}🌱` : ''}
           </span>
         </div>
       </div>
@@ -695,7 +696,7 @@ export default function Garden() {
                             className="w-full gap-2"
                           >
                             <Droplets size={15} />
-                            {alreadyWatered ? '오늘 물줌 ✓' : `물주기 (${POINT_PRICES.WATER}P)`}
+                            {alreadyWatered ? '물 줌 ✓ · 내일 자람' : `물주기 (🪣${SPRINGWATER_COST.WATER})`}
                           </Button>
                         );
                       })()
@@ -766,8 +767,8 @@ export default function Garden() {
             </div>
           </div>
           <p className="text-[11px] text-[var(--fg-faint)] leading-relaxed">
-            물주기 비용 {POINT_PRICES.WATER}P · 희귀+{POINT_PRICES.HARVEST_BONUS_RARE} · 에픽+{POINT_PRICES.HARVEST_BONUS_RARE + POINT_PRICES.HARVEST_BONUS_EPIC} · 전설+{POINT_PRICES.HARVEST_BONUS_RARE + POINT_PRICES.HARVEST_BONUS_EPIC + POINT_PRICES.HARVEST_BONUS_LEGENDARY} 수확 보너스.<br />
-            만개 식물은 매일 자동 P 생성. 심을 때 10% 확률로 한 등급 위 씨앗 발견 (lucky 종은 15%). 레벨업 보상 씨앗은 한도에 포함되지 않습니다.
+            물주기 🪣{SPRINGWATER_COST.WATER} · 심기 🪣{SPRINGWATER_COST.PLANT}+씨앗값 · 희귀+{POINT_PRICES.HARVEST_BONUS_RARE} · 에픽+{POINT_PRICES.HARVEST_BONUS_RARE + POINT_PRICES.HARVEST_BONUS_EPIC} · 전설+{POINT_PRICES.HARVEST_BONUS_RARE + POINT_PRICES.HARVEST_BONUS_EPIC + POINT_PRICES.HARVEST_BONUS_LEGENDARY} 수확 보너스.<br />
+            🪣샘물은 습관·회고·기도·말씀을 이행해야 모입니다. 물을 준 식물은 <b>다음날 04:00에 한 단계</b> 자랍니다(자동 성장 없음). 만개 식물은 매일 자동 P 생성. 심을 때 10% 확률로 한 등급 위 씨앗 발견(lucky 15%).
           </p>
           {plantLimitReached && (
             <p className="text-[11px] text-[#A83A30] font-medium">

@@ -11,6 +11,8 @@ import {
   POINT_PRICES,
   BADGE_DEFS,
   MAX_GARDEN_PLANTS,
+  WATER_GROWTH_STAGES,
+  WATER_GROWTH_BONUS_STAGES,
   type ProgressDoc,
   type PlantInstance,
   type GardenStats,
@@ -48,42 +50,17 @@ function maxStageOf(speciesId: string): number {
   return (speciesOf(speciesId)?.stages ?? 4) - 1;
 }
 
-/** 정원의 식물 중 미만개 식물 1개를 랜덤하게 +1 단계 성장 + autogrow 카운트 */
-export async function growRandomPlant(uid: string, chance = 1.0): Promise<void> {
-  if (chance < 1.0 && Math.random() > chance) return;
-
-  const ref = db.doc(`users/${uid}/progress/main`);
-  const snap = await ref.get();
-  if (!snap.exists) return;
-  const prog = snap.data() as ProgressDoc;
-  const plants = prog.gardenState?.plants ?? [];
-  if (plants.length === 0) return;
-
-  const eligible = plants
-    .map((p, idx) => ({ p, idx, max: maxStageOf(p.speciesId) }))
-    .filter(({ p, max }) => p.stage < max);
-  if (eligible.length === 0) return;
-
-  const pick = eligible[Math.floor(Math.random() * eligible.length)];
-  const next = plants.map((p, idx) =>
-    idx === pick.idx ? { ...p, stage: p.stage + 1, witheredSince: undefined } : p,
-  );
-
-  // 자동 성장 카운터
-  const stats = prog.gardenStats ?? {};
-  const autogrowToday = (stats.autogrowToday ?? 0) + 1;
-  const autogrowTotal = (stats.autogrowTotal ?? 0) + 1;
-
-  await ref.set({
-    gardenState: { ...prog.gardenState, plants: next },
-    gardenStats: { ...stats, autogrowToday, autogrowTotal },
+/**
+ * 샘물 지급 — 습관·회고·기도·말씀 이행 시 호출 (옛 growRandomPlant 자리).
+ * 랜덤/즉시 성장은 폐지됐다. 대신 성장 전용 자원인 샘물만 적립한다.
+ * 샘물은 포인트(P)·원장과 분리되므로 progress.springWater 만 증가시킨다.
+ */
+export async function grantSpringWater(uid: string, amount: number): Promise<void> {
+  if (amount <= 0) return;
+  await db.doc(`users/${uid}/progress/main`).set({
+    springWater: FieldValue.increment(amount),
     updatedAt: FieldValue.serverTimestamp(),
   }, { merge: true });
-
-  // autogrow 50회 배지 (도달 시점에 한 번)
-  if (autogrowTotal === 50) {
-    await grantBadgeIfNew(uid, 'autogrow_50', 100);
-  }
 }
 
 /** 정원 생기(health) 가산 (0~100 클램프). */
@@ -162,41 +139,39 @@ export async function processDailyGarden(
   const gameDay = gameDayKST();
   if (stats.lastDailyGardenDate === gameDay) return;
 
-  // fast 트레잇 자동 성장은 서버 리셋과 클라이언트가 공유하는 게임일 마커로 하루 1회만 적용한다.
-  // (스케줄드 리셋이 누락돼도 클라이언트가 같은 규칙으로 채워 넣을 수 있게 한 이중 경로)
-  const canFastGrow = health >= 80 && garden.lastFastGrowDate !== gameDay;
-  const willFastGrow = canFastGrow && plants.some((p) => {
-    const sp = speciesOf(p.speciesId);
-    return sp?.trait?.kind === 'fast' && p.stage < ((sp.stages ?? 4) - 1);
-  });
-
-  // 한 단계 성장 + 요약 기록 (만개 도달 시 'bloomed' 도 함께).
-  const grow = (p: PlantInstance, max: number): PlantInstance => {
+  // n 단계 성장 + 요약 기록 (만개 도달 시 'bloomed' 도 함께). max 클램프.
+  const grow = (p: PlantInstance, max: number, by = 1): PlantInstance => {
     const e = recapOf(p);
     e.events.add('grew');
-    if (p.stage + 1 >= max) e.events.add('bloomed');
-    return { ...p, stage: p.stage + 1, witheredSince: undefined };
+    const next = Math.min(p.stage + by, max);
+    if (next >= max) e.events.add('bloomed');
+    return { ...p, stage: next, witheredSince: undefined };
   };
 
-  // 1) 트레잇 적용 (성장 계열): fast + bloomer
+  // 1) 자동 성장은 폐지됐다 — 성장은 오직 샘물(물주기)로만 일어난다.
+  //    단 transcendent(초월)만 예외: 유지비+하루실패 즉사로 이미 습관에 강하게 묶여 있어,
+  //    살아있는 동안 매일 한 단계씩 자라 만개에 이른다 (health 무관).
   plants = plants.map((p) => {
     const sp = speciesOf(p.speciesId);
     if (!sp) return p;
     const max = (sp.stages ?? 4) - 1;
     if (p.stage >= max) return p;
-    // bloomer (생명나무): 항상 +1 (health 무관)
-    if (sp.trait?.kind === 'bloomer') {
-      return grow(p, max);
-    }
-    // transcendent (초월): 살아있으면 매일 한 단계씩 자라 만개에 이른다 (health 무관)
-    if (sp.trait?.kind === 'transcendent') {
-      return grow(p, max);
-    }
-    // fast (대나무·민트·등): 생기 80 이상 + 오늘 아직 미적용일 때 +1
-    if (sp.trait?.kind === 'fast' && canFastGrow) {
-      return grow(p, max);
-    }
+    if (sp.trait?.kind === 'transcendent') return grow(p, max);
     return p;
+  });
+
+  // 1.5) 샘물 성장 — 어제 물을 준(pendingGrowth) 식물이 '오늘' 자란다.
+  //   fast(대나무·민트)·bloomer(생명나무)는 옛 자동 성장을 물주기 보너스로 전환해 2단계,
+  //   그 외 종은 1단계. 성장 후 pendingGrowth 플래그를 비운다.
+  plants = plants.map((p) => {
+    if (!p.pendingGrowth) return p;
+    const sp = speciesOf(p.speciesId);
+    if (!sp) return { ...p, pendingGrowth: false };
+    const max = (sp.stages ?? 4) - 1;
+    const by = (sp.trait?.kind === 'fast' || sp.trait?.kind === 'bloomer')
+      ? WATER_GROWTH_BONUS_STAGES : WATER_GROWTH_STAGES;
+    const grown = p.stage < max ? grow(p, max, by) : p;
+    return { ...grown, pendingGrowth: false };
   });
 
   // beauty 트레잇: 정원에 있는 식물별 XP 가산
@@ -228,6 +203,10 @@ export async function processDailyGarden(
     health = Math.min(100, health + HEALTH_RULES.SUCCESS_DELTA);
   } else if (!protectedDay) {
     health = Math.max(0, health + HEALTH_RULES.FAILURE_DELTA);
+  }
+  // 자연 감소(3-3) — 보호 안 된 날은 성공·실패 무관하게 매일 빠진다(계속 가꿔야 유지).
+  if (!protectedDay) {
+    health = Math.max(0, health - HEALTH_RULES.DAILY_DECAY);
   }
 
   let plantsLost = 0;
@@ -440,7 +419,6 @@ export async function processDailyGarden(
 
   // 9) 일괄 저장 (progress + passive yield)
   const nextGarden: any = { ...garden, plants, health };
-  if (willFastGrow) nextGarden.lastFastGrowDate = gameDay;  // 오늘 fast 성장 적용 표시 (클라이언트 중복 성장 방지)
   const patch: any = {
     gardenState: nextGarden,
     gardenStats: stats,

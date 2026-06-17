@@ -181,6 +181,7 @@ export default function Main() {
     return sum + pointsForCheck(h.weight, h.scoreMode, c.score);
   }, 0);
   const spendable  = progress?.spendablePoints ?? 0;
+  const springWater = progress?.springWater ?? 0;
   const streak     = progress?.globalStreak ?? 0;
   const level      = progress?.level ?? 1;
   const xpInLevel  = progress?.xpInLevel ?? 0;
@@ -348,7 +349,10 @@ export default function Main() {
         </div>
         <div className="flex items-center justify-between">
           <TodayGrowth achieved={totalAchieved} total={totalHabits} />
-          {forecastPoints > 0 && <p className="text-xs text-[var(--fg-muted)] tabular-nums">+{forecastPoints}P 예상</p>}
+          <div className="flex items-center gap-2 tabular-nums">
+            <span className="text-xs text-[#1E5A8A]">🪣{springWater}</span>
+            {forecastPoints > 0 && <span className="text-xs text-[var(--fg-muted)]">+{forecastPoints}P 예상</span>}
+          </div>
         </div>
       </motion.section>
     ),

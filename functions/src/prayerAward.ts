@@ -13,12 +13,13 @@ import { FieldValue } from 'firebase-admin/firestore';
 import {
   PRAYER_POINT_EARN,
   PRAYER_DAILY_CHECK_CAP,
+  SPRINGWATER_EARN,
   BADGE_DEFS,
   type PrayerDoc,
   type DayDoc,
   type ProgressDoc,
 } from '../../shared/types/firestore';
-import { growRandomPlant, bumpGardenHealth } from './gardenAutogrow';
+import { grantSpringWater, bumpGardenHealth } from './gardenAutogrow';
 import { applyLevelUps } from './levelEngine';
 
 const db = admin.firestore();
@@ -109,7 +110,7 @@ export const prayerAward = functions
       // 2. 체크 포인트 (하루 상한 적용)
       if (pointsDelta > 0) {
         await creditPoints(uid, pointsDelta, 'prayer_check', `${date}/${prayerId}`);
-        await growRandomPlant(uid, 0.3);  // 정원 자동 성장 (30% 확률, 인플레 방지)
+        await grantSpringWater(uid, SPRINGWATER_EARN.PRAYER_CHECK);  // 기도 체크 → 샘물
       }
 
       // 3. 오늘 목록 전부 완료? — 보너스는 1회만(prayerListCompleted 게이트).

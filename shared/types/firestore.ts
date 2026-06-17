@@ -407,6 +407,7 @@ export interface TodayTodoDoc {
 export interface ProgressDoc {
   totalPoints: number;
   spendablePoints: number;
+  springWater?: number;          // 🪣 샘물 — '성장 전용' 자원. 습관·회고·기도·말씀 이행에서만 얻고 심기·물주기에만 쓴다(포인트로 못 산다).
   level: number;
   xpInLevel: number;
   globalStreak: number;
@@ -520,6 +521,7 @@ export interface PlantInstance {
   witheredSince?: Timestamp;
   neglectStreak?: number;         // 연속 실패(게으른)일 수 — 연약 전설 trait 에서 사용
   wateredAt?: Timestamp;          // 마지막 물주기 시각 (하루 1회 제한)
+  pendingGrowth?: boolean;        // 오늘 샘물을 받아 '다음 04:00 정산'에 한 단계 자랄 예정 (즉시 성장 없음)
 }
 
 // ── 공개 정원 (둘러보기) ──────────────────────────────────
@@ -583,6 +585,33 @@ export const POINT_PRICES = {
   HARVEST_BONUS_LEGENDARY: 100,   // 전설 수확 시 추가 (위에 누적)
 } as const;
 
+// ── 샘물(springWater) 경제 ────────────────────────────────────
+// 샘물은 '성장 전용' 자원이다. 옛 랜덤/자동 성장을 전부 대체한다:
+//   · 습관·회고·기도·말씀을 이행하면 샘물을 얻는다 (포인트 P 로는 살 수 없다).
+//   · 씨앗을 심을 때(씨앗값 P 와 별도)·물을 줄 때 샘물을 쓴다.
+//   · 물을 준 식물은 그날 자라지 않고 '다음 04:00 정산'에서 한 단계 자란다(pendingGrowth).
+// 이로써 '정원 성장 = 습관 이행' 이 구조적으로 강제된다.
+export const SPRINGWATER_EARN = {
+  HABIT_ACHIEVED:       1,   // 습관 1개 '달성' (시도만 한 경우 0 — 달성 게이트)
+  REFLECTION:           2,   // 회고 작성
+  PRAYER_CHECK:         1,   // 기도제목 체크
+  APPLICATION_CHECK:    1,   // 말씀 적용 실천 체크
+  APPLICATION_COMPLETE: 2,   // 말씀 적용 완료
+} as const;
+
+export const SPRINGWATER_COST = {
+  PLANT: 1,   // 씨앗 심기 (P 씨앗값과 별도로 추가)
+  WATER: 1,   // 물주기 1회 → 다음 정산에 +1단계 (fast·bloomer 종은 +2단계)
+} as const;
+
+// 물주기 1회로 자라는 단계 수. fast(대나무·민트)·bloomer(생명나무)는 옛 자동 성장을
+// '물주기 보너스'로 전환해 1회에 2단계 자란다. 그 외 종은 1단계.
+export const WATER_GROWTH_STAGES = 1;
+export const WATER_GROWTH_BONUS_STAGES = 2;
+
+// 새 사용자 시작 샘물 (씨앗을 심고 며칠 키워볼 수 있는 양)
+export const STARTER_SPRINGWATER = 10;
+
 export const PLANTS_PER_BED = 8;   // 화단 한 페이지에 보이는 식물 수
 export const PLANTS_PER_ROW = 4;   // 계단식 한 줄당 식물 수 (8개 = 2줄)
 export const MAX_BEDS = 3;         // 최대 화단 수
@@ -641,9 +670,10 @@ export const HABIT_PENALTY = {
   POINT_PER_WEIGHT: 1,     // 미기록 습관 1개당 가중치 × 이 값 P 차감
   MISSED_FACTOR: 0.5,      // 미달성(시도)은 위 패널티의 절반만
   DAILY_POINT_CAP: 40,     // 하루 포인트 차감 상한
-  HEALTH_PER_TODO: 2,      // 미기록 1개당 정원 생기 감소
-  HEALTH_PER_MISSED: 1,    // 미달성 1개당 정원 생기 감소
-  DAILY_HEALTH_CAP: 12,    // 하루 생기 감소 상한
+  // 생기 변화폭 확대(매우 강하게): 하루 습관 성과로 생기가 크게 출렁이게 한다.
+  HEALTH_PER_TODO: 5,      // 미기록 1개당 정원 생기 감소
+  HEALTH_PER_MISSED: 3,    // 미달성 1개당 정원 생기 감소
+  DAILY_HEALTH_CAP: 40,    // 하루 생기 감소 상한 (미완료 패널티)
 } as const;
 
 // ── 할 일(todo) 포인트 상수 ───────────────────────────────
