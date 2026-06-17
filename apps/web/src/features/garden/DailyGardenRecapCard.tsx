@@ -30,9 +30,47 @@ const EVENT_META: Record<
 const EVENT_PRIORITY: DailyGardenRecapPlant['events'][number][] =
   ['died', 'bloomed', 'regressed', 'withered', 'grew'];
 
-function primaryEvent(p: DailyGardenRecapPlant) {
-  for (const e of EVENT_PRIORITY) if (p.events.includes(e)) return e;
+// 같은 종을 한 줄로 묶은 표시 단위. 수익·XP·생기·유지비는 합산, 사건은 합집합.
+interface PlantGroup {
+  speciesId: string;
+  count: number;       // 이 종의 그루 수 (×N 표시에 사용)
+  yield: number;       // 합산 수익(P)
+  yieldCount: number;  // 실제로 수익을 낸 그루 수 (개당 표시 분모)
+  xp: number;
+  vitality: number;
+  upkeep: number;
+  events: Set<DailyGardenRecapPlant['events'][number]>;
+}
+
+function groupPrimaryEvent(g: PlantGroup) {
+  for (const e of EVENT_PRIORITY) if (g.events.has(e)) return e;
   return null;
+}
+
+/** 식물별 상세를 같은 종끼리 묶어 ×N 한 줄로 정리한다 (사건 우선순위 → 총수익 순). */
+function groupBySpecies(plants: DailyGardenRecapPlant[]): PlantGroup[] {
+  const map = new Map<string, PlantGroup>();
+  for (const p of plants) {
+    let g = map.get(p.speciesId);
+    if (!g) {
+      g = { speciesId: p.speciesId, count: 0, yield: 0, yieldCount: 0, xp: 0, vitality: 0, upkeep: 0, events: new Set() };
+      map.set(p.speciesId, g);
+    }
+    g.count += 1;
+    g.yield += p.yield ?? 0;
+    if ((p.yield ?? 0) > 0) g.yieldCount += 1;
+    g.xp += p.xp ?? 0;
+    g.vitality += p.vitality ?? 0;
+    g.upkeep += p.upkeep ?? 0;
+    for (const e of p.events) g.events.add(e);
+  }
+  return [...map.values()].sort((a, b) => {
+    const ea = groupPrimaryEvent(a), eb = groupPrimaryEvent(b);
+    const ra = ea ? EVENT_PRIORITY.indexOf(ea) : 99;
+    const rb = eb ? EVENT_PRIORITY.indexOf(eb) : 99;
+    if (ra !== rb) return ra - rb;
+    return b.yield - a.yield;
+  });
 }
 
 /** 요약 상단의 통계 칩 하나. */
@@ -122,17 +160,13 @@ export default function DailyGardenRecapCard({
 
   const net = recap.pointsEarned - recap.upkeepPaid;
   const healthDelta = recap.healthAfter - recap.healthBefore;
+  const hasSummary = recap.grown > 0 || recap.bloomed > 0 || recap.withered > 0
+    || recap.regressed > 0 || recap.lost > 0 || recap.streakSeed;
 
-  // 식물별 상세: 사건 있는 식물 먼저(우선순위 순), 그다음 수익만 낸 식물.
-  const sortedPlants = [...recap.plants].sort((a, b) => {
-    const ea = primaryEvent(a), eb = primaryEvent(b);
-    const ra = ea ? EVENT_PRIORITY.indexOf(ea) : 99;
-    const rb = eb ? EVENT_PRIORITY.indexOf(eb) : 99;
-    if (ra !== rb) return ra - rb;
-    return (b.yield ?? 0) - (a.yield ?? 0);
-  });
-  const shown = expanded ? sortedPlants : sortedPlants.slice(0, MAX_PLANT_ROWS);
-  const moreCount = sortedPlants.length - shown.length;
+  // 같은 종끼리 묶어 ×N 으로 정리.
+  const groups = groupBySpecies(recap.plants);
+  const shown = expanded ? groups : groups.slice(0, MAX_PLANT_ROWS);
+  const moreCount = groups.length - shown.length;
 
   return (
     <motion.section
@@ -154,7 +188,7 @@ export default function DailyGardenRecapCard({
         </button>
       </div>
 
-      {/* 요약 통계 칩 */}
+      {/* 요약 통계 칩 — 포인트 · 경험치 · 생기(항상 표시) */}
       <div className="flex flex-wrap gap-1.5">
         {net !== 0 && (
           <StatChip
@@ -169,83 +203,105 @@ export default function DailyGardenRecapCard({
             label={`수익 +${recap.pointsEarned}P · 유지비 −${recap.upkeepPaid}P`}
           />
         )}
+        {/* 경험치 — 전체 정산일 때만 의미 있는 값. 0이면 숨김. */}
         {recap.xpGained > 0 && (
           <StatChip icon={<Sparkles size={11} />} tone="bg-[var(--bloom-soft)] text-[var(--bloom)]" label={`+${recap.xpGained} XP`} />
         )}
-        {healthDelta !== 0 && (
-          <StatChip
-            icon={<Heart size={11} />}
-            tone={healthDelta > 0 ? 'bg-[var(--leaf-soft)] text-[var(--leaf-strong,var(--leaf))]' : 'bg-[var(--wither)]/15 text-[var(--wither)]'}
-            label={`생기 ${recap.healthBefore}→${recap.healthAfter} (${healthDelta > 0 ? '+' : ''}${healthDelta})`}
-          />
-        )}
+        {/* 생기 — 항상 표시. 변화가 있으면 before→after(±Δ), 없으면 현재 수치만. */}
+        <StatChip
+          icon={<Heart size={11} />}
+          tone={
+            healthDelta > 0 ? 'bg-[var(--leaf-soft)] text-[var(--leaf-strong,var(--leaf))]'
+              : healthDelta < 0 ? 'bg-[var(--wither)]/15 text-[var(--wither)]'
+              : 'bg-[var(--leaf-soft)]/50 text-[var(--fg-muted)]'
+          }
+          label={
+            healthDelta !== 0
+              ? `생기 ${recap.healthBefore}→${recap.healthAfter} (${healthDelta > 0 ? '+' : ''}${healthDelta})`
+              : `생기 ${recap.healthAfter}/100`
+          }
+        />
       </div>
 
-      {/* 변화 요약 한 줄 */}
-      {(recap.grown > 0 || recap.bloomed > 0 || recap.withered > 0 || recap.regressed > 0 || recap.lost > 0 || recap.streakSeed) && (
-        <p className="flex flex-wrap gap-x-2.5 gap-y-0.5 text-[11px] text-[var(--fg-muted)] tabular-nums">
-          {recap.grown > 0 && <span>🌱 자람 {recap.grown}</span>}
-          {recap.bloomed > 0 && <span className="text-[var(--bloom)]">🌸 만개 {recap.bloomed}</span>}
-          {recap.withered > 0 && <span className="text-[var(--wither)]">🍂 시듦 {recap.withered}</span>}
-          {recap.regressed > 0 && <span className="text-[var(--wither)]">🥀 한 단계 시듦 {recap.regressed}</span>}
-          {recap.lost > 0 && <span className="text-[#A83A30]">💀 떠나보냄 {recap.lost}</span>}
-          {recap.streakSeed && <span className="text-[var(--leaf-strong,var(--leaf))]">🎁 스트릭 보너스 씨앗</span>}
-        </p>
+      {/* 변화 요약 한 줄 — 전체 정산일 때만. (부분 요약은 성장·시듦을 알 수 없으므로 아래 안내로 대체) */}
+      {!recap.partial && (
+        hasSummary ? (
+          <p className="flex flex-wrap gap-x-2.5 gap-y-0.5 text-[11px] text-[var(--fg-muted)] tabular-nums">
+            {recap.grown > 0 && <span>🌱 자람 {recap.grown}</span>}
+            {recap.bloomed > 0 && <span className="text-[var(--bloom)]">🌸 만개 {recap.bloomed}</span>}
+            {recap.withered > 0 && <span className="text-[var(--wither)]">🍂 시듦 {recap.withered}</span>}
+            {recap.regressed > 0 && <span className="text-[var(--wither)]">🥀 한 단계 시듦 {recap.regressed}</span>}
+            {recap.lost > 0 && <span className="text-[#A83A30]">💀 떠나보냄 {recap.lost}</span>}
+            {recap.streakSeed && <span className="text-[var(--leaf-strong,var(--leaf))]">🎁 스트릭 보너스 씨앗</span>}
+          </p>
+        ) : (
+          <p className="flex items-center gap-1.5 text-[11px] text-[var(--fg-muted)]">
+            <Sprout size={12} /> 자라거나 시든 식물 없이 잔잔한 하루였어요.
+          </p>
+        )
       )}
 
-      {/* 식물별 상세 */}
-      {sortedPlants.length > 0 && (
+      {/* 식물별 상세 — 같은 종은 ×N 한 줄로 */}
+      {groups.length > 0 && (
         <div className="space-y-1 border-t border-[var(--leaf-soft)] pt-2">
-          {shown.map((p) => {
-            const sp = speciesOf(p.speciesId);
-            const ev = primaryEvent(p);
+          {shown.map((g) => {
+            const sp = speciesOf(g.speciesId);
+            const ev = groupPrimaryEvent(g);
             // 만개했거나 수익을 낸(=다 자란) 식물은 만개 모습으로, 그 외엔 새싹 크기로.
-            const mature = ev === 'bloomed' || (p.yield ?? 0) > 0;
+            const mature = ev === 'bloomed' || g.yield > 0;
+            // '개당'은 같은 종이 모두 수익을 낸 깔끔한 경우에만 표시 (그 외엔 합계만).
+            const each = g.yieldCount > 1 && g.yieldCount === g.count ? Math.round(g.yield / g.yieldCount) : 0;
             return (
-              <div key={p.plantId} className="flex items-center gap-2 text-xs">
+              <div key={g.speciesId} className="flex items-center gap-2 text-xs">
                 <PlantSVG
-                  speciesId={p.speciesId}
+                  speciesId={g.speciesId}
                   stage={mature ? (sp?.stages ?? 4) - 1 : 1}
                   withered={ev === 'withered' || ev === 'regressed' || ev === 'died'}
                   rarity={sp?.rarity}
                   size={24}
                 />
-                <span className="shrink-0 font-medium text-[var(--fg-primary)]">{sp?.name ?? p.speciesId}</span>
+                <span className="shrink-0 font-medium text-[var(--fg-primary)]">{sp?.name ?? g.speciesId}</span>
+                {g.count > 1 && (
+                  <span className="shrink-0 rounded-full bg-[var(--leaf-soft)] px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-[var(--leaf-strong,var(--leaf))]">
+                    ×{g.count}
+                  </span>
+                )}
                 {ev && (
                   <span className={cn('shrink-0 rounded-full px-1.5 py-0.5 text-[10px]', EVENT_META[ev].chip)}>
                     {EVENT_META[ev].label}
                   </span>
                 )}
                 <span className="ml-auto flex shrink-0 items-center gap-2 tabular-nums text-[11px]">
-                  {p.yield ? <span className="text-[#8A6A1E]">+{p.yield}P</span> : null}
-                  {p.xp ? <span className="text-[var(--bloom)]">+{p.xp}XP</span> : null}
-                  {p.vitality ? <span className="text-[var(--leaf-strong,var(--leaf))]">생기 +{p.vitality}</span> : null}
-                  {p.upkeep ? <span className="text-[var(--wither)]">−{p.upkeep}P</span> : null}
+                  {g.yield > 0 ? (
+                    <span className="text-[#8A6A1E]">
+                      +{g.yield}P
+                      {each > 0 && <span className="text-[var(--fg-faint)]"> (개당 +{each}P)</span>}
+                    </span>
+                  ) : null}
+                  {g.xp > 0 ? <span className="text-[var(--bloom)]">+{g.xp}XP</span> : null}
+                  {g.vitality > 0 ? <span className="text-[var(--leaf-strong,var(--leaf))]">생기 +{g.vitality}</span> : null}
+                  {g.upkeep > 0 ? <span className="text-[var(--wither)]">−{g.upkeep}P</span> : null}
                 </span>
               </div>
             );
           })}
-          {(moreCount > 0 || expanded) && sortedPlants.length > MAX_PLANT_ROWS && (
+          {groups.length > MAX_PLANT_ROWS && (
             <button
               onClick={() => setExpanded((v) => !v)}
               className="flex items-center gap-1 pt-0.5 text-[11px] text-[var(--leaf-strong,var(--leaf))]"
             >
-              {expanded ? <><ChevronUp size={12} /> 접기</> : <><ChevronDown size={12} /> {moreCount}그루 더 보기</>}
+              {expanded ? <><ChevronUp size={12} /> 접기</> : <><ChevronDown size={12} /> {moreCount}종 더 보기</>}
             </button>
           )}
         </div>
       )}
 
-      {/* 빈 상세 — 식물 단위 변화 없이 생기/수익만 바뀐 날 */}
-      {sortedPlants.length === 0 && (
-        <p className="flex items-center gap-1.5 text-[11px] text-[var(--fg-faint)]">
-          <Sprout size={12} /> 오늘은 정원 생기만 조용히 달라졌어요.
-        </p>
-      )}
-
+      {/* 부분 요약 안내 — 전체 정산(성장·시듦·경험치)이 아직 반영되기 전 */}
       {recap.partial && (
-        <p className="text-[10px] text-[var(--fg-faint)]">
-          ※ 수익 정보만 먼저 표시됐어요. 정산이 동기화되면 성장·시듦까지 채워집니다.
+        <p className="flex items-start gap-1.5 rounded-md bg-[#FFF3CC] px-2.5 py-1.5 text-[11px] leading-snug text-[#8A6A1E]">
+          <Sparkles size={12} className="mt-0.5 shrink-0" />
+          지금은 <b>오늘 번 포인트</b>만 먼저 보여 줘요. 성장·시듦·경험치·생기 변화는 오늘 정산이
+          마무리되면 자동으로 채워집니다.
         </p>
       )}
     </motion.section>
