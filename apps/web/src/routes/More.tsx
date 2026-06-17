@@ -22,6 +22,7 @@ import SignupCTA from '@/components/SignupCTA';
 
 const items = [
   { icon: BarChart2,     label: '진척 현황', to: '/progress' },
+  { icon: Sparkles,      label: '포인트 내역', to: '/points' },
   { icon: GraduationCap, label: '사용 설명서', to: '/tutorial' },
   { icon: Cloud,         label: '컨디션',   to: '/condition' },
   { icon: BookOpen,      label: '플래너',   to: '/planner' },
