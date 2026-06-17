@@ -53,4 +53,5 @@ planner_src.zip
 .npmcache/
 .npm-install.log
 apps/web/node_modules
-.claude/
+.claude/*
+!.claude/skills/
