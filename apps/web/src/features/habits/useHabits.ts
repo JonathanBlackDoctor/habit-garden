@@ -6,13 +6,18 @@ import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import type { HabitDoc, HabitCheckDoc } from 'shared/types/firestore';
 import { pointsForCheck, SCALED_ACHIEVE_THRESHOLD } from 'shared/lib/habitPoints';
+import { isHibernating } from 'shared/lib/hibernation';
 import { toast } from 'sonner';
 import { feedback } from '@/lib/feedback';
 import { useProgress } from '@/features/garden/useGarden';
 
-export function useHabits(opts?: { includeInactive?: boolean }) {
+export function useHabits(opts?: { includeInactive?: boolean; includeHibernating?: boolean }) {
   const uid  = useAppStore((s) => s.uid);
   const includeInactive = opts?.includeInactive ?? false;
+  // 휴면(잠재운) 습관은 active:true 를 유지하므로 기본 목록에서 명시적으로 제외한다.
+  // 제외하지 않으면 '오늘의 습관' 위젯 등에서 체크 문서가 없어 미체크로 잘못 집계된다.
+  // 휴면 습관까지 다뤄야 하는 화면(습관 관리)만 includeHibernating 으로 포함한다.
+  const includeHibernating = opts?.includeHibernating ?? false;
   const [habits, setHabits] = useState<HabitDoc[]>([]);
 
   useEffect(() => {
@@ -20,9 +25,12 @@ export function useHabits(opts?: { includeInactive?: boolean }) {
     const q = query(collection(db, 'users', uid, 'habits'), orderBy('order'));
     return onSnapshot(q, (snap) => {
       const all = snap.docs.map((d) => d.data() as HabitDoc);
-      setHabits(includeInactive ? all : all.filter((h) => h.active));
+      setHabits(all.filter((h) =>
+        (includeInactive || h.active) &&
+        (includeHibernating || !isHibernating(h)),
+      ));
     });
-  }, [uid, includeInactive]);
+  }, [uid, includeInactive, includeHibernating]);
 
   return habits;
 }
