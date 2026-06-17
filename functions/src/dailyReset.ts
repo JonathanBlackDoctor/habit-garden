@@ -15,7 +15,13 @@ import { applyHabitPenalty } from './habitPenalty';
 import { HEALTH_RULES } from '../../shared/lib/healthForecast';
 import { shouldBecomeDormant, selectTodayPrayers, type RotationInput } from '../../shared/prayerRotation';
 import { selectCarryOverItems, CARRY_LOOKBACK_DAYS, type CarryDay } from '../../shared/todoCarryover';
-import type { PrayerDoc, TodayTodoDoc } from '../../shared/types/firestore';
+import {
+  APPLICATION_DEFAULT_TARGET_DAYS,
+  APPLICATION_STALE_DAYS,
+} from '../../shared/types/firestore';
+import type { ApplicationDoc, PrayerDoc, TodayTodoDoc } from '../../shared/types/firestore';
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 const db = admin.firestore();
 const KST = 'Asia/Seoul';
@@ -50,6 +56,8 @@ export const dailyReset = functions
         await applyHabitPenalty(uid, yesterday, protectedDay); // 어제 미완료 습관 패널티 (포인트·생기 차감)
         const { count: dormantCount, remainingActive } = await processDormantTransitions(uid);  // 잊혀짐 자동 전이 (설계 §5)
         if (dormantCount > 0) console.log(`dormant transition: uid=${uid}, n=${dormantCount}`);
+        const lapsedCount = await processStaleApplications(uid, today);  // 오래 방치된 말씀 적용 자동 보류
+        if (lapsedCount > 0) console.log(`application lapse: uid=${uid}, n=${lapsedCount}`);
         await ensurePrayerPlan(uid, today, remainingActive);  // 오늘의 기도 목록 서버 확정 (설계 §3.4)
       } catch (e) {
         console.error(`dailyReset failed for uid=${uid}:`, e);
@@ -101,6 +109,47 @@ async function processDormantTransitions(
   }
   if (count > 0) await batch.commit();
   return { count, remainingActive };
+}
+
+/**
+ * 오래 방치된 말씀 적용을 자동 보류(lapsed)로 내린다.
+ *  - 대상: status==='active' 이고 아직 목표(practiceCount < targetDays)에 못 미친 항목.
+ *    목표를 이미 채운 항목은 '완료로 마무리하세요' 안내가 떠 있으므로 건드리지 않는다.
+ *  - 기준: 마지막 실천일(없으면 시작일=date) 이후 APPLICATION_STALE_DAYS 초과 경과.
+ *  - 실천하지 않은 적용이 진행 목록에 무한정 쌓이지 않게 하되, 기록은 '완료·보관'에
+ *    남아 '다시 진행'으로 언제든 되살릴 수 있다.
+ */
+async function processStaleApplications(uid: string, today: string): Promise<number> {
+  const snap = await db.collection(`users/${uid}/applications`).where('status', '==', 'active').get();
+  if (snap.empty) return 0;
+
+  const todayMs = parseISO(today).getTime();
+  const batch = db.batch();
+  let count = 0;
+  for (const docSnap of snap.docs) {
+    const a = docSnap.data() as ApplicationDoc;
+    const targetDays = a.targetDays || APPLICATION_DEFAULT_TARGET_DAYS;
+    if ((a.practiceCount ?? 0) >= targetDays) continue; // 목표 달성 — 사용자가 완료/보관 결정
+
+    const lastMs = tsToMs(a.lastPracticedAt) ?? startMsOf(a);
+    const idleDays = (todayMs - lastMs) / DAY_MS;
+    if (idleDays > APPLICATION_STALE_DAYS) {
+      batch.update(docSnap.ref, {
+        status: 'lapsed',
+        lapsedAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      count++;
+    }
+  }
+  if (count > 0) await batch.commit();
+  return count;
+}
+
+/** 적용의 '시작 시점' ms — date('YYYY-MM-DD') 우선, 깨지면 createdAt, 그것도 없으면 0(즉시 만료 방지 위해 today는 호출부에서 비교). */
+function startMsOf(a: ApplicationDoc): number {
+  if (a.date && /^\d{4}-\d{2}-\d{2}$/.test(a.date)) return parseISO(a.date).getTime();
+  return tsToMs(a.createdAt) ?? 0;
 }
 
 /**

@@ -72,7 +72,20 @@ export interface UserSettingsDoc {
   nickname?: string;         // 정원 둘러보기에서 다른 사용자에게 표시되는 닉네임 (중복 허용)
   mainWidgetOrder?: string[];   // 오늘 탭 위젯 표시 순서 (위젯 id 배열). 미설정 시 기본 순서 사용
   mainHiddenWidgets?: string[]; // 오늘 탭에서 숨길 위젯 id 목록
+  lifeContext?: LifeContext; // 말씀 적용 AI가 참고할 사용자 생활 환경 (적용점을 실제 삶에 맞게 구체화)
   updatedAt: Timestamp;
+}
+
+// 말씀 적용 AI(parseApplication)가 참고하는 사용자 생활 환경.
+// 모든 항목은 선택이며, 채워진 항목만 프롬프트에 포함된다(shared/lib/lifeContext).
+export interface LifeContext {
+  role?: string;     // 직업·신분 (예: '고3 수험생', '두 아이 키우는 직장맘', '편의점 야간 알바')
+  family?: string;   // 함께 사는 가족·가정 상황 (예: '부모님·동생과 거주, 아버지와 갈등 중')
+  routine?: string;  // 하루 일과·주요 시간대 (예: '평일 9-18시 근무, 출퇴근 지하철 1시간')
+  people?: string;   // 자주 만나는 사람 (예: '같은 팀 동료 3명, 주일 청년부 셀원들')
+  focus?: string;    // 요즘 영적 고민·바라는 변화 (예: '쉽게 화내는 습관, 말씀 묵상 꾸준함')
+  memo?: string;     // 그 밖에 AI가 알면 좋을 자유 메모
+  updatedAt?: Timestamp;
 }
 
 // 알림 타입 — FCM data.action 값과 1:1 대응. 전달/오픈 트래킹 및 타입별 on/off 키로 사용.
@@ -337,7 +350,8 @@ export interface PrayerWeeklyDigestDoc {
 // 적용(무엇을 실천할지)을 기록하고, 이후 며칠간 '오늘 실천했나?'를 체크해
 // 실천 횟수·연속일을 추적한다(기도제목 체크와 동일한 멱등 구조).
 export type ApplicationType = 'qt' | 'sermon' | 'meditation' | 'lgm' | 'etc';   // 큐티 / 주일설교 / 말씀묵상 / LGM / 기타
-export type ApplicationStatus = 'active' | 'completed' | 'archived';
+// active=진행 중 / completed=완료(정착) / archived=사용자가 직접 보관 / lapsed=오래 실천이 없어 자동 보류
+export type ApplicationStatus = 'active' | 'completed' | 'archived' | 'lapsed';
 
 export interface ApplicationDoc {
   id: string;
@@ -354,6 +368,7 @@ export interface ApplicationDoc {
   streak: number;             // 연속 실천일
   lastPracticedAt?: Timestamp;
   completedAt?: Timestamp;
+  lapsedAt?: Timestamp;       // 오래 방치돼 자동 보류(lapsed)된 시각 (dailyReset이 설정)
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -373,6 +388,10 @@ export const APPLICATION_TYPE_LABELS: Record<ApplicationType, string> = {
 };
 
 export const APPLICATION_DEFAULT_TARGET_DAYS = 7;
+
+// 마지막 실천(없으면 시작일) 이후 이 일수를 넘도록 진행 중(active)이면서 목표 미달인 적용은
+// 매일 04:00 dailyReset이 자동으로 'lapsed'(보류)로 내려 진행 목록이 무한정 쌓이지 않게 한다.
+export const APPLICATION_STALE_DAYS = 7;
 
 export const APPLICATION_POINT_EARN = {
   PRACTICE_CHECK: 3,   // 하루 1건 실천 체크

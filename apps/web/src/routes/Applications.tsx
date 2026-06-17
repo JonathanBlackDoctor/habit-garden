@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Flame, Check, CheckCircle2, Archive, Trash2, BookOpen, RotateCcw, Wand2, Loader2, PenLine, ChevronLeft } from 'lucide-react';
+import { Plus, Flame, Check, CheckCircle2, Archive, Trash2, BookOpen, RotateCcw, Wand2, Loader2, PenLine, ChevronLeft, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { deleteField } from 'firebase/firestore';
@@ -7,6 +7,8 @@ import { useAppStore } from '@/lib/store';
 import { useIsPremium } from '@/lib/features';
 import { formatKoreanDate } from '@/lib/dayBoundary';
 import { cn } from '@/lib/utils';
+import LifeContextEditor from '@/features/applications/LifeContextEditor';
+import { hasLifeContext } from 'shared/lib/lifeContext';
 import {
   useApplications, useApplicationChecks, useApplicationActions, parseApplicationNote,
   type NewApplicationInput,
@@ -200,6 +202,8 @@ function DirectFields({ type, onDone }: { type: ApplicationType; onDone: () => v
 
 function AiFields({ type, onDone }: { type: ApplicationType; onDone: () => void }) {
   const { addApplications } = useApplicationActions();
+  const lifeCtxSet = useAppStore((s) => hasLifeContext(s.settings?.lifeContext));
+  const [ctxOpen, setCtxOpen] = useState(false);
   const [note, setNote] = useState('');
   const [parsing, setParsing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -261,6 +265,26 @@ function AiFields({ type, onDone }: { type: ApplicationType; onDone: () => void 
         <p className="text-xs text-[var(--fg-muted)]">
           큐티·설교에서 정리·요약한 노트를 그대로 붙여넣으면, AI가 본문·깨달은 말씀·다양한 적용점·실천 목표일로 정리해줘요.
         </p>
+        {/* 생활 환경 배너 — AI가 내 삶에 맞게 적용을 구체화하도록 */}
+        <button
+          type="button"
+          onClick={() => setCtxOpen(true)}
+          className={cn(
+            'flex w-full items-center gap-2 rounded-[var(--radius-sm)] border px-3 py-2 text-left text-xs',
+            lifeCtxSet
+              ? 'border-[var(--leaf-soft)] bg-[var(--leaf-soft)]/30 text-[var(--fg-muted)]'
+              : 'border-dashed border-[var(--leaf)] bg-[var(--leaf-soft)]/20 text-[var(--leaf)]',
+          )}
+        >
+          <Sparkles size={14} className="shrink-0 text-[var(--leaf)]" />
+          <span className="flex-1">
+            {lifeCtxSet
+              ? '내 생활 환경을 참고해 적용을 맞춰줘요 · 편집'
+              : '내 생활 환경을 알려주면 훨씬 와닿는 적용이 나와요 · 입력'}
+          </span>
+          <PenLine size={12} className="shrink-0 opacity-60" />
+        </button>
+        <LifeContextEditor open={ctxOpen} onOpenChange={setCtxOpen} />
         <textarea value={note} onChange={(e) => setNote(e.target.value)}
           placeholder={'예) 오늘 본문은 빌립보서 4장. 어떤 형편에든 자족하는 비결을 배웠다는 바울의 고백…'}
           rows={6} className={cn(FIELD_CLS, 'resize-none')} />
@@ -456,7 +480,11 @@ function ApplicationCard({ app, practicedToday }: { app: ApplicationDoc; practic
         </button>
       ) : (
         <p className="text-[11px] text-[var(--fg-faint)]">
-          {app.status === 'completed' ? '✓ 완료 — 삶에 정착됨' : '보관됨'} · {formatKoreanDate(app.date)} 시작
+          {app.status === 'completed'
+            ? '✓ 완료 — 삶에 정착됨'
+            : app.status === 'lapsed'
+              ? '⏳ 한동안 실천이 없어 보류됨'
+              : '보관됨'} · {formatKoreanDate(app.date)} 시작
         </p>
       )}
 
