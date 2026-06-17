@@ -391,7 +391,7 @@ export const APPLICATION_DEFAULT_TARGET_DAYS = 7;
 
 // 마지막 실천(없으면 시작일) 이후 이 일수를 넘도록 진행 중(active)이면서 목표 미달인 적용은
 // 매일 04:00 dailyReset이 자동으로 'lapsed'(보류)로 내려 진행 목록이 무한정 쌓이지 않게 한다.
-export const APPLICATION_STALE_DAYS = 14;
+export const APPLICATION_STALE_DAYS = 7;
 
 export const APPLICATION_POINT_EARN = {
   PRACTICE_CHECK: 3,   // 하루 1건 실천 체크
