@@ -16,7 +16,11 @@ import { computePassiveYield } from 'shared/lib/gardenYield';
 import type { PlantInstance, PlantSpecies } from 'shared/types/firestore';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
-import { Leaf, Droplets, Lock, Sprout, Snowflake, Wheat, BookOpen, Sparkles, ChevronLeft, ChevronRight, Shovel, Flower2, Users } from 'lucide-react';
+import { Leaf, Droplets, Lock, Sprout, Snowflake, Wheat, BookOpen, Sparkles, ChevronLeft, ChevronRight, Shovel, Flower2, Users, RefreshCw } from 'lucide-react';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '@/lib/firebase';
+import { isOwner } from '@/lib/auth';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useFreezeTokens } from '@/features/freeze/useFreezeTokens';
 import { useTabBloomKey } from '@/lib/tabActive';
@@ -117,9 +121,33 @@ export default function Garden() {
   const setSubTab = (v: SubTab) =>
     setSearchParams(v === 'browse' ? { view: 'browse' } : {}, { replace: true });
   const uid = useAppStore((s) => s.uid);
+  const realUid = useAppStore((s) => s.realUid);
   const sandbox = useAppStore((s) => s.sandbox);
   const user = useAppStore((s) => s.user);
   const nickname = useNickname();
+  const [settling, setSettling] = useState(false);
+
+  // '지금 정산 실행' (owner 전용) — 04:00 스케줄 정산이 누락됐을 때 오늘 정산을 즉시 돌려
+  // 어젯밤 정원 소식 요약(성장·시듦·경험치·생기 포함)을 바로 만든다. 멱등이라 중복 적용 없음.
+  const runSettlement = async () => {
+    setSettling(true);
+    try {
+      const fn = httpsCallable(functions, 'runGardenSettlementNow');
+      const res = (await fn()).data as { ran?: boolean; hasRecap?: boolean };
+      if (uid) { try { localStorage.removeItem(`hg:gardenRecap:${uid}`); } catch { /* private mode */ } }
+      if (res?.hasRecap) {
+        toast.success('정원 정산 완료 — 위 어젯밤 정원 소식을 확인하세요.');
+      } else if (res?.ran === false) {
+        toast('오늘은 이미 정산됐어요. 표시할 새 변화가 없습니다.');
+      } else {
+        toast('오늘은 정산할 변화가 없었어요 (조용한 하루).');
+      }
+    } catch (e) {
+      toast.error('정산 실행 실패: ' + ((e as Error)?.message ?? ''));
+    } finally {
+      setSettling(false);
+    }
+  };
   const [waterFx, setWaterFx] = useState<{ id: string; key: number } | null>(null);
   const [bedPage, setBedPage] = useState(0);
   const [sortKey, setSortKey] = useState<SortKey>('planted_desc');
@@ -358,6 +386,19 @@ export default function Garden() {
 
       {/* 어젯밤 정원 소식 — 날짜가 바뀐 뒤 정산 요약(포인트·XP·생기·성장·시듦) */}
       {uid && <DailyGardenRecapCard gardenStats={progress.gardenStats} gardenState={gardenState} uid={uid} />}
+
+      {/* 지금 정산 실행 (owner 전용 · 테스트/복구) — 04:00 스케줄 정산을 기다리지 않고 즉시 요약 생성.
+          callable 은 실제 인증 uid 의 정원을 정산하므로 샌드박스 모드에서는 숨긴다. */}
+      {isOwner(realUid) && !sandbox && (
+        <button
+          onClick={runSettlement}
+          disabled={settling}
+          className="flex w-full items-center justify-center gap-1.5 rounded-[var(--radius)] border border-dashed border-[var(--leaf)]/40 px-3 py-2 text-[11px] font-medium text-[var(--leaf-strong,var(--leaf))] disabled:opacity-50"
+        >
+          <RefreshCw size={12} className={settling ? 'animate-spin' : undefined} />
+          {settling ? '정산 실행 중…' : '지금 정산 실행 (관리자 · 어젯밤 정원 소식 즉시 생성)'}
+        </button>
+      )}
 
       {/* 탭 바 */}
       <div className="flex gap-2 border-b border-[var(--leaf-soft)]">
