@@ -73,11 +73,16 @@ export default function Progress() {
               <p className="text-2xl font-bold text-[var(--leaf)] tabular-nums">Lv.{level}</p>
             </div>
           </div>
-          <div className="text-right">
-            <p className="text-xs text-[var(--fg-muted)]">포인트</p>
+          <button
+            type="button"
+            onClick={() => navigate('/points')}
+            className="text-right rounded-lg -m-1 p-1 transition-colors hover:bg-[var(--leaf-soft)] focus:outline-none focus:ring-2 focus:ring-[var(--leaf)]"
+            aria-label="포인트 내역 보기"
+          >
+            <p className="text-xs text-[var(--fg-muted)]">포인트 · 내역 ›</p>
             <p className="text-xl font-bold text-[var(--bloom)] tabular-nums">✦{spendablePoints.toLocaleString()}</p>
             <p className="text-xs text-[var(--fg-faint)] tabular-nums">누적 {totalPoints.toLocaleString()}P</p>
-          </div>
+          </button>
         </div>
         <div className="space-y-1">
           <div className="flex justify-between text-xs text-[var(--fg-muted)]">

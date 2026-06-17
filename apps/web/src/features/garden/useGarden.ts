@@ -276,10 +276,11 @@ export function useProgress() {
             starterBonusApplied: true,
             updatedAt: serverTimestamp(),
           };
+          let starterBump = 0;
           if (needsPoints) {
-            const bump = 200 - (data.spendablePoints ?? 0);
+            starterBump = 200 - (data.spendablePoints ?? 0);
             patch.spendablePoints = 200;
-            patch.totalPoints = (data.totalPoints ?? 0) + bump;
+            patch.totalPoints = (data.totalPoints ?? 0) + starterBump;
           }
           if (needsPlant) {
             patch.gardenState = {
@@ -288,6 +289,13 @@ export function useProgress() {
             };
           }
           setDoc(doc(db, 'users', uid, 'progress', 'main'), patch, { merge: true });
+          // 시작 보너스도 원장에 남겨 포인트 증감 내역이 빠짐없이 추적되게 한다.
+          if (starterBump > 0) {
+            void addDoc(collection(db, 'users', uid, 'pointLedger'), {
+              delta: starterBump, reason: 'starter_bonus', refId: null,
+              createdAt: serverTimestamp(),
+            });
+          }
         }
       } else {
         // 첫 방문: progress 문서 초기화
