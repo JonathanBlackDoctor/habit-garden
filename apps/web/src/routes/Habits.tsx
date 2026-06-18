@@ -1,14 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, animate } from 'framer-motion';
-import { addDoc, collection, updateDoc } from 'firebase/firestore';
 import { Pencil, Check, Plus, Settings, Sprout, Sunrise, Sun, Sunset, Moon, Clock, type LucideIcon } from 'lucide-react';
-import { toast } from 'sonner';
-import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import { isOwner } from '@/lib/auth';
 import EmptyState from '@/components/EmptyState';
 import SeedHabitsButton from '@/features/habits/SeedHabitsButton';
+import AddHabitDialog from '@/features/habits/AddHabitDialog';
 import { useHabits, useHabitChecks, useSaveHabitCheck, useClearHabitCheck } from '@/features/habits/useHabits';
 import { useHabitGroups, useBulkSkip } from '@/features/habits/useHabitGroups';
 import { useHabitStreaks } from '@/features/habits/useHabitStreaks';
@@ -73,6 +71,7 @@ export default function Habits() {
   const date   = dateParam ?? today;
   const isPast = !!dateParam && dateParam !== today;
   const [editMode, setEditMode] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
   const habits = useHabits({ includeInactive: editMode, includeHibernating: true });
   const checks = useHabitChecks(date);
   const save   = useSaveHabitCheck(isPast ? date : undefined);
@@ -131,28 +130,7 @@ export default function Habits() {
     : remaining <= 3  ? `거의 다 왔어요 · ${remaining}개 남음`
     : `오늘 ${remaining}개 남았어요`;
 
-  const addNewHabit = async () => {
-    if (!uid) return;
-    try {
-      const nextOrder = habits.length > 0 ? Math.max(...habits.map((h) => h.order)) + 1 : 0;
-      const ref = await addDoc(collection(db, 'users', uid, 'habits'), {
-        id: '',
-        title: '새 습관',
-        weight: 5,
-        timeOfDay: 'anytime',
-        order: nextOrder,
-        scoreMode: 'binary',
-        achieveThreshold: 1,
-        iconName: 'leaf',
-        active: true,
-      });
-      await updateDoc(ref, { id: ref.id });
-      setEditMode(true);
-      toast('새 습관 추가됨');
-    } catch {
-      toast.error('습관 추가 실패');
-    }
-  };
+  const nextOrder = habits.length > 0 ? Math.max(...habits.map((h) => h.order)) + 1 : 0;
 
   return (
     <div className="min-h-screen p-4 space-y-4 pb-8">
@@ -177,7 +155,7 @@ export default function Habits() {
         </div>
         <div className="flex items-center gap-1">
           <button
-            onClick={addNewHabit}
+            onClick={() => setAddOpen(true)}
             className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--fg-muted)] transition-colors hover:bg-[var(--leaf-soft)] hover:text-[var(--leaf)] active:scale-95"
             aria-label="습관 추가"
             title="습관 추가"
@@ -351,6 +329,8 @@ export default function Habits() {
           action={<SeedHabitsButton />}
         />
       )}
+
+      <AddHabitDialog open={addOpen} onOpenChange={setAddOpen} nextOrder={nextOrder} />
     </div>
   );
 }

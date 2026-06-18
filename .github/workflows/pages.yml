@@ -33,6 +33,14 @@ jobs:
         working-directory: apps/web
         run: npm install --no-audit --no-fund
 
+      - name: 타입 체크
+        working-directory: apps/web
+        run: npm run typecheck
+
+      - name: 테스트
+        working-directory: apps/web
+        run: npm run test
+
       - name: 웹앱 빌드 (Vite)
         working-directory: apps/web
         run: npx vite build
