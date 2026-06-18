@@ -156,7 +156,7 @@ export default function Habits() {
         <div className="flex items-center gap-1">
           <button
             onClick={() => setAddOpen(true)}
-            className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--fg-muted)] transition-colors hover:bg-[var(--leaf-soft)] hover:text-[var(--leaf)] active:scale-95"
+            className="rounded-full p-1.5 text-[var(--fg-muted)] hover:bg-[var(--leaf-soft)] hover:text-[var(--leaf)]"
             aria-label="습관 추가"
             title="습관 추가"
           >
@@ -164,7 +164,7 @@ export default function Habits() {
           </button>
           <button
             onClick={() => setEditMode((v) => !v)}
-            className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors active:scale-95 ${editMode ? 'bg-[var(--leaf-soft)] text-[var(--leaf)]' : 'text-[var(--fg-muted)] hover:bg-[var(--leaf-soft)] hover:text-[var(--leaf)]'}`}
+            className={`rounded-full p-1.5 ${editMode ? 'bg-[var(--leaf-soft)] text-[var(--leaf)]' : 'text-[var(--fg-muted)] hover:bg-[var(--leaf-soft)] hover:text-[var(--leaf)]'}`}
             aria-label={editMode ? '편집 완료' : '편집'}
             title={editMode ? '편집 완료' : '편집'}
           >
@@ -173,7 +173,7 @@ export default function Habits() {
           {isOwner(realUid) && (
             <button
               onClick={() => navigate('/admin')}
-              className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--fg-muted)] transition-colors hover:bg-[var(--leaf-soft)] hover:text-[var(--leaf)] active:scale-95"
+              className="rounded-full p-1.5 text-[var(--fg-muted)] hover:bg-[var(--leaf-soft)] hover:text-[var(--leaf)]"
               aria-label="관리"
               title="관리 페이지"
             >
