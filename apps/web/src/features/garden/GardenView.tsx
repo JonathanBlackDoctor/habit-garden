@@ -14,11 +14,11 @@ const RARITY_META: Record<PlantSpecies['rarity'], { label: string; chip: string 
   rare:         { label: '희귀', chip: 'bg-[#E5DCF2] text-[#6B4A8C]' },
   epic:         { label: '에픽', chip: 'bg-gradient-to-r from-[#FFE4B0] to-[#FFB8E8] text-[#7A4FA0] font-semibold' },
   legendary:    { label: '전설', chip: 'bg-gradient-to-r from-[#FFD44A] via-[#FFB8E8] to-[#80E0FF] text-[#5A3E1E] font-bold' },
-  transcendent: { label: '초월', chip: 'transcend-chip text-white font-bold' },
+  sacred:       { label: '신성', chip: 'transcend-chip text-white font-bold' },
 };
 
-const TRANSCENDENT_IDS = new Set(
-  PLANT_SPECIES.filter((s) => s.rarity === 'transcendent').map((s) => s.id),
+const SACRED_IDS = new Set(
+  PLANT_SPECIES.filter((s) => s.rarity === 'sacred').map((s) => s.id),
 );
 
 const speciesOf = (id: string) => PLANT_SPECIES.find((s) => s.id === id);
@@ -49,7 +49,7 @@ export default function GardenView({ gardenState }: GardenViewProps) {
 
   const activeTranscend = new Set(
     pagePlants
-      .filter((p) => !p.witheredSince && p.stage >= 3 && TRANSCENDENT_IDS.has(p.speciesId))
+      .filter((p) => !p.witheredSince && p.stage >= 3 && SACRED_IDS.has(p.speciesId))
       .map((p) => p.speciesId),
   );
   const hasCelestial = activeTranscend.has('celestial_tree');

@@ -4,7 +4,7 @@ import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import { writePublicGarden } from '@/lib/features';
 import type { ProgressDoc, PlantInstance, GardenState, DailyGardenRecap } from 'shared/types/firestore';
-import { PLANT_SPECIES, POINT_PRICES, CODEX_SPECIES_COUNT, MAX_BEDS, PLANTS_PER_BED, DAILY_PLANT_LIMIT } from 'shared/types/firestore';
+import { PLANT_SPECIES, POINT_PRICES, CODEX_SPECIES_COUNT, MAX_BEDS, PLANTS_PER_BED, DAILY_PLANT_LIMIT, STREAK_HARVEST_MIN } from 'shared/types/firestore';
 import { computePassiveYield, computeYieldBreakdown } from 'shared/lib/gardenYield';
 import { toast } from 'sonner';
 
@@ -342,43 +342,20 @@ export function useGardenActions() {
       return;
     }
 
-    // 희귀 씨앗 드롭: 전체 식물 풀에서 한 등급 위 종으로 교체.
-    // 무지개붓꽃 등 lucky 트레잇 종은 드롭 확률 1.5×.
-    const unlocked = progress.gardenState.unlockedSpecies;
-    const rarityRank: Record<string, number> = { basic: 0, common: 1, rare: 2, epic: 3, legendary: 4 };
-    const dropChance = baseSpecies.trait?.kind === 'lucky' ? 0.15 : 0.10;
-    let finalSpecies = baseSpecies;
-    let upgraded = false;
-    if (Math.random() < dropChance) {
-      const targetRank = rarityRank[baseSpecies.rarity] + 1;
-      const candidates = PLANT_SPECIES.filter(
-        (s) => rarityRank[s.rarity] === targetRank,
-      );
-      if (candidates.length > 0) {
-        finalSpecies = candidates[Math.floor(Math.random() * candidates.length)];
-        upgraded = true;
-      }
-    }
-
-    // lucky 트레잇: 20% 확률로 stage 1 부터 시작
-    const luckyStart = finalSpecies.trait?.kind === 'lucky' && Math.random() < 0.20;
+    // 랜덤 드롭 제거 — 항상 심은 종 그대로(결정론적 획득).
+    const finalSpecies = baseSpecies;
 
     const newPlant: PlantInstance = {
       id:        Date.now().toString(),
       speciesId: finalSpecies.id,
-      stage:     luckyStart ? 1 : 0,
+      stage:     0,
       plantedAt: Timestamp.now() as any,
     };
 
-    // 도감 갱신 — finalSpecies 도 codex 에 자동 등록 (초월은 별도 티어이므로 제외)
+    // 도감 갱신 — 심은 종을 codex 에 자동 등록 (신성은 별도 티어이므로 제외)
     const prevCodex = prevStats.codexEntries ?? [];
-    const nextCodex = (finalSpecies.rarity === 'transcendent' || prevCodex.includes(finalSpecies.id))
+    const nextCodex = (finalSpecies.rarity === 'sacred' || prevCodex.includes(finalSpecies.id))
       ? prevCodex : [...prevCodex, finalSpecies.id];
-    const nextRareDrops = (prevStats.rareDropsTriggered ?? 0) + (upgraded ? 1 : 0);
-    // 드롭으로 처음 발견한 종은 자동 해금 (이후 직접 심을 수 있도록)
-    const nextUnlockedSpecies = (upgraded && !unlocked.includes(finalSpecies.id))
-      ? [...unlocked, finalSpecies.id]
-      : unlocked;
 
     const nextTodayPlanted = todayPlanted + 1;
     const remaining = DAILY_PLANT_LIMIT - nextTodayPlanted;
@@ -387,11 +364,10 @@ export function useGardenActions() {
     try {
       await setDoc(doc(db, 'users', uid, 'progress', 'main'), {
         spendablePoints: progress.spendablePoints - cost,
-        gardenState: { ...progress.gardenState, plants: newPlants, unlockedSpecies: nextUnlockedSpecies },
+        gardenState: { ...progress.gardenState, plants: newPlants },
         gardenStats: {
           ...prevStats,
           codexEntries: nextCodex,
-          rareDropsTriggered: nextRareDrops,
           dailyDirectPlants: nextTodayPlanted,
           dailyDirectPlantsDate: gameDay,
         },
@@ -399,18 +375,12 @@ export function useGardenActions() {
       }, { merge: true });
 
       await addDoc(collection(db, 'users', uid, 'pointLedger'), {
-        delta: -cost, reason: upgraded ? 'spend_plant_rare_drop' : 'spend_plant', refId: finalSpecies.id,
+        delta: -cost, reason: 'spend_plant', refId: finalSpecies.id,
         createdAt: serverTimestamp(),
       });
 
       const countMsg = remaining > 0 ? ` · 오늘 ${remaining}회 남음` : ' · 오늘 마지막!';
-      if (upgraded) {
-        toast(`🌟 희귀 씨앗 발견! ${finalSpecies.name} 가 자랐어요! (-${cost}P)${countMsg}`);
-      } else if (luckyStart) {
-        toast(`🍀 ${finalSpecies.name} — 행운! 새싹부터 시작! (-${cost}P)${countMsg}`);
-      } else {
-        toast(`🌱 ${finalSpecies.name} 씨앗을 심었습니다! (-${cost}P)${countMsg}`);
-      }
+      toast(`🌱 ${finalSpecies.name} 씨앗을 심었습니다! (-${cost}P)${countMsg}`);
     } catch (e) {
       toast.error('저장 실패: ' + (e as Error).message);
     }
@@ -472,7 +442,7 @@ export function useGardenActions() {
     // 도감 갱신 — 해금 시점에 자동 등록 (초월은 별도 티어이므로 제외)
     const prevStats = progress.gardenStats ?? {};
     const prevCodex = prevStats.codexEntries ?? [];
-    const nextCodex = (species.rarity === 'transcendent' || prevCodex.includes(speciesId))
+    const nextCodex = (species.rarity === 'sacred' || prevCodex.includes(speciesId))
       ? prevCodex : [...prevCodex, speciesId];
 
     try {
@@ -488,8 +458,8 @@ export function useGardenActions() {
         createdAt: serverTimestamp(),
       });
 
-      if (species.rarity === 'transcendent') {
-        toast(`✨ ${species.name} 해금! 초월의 식물을 맞이했습니다.`);
+      if (species.rarity === 'sacred') {
+        toast(`✨ ${species.name} 해금! 신성한 식물을 맞이했습니다.`);
       } else {
         toast(`🌿 ${species.name} 해금! 도감 ${nextCodex.length}/${CODEX_SPECIES_COUNT}`);
       }
@@ -526,9 +496,16 @@ export function useGardenActions() {
     else if (species.rarity === 'legendary')
       rarityBonus = POINT_PRICES.HARVEST_BONUS_RARE + POINT_PRICES.HARVEST_BONUS_EPIC + POINT_PRICES.HARVEST_BONUS_LEGENDARY;
 
-    const streakBonus = (species.trait?.kind === 'streakSync' && (progress.prayerStreak ?? 0) > 0)
-      ? Math.round(baseAdjusted * 0.5) : 0;
-    const totalYield = baseAdjusted + rarityBonus + streakBonus;
+    // 수확 보너스: streakSync(은퇴)·prayerSync(유향)·streakHarvest(튤립) + trial(종려) 배수
+    const trait = species.trait;
+    const prayerStreak = progress.prayerStreak ?? 0;
+    const globalStreak = progress.globalStreak ?? 0;
+    let streakBonus = 0;
+    if (trait?.kind === 'streakSync' && prayerStreak > 0) streakBonus = Math.round(baseAdjusted * 0.5);
+    else if (trait?.kind === 'prayerSync' && prayerStreak > 0) streakBonus = Math.round(baseAdjusted * trait.pct);
+    else if (trait?.kind === 'streakHarvest' && globalStreak >= STREAK_HARVEST_MIN) streakBonus = Math.round(baseAdjusted * trait.pct);
+    const trialMult = trait?.kind === 'trial' ? trait.multiplier : 1;
+    const totalYield = Math.round((baseAdjusted + rarityBonus + streakBonus) * trialMult);
 
     // 연꽃·고사리·달꽃(healer) 트레잇: 정원 생기 회복
     let nextHealth = progress.gardenState.health ?? 100;

@@ -12,7 +12,7 @@
 import { useId } from 'react';
 import { cn } from '@/lib/utils';
 
-type Rarity = 'basic' | 'common' | 'rare' | 'epic' | 'legendary' | 'transcendent';
+type Rarity = 'basic' | 'common' | 'rare' | 'epic' | 'legendary' | 'sacred';
 
 interface PlantSVGProps {
   speciesId: string;
@@ -43,7 +43,7 @@ const RARITY_FX: Record<Rarity, {
   rare:         { glowRadius: 5,  glowOpacity: 0.45, aura: 'soft',      sparkleCount: 0,  motes: 0, pulse: false },
   epic:         { glowRadius: 8,  glowOpacity: 0.55, aura: 'soft',      sparkleCount: 3,  motes: 0, pulse: false },
   legendary:    { glowRadius: 15, glowOpacity: 0.78, aura: 'halo',      sparkleCount: 8,  motes: 5, pulse: true },
-  transcendent: { glowRadius: 24, glowOpacity: 0.95, aura: 'celestial', sparkleCount: 12, motes: 8, pulse: true },
+  sacred:       { glowRadius: 24, glowOpacity: 0.95, aura: 'celestial', sparkleCount: 12, motes: 8, pulse: true },
 };
 
 function hashStr(s: string): number {
@@ -65,7 +65,7 @@ export default function PlantSVG({
 
   const deco = decorative && !withered;
   const showGlow = deco && fx.glowRadius > 0 && s >= 2;
-  const glowColor = rarity === 'transcendent' ? '#E6CBFF' : rarity === 'legendary' ? '#FFD44A' : accent;
+  const glowColor = rarity === 'sacred' ? '#E6CBFF' : rarity === 'legendary' ? '#FFD44A' : accent;
   const showAura = deco && fx.aura !== 'none' && s >= 2;
   const showSparkles = deco && fx.sparkleCount > 0 && s >= 3;
   const showMotes = deco && fx.motes > 0 && s >= 3;
@@ -94,7 +94,7 @@ export default function PlantSVG({
       className={cn('transition-all duration-500', className)}
       aria-label={`${speciesId} stage ${stage}`}
       style={{
-        ...(rarity === 'transcendent' ? { overflow: 'visible' as const } : {}),
+        ...(rarity === 'sacred' ? { overflow: 'visible' as const } : {}),
         ...(showGlow
           ? { filter: `drop-shadow(0 0 ${fx.glowRadius}px color-mix(in srgb, ${glowColor} ${Math.round(fx.glowOpacity * 100)}%, transparent))` }
           : {}),
@@ -148,7 +148,7 @@ export default function PlantSVG({
         {s >= 1 && renderStemAndLeaves(speciesId, s, withered, ctx)}
         {s >= 3 && renderFlower(speciesId, accent, withered, ctx)}
         {s >= 4 && renderBloom(speciesId, accent, withered, ctx)}
-        {s >= 5 && rarity !== 'transcendent' && (
+        {s >= 5 && rarity !== 'sacred' && (
           <circle cx="40" cy="18" r="7" fill={withered ? '#D1C4A8' : flowerFill} opacity="0.95" />
         )}
       </g>
@@ -280,8 +280,8 @@ const SPARKLE_POS: [number, number][] = [
   [30, 10], [50, 10], [16, 54], [64, 8],
 ];
 function renderSparkles(count: number, rarity: Rarity): React.ReactNode {
-  const star = rarity === 'legendary' || rarity === 'transcendent';
-  const color = rarity === 'transcendent' ? '#FFFFFF' : rarity === 'legendary' ? '#FFF3C0' : '#FFFFFF';
+  const star = rarity === 'legendary' || rarity === 'sacred';
+  const color = rarity === 'sacred' ? '#FFFFFF' : rarity === 'legendary' ? '#FFF3C0' : '#FFFFFF';
   return SPARKLE_POS.slice(0, count).map(([x, y], i) => (
     <g key={i} className="sparkle" style={{ animationDelay: `${i * 0.28}s` }}>
       {star

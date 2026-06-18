@@ -11,6 +11,7 @@ import {
   POINT_PRICES,
   BADGE_DEFS,
   MAX_GARDEN_PLANTS,
+  MIN_VITALITY_BY_RARITY,
   type ProgressDoc,
   type PlantInstance,
   type GardenStats,
@@ -23,8 +24,12 @@ import { applyLevelUps } from './levelEngine';
 
 const db = admin.firestore();
 
-// 연약 전설 trait — 게을러진 날 시듦/죽음을 자체 처리하므로 일반 시들기 후보에서 제외한다.
-const FRAGILE_TRAIT_KINDS = new Set(['brittle', 'fragile', 'waning', 'regress', 'radiant']);
+// 게을러진 날 시듦/죽음을 자체 처리하는 trait — 일반 시들기 후보에서 제외한다.
+// (연약 전설 = 은퇴 종 보존용 / trial = 신규 종려나무)
+const FRAGILE_TRAIT_KINDS = new Set(['brittle', 'fragile', 'waning', 'regress', 'radiant', 'trial']);
+
+const GRACE_HEAL = 10;        // grace(생명나무) 매일 정원 생기 회복량
+const CROWN_REWARD = 1000;    // crown(백향목) 만개 유지 도달 시 1회 영구 보상 P
 
 /**
  * 현재 시각이 속한 '게임일'(YYYY-MM-DD, 04:00 KST 경계)을 반환.
@@ -42,6 +47,17 @@ function gameDayKST(): string {
   const m = String(d.getUTCMonth() + 1).padStart(2, '0');
   const day = String(d.getUTCDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
+}
+
+/** 현재 게임일이 속한 ISO 주키(YYYY-Www, KST 04:00 경계) — sabbath(안식) 주 1회 판정용. */
+function isoWeekKST(): string {
+  const [y, m, d] = gameDayKST().split('-').map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  const day = date.getUTCDay() || 7;            // 월=1..일=7
+  date.setUTCDate(date.getUTCDate() + 4 - day); // 그 주 목요일
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  const week = Math.ceil((((date.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  return `${date.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
 }
 
 function maxStageOf(speciesId: string): number {
@@ -178,26 +194,43 @@ export async function processDailyGarden(
     return { ...p, stage: p.stage + 1, witheredSince: undefined };
   };
 
-  // 1) 트레잇 적용 (성장 계열): fast + bloomer
+  // 1) 트레잇 적용 (성장 계열): grace·eternal·bloomer·transcendent(매일) + fast(조건)
   plants = plants.map((p) => {
     const sp = speciesOf(p.speciesId);
     if (!sp) return p;
     const max = (sp.stages ?? 4) - 1;
     if (p.stage >= max) return p;
-    // bloomer (생명나무): 항상 +1 (health 무관)
-    if (sp.trait?.kind === 'bloomer') {
-      return grow(p, max);
-    }
-    // transcendent (초월): 살아있으면 매일 한 단계씩 자라 만개에 이른다 (health 무관)
-    if (sp.trait?.kind === 'transcendent') {
-      return grow(p, max);
-    }
-    // fast (대나무·민트·등): 생기 80 이상 + 오늘 아직 미적용일 때 +1
-    if (sp.trait?.kind === 'fast' && canFastGrow) {
-      return grow(p, max);
-    }
+    const kind = sp.trait?.kind;
+    // grace(생명나무)·eternal(떨기나무): 값없이 매일 +1 (health 무관)
+    if (kind === 'grace' || kind === 'eternal') return grow(p, max);
+    // bloomer(레거시): 매일 +1
+    if (kind === 'bloomer') return grow(p, max);
+    // transcendent(은퇴): 살아있으면 매일 +1
+    if (kind === 'transcendent') return grow(p, max);
+    // fast(레거시): 생기 80 이상 + 등급 필요생기 충족 + 오늘 미적용 시 +1
+    if (kind === 'fast' && canFastGrow && health >= MIN_VITALITY_BY_RARITY[sp.rarity]) return grow(p, max);
     return p;
   });
+
+  // 1.5) catalyst(대나무): 매일 정원 내 가장 어린 비만개 식물 1개를 +1 (정원 전체 기준)
+  {
+    const catalystCount = plants.filter((p) => speciesOf(p.speciesId)?.trait?.kind === 'catalyst' && !p.witheredSince).length;
+    for (let c = 0; c < catalystCount; c++) {
+      let targetIdx = -1; let targetStage = Infinity;
+      plants.forEach((p, idx) => {
+        const sp = speciesOf(p.speciesId);
+        if (!sp) return;
+        const mx = (sp.stages ?? 4) - 1;
+        if (p.stage < mx && !p.witheredSince && health >= MIN_VITALITY_BY_RARITY[sp.rarity] && p.stage < targetStage) {
+          targetStage = p.stage; targetIdx = idx;
+        }
+      });
+      if (targetIdx >= 0) {
+        const sp = speciesOf(plants[targetIdx].speciesId)!;
+        plants[targetIdx] = grow(plants[targetIdx], (sp.stages ?? 4) - 1);
+      }
+    }
+  }
 
   // beauty 트레잇: 정원에 있는 식물별 XP 가산
   for (const p of plants) {
@@ -209,13 +242,21 @@ export async function processDailyGarden(
     }
   }
 
-  // 2) Passive Yield: 만개 식물의 dailyYield 합산 (시들기·초월 죽음 처리 전 시점 — 오늘 만개분까지 인정)
-  //   클라이언트 이중 경로(useGarden.maybeRunPassiveYield)가 스케줄드 누락 시 먼저 지급할 수 있으므로,
-  //   passive yield 전용 마커(lastPassiveYieldDate)를 공유해 같은 게임일 중복 지급을 막는다.
+  // 2) Passive Yield: 만개 식물의 dailyYield 합산 (시들기·죽음 처리 전 시점 — 오늘 만개분까지 인정)
+  //   amplifier(포도)·communion(참포도나무) 모디파이어를 만개·미시듦 그루에서 모아 합계에 곱한다.
+  let amplifierPct = 0, communionPct = 0;
+  for (const p of plants) {
+    const sp = speciesOf(p.speciesId);
+    const k = sp?.trait?.kind;
+    if (p.witheredSince || p.stage < ((sp?.stages ?? 4) - 1)) continue;
+    if (k === 'amplifier') amplifierPct += (sp!.trait as { pct: number }).pct;
+    else if (k === 'communion') communionPct = Math.max(communionPct, (sp!.trait as { pct: number }).pct);
+  }
+  const yieldMods = { amplifierPct, communionPct };
   const passiveAlreadyCredited = stats.lastPassiveYieldDate === gameDay;
-  const passiveYield = passiveAlreadyCredited ? 0 : computePassiveYield(plants);
+  const passiveYield = passiveAlreadyCredited ? 0 : computePassiveYield(plants, yieldMods);
   // 식물별 수익 분해(표시용). 같은 게임일에 클라이언트가 먼저 지급했어도 그 식물이 번 액수는 동일하다.
-  for (const b of computeYieldBreakdown(plants)) {
+  for (const b of computeYieldBreakdown(plants, yieldMods)) {
     recap.get(b.plantId)
       ? (recap.get(b.plantId)!.yield = b.yield)
       : recap.set(b.plantId, { speciesId: b.speciesId, events: new Set<RecapEvent>(), yield: b.yield, xp: 0, vitality: 0, upkeep: 0 });
@@ -270,23 +311,53 @@ export async function processDailyGarden(
     plants = survivors;
   }
 
-  // 4) 시들기 후보 (health 낮을 때 + hardy 면역 + 연약 전설·초월은 자체 처리하므로 제외)
-  if (health <= HEALTH_RULES.WITHER_AT && plants.length > 0) {
+  // 4.45) 정화·은혜: 매일 정원 생기 회복 + guardian 슬롯 공급 + (grace) 시든 식물 1개 소생
+  for (const p of plants) {
+    const sp = speciesOf(p.speciesId);
+    const k = sp?.trait?.kind;
+    if (k === 'purifier') {
+      const before = health; health = Math.min(100, health + (sp!.trait as { heal: number }).heal);
+      recapOf(p).vitality += health - before;
+    } else if (k === 'grace') {
+      const before = health; health = Math.min(100, health + GRACE_HEAL);
+      recapOf(p).vitality += health - before;
+    }
+  }
+  // guardian(소나무): 살아있는 그루마다 시듦 방지 슬롯 1
+  guardianSlots += plants.filter((p) => speciesOf(p.speciesId)?.trait?.kind === 'guardian' && !p.witheredSince).length;
+  // grace(생명나무): 시든 식물 1개 소생
+  if (plants.some((p) => speciesOf(p.speciesId)?.trait?.kind === 'grace')) {
+    const wIdx = plants.findIndex((p) => p.witheredSince);
+    if (wIdx >= 0) plants[wIdx] = { ...plants[wIdx], witheredSince: undefined, neglectStreak: 0 };
+  }
+
+  // 4) 시들기: 한 그루. 생기 낮거나(WITHER_AT 이하) 등급별 필요 생기 미달 시 가장 어린 후보가 시듦.
+  //   제외: 이미 시듦 / hardy·grace·eternal·transcendent(면역·자체관리) / 연약전설·trial(자체관리)
+  //   sabbath(라벤더): 주 1회 면제(쉼 소모). guardian(소나무) 슬롯으로 보호.
+  {
+    const IMMUNE = new Set(['hardy', 'grace', 'eternal', 'transcendent']);
+    const week = isoWeekKST();
     const candidates = plants
       .map((p, idx) => ({ p, idx, sp: speciesOf(p.speciesId) }))
-      .filter(({ p, sp }) =>
-        !p.witheredSince &&
-        sp?.trait?.kind !== 'hardy' &&
-        sp?.rarity !== 'transcendent' &&
-        !(sp?.trait && FRAGILE_TRAIT_KINDS.has(sp.trait.kind)),
-      );
-    if (candidates.length > 0) {
-      candidates.sort((a, b) => a.p.stage - b.p.stage);
-      const target = candidates[0].idx;
-      recapOf(candidates[0].p).events.add('withered');
-      plants = plants.map((p, idx) =>
-        idx === target ? { ...p, witheredSince: admin.firestore.Timestamp.now() as any } : p,
-      );
+      .filter(({ p, sp }) => {
+        if (p.witheredSince || !sp) return false;
+        const k = sp.trait?.kind;
+        if (k && (IMMUNE.has(k) || FRAGILE_TRAIT_KINDS.has(k))) return false;
+        return health <= HEALTH_RULES.WITHER_AT || health < MIN_VITALITY_BY_RARITY[sp.rarity];
+      })
+      .sort((a, b) => a.p.stage - b.p.stage);
+    for (const cand of candidates) {
+      // sabbath: 이번 주 쉼 미사용이면 시듦 면제(쉼 소모)하고 종료
+      if (cand.sp?.trait?.kind === 'sabbath' && cand.p.restUsedWeek !== week) {
+        plants[cand.idx] = { ...cand.p, restUsedWeek: week };
+        break;
+      }
+      // guardian 슬롯 보호
+      if (guardianSlots > 0) { guardianSlots--; break; }
+      // 시듦 확정
+      recapOf(cand.p).events.add('withered');
+      plants[cand.idx] = { ...cand.p, witheredSince: admin.firestore.Timestamp.now() as any };
+      break;
     }
   }
 
@@ -347,6 +418,13 @@ export async function processDailyGarden(
         // 평소 시들지 않음. 만개(최고 stage)의 영광을 거르면 즉시 죽음
         if (p.stage >= max) { const g = tryGuard(); if (g) return g; markDied(p); plantsLost++; return []; }
         return [{ ...p, neglectStreak }];
+      case 'trial': {
+        // 인내의 시험(종려나무): graceDays 연속 거르면 죽음, 아니면 시듦
+        const grace = (sp!.trait as { kind: 'trial'; graceDays: number }).graceDays;
+        if (neglectStreak >= grace) { const g = tryGuard(); if (g) return g; markDied(p); plantsLost++; return []; }
+        recapOf(p).events.add('withered');
+        return [{ ...p, neglectStreak, witheredSince: now }];
+      }
       default:
         return [p];
     }
@@ -354,6 +432,23 @@ export async function processDailyGarden(
   if (plantsLost > 0) {
     stats.plantsLost = (stats.plantsLost ?? 0) + plantsLost;
   }
+
+  // 4.7) bloomDays(만개 유지 연속일) 갱신 + crown(백향목) 만개 유지 도달 시 1회 영구 보상
+  const crownClaimed = new Set<string>(stats.crownClaimed ?? []);
+  let crownReward = 0;
+  plants = plants.map((p) => {
+    const sp = speciesOf(p.speciesId);
+    if (!sp) return p;
+    const max = (sp.stages ?? 4) - 1;
+    const maintained = p.stage >= max && !p.witheredSince && (yesterdaySuccess || health >= MIN_VITALITY_BY_RARITY[sp.rarity]);
+    const bloomDays = maintained ? (p.bloomDays ?? 0) + 1 : 0;
+    if (sp.trait?.kind === 'crown' && maintained && bloomDays >= (sp.trait as { days: number }).days && !crownClaimed.has(p.id)) {
+      crownClaimed.add(p.id);
+      crownReward += CROWN_REWARD;
+    }
+    return { ...p, bloomDays };
+  });
+  if (crownClaimed.size > 0) stats.crownClaimed = Array.from(crownClaimed);
 
   // 5) 스트릭 보너스 시드 (7일 배수)
   const streak = prog.globalStreak ?? 0;
@@ -447,13 +542,13 @@ export async function processDailyGarden(
     updatedAt: FieldValue.serverTimestamp(),
   };
   if (xpBumped) patch.xpInLevel = xpInLevel;
-  // 순포인트 = passive yield − 초월 유지비. totalPoints(누적 획득)는 수익만 반영.
-  const netPoints = passiveYield - totalUpkeep;
+  // 순포인트 = passive yield − 유지비 + 면류관 보상. totalPoints(누적 획득)는 수익·보상 반영.
+  const netPoints = passiveYield - totalUpkeep + crownReward;
   if (netPoints !== 0) {
     patch.spendablePoints = FieldValue.increment(netPoints);
   }
-  if (passiveYield > 0) {
-    patch.totalPoints = FieldValue.increment(passiveYield);
+  if (passiveYield + crownReward > 0) {
+    patch.totalPoints = FieldValue.increment(passiveYield + crownReward);
   }
   await ref.set(patch, { merge: true });
 
@@ -472,11 +567,21 @@ export async function processDailyGarden(
     });
   }
 
-  // 10.5) 초월 유지비 ledger
+  // 10.5) 초월(은퇴) 유지비 ledger
   if (totalUpkeep > 0) {
     await db.collection(`users/${uid}/pointLedger`).add({
       delta: -totalUpkeep,
       reason: 'transcendent_upkeep',
+      refId: 'daily',
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  }
+
+  // 10.7) 면류관(crown) 영구 보상 ledger
+  if (crownReward > 0) {
+    await db.collection(`users/${uid}/pointLedger`).add({
+      delta: crownReward,
+      reason: 'crown_reward',
       refId: 'daily',
       createdAt: FieldValue.serverTimestamp(),
     });
@@ -499,30 +604,32 @@ async function checkGardenBadges(
   const consecutiveHealthy = stats.consecutiveHealthyDays ?? 0;
   const rareDrops = stats.rareDropsTriggered ?? 0;
 
-  // 초월(transcendent)은 컬렉션/도감 완성 집계에서 제외 — 별도 프레스티지 티어.
-  const isTranscendent = (id: string) => speciesOf(id)?.rarity === 'transcendent';
+  // 신성(sacred)·은퇴 종은 컬렉션/도감 완성 집계에서 제외.
+  const isCountable = (id: string) => { const sp = speciesOf(id); return !!sp && sp.rarity !== 'sacred' && !sp.retired; };
 
   // first_bloom: 만개한 식물이 한 그루라도 있으면
   if (plants.some((p) => p.stage >= maxStageOf(p.speciesId))) {
     await grantBadgeIfNew(uid, 'first_bloom', 0);
   }
 
-  // collector_5 / 10 / 15 / 20 / 25 — 해금 수 기준 (초월 제외)
-  const unlockCount = unlocked.filter((id) => !isTranscendent(id)).length;
+  // collector — 활성(비신성·비은퇴) 해금 수 기준
+  const unlockCount = unlocked.filter(isCountable).length;
   if (unlockCount >= 5)  await grantBadgeIfNew(uid, 'collector',     50);
   if (unlockCount >= 10) await grantBadgeIfNew(uid, 'collector_10',  150);
   if (unlockCount >= 15) await grantBadgeIfNew(uid, 'collector_15',  400);
   if (unlockCount >= 20) await grantBadgeIfNew(uid, 'collector_20',  1000);
   if (unlockCount >= 25) await grantBadgeIfNew(uid, 'collector_25',  3000);
+  if (unlockCount >= 30) await grantBadgeIfNew(uid, 'collector_30',  4000);
+  if (unlockCount >= 37) await grantBadgeIfNew(uid, 'collector_37',  6000);
 
-  // codex 25/25 (초월 제외)
-  if (codex.filter((id) => !isTranscendent(id)).length >= 25) {
+  // codex 완성 (37종, 신성·은퇴 제외)
+  if (codex.filter(isCountable).length >= 37) {
     await grantBadgeIfNew(uid, 'codex_complete', 5000);
   }
 
-  // 초월의 수호자: 초월 식물을 보유 중이면
-  if (plants.some((p) => isTranscendent(p.speciesId))) {
-    await grantBadgeIfNew(uid, 'transcendent_keeper', 0);
+  // 신성의 수호자: 신성(비은퇴) 식물을 보유 중이면
+  if (plants.some((p) => { const sp = speciesOf(p.speciesId); return sp?.rarity === 'sacred' && !sp.retired; })) {
+    await grantBadgeIfNew(uid, 'sacred_keeper', 0);
   }
 
   // 수확 챌린지

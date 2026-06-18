@@ -111,3 +111,37 @@ describe('computeYieldBreakdown', () => {
     expect(computeYieldBreakdown([{ id: 'x', speciesId: 'sprout', stage: 0 }])).toEqual([]);
   });
 });
+
+describe('새 능력 — compound(복리)·모디파이어·풍요·신성', () => {
+  it('compound(감람나무)는 bloomDays 에 비례해 일일수익이 점증(상한 +100%)한다', () => {
+    const olive = speciesOf('olive')!;
+    const base = DAILY_YIELD_BY_RARITY.epic; // 10
+    expect(dailyYieldOf(olive, 0)).toBe(base);
+    expect(dailyYieldOf(olive, 10)).toBe(Math.round(base * 1.5));  // +50%
+    expect(dailyYieldOf(olive, 20)).toBe(base * 2);               // +100% 상한
+    expect(dailyYieldOf(olive, 99)).toBe(base * 2);               // 상한 유지
+  });
+
+  it('compound 종은 YieldablePlant.bloomDays 를 합계에 반영한다', () => {
+    const p: YieldablePlant = { ...mature('olive'), bloomDays: 20 };
+    expect(computePassiveYield([p])).toBe(DAILY_YIELD_BY_RARITY.epic * 2);
+  });
+
+  it('fig(무화과·풍요)는 dailyYield 0 — 만개해도 일일수익 없음', () => {
+    expect(dailyYieldOf(speciesOf('fig')!)).toBe(0);
+    expect(computePassiveYield([mature('fig')])).toBe(0);
+  });
+
+  it('amplifier(증폭자)·communion(화목) 모디파이어는 합계에 곱해진다', () => {
+    const plants = [mature('sunflower')]; // base 4
+    expect(computePassiveYield(plants, { amplifierPct: 0.1 })).toBe(Math.round(4 * 1.1));
+    expect(computePassiveYield(plants, { communionPct: 0.15 })).toBe(Math.round(4 * 1.15));
+    expect(computePassiveYield(plants, { amplifierPct: 0.1, communionPct: 0.15 })).toBe(Math.round(4 * 1.25));
+  });
+
+  it('신성(sacred) 종은 명시된 일일수익을 따른다', () => {
+    expect(dailyYieldOf(speciesOf('tree_of_life')!)).toBe(15);
+    expect(dailyYieldOf(speciesOf('true_vine')!)).toBe(12);
+    expect(dailyYieldOf(speciesOf('burning_bush')!)).toBe(12);
+  });
+});

@@ -15,9 +15,21 @@ export function speciesOf(id: string): PlantSpecies | undefined {
   return PLANT_SPECIES.find((s) => s.id === id);
 }
 
-/** 한 종의 일일 자동 수확(P). 종별 dailyYield 가 있으면 우선, 없으면 등급 기본값. */
-export function dailyYieldOf(sp: PlantSpecies): number {
-  return sp.dailyYield ?? DAILY_YIELD_BY_RARITY[sp.rarity];
+// compound(복리, 감람나무): 만개 유지일(bloomDays)에 비례해 일일수익이 점증.
+export const COMPOUND_PER_DAY = 0.05;   // 하루당 +5%
+export const COMPOUND_MAX_DAYS = 20;    // 최대 +100%
+
+/**
+ * 한 종의 일일 자동 수확(P). 종별 dailyYield 우선, 없으면 등급 기본값.
+ * compound 종은 만개 유지일(bloomDays)에 비례해 점증한다.
+ */
+export function dailyYieldOf(sp: PlantSpecies, bloomDays = 0): number {
+  const base = sp.dailyYield ?? DAILY_YIELD_BY_RARITY[sp.rarity];
+  if (sp.trait?.kind === 'compound') {
+    const days = Math.min(Math.max(bloomDays, 0), COMPOUND_MAX_DAYS);
+    return Math.round(base * (1 + days * COMPOUND_PER_DAY));
+  }
+  return base;
 }
 
 /** passive yield 판정에 필요한 식물 정보 (PlantInstance 의 부분집합). */
@@ -25,6 +37,22 @@ export interface YieldablePlant {
   speciesId: string;
   stage: number;
   witheredSince?: unknown;   // 시든 식물은 수확하지 않는다 (truthy 면 제외)
+  bloomDays?: number;        // compound(복리) 점증용 만개 유지일
+}
+
+/**
+ * 정원 전체 일일수익 모디파이어.
+ *  - amplifierPct: grape(증폭자) 정원 전체 일일수익 +pct
+ *  - communionPct: true_vine(화목) 정원 식물 수익 +pct
+ * 두 값을 합쳐 합계에 곱한다.
+ */
+export interface YieldModifiers {
+  amplifierPct?: number;
+  communionPct?: number;
+}
+
+function yieldMultiplier(mods: YieldModifiers): number {
+  return 1 + (mods.amplifierPct ?? 0) + (mods.communionPct ?? 0);
 }
 
 /**
@@ -32,19 +60,22 @@ export interface YieldablePlant {
  *  - 미성숙(stage < max) 식물: 제외
  *  - 시든 식물(witheredSince truthy): 제외
  *  - 알 수 없는 종: 무시
- *  - 초월(transcendent) 종: dailyYield 0 이라 자연히 0 가산
+ *  - amplifier/communion 모디파이어가 있으면 합계에 곱한다.
  */
-export function computePassiveYield(plants: readonly YieldablePlant[]): number {
+export function computePassiveYield(
+  plants: readonly YieldablePlant[],
+  mods: YieldModifiers = {},
+): number {
   let total = 0;
   for (const p of plants) {
     const sp = speciesOf(p.speciesId);
     if (!sp) continue;
     const max = (sp.stages ?? 4) - 1;
     if (p.stage >= max && !p.witheredSince) {
-      total += dailyYieldOf(sp);
+      total += dailyYieldOf(sp, p.bloomDays ?? 0);
     }
   }
-  return total;
+  return Math.round(total * yieldMultiplier(mods));
 }
 
 /** 식물 id 가 있는 passive yield 판정용 입력 (정산 요약의 식물별 수익 분해에 사용). */
@@ -55,18 +86,20 @@ export interface IdentifiedPlant extends YieldablePlant {
 /**
  * 만개·미시듦 식물별로 그날 벌어다 준 수익(P)을 분해한다.
  * 합계는 computePassiveYield 와 동일하되, '어떤 식물이 얼마를 벌었는지'를 정원 탭에서 보여주기 위함.
- * 수익이 0 인(미성숙·시듦·초월·알 수 없는 종) 식물은 결과에서 제외한다.
+ * 수익이 0 인(미성숙·시듦·알 수 없는 종) 식물은 결과에서 제외한다.
  */
 export function computeYieldBreakdown(
   plants: readonly IdentifiedPlant[],
+  mods: YieldModifiers = {},
 ): { plantId: string; speciesId: string; yield: number }[] {
+  const mult = yieldMultiplier(mods);
   const out: { plantId: string; speciesId: string; yield: number }[] = [];
   for (const p of plants) {
     const sp = speciesOf(p.speciesId);
     if (!sp) continue;
     const max = (sp.stages ?? 4) - 1;
     if (p.stage >= max && !p.witheredSince) {
-      const y = dailyYieldOf(sp);
+      const y = Math.round(dailyYieldOf(sp, p.bloomDays ?? 0) * mult);
       if (y > 0) out.push({ plantId: p.id, speciesId: p.speciesId, yield: y });
     }
   }

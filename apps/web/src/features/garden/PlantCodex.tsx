@@ -4,7 +4,7 @@
  * 발견(unlock 또는 첫 심기)한 종은 컬러 + 누적 수확 횟수 + ★ (5/15/30회)
  * 미발견은 실루엣 + "?" 라벨
  *
- * 25/25 완성 시 codex_complete 배지 + 5000P + 황금 트로피 데코 (서버 자동 부여).
+ * 37/37 완성 시 codex_complete 배지 + 5000P + 황금 트로피 데코 (서버 자동 부여).
  */
 import { motion } from 'framer-motion';
 import { PLANT_SPECIES, type PlantSpecies } from 'shared/types/firestore';
@@ -13,7 +13,7 @@ import PlantSVG from './PlantSVG';
 import { cn } from '@/lib/utils';
 
 const RARITY_ORDER: Record<PlantSpecies['rarity'], number> = {
-  basic: 0, common: 1, rare: 2, epic: 3, legendary: 4, transcendent: 5,
+  basic: 0, common: 1, rare: 2, epic: 3, legendary: 4, sacred: 5,
 };
 
 const RARITY_CHIP: Record<PlantSpecies['rarity'], string> = {
@@ -22,11 +22,11 @@ const RARITY_CHIP: Record<PlantSpecies['rarity'], string> = {
   rare:         'bg-[#E5DCF2] text-[#6B4A8C]',
   epic:         'bg-gradient-to-r from-[#FFE4B0] to-[#FFB8E8] text-[#7A4FA0]',
   legendary:    'bg-gradient-to-r from-[#FFD44A] via-[#FFB8E8] to-[#80E0FF] text-[#5A3E1E] font-bold',
-  transcendent: 'transcend-chip text-white font-bold',
+  sacred:       'transcend-chip text-white font-bold',
 };
 
 const RARITY_LABEL: Record<PlantSpecies['rarity'], string> = {
-  basic: '기본', common: '일반', rare: '희귀', epic: '에픽', legendary: '전설', transcendent: '초월',
+  basic: '기본', common: '일반', rare: '희귀', epic: '에픽', legendary: '전설', sacred: '신성',
 };
 
 function starsFor(count: number): string {
@@ -45,9 +45,9 @@ export default function PlantCodex({ progress }: { progress: ProgressDoc }) {
   const sorted = [...PLANT_SPECIES].sort(
     (a, b) => RARITY_ORDER[a.rarity] - RARITY_ORDER[b.rarity] || a.unlockCost - b.unlockCost,
   );
-  // 초월(transcendent)은 별도 프레스티지 티어 — 도감 완성 집계에서 제외하고 따로 보여준다.
-  const normalSpecies = sorted.filter((sp) => sp.rarity !== 'transcendent');
-  const transcendentSpecies = sorted.filter((sp) => sp.rarity === 'transcendent');
+  // 신성(sacred)은 별도 정점 티어 — 도감 완성 집계에서 제외하고 따로 보여준다. 은퇴 종은 숨긴다.
+  const normalSpecies = sorted.filter((sp) => sp.rarity !== 'sacred' && !sp.retired);
+  const sacredSpecies = sorted.filter((sp) => sp.rarity === 'sacred' && !sp.retired);
 
   const discoveredCount = normalSpecies.filter((sp) => discovered.has(sp.id)).length;
   const totalCount = normalSpecies.length;
@@ -79,12 +79,12 @@ export default function PlantCodex({ progress }: { progress: ProgressDoc }) {
       {/* 완성 시 메시지 */}
       {percent === 100 && (
         <p className="text-center text-xs font-medium text-[var(--bloom)]">
-          🏆 모든 식물을 발견했어요! 생명의 정원 배지 획득!
+          🏆 모든 식물을 발견했어요! 도감 완성 배지 획득!
         </p>
       )}
 
       {/* 5×5 그리드 */}
-      <div className="grid grid-cols-5 gap-2">
+      <div className="grid grid-cols-6 gap-2">
         {normalSpecies.map((sp) => {
           const isDiscovered = discovered.has(sp.id);
           const isUnlocked = unlocked.has(sp.id);
@@ -148,12 +148,12 @@ export default function PlantCodex({ progress }: { progress: ProgressDoc }) {
         })}
       </div>
 
-      {/* 초월 (프레스티지) — 도감 완성과 무관한 별도 티어 */}
-      {transcendentSpecies.length > 0 && (
+      {/* 신성 (정점) — 도감 완성과 무관한 별도 티어 */}
+      {sacredSpecies.length > 0 && (
         <div className="space-y-2 pt-1">
-          <p className="text-xs font-semibold transcend-text">✦ 초월 — 보유·유지 자체가 의미인 식물</p>
+          <p className="text-xs font-semibold transcend-text">✦ 신성 — 은혜의 정점에 이른 식물</p>
           <div className="grid grid-cols-3 gap-2">
-            {transcendentSpecies.map((sp) => {
+            {sacredSpecies.map((sp) => {
               const isUnlocked = unlocked.has(sp.id);
               return (
                 <motion.div

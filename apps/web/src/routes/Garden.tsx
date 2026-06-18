@@ -10,7 +10,7 @@ import ForecastCard from '@/features/garden/ForecastCard';
 import TranscendAtmosphere from '@/features/garden/TranscendAtmosphere';
 import { useAppStore } from '@/lib/store';
 import { useNickname } from '@/lib/features';
-import { PLANT_SPECIES, POINT_PRICES, DAILY_YIELD_BY_RARITY, PLANTS_PER_BED, PLANTS_PER_ROW, CODEX_SPECIES_COUNT, MAX_BEDS, DAILY_PLANT_LIMIT } from 'shared/types/firestore';
+import { PLANT_SPECIES, POINT_PRICES, DAILY_YIELD_BY_RARITY, PLANTS_PER_BED, PLANTS_PER_ROW, CODEX_SPECIES_COUNT, MAX_BEDS, DAILY_PLANT_LIMIT, STREAK_HARVEST_MIN, TIER_GATE_RATIO } from 'shared/types/firestore';
 import { getGameDayKST } from '@/features/garden/useGarden';
 import { computePassiveYield } from 'shared/lib/gardenYield';
 import type { PlantInstance, PlantSpecies } from 'shared/types/firestore';
@@ -27,7 +27,7 @@ import { useTabBloomKey } from '@/lib/tabActive';
 
 // 상점 정렬 순서 (6등급)
 const RARITY_ORDER: Record<PlantSpecies['rarity'], number> = {
-  basic: 0, common: 1, rare: 2, epic: 3, legendary: 4, transcendent: 5,
+  basic: 0, common: 1, rare: 2, epic: 3, legendary: 4, sacred: 5,
 };
 
 const RARITY_META: Record<PlantSpecies['rarity'], { label: string; chip: string }> = {
@@ -36,12 +36,34 @@ const RARITY_META: Record<PlantSpecies['rarity'], { label: string; chip: string 
   rare:         { label: '희귀', chip: 'bg-[#E5DCF2] text-[#6B4A8C]' },
   epic:         { label: '에픽', chip: 'bg-gradient-to-r from-[#FFE4B0] to-[#FFB8E8] text-[#7A4FA0] font-semibold' },
   legendary:    { label: '전설', chip: 'bg-gradient-to-r from-[#FFD44A] via-[#FFB8E8] to-[#80E0FF] text-[#5A3E1E] font-bold' },
-  transcendent: { label: '초월', chip: 'transcend-chip text-white font-bold' },
+  sacred:       { label: '신성', chip: 'transcend-chip text-white font-bold' },
 };
 
-const TRANSCENDENT_IDS = new Set(
-  PLANT_SPECIES.filter((s) => s.rarity === 'transcendent').map((s) => s.id),
+const SACRED_IDS = new Set(
+  PLANT_SPECIES.filter((s) => s.rarity === 'sacred').map((s) => s.id),
 );
+
+// 티어 점진 해금: 어떤 등급은 이전 등급의 활성 종을 ⌈수×TIER_GATE_RATIO⌉ 보유 시 열린다.
+const RARITY_SEQUENCE: PlantSpecies['rarity'][] = ['basic', 'common', 'rare', 'epic', 'legendary', 'sacred'];
+const ACTIVE_COUNT_BY_RARITY: Record<string, number> = PLANT_SPECIES.reduce((acc, s) => {
+  if (!s.retired) acc[s.rarity] = (acc[s.rarity] ?? 0) + 1;
+  return acc;
+}, {} as Record<string, number>);
+function tierGateNeed(rarity: PlantSpecies['rarity']): { prev: PlantSpecies['rarity']; need: number } | null {
+  const idx = RARITY_SEQUENCE.indexOf(rarity);
+  if (idx <= 0) return null;
+  const prev = RARITY_SEQUENCE[idx - 1];
+  return { prev, need: Math.ceil((ACTIVE_COUNT_BY_RARITY[prev] ?? 0) * TIER_GATE_RATIO) };
+}
+function tierUnlocked(rarity: PlantSpecies['rarity'], unlocked: string[]): boolean {
+  const gate = tierGateNeed(rarity);
+  if (!gate) return true;
+  const ownedPrev = unlocked.filter((id) => {
+    const sp = PLANT_SPECIES.find((s) => s.id === id);
+    return !!sp && !sp.retired && sp.rarity === gate.prev;
+  }).length;
+  return ownedPrev >= gate.need;
+}
 
 function healthVibe(h: number): { label: string; bar: string; chip: string } {
   if (h <= 30) return { label: '정원이 시들고 있어요', bar: 'bg-[#D9544A]', chip: 'text-[#A83A30]' };
@@ -59,14 +81,30 @@ function harvestBonusOf(rarity: PlantSpecies['rarity']): number {
 function traitLabel(t?: PlantSpecies['trait']): string | null {
   if (!t) return null;
   switch (t.kind) {
-    case 'lucky':      return '🍀 행운 (드롭↑·1/5 시작)';
+    // ── 신규 능력 ──
+    case 'streakHarvest': return `🌷 전체 연속 ${STREAK_HARVEST_MIN}일+ 시 수확 +${Math.round(t.pct * 100)}%`;
+    case 'sabbath':       return '💜 안식: 주 1회 쉼의 날엔 시들지 않음';
+    case 'catalyst':      return '🎋 촉매: 매일 다른 식물 하나를 키움';
+    case 'guardian':      return '🌲 수호자: 매일 식물 하나의 시듦을 막음';
+    case 'amplifier':     return `🍇 증폭자: 정원 전체 일일수익 +${Math.round(t.pct * 100)}%`;
+    case 'compound':      return '🫒 복리: 만개 유지할수록 일일수익 점증';
+    case 'purifier':      return `🌫️ 정화자: 매일 정원 생기 +${t.heal}`;
+    case 'prayerSync':    return `🪔 기도 동조: 기도 연속 시 수확 +${Math.round(t.pct * 100)}%`;
+    case 'trial':         return `🌴 인내의 시험: ${t.graceDays}일 연속 거르면 죽음 · 수확 ×${t.multiplier}`;
+    case 'crown':         return `🌲 면류관: 만개 ${t.days}일 유지 시 영구 보상`;
+    case 'grace':         return '🌳 은혜: 매일 자동 성장·불사 · 생기 회복·소생';
+    case 'communion':     return `🍇 화목: 정원 다른 식물 수익 +${Math.round(t.pct * 100)}%`;
+    case 'eternal':       return '🔥 영존: 시들지 않고 만개 유지';
+    case 'abundance':     return '🫐 풍요: 수확 매우 큼 (일일 수익 없음)';
+    // ── 레거시 (은퇴 종) ──
+    case 'lucky':      return '🍀 행운';
     case 'beauty':     return `✿ 매일 +${t.xp} XP`;
     case 'hardy':      return '🛡️ 시들기 면역';
     case 'fast':       return '⚡ 생기 80 이상 시 매일 자동 성장';
     case 'healer':     return `🪷 만개 시 생기 +${t.heal}`;
     case 'streakSync': return '✨ 기도 연속 시 수확 +50%';
-    case 'bloomer':    return '🌳 매일 자동 성장 (확실)';
-    case 'brittle':    return '💎 거른 날 즉시 사라짐 (물 회복 불가)';
+    case 'bloomer':    return '🌳 매일 자동 성장';
+    case 'brittle':    return '💎 거른 날 즉시 사라짐';
     case 'fragile':    return '✨ 거르면 시들고, 이어 거르면 죽음';
     case 'waning':     return `🌌 ${t.graceDays}일 연속 거르면 죽음`;
     case 'regress':    return '🏵️ 거른 날마다 한 단계 시듦';
@@ -75,8 +113,9 @@ function traitLabel(t?: PlantSpecies['trait']): string | null {
       const eff = t.effect === 'vitality' ? ` · 정원 생기 +${t.amount}`
         : t.effect === 'guardian' ? ' · 다른 식물 죽음 매일 1회 방지'
         : '';
-      return `🌌 매일 +${t.dailyXp} XP${eff} · 매일 자람 · 유지비 ${t.upkeep}P/일 · 하루 거르면 즉사`;
+      return `🌌 매일 +${t.dailyXp} XP${eff} · 매일 자람 · 유지비 ${t.upkeep}P/일`;
     }
+    default: return null;
   }
 }
 
@@ -198,7 +237,7 @@ export default function Garden() {
   // (비시듦 + stage>=3 — 성장/만개 시에만)
   const activeTranscend = new Set(
     pagePlants
-      .filter((p) => !p.witheredSince && p.stage >= 3 && TRANSCENDENT_IDS.has(p.speciesId))
+      .filter((p) => !p.witheredSince && p.stage >= 3 && SACRED_IDS.has(p.speciesId))
       .map((p) => p.speciesId),
   );
   const hasCelestial = activeTranscend.has('celestial_tree');
@@ -628,9 +667,15 @@ export default function Garden() {
                 const star3 = harvests >= 30;
                 const baseYield = Math.round((sp?.harvestYield ?? 10) * (star3 ? 1.10 : 1));
                 const rarityBonus = sp ? harvestBonusOf(sp.rarity) : 0;
-                const streakBonus = (sp?.trait?.kind === 'streakSync' && (progress.prayerStreak ?? 0) > 0)
-                  ? Math.round(baseYield * 0.5) : 0;
-                const totalYield = baseYield + rarityBonus + streakBonus;
+                const tr = sp?.trait;
+                const pStreak = progress.prayerStreak ?? 0;
+                const gStreak = progress.globalStreak ?? 0;
+                let streakBonus = 0;
+                if (tr?.kind === 'streakSync' && pStreak > 0) streakBonus = Math.round(baseYield * 0.5);
+                else if (tr?.kind === 'prayerSync' && pStreak > 0) streakBonus = Math.round(baseYield * tr.pct);
+                else if (tr?.kind === 'streakHarvest' && gStreak >= STREAK_HARVEST_MIN) streakBonus = Math.round(baseYield * tr.pct);
+                const trialMult = tr?.kind === 'trial' ? tr.multiplier : 1;
+                const totalYield = Math.round((baseYield + rarityBonus + streakBonus) * trialMult);
                 return (
                   <>
                     <div className="flex items-center justify-between">
@@ -781,6 +826,7 @@ export default function Garden() {
           )}
           <div className="space-y-2">
             {[...PLANT_SPECIES]
+              .filter((sp) => !sp.retired)
               .sort((a, b) => RARITY_ORDER[a.rarity] - RARITY_ORDER[b.rarity] || a.unlockCost - b.unlockCost)
               .map((sp) => {
                 const unlocked = gardenState.unlockedSpecies.includes(sp.id);
@@ -788,6 +834,8 @@ export default function Garden() {
                 const meta = RARITY_META[sp.rarity];
                 const seedCost = sp.seedCost ?? POINT_PRICES.SEED;
                 const dy = sp.dailyYield ?? DAILY_YIELD_BY_RARITY[sp.rarity];
+                const tierOpen = unlocked || tierUnlocked(sp.rarity, gardenState.unlockedSpecies);
+                const gate = tierGateNeed(sp.rarity);
                 return (
                   <div key={sp.id} className="flex items-center gap-3 rounded-lg border border-[var(--leaf-soft)] bg-white/60 p-2">
                     <PlantSVG speciesId={sp.id} stage={Math.max(3, sp.stages - 1)} size={44} rarity={sp.rarity} />
@@ -801,25 +849,23 @@ export default function Garden() {
                       {sp.description && (
                         <p className="text-[11px] text-[var(--fg-muted)]">{sp.description}</p>
                       )}
-                      {sp.rarity === 'transcendent' && sp.trait?.kind === 'transcendent' ? (
-                        <p className="text-[10px] text-[#8B5CF6] font-medium tabular-nums">
-                          ✦ 매일 +{sp.trait.dailyXp} XP · 유지비 {sp.trait.upkeep}P/일 · 하루 거르면 즉사 · 만개 수확 +{sp.harvestYield ?? 0}P
-                        </p>
-                      ) : (
-                        <p className="text-[10px] text-[var(--fg-faint)] tabular-nums">
-                          수확 +{sp.harvestYield ?? 0}P · 일일 +{dy}P · 만개 {sp.stages - 1}단계 · 씨앗 {seedCost}P
-                        </p>
-                      )}
+                      <p className="text-[10px] text-[var(--fg-faint)] tabular-nums">
+                        수확 +{sp.harvestYield ?? 0}P · 일일 +{dy}P · 만개 {sp.stages - 1}단계 · 씨앗 {seedCost}P
+                      </p>
                     </div>
                     {unlocked ? (
                       <Button size="sm" variant="secondary" onClick={() => plantSeed(sp.id)} disabled={isFull || plantLimitReached}>
                         {plantLimitReached ? '한도 초과' : `심기 (${seedCost}P)`}
                       </Button>
-                    ) : (
+                    ) : tierOpen ? (
                       <Button size="sm" variant="outline" onClick={() => unlockSpecies(sp.id)} className="gap-1">
                         <Lock size={12} />
                         {sp.unlockCost}P
                       </Button>
+                    ) : (
+                      <span className="text-[10px] text-[var(--fg-faint)] text-right leading-tight whitespace-nowrap">
+                        🔒 {gate ? `${RARITY_META[gate.prev].label} ${gate.need}종 수집 시` : '잠김'}
+                      </span>
                     )}
                   </div>
                 );

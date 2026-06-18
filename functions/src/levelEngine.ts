@@ -10,6 +10,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import {
   LEVELUP_REWARD,
   MAX_GARDEN_PLANTS,
+  MILESTONE_SPECIES_GRANTS,
   type ProgressDoc,
   type PlantInstance,
 } from '../../shared/types/firestore';
@@ -56,11 +57,17 @@ export async function applyLevelUps(uid: string): Promise<LevelUpResult> {
 
     // 씨앗 지급은 정원 자리 상한·마일스톤 씨앗 종 같은 서버 사정이 있어 여기서 처리한다.
     for (const step of prog.steps) {
+      // 마일스톤 도달 시 특정 종을 확정 해금 (정원 자리와 무관)
+      if (step.milestone) {
+        const grantId = MILESTONE_SPECIES_GRANTS[step.level];
+        if (grantId && !unlocked.includes(grantId)) unlocked.push(grantId);
+      }
+      // 씨앗 지급 (정원 자리 상한 적용)
       if (!step.seed || plants.length >= MAX_GARDEN_PLANTS) continue;
       const seedSpecies = step.milestone
         ? LEVELUP_REWARD.MILESTONE_SEED_SPECIES
         : LEVELUP_REWARD.SEED_SPECIES;
-      // 마일스톤 보상으로 처음 받는 종은 자동 해금 (이후 직접 심을 수 있도록)
+      // 마일스톤 보상으로 처음 받는 씨앗 종은 자동 해금 (이후 직접 심을 수 있도록)
       if (step.milestone && !unlocked.includes(LEVELUP_REWARD.MILESTONE_SEED_SPECIES)) {
         unlocked.push(LEVELUP_REWARD.MILESTONE_SEED_SPECIES);
       }
@@ -84,7 +91,8 @@ export async function applyLevelUps(uid: string): Promise<LevelUpResult> {
       patch.spendablePoints = FieldValue.increment(pointsAwarded);
       patch.totalPoints     = FieldValue.increment(pointsAwarded);
     }
-    if (seedsAwarded > 0) {
+    const unlockedChanged = unlocked.length !== (progress.gardenState?.unlockedSpecies?.length ?? 0);
+    if (seedsAwarded > 0 || unlockedChanged) {
       patch.gardenState = { ...progress.gardenState, plants, unlockedSpecies: unlocked };
     }
     tx.set(ref, patch, { merge: true });
