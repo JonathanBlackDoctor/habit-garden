@@ -1,0 +1,636 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>습관 정원 — 디자인 요약 (식물 · UI)</title>
+<style>
+  /* ───────────────── 디자인 토큰 (apps/web/src/index.css 발췌) ───────────────── */
+  :root {
+    --bg-base:#F4F6EE; --bg-surface:#FFFFFF;
+    --fg-primary:#2A2E27; --fg-muted:#6B7164; --fg-faint:#9AA08F;
+    --leaf:#4F7A37; --leaf-soft:#E7F0DD; --soil:#8A6E4B;
+    --bloom:#A85D0B; --bloom-soft:#FAEEDA; --sky:#1F5FA5; --sky-soft:#E6F1FB; --wither:#C7B68A;
+    --garden-sky-top:#CDEBF6; --garden-sky-bottom:#EAF6DA; --garden-sun:#FFF1C2;
+    --garden-hill:#BFE0A0; --garden-soil-top:#A98559; --garden-soil-bottom:#7C5C38;
+    --border:#DDE5D0; --border-soft:#EAF0E0;
+    --radius:12px; --radius-sm:8px; --radius-lg:16px; --radius-full:999px;
+    --shadow-sm:0 1px 2px rgba(42,46,39,.04), 0 2px 5px rgba(42,46,39,.06);
+    --shadow-md:0 6px 16px -4px rgba(42,46,39,.12), 0 2px 6px -2px rgba(42,46,39,.06);
+    --ease-out:cubic-bezier(0.22,1,0.36,1); --dur-fast:140ms; --dur-base:220ms; --dur-slow:380ms;
+  }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; background:var(--bg-base); color:var(--fg-primary);
+    font-family:'Pretendard Variable',Pretendard,system-ui,-apple-system,sans-serif;
+    font-size:15px; line-height:1.55; -webkit-font-smoothing:antialiased;
+  }
+  .wrap { max-width:1080px; margin:0 auto; padding:32px 20px 80px; }
+  header.hero {
+    text-align:center; padding:40px 16px 28px;
+    background:linear-gradient(180deg,var(--garden-sky-top),var(--garden-sky-bottom));
+    border-radius:var(--radius-lg); margin-bottom:32px; box-shadow:var(--shadow-sm);
+  }
+  header.hero h1 { margin:0 0 6px; font-size:30px; letter-spacing:-.02em; }
+  header.hero p  { margin:0; color:var(--fg-muted); }
+  header.hero .meta { margin-top:10px; font-size:13px; color:var(--fg-faint); }
+  h2 { font-size:21px; letter-spacing:-.01em; margin:44px 0 6px; }
+  h2 .num { color:var(--leaf); font-weight:800; margin-right:8px; }
+  .sub { color:var(--fg-muted); margin:0 0 18px; font-size:14px; }
+  h3 { font-size:15px; margin:22px 0 10px; color:var(--fg-muted); text-transform:uppercase; letter-spacing:.04em; font-weight:700; }
+  .card { background:var(--bg-surface); border:1px solid var(--border-soft); border-radius:var(--radius); box-shadow:var(--shadow-sm); padding:18px; }
+  code { background:var(--leaf-soft); color:var(--leaf); padding:1px 6px; border-radius:6px; font-size:12.5px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+
+  /* 토큰 스와치 */
+  .swatches { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; }
+  .swatch { border:1px solid var(--border-soft); border-radius:var(--radius-sm); overflow:hidden; background:#fff; }
+  .swatch .chip { height:54px; }
+  .swatch .lbl { padding:7px 9px; font-size:12px; }
+  .swatch .lbl b { display:block; }
+  .swatch .lbl span { color:var(--fg-faint); font-family:ui-monospace,monospace; }
+
+  /* 식물 그리드 */
+  .plant-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:12px; }
+  .plant-cell { text-align:center; padding:12px 6px 10px; border-radius:var(--radius); border:1px solid var(--border-soft); background:linear-gradient(180deg,#fff, #fbfdf7); }
+  .plant-cell .name { font-size:13px; font-weight:700; margin-top:4px; }
+  .plant-cell .id   { font-size:11px; color:var(--fg-faint); font-family:ui-monospace,monospace; }
+  .rchip { display:inline-block; font-size:10.5px; font-weight:700; padding:1px 7px; border-radius:var(--radius-full); margin-top:5px; }
+  .r-basic{background:#EEF1E8;color:#6B7164;} .r-common{background:#E7F0DD;color:#4F7A37;}
+  .r-rare{background:#E6F1FB;color:#1F5FA5;} .r-epic{background:#F0E6FB;color:#7A4FA0;}
+  .r-legendary{background:#FBF1D6;color:#A8770B;}
+  .r-transcendent{ color:#5a2a8c; }
+  .transcend-chip{ background:linear-gradient(100deg,#FFB8E8,#C9A0FF,#80E0FF,#FFE89A,#FFB8E8); background-size:280% 100%; animation:transcend-chip-flow 6s linear infinite; color:#5a2a8c; }
+  @keyframes transcend-chip-flow { 0%{background-position:0% 50%;} 100%{background-position:280% 50%;} }
+
+  .stage-row { display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end; }
+  .stage-row .sc { text-align:center; }
+  .stage-row .sc .t { font-size:11px; color:var(--fg-faint); margin-top:2px; }
+
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--border-soft); }
+  th { color:var(--fg-muted); font-weight:700; font-size:12px; text-transform:uppercase; letter-spacing:.03em; }
+  td.num { text-align:right; font-variant-numeric:tabular-nums; }
+
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  @media (max-width:640px){ .grid2{ grid-template-columns:1fr; } }
+
+  ul.tight { margin:6px 0 0; padding-left:20px; }
+  ul.tight li { margin:3px 0; }
+
+  /* 정원 씬 미니 미리보기 */
+  .scene { position:relative; height:170px; border-radius:var(--radius); overflow:hidden;
+    background:linear-gradient(180deg,var(--garden-sky-top) 0%, var(--garden-sky-bottom) 62%); }
+  .scene .sun { position:absolute; top:16px; right:26px; width:46px; height:46px; border-radius:50%;
+    background:radial-gradient(circle,var(--garden-sun),#FFE9A0); box-shadow:0 0 26px 8px rgba(255,241,194,.7); }
+  .scene .hill { position:absolute; bottom:38px; left:-5%; width:110%; height:80px; border-radius:50% 50% 0 0; background:var(--garden-hill); }
+  .scene .soil { position:absolute; bottom:0; left:0; width:100%; height:46px; background:linear-gradient(180deg,var(--garden-soil-top),var(--garden-soil-bottom)); }
+  .scene .plants { position:absolute; bottom:30px; left:0; width:100%; display:flex; justify-content:center; gap:6px; align-items:flex-end; }
+
+  /* 레벨 배지 티어 */
+  .tiers { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; }
+  .tier { border:1px solid var(--border-soft); border-radius:var(--radius); overflow:hidden; }
+  .tier .bar { height:46px; }
+  .tier .body { padding:9px 11px; font-size:12.5px; }
+  .tier .body b { display:block; }
+  .tier .body span { color:var(--fg-faint); }
+
+  .legend { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+  .legend .item { display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--fg-muted); }
+  .legend .dot { width:14px; height:14px; border-radius:50%; }
+
+  /* ───── PlantSVG idle/장식 모션 (index.css 발췌) ───── */
+  @keyframes plant-sway { 0%,100%{transform:rotate(-1.3deg);} 50%{transform:rotate(1.3deg);} }
+  @keyframes aura-pulse { 0%,100%{opacity:.35;transform:scale(.96);} 50%{opacity:.6;transform:scale(1.04);} }
+  @keyframes halo-rotate { from{transform:rotate(0);} to{transform:rotate(360deg);} }
+  @keyframes sparkle-twinkle { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:.2;transform:scale(.6);} }
+  .plant-sway  { animation:plant-sway 7s var(--ease-out) infinite; }
+  .aura-pulse  { animation:aura-pulse 3s var(--ease-out) infinite; transform-box:fill-box; transform-origin:center; }
+  .halo-rotate { animation:halo-rotate 16s linear infinite; transform-box:fill-box; transform-origin:center; }
+  .sparkle     { animation:sparkle-twinkle 1.9s ease-in-out infinite; transform-box:fill-box; transform-origin:center; }
+  @media (prefers-reduced-motion: reduce){
+    .plant-sway,.aura-pulse,.halo-rotate,.sparkle,.transcend-chip{ animation:none !important; }
+  }
+  footer { margin-top:48px; text-align:center; color:var(--fg-faint); font-size:12.5px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <h1>🌱 습관 정원 — 디자인 요약</h1>
+    <p>식물 디자인 · UI 디자인 토큰 · 레벨 배지 시스템을 한 페이지로</p>
+    <div class="meta">소스: <code>PlantSVG.tsx</code> · <code>index.css</code> · <code>firestore.ts (PLANT_SPECIES)</code> · <code>level_desigh/</code></div>
+  </header>
+
+  <!-- 1. 디자인 토큰 -->
+  <h2><span class="num">01</span>UI 디자인 토큰 (컬러)</h2>
+  <p class="sub">계획서 §12에서 확정된 핵심 팔레트. CSS 변수로 정의되어 전 컴포넌트가 공유합니다.</p>
+  <div class="card">
+    <div class="swatches" id="swatches"></div>
+  </div>
+
+  <div class="grid2" style="margin-top:16px;">
+    <div class="card">
+      <h3 style="margin-top:0;">반경 · 그림자 · 모션</h3>
+      <table>
+        <tr><th>토큰</th><th>값</th></tr>
+        <tr><td>radius / sm / lg / full</td><td><code>12 / 8 / 16 / 999px</code></td></tr>
+        <tr><td>shadow-sm</td><td>카드 은은한 2단 그림자</td></tr>
+        <tr><td>shadow-md</td><td>띄움/모달용 강한 2단</td></tr>
+        <tr><td>ease-out</td><td><code>cubic-bezier(.22,1,.36,1)</code></td></tr>
+        <tr><td>dur fast/base/slow</td><td><code>140 / 220 / 380ms</code></td></tr>
+        <tr><td>font</td><td>Pretendard Variable · 15px</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0;">정원 씬 (일러스트 배경)</h3>
+      <div class="scene">
+        <div class="sun"></div><div class="hill"></div><div class="soil"></div>
+        <div class="plants" id="scene-plants"></div>
+      </div>
+      <p class="sub" style="margin:10px 0 0;">하늘 그라데이션 → 언덕 → 흙. 식물은 흙 위에 그라운드 섀도와 함께 앉습니다.</p>
+    </div>
+  </div>
+
+  <!-- 2. 식물 렌더링 시스템 -->
+  <h2><span class="num">02</span>식물 렌더링 시스템 (PlantSVG)</h2>
+  <p class="sub">종 × 성장 단계(stage)별 벡터 렌더러. 모든 도형은 <code>color-mix</code> 파생 그라데이션으로 입체감을 가지며, 줄기는 곡선 path·잎은 중앙맥 포함 잎 path로 그립니다.</p>
+  <div class="card">
+    <h3 style="margin-top:0;">성장 5단계 — 새싹풀(sprout) 예시</h3>
+    <div class="stage-row" id="stage-demo"></div>
+    <ul class="tight" style="margin-top:14px; color:var(--fg-muted);">
+      <li><b>stage 0</b> 씨앗 · <b>1</b> 새싹 · <b>2</b> 성장(줄기+잎) · <b>3</b> 개화 · <b>4</b> 만개 · <b>5+</b> 최고</li>
+      <li>종마다 위상·주기를 달리한 <code>plant-sway</code> idle 흔들림 (lockstep 방지)</li>
+      <li>시듦(withered) 상태는 <code>--wither #C7B68A</code> 단색으로 전환, 모션·후광 OFF</li>
+    </ul>
+  </div>
+
+  <!-- 3. 등급 -->
+  <h2><span class="num">03</span>등급(rarity) × 장식 위계</h2>
+  <p class="sub"><code>RARITY_FX</code> 데이터로 글로우·후광(aura)·sparkle·궤도 입자(mote)를 단계적으로 강화합니다. 같은 종이라도 등급이 오를수록 화려해집니다.</p>
+  <div class="card" style="overflow-x:auto;">
+    <table>
+      <tr><th>등급</th><th>글로우 반경</th><th>후광(aura)</th><th class="num">sparkle</th><th class="num">mote</th><th>맥동</th><th>일일 수확(P)</th></tr>
+      <tr><td><span class="rchip r-basic">basic</span></td><td>—</td><td>none</td><td class="num">0</td><td class="num">0</td><td>—</td><td class="num">0</td></tr>
+      <tr><td><span class="rchip r-common">common</span></td><td>—</td><td>none</td><td class="num">0</td><td class="num">0</td><td>—</td><td class="num">2</td></tr>
+      <tr><td><span class="rchip r-rare">rare</span></td><td>5px</td><td>soft</td><td class="num">0</td><td class="num">0</td><td>—</td><td class="num">5</td></tr>
+      <tr><td><span class="rchip r-epic">epic</span></td><td>8px</td><td>soft</td><td class="num">3</td><td class="num">0</td><td>—</td><td class="num">10</td></tr>
+      <tr><td><span class="rchip r-legendary">legendary</span></td><td>15px</td><td>halo + 회전 광선</td><td class="num">8</td><td class="num">5</td><td>●</td><td class="num">15–28</td></tr>
+      <tr><td><span class="rchip transcend-chip">transcendent</span></td><td>24px</td><td>celestial(이중 광륜)</td><td class="num">12</td><td class="num">8</td><td>●</td><td class="num">0*</td></tr>
+    </table>
+    <p class="sub" style="margin:10px 0 0;">* 초월종은 자동 수확 대신 정원 전역 앰비언트(오로라/광기둥/꽃잎비/유성)를 부여. 수치는 <code>DAILY_YIELD_BY_RARITY</code> 기준.</p>
+    <h3>등급별 동일 종(rose) 비교 — basic → transcendent FX</h3>
+    <div class="stage-row" id="rarity-demo"></div>
+  </div>
+
+  <!-- 4. 종 도감 -->
+  <h2><span class="num">04</span>식물 종 도감 (PLANT_SPECIES · 31종)</h2>
+  <p class="sub">기본(3) · 일반(8) · 희귀(8) · 에픽(4) · 전설(6) · 초월(3). 도감 카운트는 초월 제외 28종.</p>
+
+  <div id="codex"></div>
+
+  <h3>종별 메타데이터</h3>
+  <div class="card" style="overflow-x:auto;">
+    <table id="species-table">
+      <tr><th>종</th><th>id</th><th>등급</th><th class="num">단계</th><th class="num">해금가</th><th class="num">씨앗가</th><th class="num">수확 P</th></tr>
+    </table>
+  </div>
+
+  <!-- 5. 레벨 배지 -->
+  <h2><span class="num">05</span>레벨 배지 시스템 (Bloom · 6티어 × 5서브 = 30레벨)</h2>
+  <p class="sub"><code>level_desigh/</code> 시안. 5단계 빌드업: core → +form(꽃잎) → +dust(별가루) → +gem → +aura. 꽃잎 회전 28–90s, 호흡 3.4–6.0s, 코어 맥동 3.2s.</p>
+  <div class="card">
+    <div class="tiers" id="tiers"></div>
+  </div>
+
+  <footer>
+    이 문서는 코드(<code>PlantSVG.tsx</code>·<code>index.css</code>·<code>firestore.ts</code>)에서 추출해 자동 생성된 요약본입니다.<br/>
+    식물 SVG는 원본 렌더러를 바닐라 JS로 충실히 포팅해 실제 렌더링합니다.
+  </footer>
+</div>
+
+<script>
+/* =====================================================================
+   PlantSVG — apps/web/src/features/garden/PlantSVG.tsx 의 바닐라 JS 포팅
+   ===================================================================== */
+let _uid = 0;
+const RARITY_FX = {
+  basic:        { glowRadius:0,  glowOpacity:0,    aura:'none',      sparkleCount:0,  motes:0, pulse:false },
+  common:       { glowRadius:0,  glowOpacity:0,    aura:'none',      sparkleCount:0,  motes:0, pulse:false },
+  rare:         { glowRadius:5,  glowOpacity:0.45, aura:'soft',      sparkleCount:0,  motes:0, pulse:false },
+  epic:         { glowRadius:8,  glowOpacity:0.55, aura:'soft',      sparkleCount:3,  motes:0, pulse:false },
+  legendary:    { glowRadius:15, glowOpacity:0.78, aura:'halo',      sparkleCount:8,  motes:5, pulse:true },
+  transcendent: { glowRadius:24, glowOpacity:0.95, aura:'celestial', sparkleCount:12, motes:8, pulse:true },
+};
+function hashStr(s){ let h=0; for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))|0; return Math.abs(h); }
+
+function getColor(id){ return ({
+  sprout:'#5D8F3E',sunflower:'#6AAB3C',herb:'#4F7A37',maple:'#7C4A1E',lotus:'#4F7A8A',clover:'#3A8C3A',
+  rose:'#5A8C3E',cactus:'#3F6B2F',orchid:'#6B4A8C',bamboo:'#5A8C3E',cosmos:'#7A4FA0',dandelion:'#6B8E2E',
+  moss:'#4A6B3A',tulip:'#5A8C4E',daisy:'#5D8F3E',mint:'#4F8C5E',pine:'#2D5A3E',fern:'#3E7A4F',
+  hydrangea:'#4F7A8A',carnation:'#5A8C3E',firefly_flower:'#5A4F8A',rainbow_iris:'#6B4F8C',moonbloom:'#4F5A8C',
+  tree_of_life:'#5A3E1E',crystal_rose:'#5A8C3E',starlight_lily:'#4A5E8C',aurora_orchid:'#5A7A8C',
+  golden_peony:'#5A8C3E',dawn_lily:'#6A8C4E',celestial_tree:'#7A6A3A',eternal_bloom:'#6A4F8C',galaxy_lily:'#3E3E7A',
+}[id] ?? '#4F7A37'); }
+function getAccent(id){ return ({
+  sprout:'#A8D08D',sunflower:'#FFD44A',herb:'#C7E0A8',maple:'#E87043',lotus:'#D4A0C4',clover:'#7FD17F',
+  rose:'#E85A88',cactus:'#7FAE5F',orchid:'#C088E8',bamboo:'#A8D08D',cosmos:'#FFB8E8',dandelion:'#FFE066',
+  moss:'#7AAE6F',tulip:'#E85A6E',daisy:'#FFFFFF',mint:'#A8E0C0',pine:'#3E7A4F',fern:'#A8D0A0',
+  hydrangea:'#A0C8E0',carnation:'#FFA0B5',firefly_flower:'#FFE066',rainbow_iris:'#FF80FF',moonbloom:'#E8E0FF',
+  tree_of_life:'#FFD44A',crystal_rose:'#FF8AD0',starlight_lily:'#A9C0FF',aurora_orchid:'#9A7BFF',
+  golden_peony:'#FFD24A',dawn_lily:'#FF9E7A',celestial_tree:'#FFE89A',eternal_bloom:'#FF8AD0',galaxy_lily:'#A9C0FF',
+}[id] ?? '#A8D08D'); }
+
+// ── 프리미티브 ──
+function softLeaf(cx,cy,len,width,angle,fill,vein){
+  const tipY=cy-len, midY=cy-len/2, half=width/2;
+  const d=`M${cx} ${cy} Q${cx-half} ${midY} ${cx} ${tipY} Q${cx+half} ${midY} ${cx} ${cy} Z`;
+  return `<g transform="rotate(${angle} ${cx} ${cy})"><path d="${d}" fill="${fill}"/>`+
+    `<path d="M${cx} ${cy-1.5} L${cx} ${tipY+1.5}" stroke="${vein}" stroke-width="0.7" opacity="0.28" fill="none" stroke-linecap="round"/></g>`;
+}
+function curvedStem(fx,fy,tx,ty,bend,width,stroke){
+  const mx=(fx+tx)/2+bend, my=(fy+ty)/2;
+  return `<path d="M${fx} ${fy} Q${mx} ${my} ${tx} ${ty}" stroke="${stroke}" stroke-width="${width}" stroke-linecap="round" fill="none"/>`;
+}
+function petalRing(count,cx,cy,rx,ry,pivotY,fill,opacity=0.9){
+  let o=''; for(let i=0;i<count;i++){ const deg=(360/count)*i;
+    o+=`<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${fill}" opacity="${opacity}" transform="rotate(${deg} ${cx} ${pivotY})"/>`; }
+  return o;
+}
+const HALO_STYLE='style="transform-box:view-box;transform-origin:40px 26px;"';
+const STAR4='M0,-3.4 L0.9,-0.9 L3.4,0 L0.9,0.9 L0,3.4 L-0.9,0.9 L-3.4,0 L-0.9,-0.9 Z';
+const SPARKLE_POS=[[14,20],[60,16],[58,46],[22,48],[68,32],[12,38],[70,52],[40,7],[30,10],[50,10],[16,54],[64,8]];
+
+function renderAura(kind,gid,color,pulse){
+  if(kind==='none') return '';
+  if(kind==='soft') return `<circle cx="40" cy="26" r="30" fill="url(#${gid('aura')})" class="${pulse?'aura-pulse':''}"/>`;
+  if(kind==='celestial'){
+    const RAYS=[0,30,60,90,120,150,180,210,240,270,300,330];
+    let s=`<circle cx="40" cy="26" r="38" fill="url(#${gid('aura')})" class="aura-pulse"/>`;
+    s+=`<g class="halo-rotate" ${HALO_STYLE}><g stroke="#FFFFFF" stroke-width="1.6" opacity="0.6" stroke-linecap="round">`;
+    RAYS.forEach(d=> s+=`<line x1="40" y1="6" x2="40" y2="-3" transform="rotate(${d} 40 26)"/>`); s+='</g></g>';
+    s+=`<g class="halo-rotate" style="transform-box:view-box;transform-origin:40px 26px;animation-direction:reverse;animation-duration:20s;"><g stroke="${color}" stroke-width="1.2" opacity="0.5" stroke-linecap="round">`;
+    [15,45,75,105,135,165,195,225,255,285,315,345].forEach(d=> s+=`<line x1="40" y1="10" x2="40" y2="3" transform="rotate(${d} 40 26)"/>`); s+='</g></g>';
+    s+=`<circle cx="40" cy="26" r="26" fill="none" stroke="#FFFFFF" stroke-width="1" opacity="0.5" class="aura-pulse"/>`;
+    s+=`<circle cx="40" cy="26" r="20" fill="none" stroke="${color}" stroke-width="1.2" opacity="0.55" class="aura-pulse"/>`;
+    return s;
+  }
+  // legendary halo
+  let s=`<circle cx="40" cy="26" r="34" fill="url(#${gid('aura')})" class="aura-pulse"/>`;
+  s+=`<g class="halo-rotate" ${HALO_STYLE}><g stroke="${color}" stroke-width="1.5" opacity="0.5" stroke-linecap="round">`;
+  [0,45,90,135,180,225,270,315].forEach(d=> s+=`<line x1="40" y1="8" x2="40" y2="0" transform="rotate(${d} 40 26)"/>`); s+='</g></g>';
+  s+=`<g class="halo-rotate" style="transform-box:view-box;transform-origin:40px 26px;animation-direction:reverse;animation-duration:24s;"><g stroke="${color}" stroke-width="1" opacity="0.35" stroke-linecap="round">`;
+  [22,67,112,157,202,247,292,337].forEach(d=> s+=`<line x1="40" y1="12" x2="40" y2="6" transform="rotate(${d} 40 26)"/>`); s+='</g></g>';
+  s+=`<circle cx="40" cy="26" r="22" fill="none" stroke="${color}" stroke-width="1" opacity="0.45" class="aura-pulse"/>`;
+  return s;
+}
+function renderSparkles(count,rarity){
+  const star = rarity==='legendary'||rarity==='transcendent';
+  const color = rarity==='transcendent'?'#FFFFFF':rarity==='legendary'?'#FFF3C0':'#FFFFFF';
+  let s=''; SPARKLE_POS.slice(0,count).forEach(([x,y],i)=>{
+    s+=`<g class="sparkle" style="animation-delay:${i*0.28}s">`+
+      (star?`<path d="${STAR4}" fill="${color}" transform="translate(${x} ${y}) scale(${0.85+(i%3)*0.3})"/>`
+           :`<circle cx="${x}" cy="${y}" r="1.7" fill="${color}"/>`)+`</g>`;
+  });
+  return s;
+}
+function moteRing(n,R,color,reverse){
+  const st = reverse?'style="transform-box:view-box;transform-origin:40px 26px;animation-direction:reverse;animation-duration:22s;"':HALO_STYLE;
+  let s=`<g class="halo-rotate" ${st}>`;
+  for(let i=0;i<n;i++){ const rad=((360/n)*i*Math.PI)/180;
+    s+=`<circle cx="${40+R*Math.cos(rad)}" cy="${26+R*Math.sin(rad)}" r="${reverse?1.4:1.9}" fill="${color}" opacity="0.9"/>`; }
+  return s+'</g>';
+}
+function renderMotes(count,color){ return moteRing(count,27,color)+moteRing(Math.max(2,count-2),17,'#FFFFFF',true); }
+
+// ── 줄기·잎 (stage 1~2) ──
+function renderStemAndLeaves(id,stage,withered,ctx){
+  const {leafFill,stemFill}=ctx;
+  if(id==='cactus'){
+    let s=`<rect x="34" y="${stage>=2?36:50}" width="12" height="${stage>=2?32:18}" rx="6" fill="${leafFill}"/>`;
+    if(!withered&&stage>=2){ s+=`<g stroke="#FFFFFF" stroke-width="0.6" opacity="0.7">`+
+      `<line x1="36" y1="42" x2="34" y2="40"/><line x1="44" y1="44" x2="46" y2="42"/><line x1="36" y1="54" x2="34" y2="52"/>`+
+      `<line x1="44" y1="56" x2="46" y2="54"/><line x1="36" y1="64" x2="34" y2="62"/><line x1="44" y1="66" x2="46" y2="64"/></g>`; }
+    if(stage>=2) s+=`<rect x="46" y="44" width="8" height="14" rx="4" fill="${leafFill}" opacity="0.92"/>`;
+    return s;
+  }
+  if(id==='bamboo'){
+    const top=stage>=2?28:48; let s=`<line x1="40" y1="68" x2="40" y2="${top}" stroke="${stemFill}" stroke-width="4" stroke-linecap="round"/>`;
+    s+=`<line x1="34" y1="60" x2="46" y2="60" stroke="${stemFill}" stroke-width="1.5" opacity="0.7"/>`;
+    if(stage>=2){ s+=`<line x1="34" y1="44" x2="46" y2="44" stroke="${stemFill}" stroke-width="1.5" opacity="0.7"/>`;
+      s+=softLeaf(28,38,14,8,-65,leafFill,stemFill)+softLeaf(52,36,14,8,65,leafFill,stemFill); }
+    return s;
+  }
+  if(id==='tree_of_life'){
+    let s=`<rect x="36" y="${stage>=2?32:50}" width="8" height="${stage>=2?36:18}" rx="2" fill="${withered?'#C7B68A':'#7C4A1E'}" opacity="0.95"/>`;
+    if(stage>=2) s+=`<circle cx="40" cy="30" r="14" fill="${leafFill}" opacity="0.92"/><circle cx="28" cy="38" r="9" fill="${leafFill}" opacity="0.82"/>`+
+      `<circle cx="52" cy="38" r="9" fill="${leafFill}" opacity="0.82"/><circle cx="40" cy="20" r="8" fill="${leafFill}" opacity="0.95"/>`;
+    return s;
+  }
+  if(id==='pine'||id==='fern'){
+    let s=curvedStem(40,68,40,stage>=2?28:50,1.5,3,stemFill);
+    [58,50,42,34].slice(0,stage+1).forEach(y=>{ s+=`<g><line x1="40" y1="${y}" x2="${40-12}" y2="${y-3}" stroke="${leafFill}" stroke-width="2.5" stroke-linecap="round"/>`+
+      `<line x1="40" y1="${y}" x2="${40+12}" y2="${y-3}" stroke="${leafFill}" stroke-width="2.5" stroke-linecap="round"/></g>`; });
+    return s;
+  }
+  if(id==='moss'){
+    let s=`<ellipse cx="40" cy="66" rx="18" ry="5" fill="${leafFill}" opacity="0.92"/>`;
+    if(stage>=1) s+=`<ellipse cx="32" cy="62" rx="8" ry="4" fill="${leafFill}" opacity="0.85"/><ellipse cx="50" cy="62" rx="8" ry="4" fill="${leafFill}" opacity="0.85"/>`;
+    return s;
+  }
+  const topY=stage>=2?38:52;
+  let s=curvedStem(40,69,40,topY,2.5,stage>=2?3.5:3,stemFill);
+  s+=softLeaf(40,60,13,9,-54,leafFill,stemFill)+softLeaf(40,60,13,9,54,leafFill,stemFill);
+  if(stage>=2) s+=softLeaf(40,52,16,11,-52,leafFill,stemFill)+softLeaf(40,52,16,11,52,leafFill,stemFill)+softLeaf(40,47,14,10,0,leafFill,stemFill);
+  return s;
+}
+
+// ── 종별 꽃 (stage 3) ──
+function renderFlower(id,accent,withered,ctx){
+  const {gid,flowerFill,stemFill}=ctx;
+  const c = withered?'#C7B68A':accent;
+  const petal = withered?c:flowerFill;
+  const stem = withered?'#C7B68A':stemFill;
+
+  if(id==='clover') return `<g><line x1="40" y1="38" x2="40" y2="30" stroke="${stem}" stroke-width="2.5" stroke-linecap="round"/>`+
+    `<circle cx="32" cy="28" r="6" fill="${petal}" opacity="0.9"/><circle cx="48" cy="28" r="6" fill="${petal}" opacity="0.9"/>`+
+    `<circle cx="40" cy="20" r="6" fill="${petal}" opacity="0.9"/><circle cx="40" cy="34" r="5" fill="${petal}" opacity="0.85"/></g>`;
+  if(id==='rose') return `<g><line x1="40" y1="38" x2="40" y2="28" stroke="${stem}" stroke-width="3" stroke-linecap="round"/>`+
+    `<circle cx="40" cy="24" r="10" fill="${petal}" opacity="0.92"/><circle cx="40" cy="24" r="7" fill="${petal}" opacity="0.7"/><circle cx="40" cy="24" r="4" fill="#FFFFFF" opacity="0.4"/></g>`;
+  if(id==='cactus') return `<g><circle cx="40" cy="34" r="4" fill="${withered?'#C7B68A':'#FFF6D8'}" opacity="0.95"/><circle cx="40" cy="34" r="2" fill="${petal}" opacity="0.8"/></g>`;
+  if(id==='orchid') return `<g><line x1="40" y1="38" x2="40" y2="28" stroke="${stem}" stroke-width="3" stroke-linecap="round"/>`+
+    `<ellipse cx="34" cy="24" rx="6" ry="9" fill="${petal}" opacity="0.9" transform="rotate(-25 34 24)"/><ellipse cx="46" cy="24" rx="6" ry="9" fill="${petal}" opacity="0.9" transform="rotate(25 46 24)"/>`+
+    `<ellipse cx="40" cy="20" rx="5" ry="8" fill="${petal}" opacity="0.94"/><circle cx="40" cy="26" r="2.5" fill="#FFF6D8" opacity="0.85"/></g>`;
+  if(id==='bamboo') return `<g><ellipse cx="32" cy="32" rx="8" ry="3.5" fill="${petal}" opacity="0.85" transform="rotate(-25 32 32)"/>`+
+    `<ellipse cx="48" cy="30" rx="8" ry="3.5" fill="${petal}" opacity="0.85" transform="rotate(25 48 30)"/><ellipse cx="40" cy="26" rx="7" ry="3" fill="${petal}" opacity="0.9"/></g>`;
+  if(id==='cosmos') return `<g><line x1="40" y1="38" x2="40" y2="28" stroke="${stem}" stroke-width="2.5" stroke-linecap="round"/>`+
+    petalRing(6,40,16,3.5,8,26,petal,0.88)+`<circle cx="40" cy="26" r="3" fill="#FFD44A" opacity="0.95"/></g>`;
+  if(id==='dandelion'){ const y=withered?'#C7B68A':'#FFD700', ce=withered?'#C7B68A':'#FFA500';
+    let s=`<g><line x1="40" y1="38" x2="40" y2="30" stroke="${stem}" stroke-width="2.5" stroke-linecap="round"/>`;
+    [0,30,60,90,120,150,180,210,240,270,300,330].forEach(deg=>{ const cx=40+7*Math.cos((deg-90)*Math.PI/180), cy=24+7*Math.sin((deg-90)*Math.PI/180);
+      s+=`<ellipse cx="${cx}" cy="${cy}" rx="2.5" ry="5" fill="${y}" opacity="0.92" transform="rotate(${deg} ${cx} ${cy})"/>`; });
+    return s+`<circle cx="40" cy="24" r="4" fill="${ce}" opacity="0.95"/></g>`; }
+  if(id==='tulip') return `<g><line x1="40" y1="38" x2="40" y2="30" stroke="${stem}" stroke-width="3" stroke-linecap="round"/>`+
+    `<ellipse cx="33" cy="20" rx="6" ry="10" fill="${petal}" opacity="0.7" transform="rotate(-18 33 20)"/><ellipse cx="47" cy="20" rx="6" ry="10" fill="${petal}" opacity="0.7" transform="rotate(18 47 20)"/>`+
+    `<path d="M36 30 Q27 22 28 16 Q30 8 40 8 Q50 8 52 16 Q53 22 44 30 Z" fill="${petal}" opacity="0.94"/>`+
+    `<path d="M40 8 Q38 18 37 28 M40 8 Q42 18 43 28" stroke="${withered?'#C7B68A':'#FFFFFF'}" stroke-width="0.8" opacity="0.38" fill="none" stroke-linecap="round"/></g>`;
+  if(id==='daisy') return `<g><line x1="40" y1="38" x2="40" y2="28" stroke="${stem}" stroke-width="2.5" stroke-linecap="round"/>`+
+    petalRing(5,40,18,3,7,26,petal,0.92)+`<circle cx="40" cy="26" r="3" fill="#FFD44A"/></g>`;
+  if(id==='mint') return `<g><ellipse cx="32" cy="30" rx="6" ry="3" fill="${petal}" opacity="0.88" transform="rotate(-25 32 30)"/>`+
+    `<ellipse cx="48" cy="28" rx="6" ry="3" fill="${petal}" opacity="0.88" transform="rotate(25 48 28)"/><ellipse cx="40" cy="22" rx="5" ry="3" fill="${petal}" opacity="0.9"/></g>`;
+  if(id==='carnation') return `<g><line x1="40" y1="38" x2="40" y2="28" stroke="${stem}" stroke-width="3" stroke-linecap="round"/>`+
+    `<circle cx="36" cy="24" r="6" fill="${petal}" opacity="0.85"/><circle cx="44" cy="24" r="6" fill="${petal}" opacity="0.85"/><circle cx="40" cy="20" r="6" fill="${petal}" opacity="0.9"/>`+
+    `<circle cx="40" cy="24" r="3" fill="${withered?'#C7B68A':'#FFFFFF'}" opacity="0.5"/></g>`;
+  if(id==='hydrangea'){ let s=`<g><line x1="40" y1="38" x2="40" y2="30" stroke="${stem}" stroke-width="3" stroke-linecap="round"/>`;
+    [[34,26],[46,26],[40,18],[32,20],[48,20],[40,28]].forEach(([cx,cy])=> s+=`<circle cx="${cx}" cy="${cy}" r="3.5" fill="${petal}" opacity="0.85"/>`); return s+'</g>'; }
+  if(id==='firefly_flower'){ let s=`<g><line x1="40" y1="38" x2="40" y2="28" stroke="${stem}" stroke-width="2.5" stroke-linecap="round"/>`+
+    `<circle cx="40" cy="24" r="9" fill="${withered?'#C7B68A':'#5A4F8A'}" opacity="0.85"/>`;
+    if(!withered)[[36,22],[44,22],[40,18],[38,28],[42,28]].forEach(([cx,cy],i)=> s+=`<circle cx="${cx}" cy="${cy}" r="1.5" fill="#FFE066"><animate attributeName="opacity" values="1;0.3;1" dur="2s" repeatCount="indefinite" begin="${i*0.3}s"/></circle>`);
+    return s+'</g>'; }
+  if(id==='rainbow_iris') return `<g><line x1="40" y1="38" x2="40" y2="28" stroke="${stem}" stroke-width="3" stroke-linecap="round"/>`+
+    `<ellipse cx="34" cy="24" rx="5" ry="10" fill="${withered?'#C7B68A':'#FF80A0'}" opacity="0.88" transform="rotate(-20 34 24)"/>`+
+    `<ellipse cx="46" cy="24" rx="5" ry="10" fill="${withered?'#C7B68A':'#FFD44A'}" opacity="0.88" transform="rotate(20 46 24)"/>`+
+    `<ellipse cx="40" cy="18" rx="5" ry="11" fill="${withered?'#C7B68A':'#80E0FF'}" opacity="0.9"/><circle cx="40" cy="26" r="3" fill="${withered?'#C7B68A':'#FFFFFF'}" opacity="0.7"/></g>`;
+  if(id==='moonbloom') return `<g><line x1="40" y1="38" x2="40" y2="28" stroke="${stem}" stroke-width="3" stroke-linecap="round"/>`+
+    `<circle cx="40" cy="22" r="11" fill="${withered?'#C7B68A':'#E8E0FF'}" opacity="0.85"/><circle cx="40" cy="22" r="6" fill="${withered?'#D1C4A8':'#FFFFFF'}" opacity="0.92"/>`+
+    `<path d="M40 18 Q44 22 40 26 Q36 22 40 18 Z" fill="${withered?'#D1C4A8':'#FFE6A8'}" opacity="0.95"/></g>`;
+  if(id==='tree_of_life') return `<g><circle cx="40" cy="24" r="6" fill="${withered?'#D1C4A8':'#FFE066'}" opacity="0.95">`+
+    (withered?'':`<animate attributeName="r" values="6;7;6" dur="3s" repeatCount="indefinite"/>`)+`</circle><circle cx="40" cy="24" r="3" fill="#FFFFFF" opacity="0.7"/></g>`;
+
+  if(id==='crystal_rose'){ let s=`<g><defs><radialGradient id="${gid('crystal-rose')}" cx="50%" cy="42%" r="65%">`+
+    `<stop offset="0%" stop-color="#FFFFFF"/><stop offset="50%" stop-color="#FF9AD0"/><stop offset="100%" stop-color="#C0418F"/></radialGradient></defs>`+
+    `<line x1="40" y1="38" x2="40" y2="30" stroke="${stem}" stroke-width="3" stroke-linecap="round"/>`;
+    [0,45,90,135,180,225,270,315].forEach(deg=> s+=`<polygon points="40,8 36,22 40,26 44,22" fill="${withered?c:`url(#${gid('crystal-rose')})`}" opacity="0.9" transform="rotate(${deg} 40 24)"/>`);
+    s+=`<polygon points="40,18 34,24 40,32 46,24" fill="${withered?'#D1C4A8':'#FFFFFF'}" opacity="0.9"/><polygon points="40,20 37,24 40,29 43,24" fill="${withered?c:'#FF6FB5'}" opacity="0.85"/>`;
+    s+=`<circle cx="40" cy="24" r="2" fill="${withered?'#D1C4A8':'#FFFFFF'}">`+(withered?'':`<animate attributeName="opacity" values="1;0.4;1" dur="2.2s" repeatCount="indefinite"/>`)+`</circle></g>`;
+    return s; }
+  if(id==='starlight_lily'){ let s=`<g><defs><radialGradient id="${gid('starlight-lily')}" cx="50%" cy="45%" r="60%">`+
+    `<stop offset="0%" stop-color="#FFFFFF"/><stop offset="45%" stop-color="#A9C0FF"/><stop offset="100%" stop-color="#4A4F9E"/></radialGradient></defs>`+
+    `<line x1="40" y1="38" x2="40" y2="30" stroke="${stem}" stroke-width="3" stroke-linecap="round"/>`;
+    [0,60,120,180,240,300].forEach(deg=> s+=`<ellipse cx="40" cy="14" rx="3.5" ry="11" fill="${withered?c:`url(#${gid('starlight-lily')})`}" opacity="0.92" transform="rotate(${deg} 40 25)"/>`);
+    s+=`<circle cx="40" cy="25" r="4" fill="${withered?'#D1C4A8':'#FFE89A'}" opacity="0.95"/><circle cx="40" cy="25" r="1.6" fill="${withered?'#C7B68A':'#FFFFFF'}"/>`;
+    if(!withered)[[28,16],[52,16],[40,8]].forEach(([cx,cy],i)=> s+=`<circle cx="${cx}" cy="${cy}" r="1.2" fill="#FFFFFF"><animate attributeName="opacity" values="1;0.2;1" dur="1.8s" begin="${i*0.4}s" repeatCount="indefinite"/></circle>`);
+    return s+'</g>'; }
+  if(id==='aurora_orchid'){ const f=withered?c:`url(#${gid('aurora-orchid')})`;
+    return `<g><defs><linearGradient id="${gid('aurora-orchid')}" x1="0%" y1="0%" x2="100%" y2="100%">`+
+    `<stop offset="0%" stop-color="#FF8AD0"/><stop offset="50%" stop-color="#9A7BFF"/><stop offset="100%" stop-color="#6FE6E0"/></linearGradient></defs>`+
+    `<line x1="40" y1="38" x2="40" y2="28" stroke="${stem}" stroke-width="3" stroke-linecap="round"/>`+
+    `<ellipse cx="30" cy="22" rx="7" ry="11" fill="${f}" opacity="0.9" transform="rotate(-30 30 22)"/><ellipse cx="50" cy="22" rx="7" ry="11" fill="${f}" opacity="0.9" transform="rotate(30 50 22)"/>`+
+    `<ellipse cx="40" cy="16" rx="6" ry="11" fill="${f}" opacity="0.92"/><ellipse cx="34" cy="28" rx="5" ry="8" fill="${f}" opacity="0.85" transform="rotate(-15 34 28)"/>`+
+    `<ellipse cx="46" cy="28" rx="5" ry="8" fill="${f}" opacity="0.85" transform="rotate(15 46 28)"/>`+
+    `<circle cx="40" cy="24" r="3" fill="${withered?'#D1C4A8':'#FFFFFF'}" opacity="0.9">`+(withered?'':`<animate attributeName="opacity" values="0.9;0.4;0.9" dur="2.5s" repeatCount="indefinite"/>`)+`</circle></g>`; }
+  if(id==='golden_peony'){ const f=withered?c:`url(#${gid('golden-peony')})`;
+    let s=`<g><defs><radialGradient id="${gid('golden-peony')}" cx="50%" cy="50%" r="60%">`+
+    `<stop offset="0%" stop-color="#FFF3C0"/><stop offset="55%" stop-color="#FFD24A"/><stop offset="100%" stop-color="#E0902A"/></radialGradient></defs>`+
+    `<line x1="40" y1="38" x2="40" y2="30" stroke="${stem}" stroke-width="3" stroke-linecap="round"/>`;
+    [0,45,90,135,180,225,270,315].forEach(deg=> s+=`<ellipse cx="40" cy="14" rx="5" ry="9" fill="${f}" opacity="0.85" transform="rotate(${deg} 40 24)"/>`);
+    [22,67,112,157,202,247,292,337].forEach(deg=> s+=`<ellipse cx="40" cy="18" rx="3.5" ry="6" fill="${f}" opacity="0.95" transform="rotate(${deg} 40 24)"/>`);
+    return s+`<circle cx="40" cy="24" r="3.5" fill="${withered?'#D1C4A8':'#FFF8D8'}" opacity="0.95"/></g>`; }
+  if(id==='dawn_lily'){ const f=withered?c:`url(#${gid('dawn-lily')})`;
+    let s=`<g><defs><radialGradient id="${gid('dawn-lily')}" cx="50%" cy="45%" r="65%">`+
+    `<stop offset="0%" stop-color="#FFFBEA"/><stop offset="40%" stop-color="#FFD79A"/><stop offset="75%" stop-color="#FF9E7A"/><stop offset="100%" stop-color="#F2728C"/></radialGradient></defs>`+
+    `<line x1="40" y1="38" x2="40" y2="30" stroke="${stem}" stroke-width="3" stroke-linecap="round"/>`;
+    if(!withered){ s+=`<g stroke="#FFE6A8" stroke-width="1" opacity="0.7">`;
+      [0,45,90,135,180,225,270,315].forEach(deg=> s+=`<line x1="40" y1="24" x2="40" y2="6" transform="rotate(${deg} 40 24)"><animate attributeName="opacity" values="0.7;0.15;0.7" dur="3s" begin="${(deg/360).toFixed(2)}s" repeatCount="indefinite"/></line>`); s+='</g>'; }
+    [0,60,120,180,240,300].forEach(deg=> s+=`<ellipse cx="40" cy="15" rx="4" ry="10" fill="${f}" opacity="0.92" transform="rotate(${deg} 40 24)"/>`);
+    s+=`<circle cx="40" cy="24" r="5" fill="${withered?'#D1C4A8':'#FFFBEA'}" opacity="0.95">`+(withered?'':`<animate attributeName="r" values="5;6;5" dur="2.8s" repeatCount="indefinite"/>`)+`</circle></g>`;
+    return s; }
+  if(id==='sunflower'){ const pc=withered?'#C7B68A':'#FFD700', pi=withered?'#B8A87A':'#FFC200', cc=withered?'#8B7A5A':'#5C3317', ci=withered?'#7A6A4A':'#3D2009';
+    let s=`<g><line x1="40" y1="38" x2="40" y2="27" stroke="${stem}" stroke-width="3" stroke-linecap="round"/>`;
+    [0,22.5,45,67.5,90,112.5,135,157.5,180,202.5,225,247.5,270,292.5,315,337.5].forEach(deg=>{ const cx=40+10*Math.cos((deg-90)*Math.PI/180), cy=26+10*Math.sin((deg-90)*Math.PI/180);
+      s+=`<ellipse cx="${cx}" cy="${cy}" rx="2" ry="6" fill="${pc}" opacity="0.92" transform="rotate(${deg} ${cx} ${cy})"/>`; });
+    [11.25,33.75,56.25,78.75,101.25,123.75,146.25,168.75,191.25,213.75,236.25,258.75,281.25,303.75,326.25,348.75].forEach(deg=>{ const cx=40+8*Math.cos((deg-90)*Math.PI/180), cy=26+8*Math.sin((deg-90)*Math.PI/180);
+      s+=`<ellipse cx="${cx}" cy="${cy}" rx="1.5" ry="4.5" fill="${pi}" opacity="0.75" transform="rotate(${deg} ${cx} ${cy})"/>`; });
+    s+=`<circle cx="40" cy="26" r="6" fill="${cc}" opacity="0.97"/><circle cx="40" cy="26" r="4" fill="${ci}" opacity="0.85"/>`;
+    [[38,24],[42,24],[38,28],[42,28],[40,22],[40,30]].forEach(([cx,cy])=> s+=`<circle cx="${cx}" cy="${cy}" r="0.7" fill="#C8A87A" opacity="0.6"/>`);
+    return s+'</g>'; }
+
+  if(id==='celestial_tree'){ const star=withered?'#D1C4A8':`url(#${gid('ct-core')})`;
+    let s=`<g><defs><radialGradient id="${gid('ct-core')}" cx="50%" cy="42%" r="62%"><stop offset="0%" stop-color="#FFFFFF"/><stop offset="45%" stop-color="#FFF1A8"/><stop offset="100%" stop-color="#F2B33A"/></radialGradient>`+
+    `<radialGradient id="${gid('ct-halo')}" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#FFE89A" stop-opacity="0.7"/><stop offset="100%" stop-color="#FFE89A" stop-opacity="0"/></radialGradient></defs>`+
+    `<line x1="40" y1="40" x2="40" y2="30" stroke="${stem}" stroke-width="3.5" stroke-linecap="round"/>`+
+    `<circle cx="40" cy="24" r="22" fill="${withered?'none':`url(#${gid('ct-halo')})`}">`+(withered?'':`<animate attributeName="r" values="19;24;19" dur="3.4s" repeatCount="indefinite"/>`)+`</circle>`;
+    if(!withered){ s+=`<g class="halo-rotate" style="transform-box:view-box;transform-origin:40px 24px;">`+
+      `<g stroke="#FFF6CF" stroke-width="1.4" opacity="0.5" stroke-linecap="round">`; [0,45,90,135,180,225,270,315].forEach(d=> s+=`<line x1="40" y1="6" x2="40" y2="-22" transform="rotate(${d} 40 24)"/>`); s+='</g>';
+      s+=`<g stroke="#FFF6CF" stroke-width="1.1" opacity="0.85" stroke-linecap="round">`; [0,45,90,135,180,225,270,315].forEach(d=> s+=`<line x1="40" y1="9" x2="40" y2="-4" transform="rotate(${d} 40 24)"/>`); s+='</g>';
+      s+=`<g stroke="#FFD66A" stroke-width="0.9" opacity="0.7" stroke-linecap="round">`; [22,67,112,157,202,247,292,337].forEach(d=> s+=`<line x1="40" y1="12" x2="40" y2="-2" transform="rotate(${d} 40 24)"/>`); s+='</g></g>'; }
+    s+=`<path d="${STAR4}" fill="${star}" transform="translate(40 24) scale(3.4)"/><path d="${STAR4}" fill="${star}" opacity="0.85" transform="translate(40 24) rotate(45) scale(2.8)"/>`+
+      `<path d="${STAR4}" fill="${withered?'#E4D8BC':'#FFFFFF'}" transform="translate(40 24) scale(1.5)">`+(withered?'':`<animate attributeName="opacity" values="1;0.55;1" dur="2.2s" repeatCount="indefinite"/>`)+`</path>`;
+    if(!withered)[[26,15],[54,15],[40,39],[23,31],[57,31]].forEach(([cx,cy],i)=> s+=`<circle cx="${cx}" cy="${cy}" r="1.5" fill="#FFF1A8"><animate attributeName="opacity" values="1;0.2;1" dur="2s" begin="${i*0.35}s" repeatCount="indefinite"/></circle>`);
+    return s+'</g>'; }
+  if(id==='eternal_bloom'){ const outer=withered?c:`url(#${gid('eb-petal')})`, inner=withered?'#D1C4A8':`url(#${gid('eb-core')})`;
+    let s=`<g><defs><linearGradient id="${gid('eb-petal')}" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#FFB8E8"/><stop offset="50%" stop-color="#C9A0FF"/><stop offset="100%" stop-color="#80E0FF"/></linearGradient>`+
+    `<radialGradient id="${gid('eb-core')}" cx="50%" cy="45%" r="60%"><stop offset="0%" stop-color="#FFFFFF"/><stop offset="50%" stop-color="#FF9AD8"/><stop offset="100%" stop-color="#9A6BFF"/></radialGradient></defs>`+
+    `<line x1="40" y1="40" x2="40" y2="30" stroke="${stem}" stroke-width="3" stroke-linecap="round"/>`+
+    petalRing(12,40,11,3,7,24,outer,0.85)+petalRing(10,40,14,2.5,5.5,24,withered?'#E4D8BC':'#FFE3F4',0.8)+petalRing(8,40,17,2,4.5,24,inner,0.9)+
+    `<circle cx="40" cy="24" r="6" fill="${inner}">`+(withered?'':`<animate attributeName="r" values="5.4;6.6;5.4" dur="3s" repeatCount="indefinite"/>`)+`</circle>`+
+    `<circle cx="40" cy="24" r="3" fill="${withered?'#E4D8BC':'#FFFFFF'}">`+(withered?'':`<animate attributeName="opacity" values="1;0.5;1" dur="2.2s" repeatCount="indefinite"/>`)+`</circle>`;
+    if(!withered)[[24,20,0],[56,22,1.3],[20,30,2.6],[58,33,0.7]].forEach(([cx,cy,delay],i)=> s+=`<g><ellipse cx="${cx}" cy="${cy}" rx="2.2" ry="1.3" fill="${i%2?'#C9A0FF':'#FFB8E8'}" opacity="0"><animate attributeName="opacity" values="0;0.85;0" dur="4s" begin="${delay}s" repeatCount="indefinite"/><animateTransform attributeName="transform" type="translate" values="0 0; -3 -16; -5 -30" dur="4s" begin="${delay}s" repeatCount="indefinite"/></ellipse></g>`);
+    return s+'</g>'; }
+  if(id==='galaxy_lily'){ const pg=withered?c:`url(#${gid('gl-petal')})`;
+    let s=`<g><defs><linearGradient id="${gid('gl-petal')}" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#C9A0FF"/><stop offset="55%" stop-color="#80B0FF"/><stop offset="100%" stop-color="#3E3E7A"/></linearGradient>`+
+    `<radialGradient id="${gid('gl-core')}" cx="50%" cy="50%" r="55%"><stop offset="0%" stop-color="#EAF0FF"/><stop offset="45%" stop-color="#6A78D8"/><stop offset="100%" stop-color="#23234E"/></radialGradient>`+
+    `<radialGradient id="${gid('gl-nebula')}" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#9A7BFF" stop-opacity="0.55"/><stop offset="60%" stop-color="#5A6BD8" stop-opacity="0.22"/><stop offset="100%" stop-color="#5A6BD8" stop-opacity="0"/></radialGradient></defs>`+
+    `<line x1="40" y1="40" x2="40" y2="30" stroke="${stem}" stroke-width="3" stroke-linecap="round"/>`;
+    if(!withered) s+=`<circle cx="40" cy="24" r="22" fill="url(#${gid('gl-nebula')})"><animate attributeName="r" values="20;25;20" dur="5s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.7;1;0.7" dur="5s" repeatCount="indefinite"/></circle>`+
+      `<ellipse cx="40" cy="24" rx="19" ry="6" fill="none" stroke="#C9D2FF" stroke-width="0.6" opacity="0.4"><animateTransform attributeName="transform" type="rotate" from="0 40 24" to="360 40 24" dur="22s" repeatCount="indefinite"/></ellipse>`;
+    [0,60,120,180,240,300].forEach(deg=> s+=`<ellipse cx="40" cy="12" rx="3.6" ry="11" fill="${pg}" opacity="0.92" transform="rotate(${deg} 40 24)"/>`);
+    [30,90,150,210,270,330].forEach(deg=> s+=`<ellipse cx="40" cy="16" rx="2.4" ry="7.5" fill="${pg}" opacity="0.7" transform="rotate(${deg} 40 24)"/>`);
+    s+=`<circle cx="40" cy="24" r="9" fill="${withered?'#D1C4A8':`url(#${gid('gl-core')})`}" opacity="0.95"/>`;
+    if(!withered)[[35,19],[45,19],[40,15],[34,28],[46,28],[40,31],[38,23],[30,16],[50,16],[28,24],[52,25],[40,9]].forEach(([cx,cy],i)=> s+=`<circle cx="${cx}" cy="${cy}" r="0.85" fill="#FFFFFF"><animate attributeName="opacity" values="1;0.15;1" dur="1.9s" begin="${i*0.3}s" repeatCount="indefinite"/></circle>`);
+    return s+`<circle cx="40" cy="24" r="2.6" fill="${withered?'#E4D8BC':'#FFFFFF'}" opacity="0.95"/></g>`; }
+
+  // 기본 단일 꽃
+  return `<line x1="40" y1="38" x2="40" y2="28" stroke="${stem}" stroke-width="3" stroke-linecap="round"/>`+
+    `<circle cx="40" cy="26" r="8" fill="${petal}" opacity="0.92"/><circle cx="40" cy="26" r="3.5" fill="#FFFFFF" opacity="0.55"/>`;
+}
+
+const NO_BLOOM_OVERLAY = new Set(['cactus','moss','mint','pine','fern','tree_of_life','bamboo',
+  'crystal_rose','starlight_lily','aurora_orchid','golden_peony','dawn_lily','sunflower','tulip',
+  'celestial_tree','eternal_bloom','galaxy_lily']);
+function renderBloom(id,withered,ctx){
+  if(NO_BLOOM_OVERLAY.has(id)) return '';
+  const c=withered?'#D1C4A8':ctx.flowerFill;
+  return `<circle cx="28" cy="32" r="8" fill="${c}" opacity="0.85"/><circle cx="52" cy="30" r="7" fill="${c}" opacity="0.75"/><circle cx="40" cy="25" r="9" fill="${c}" opacity="0.9"/>`;
+}
+
+function PlantSVG({speciesId,stage,withered=false,size=72,rarity='basic',decorative=true}){
+  _uid++; const pref=`g${_uid}`; const gid=(n)=>`${pref}-${n}`;
+  const col=withered?'#C7B68A':getColor(speciesId);
+  const accent=withered?'#D1C4A8':getAccent(speciesId);
+  const s=stage, fx=RARITY_FX[rarity];
+  const deco=decorative&&!withered;
+  const showGlow=deco&&fx.glowRadius>0&&s>=2;
+  const glowColor=rarity==='transcendent'?'#E6CBFF':rarity==='legendary'?'#FFD44A':accent;
+  const showAura=deco&&fx.aura!=='none'&&s>=2;
+  const showSparkles=deco&&fx.sparkleCount>0&&s>=3;
+  const showMotes=deco&&fx.motes>0&&s>=3;
+  const leafFill=withered?col:`url(#${gid('leaf')})`;
+  const stemFill=withered?col:`url(#${gid('stem')})`;
+  const flowerFill=withered?accent:`url(#${gid('flower')})`;
+  const ctx={gid,leafFill,stemFill,flowerFill};
+  const h=hashStr(speciesId);
+  const swayStyle=deco&&s>=1?`transform-box:view-box;transform-origin:40px 70px;animation-delay:${(h%7)*0.35}s;animation-duration:${6+(h%4)}s;`:'';
+
+  let defs='';
+  if(!withered){
+    defs+=`<linearGradient id="${gid('leaf')}" gradientUnits="userSpaceOnUse" x1="40" y1="6" x2="40" y2="72"><stop offset="0%" stop-color="color-mix(in srgb, ${col} 66%, white)"/><stop offset="100%" stop-color="color-mix(in srgb, ${col} 84%, black)"/></linearGradient>`+
+      `<linearGradient id="${gid('stem')}" gradientUnits="userSpaceOnUse" x1="40" y1="6" x2="40" y2="72"><stop offset="0%" stop-color="color-mix(in srgb, ${col} 74%, white)"/><stop offset="100%" stop-color="color-mix(in srgb, ${col} 90%, black)"/></linearGradient>`+
+      `<radialGradient id="${gid('flower')}" cx="50%" cy="38%" r="62%"><stop offset="0%" stop-color="color-mix(in srgb, ${accent} 52%, white)"/><stop offset="58%" stop-color="${accent}"/><stop offset="100%" stop-color="color-mix(in srgb, ${accent} 86%, black)"/></radialGradient>`;
+  }
+  defs+=`<radialGradient id="${gid('shadow')}" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#2A2E27" stop-opacity="0.32"/><stop offset="65%" stop-color="#2A2E27" stop-opacity="0.13"/><stop offset="100%" stop-color="#2A2E27" stop-opacity="0"/></radialGradient>`;
+  if(showAura) defs+=`<radialGradient id="${gid('aura')}" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="${glowColor}" stop-opacity="0.5"/><stop offset="55%" stop-color="${glowColor}" stop-opacity="0.22"/><stop offset="100%" stop-color="${glowColor}" stop-opacity="0"/></radialGradient>`;
+
+  const style = (rarity==='transcendent'?'overflow:visible;':'') +
+    (showGlow?`filter:drop-shadow(0 0 ${fx.glowRadius}px color-mix(in srgb, ${glowColor} ${Math.round(fx.glowOpacity*100)}%, transparent));`:'');
+
+  let body='';
+  body+=`<ellipse cx="40" cy="74" rx="16" ry="3.4" fill="${withered?'#C7B68A':`url(#${gid('shadow')})`}" opacity="${withered?0.4:1}"/>`;
+  if(showAura) body+=renderAura(fx.aura,gid,glowColor,fx.pulse);
+  if(s===0) body+=`<ellipse cx="40" cy="68" rx="6" ry="4" fill="${withered?'#D1C4A8':'#8A6E4B'}"/>`;
+  body+=`<g class="${swayStyle?'plant-sway':''}" style="${swayStyle}">`;
+  if(s>=1) body+=renderStemAndLeaves(speciesId,s,withered,ctx);
+  if(s>=3) body+=renderFlower(speciesId,accent,withered,ctx);
+  if(s>=4) body+=renderBloom(speciesId,withered,ctx);
+  if(s>=5 && rarity!=='transcendent') body+=`<circle cx="40" cy="18" r="7" fill="${withered?'#D1C4A8':flowerFill}" opacity="0.95"/>`;
+  body+='</g>';
+  if(showSparkles) body+=renderSparkles(fx.sparkleCount,rarity);
+  if(showMotes) body+=renderMotes(fx.motes,glowColor);
+
+  return `<svg viewBox="0 0 80 80" width="${size}" height="${size}" style="${style}" aria-label="${speciesId} stage ${stage}"><defs>${defs}</defs>${body}</svg>`;
+}
+
+/* ===================== 데이터 ===================== */
+const SPECIES=[
+  {id:'sprout',name:'새싹풀',rarity:'basic',stages:4,unlock:0,seed:25,yield:15},
+  {id:'dandelion',name:'민들레',rarity:'basic',stages:3,unlock:60,seed:25,yield:18},
+  {id:'moss',name:'이끼',rarity:'basic',stages:2,unlock:30,seed:25,yield:12},
+  {id:'sunflower',name:'해바라기',rarity:'common',stages:5,unlock:200,seed:50,yield:60},
+  {id:'herb',name:'허브',rarity:'common',stages:4,unlock:200,seed:50,yield:45},
+  {id:'clover',name:'클로버',rarity:'common',stages:3,unlock:150,seed:50,yield:38},
+  {id:'rose',name:'장미',rarity:'common',stages:5,unlock:250,seed:50,yield:75},
+  {id:'cactus',name:'선인장',rarity:'common',stages:3,unlock:180,seed:50,yield:45},
+  {id:'tulip',name:'튤립',rarity:'common',stages:4,unlock:220,seed:50,yield:60},
+  {id:'daisy',name:'데이지',rarity:'common',stages:4,unlock:180,seed:50,yield:50},
+  {id:'mint',name:'민트',rarity:'common',stages:3,unlock:200,seed:40,yield:45},
+  {id:'maple',name:'단풍나무',rarity:'rare',stages:6,unlock:350,seed:80,yield:120},
+  {id:'lotus',name:'연꽃',rarity:'rare',stages:6,unlock:500,seed:80,yield:150},
+  {id:'orchid',name:'난초',rarity:'rare',stages:5,unlock:400,seed:80,yield:105},
+  {id:'bamboo',name:'대나무',rarity:'rare',stages:6,unlock:300,seed:80,yield:120},
+  {id:'pine',name:'소나무',rarity:'rare',stages:7,unlock:450,seed:80,yield:130},
+  {id:'fern',name:'고사리',rarity:'rare',stages:5,unlock:380,seed:70,yield:110},
+  {id:'hydrangea',name:'수국',rarity:'rare',stages:6,unlock:500,seed:75,yield:135},
+  {id:'carnation',name:'카네이션',rarity:'rare',stages:5,unlock:420,seed:70,yield:120},
+  {id:'cosmos',name:'코스모스',rarity:'epic',stages:5,unlock:700,seed:130,yield:180},
+  {id:'firefly_flower',name:'반딧불꽃',rarity:'epic',stages:6,unlock:800,seed:130,yield:210},
+  {id:'rainbow_iris',name:'무지개붓꽃',rarity:'epic',stages:5,unlock:1100,seed:130,yield:240},
+  {id:'moonbloom',name:'달꽃',rarity:'epic',stages:6,unlock:1300,seed:150,yield:270},
+  {id:'tree_of_life',name:'생명나무',rarity:'legendary',stages:8,unlock:2500,seed:200,yield:450},
+  {id:'crystal_rose',name:'수정장미',rarity:'legendary',stages:6,unlock:4000,seed:280,yield:820},
+  {id:'starlight_lily',name:'별빛백합',rarity:'legendary',stages:7,unlock:3200,seed:240,yield:600},
+  {id:'aurora_orchid',name:'오로라난초',rarity:'legendary',stages:6,unlock:3000,seed:230,yield:560},
+  {id:'golden_peony',name:'황금모란',rarity:'legendary',stages:7,unlock:3400,seed:250,yield:640},
+  {id:'dawn_lily',name:'여명백합',rarity:'legendary',stages:8,unlock:3800,seed:270,yield:760},
+  {id:'celestial_tree',name:'천상수',rarity:'transcendent',stages:7,unlock:12000,seed:1500,yield:1500},
+  {id:'eternal_bloom',name:'영겁화',rarity:'transcendent',stages:6,unlock:12000,seed:1500,yield:1500},
+  {id:'galaxy_lily',name:'은하백합',rarity:'transcendent',stages:6,unlock:12000,seed:1500,yield:1500},
+];
+const RARITY_LABEL={basic:'기본',common:'일반',rare:'희귀',epic:'에픽',legendary:'전설',transcendent:'초월'};
+
+const TOKENS=[
+  ['bg-base','#F4F6EE','배경'],['bg-surface','#FFFFFF','카드 표면'],
+  ['fg-primary','#2A2E27','본문'],['fg-muted','#6B7164','보조'],['fg-faint','#9AA08F','흐림'],
+  ['leaf','#4F7A37','잎/주조색'],['leaf-soft','#E7F0DD','잎 옅음'],['soil','#8A6E4B','흙'],
+  ['bloom','#A85D0B','개화/포인트'],['bloom-soft','#FAEEDA','개화 옅음'],
+  ['sky','#1F5FA5','하늘'],['sky-soft','#E6F1FB','하늘 옅음'],['wither','#C7B68A','시듦'],
+  ['border','#DDE5D0','테두리'],['border-soft','#EAF0E0','테두리 옅음'],
+];
+const TIERS=[
+  ['1','Pearl Mist','Lv 1–5','#FFFFFF','#E5ECF0','#A8B8C0'],
+  ['2','Rose Blush','Lv 6–10','#FFFFFF','#FFD8E2','#E89AB0'],
+  ['3','Golden Honey','Lv 11–15','#FFFFFF','#FFE89A','#E8B23A'],
+  ['4','Coral Dawn','Lv 16–20','#FFFFFF','#FFD7BC','#FF9E7A'],
+  ['5','Amethyst','Lv 21–25','#FFFFFF','#E0D0FF','#9A7BFF'],
+  ['6','Aurora','Lv 26–30','#FFFFFF','#C9A0FF','#3E3E7A'],
+];
+
+/* ===================== 렌더 ===================== */
+function rchip(r){ const cls = r==='transcendent'?'rchip transcend-chip':`rchip r-${r}`; return `<span class="${cls}">${RARITY_LABEL[r]}</span>`; }
+
+document.getElementById('swatches').innerHTML = TOKENS.map(([n,hex,desc])=>{
+  const light = ['#FFFFFF','#E7F0DD','#FAEEDA','#E6F1FB','#EAF0E0','#F4F6EE'].includes(hex);
+  return `<div class="swatch"><div class="chip" style="background:${hex};${light?'border-bottom:1px solid var(--border-soft);':''}"></div>`+
+    `<div class="lbl"><b>${desc}</b><span>--${n}<br>${hex}</span></div></div>`;
+}).join('');
+
+document.getElementById('scene-plants').innerHTML =
+  ['sprout','rose','tulip','sunflower','lotus','tree_of_life'].map(id=>{
+    const sp=SPECIES.find(s=>s.id===id);
+    return PlantSVG({speciesId:id,stage:5,rarity:sp.rarity,size:56});
+  }).join('');
+
+document.getElementById('stage-demo').innerHTML =
+  [0,1,2,3,4,5].map(st=>`<div class="sc">${PlantSVG({speciesId:'sprout',stage:st,rarity:'common',size:72})}<div class="t">stage ${st}</div></div>`).join('');
+
+document.getElementById('rarity-demo').innerHTML =
+  ['basic','common','rare','epic','legendary','transcendent'].map(r=>
+    `<div class="sc">${PlantSVG({speciesId:'rose',stage:5,rarity:r,size:84})}<div class="t">${RARITY_LABEL[r]}</div></div>`).join('');
+
+// 도감: 등급별 섹션
+const byR={}; SPECIES.forEach(s=>{ (byR[s.rarity]=byR[s.rarity]||[]).push(s); });
+document.getElementById('codex').innerHTML = ['basic','common','rare','epic','legendary','transcendent'].map(r=>{
+  const cells = byR[r].map(s=>`<div class="plant-cell">${PlantSVG({speciesId:s.id,stage:5,rarity:s.rarity,size:78})}`+
+    `<div class="name">${s.name}</div><div class="id">${s.id}</div>${rchip(s.rarity)}</div>`).join('');
+  return `<h3>${RARITY_LABEL[r]} (${byR[r].length})</h3><div class="card"><div class="plant-grid">${cells}</div></div>`;
+}).join('');
+
+document.getElementById('species-table').innerHTML +=
+  SPECIES.map(s=>`<tr><td><b>${s.name}</b></td><td><code>${s.id}</code></td><td>${rchip(s.rarity)}</td>`+
+    `<td class="num">${s.stages}</td><td class="num">${s.unlock.toLocaleString()}</td><td class="num">${s.seed}</td><td class="num">${s.yield.toLocaleString()}</td></tr>`).join('');
+
+document.getElementById('tiers').innerHTML = TIERS.map(([t,name,range,c1,c2,c3])=>
+  `<div class="tier"><div class="bar" style="background:linear-gradient(135deg,${c1},${c2},${c3});"></div>`+
+  `<div class="body"><b>T${t} · ${name}</b><span>${range}<br>${c2} / ${c3}</span></div></div>`).join('');
+</script>
+</body>
+</html>
