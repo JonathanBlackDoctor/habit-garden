@@ -27,6 +27,7 @@ import SignupCTA from '@/components/SignupCTA';
 import { useCrisisWatcher } from '@/features/coach/useCrisisWatcher';
 import { useFaithEnabled, useIsPremium } from '@/lib/features';
 import HabitStatusDot from '@/features/habits/HabitStatusDot';
+import SeedHabitsButton from '@/features/habits/SeedHabitsButton';
 import { statusOf } from '@/features/habits/habitStatus';
 import MorningBriefingCard from '@/features/recap/MorningBriefingCard';
 import { pointsForCheck } from 'shared/lib/habitPoints';
@@ -237,7 +238,10 @@ export default function Main() {
           </button>
         </div>
         {groupedHabits.length === 0 ? (
-          <p className="text-xs text-[var(--fg-faint)] text-center py-2">관리 메뉴에서 시드 습관을 추가하세요.</p>
+          <div className="flex flex-col items-center gap-2 py-3 text-center">
+            <p className="text-xs text-[var(--fg-muted)]">아직 습관이 없어요. 기본 습관으로 바로 시작해요.</p>
+            <SeedHabitsButton />
+          </div>
         ) : (
           <div className="flex items-center gap-3">
             <ProgressRing key={bloomKey} progress={ratio} size={76} stroke={8} color={ratio >= 1 ? 'var(--bloom)' : 'var(--leaf)'}>

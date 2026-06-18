@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, animate } from 'framer-motion';
 import { addDoc, collection, updateDoc } from 'firebase/firestore';
-import { Pencil, Check, Plus, Settings } from 'lucide-react';
+import { Pencil, Check, Plus, Settings, Sprout } from 'lucide-react';
 import { toast } from 'sonner';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
+import EmptyState from '@/components/EmptyState';
+import SeedHabitsButton from '@/features/habits/SeedHabitsButton';
 import { useHabits, useHabitChecks, useSaveHabitCheck, useClearHabitCheck } from '@/features/habits/useHabits';
 import { useHabitGroups, useBulkSkip } from '@/features/habits/useHabitGroups';
 import { useHabitStreaks } from '@/features/habits/useHabitStreaks';
@@ -324,10 +326,12 @@ export default function Habits() {
       )}
 
       {habits.length === 0 && (
-        <div className="flex flex-col items-center gap-2 py-16 text-[var(--fg-faint)]">
-          <p className="text-sm">습관이 없습니다.</p>
-          <p className="text-xs">우측 상단 + 버튼으로 추가하거나, ⚙ 관리에서 시드를 불러오세요.</p>
-        </div>
+        <EmptyState
+          icon={Sprout}
+          title="아직 습관이 없어요"
+          description="기본 습관을 담아 바로 시작하거나, 우측 상단 + 로 직접 추가할 수 있어요."
+          action={<SeedHabitsButton />}
+        />
       )}
     </div>
   );

@@ -4,6 +4,7 @@ import { AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { useAppStore } from '@/lib/store';
 import { markOnboarded } from './onboardingState';
+import { firstRunSetup } from './firstRunSetup';
 import WelcomeCarousel from './WelcomeCarousel';
 import SpotlightTour, { type Step } from './SpotlightTour';
 
@@ -40,6 +41,7 @@ const MAIN_TOUR_STEPS: Step[] = [
 export default function OnboardingFlow() {
   const open = useAppStore((s) => s.onboardingOpen);
   const close = useAppStore((s) => s.closeOnboarding);
+  const uid = useAppStore((s) => s.uid);
   const navigate = useNavigate();
   const location = useLocation();
   const [phase, setPhase] = useState<Phase>('welcome');
@@ -54,12 +56,14 @@ export default function OnboardingFlow() {
 
   const finish = () => {
     markOnboarded();
+    if (uid) void firstRunSetup(uid);
     close();
     toast.success('이제 정원을 가꿔볼까요? 🌱');
   };
 
   const skip = () => {
     markOnboarded();
+    if (uid) void firstRunSetup(uid);
     close();
   };
 
