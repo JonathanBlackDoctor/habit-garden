@@ -335,7 +335,7 @@ export function useGardenActions() {
       toast.error(`화단은 최대 ${MAX_BEDS}개(${MAX_BEDS * PLANTS_PER_BED}칸)까지만 사용할 수 있습니다.`);
       return;
     }
-    // 심기 횟수 제한은 없다 — 샘물 우물 예산이 그 한도 역할을 대신한다(아래 샘물 검사).
+    // 심기 횟수 제한은 없다 — 샘물 예산이 그 한도 역할을 대신한다(아래 샘물 검사).
     const prevStats = progress.gardenStats ?? {};
 
     const cost = baseSpecies.seedCost ?? POINT_PRICES.SEED;

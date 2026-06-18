@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { motion, animate } from 'framer-motion';
-import { Pencil, Check, Plus, Settings, Sprout, Sunrise, Sun, Sunset, Moon, Clock, type LucideIcon } from 'lucide-react';
+import { Pencil, Check, Plus, Sprout, Sunrise, Sun, Sunset, Moon, Clock, type LucideIcon } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
-import { isOwner } from '@/lib/auth';
 import EmptyState from '@/components/EmptyState';
 import SeedHabitsButton from '@/features/habits/SeedHabitsButton';
 import AddHabitDialog from '@/features/habits/AddHabitDialog';
@@ -62,10 +61,8 @@ function groupByTime(habits: HabitDoc[]) {
 }
 
 export default function Habits() {
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const uid    = useAppStore((s) => s.uid);
-  const realUid = useAppStore((s) => s.realUid);
   const today  = useAppStore((s) => s.currentDate);
   const dateParam = searchParams.get('date');
   const date   = dateParam ?? today;
@@ -170,16 +167,6 @@ export default function Habits() {
           >
             {editMode ? <Check size={18} /> : <Pencil size={18} />}
           </button>
-          {isOwner(realUid) && (
-            <button
-              onClick={() => navigate('/admin')}
-              className="rounded-full p-1.5 text-[var(--fg-muted)] hover:bg-[var(--leaf-soft)] hover:text-[var(--leaf)]"
-              aria-label="관리"
-              title="관리 페이지"
-            >
-              <Settings size={18} />
-            </button>
-          )}
         </div>
       </div>
 
