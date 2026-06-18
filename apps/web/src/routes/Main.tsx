@@ -354,7 +354,7 @@ export default function Main() {
         <div className="flex items-center justify-between">
           <TodayGrowth achieved={totalAchieved} total={totalHabits} />
           <div className="flex items-center gap-2 tabular-nums">
-            <span className="text-xs text-[#1E5A8A]">🪣{springWater}/{SPRINGWATER_CAP}</span>
+            <span className="text-xs text-[#1E5A8A]">💧{springWater}/{SPRINGWATER_CAP}</span>
             {forecastPoints > 0 && <span className="text-xs text-[var(--fg-muted)]">+{forecastPoints}P 예상</span>}
           </div>
         </div>

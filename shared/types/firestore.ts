@@ -426,7 +426,7 @@ export interface TodayTodoDoc {
 export interface ProgressDoc {
   totalPoints: number;
   spendablePoints: number;
-  springWater?: number;          // 🪣 샘물 — '성장 전용' 자원. 습관·회고·기도·말씀 이행에서만 얻고 심기·물주기에만 쓴다(포인트로 못 산다).
+  springWater?: number;          // 💧 샘물 — '성장 전용' 자원. 습관·회고·기도·말씀 이행에서만 얻고 심기·물주기에만 쓴다(포인트로 못 산다).
   level: number;
   xpInLevel: number;
   globalStreak: number;

@@ -346,7 +346,7 @@ export function useGardenActions() {
     // 심을 때 씨앗값(P)과 함께 샘물도 필요하다 — 샘물은 습관 이행으로만 모인다.
     const waterCost = SPRINGWATER_COST.PLANT;
     if ((progress.springWater ?? 0) < waterCost) {
-      toast.error(`샘물이 부족합니다. 습관을 이행해 모아보세요. (필요: 🪣${waterCost})`);
+      toast.error(`샘물이 부족합니다. 습관을 이행해 모아보세요. (필요: 💧${waterCost})`);
       return;
     }
 
@@ -408,11 +408,11 @@ export function useGardenActions() {
       });
 
       if (upgraded) {
-        toast(`🌟 희귀 씨앗 발견! ${finalSpecies.name} 가 자랐어요! (-${cost}P · 🪣${waterCost})`);
+        toast(`🌟 희귀 씨앗 발견! ${finalSpecies.name} 가 자랐어요! (-${cost}P · 💧${waterCost})`);
       } else if (luckyStart) {
-        toast(`🍀 ${finalSpecies.name} — 행운! 새싹부터 시작! (-${cost}P · 🪣${waterCost})`);
+        toast(`🍀 ${finalSpecies.name} — 행운! 새싹부터 시작! (-${cost}P · 💧${waterCost})`);
       } else {
-        toast(`🌱 ${finalSpecies.name} 씨앗을 심었습니다! (-${cost}P · 🪣${waterCost})`);
+        toast(`🌱 ${finalSpecies.name} 씨앗을 심었습니다! (-${cost}P · 💧${waterCost})`);
       }
     } catch (e) {
       toast.error('저장 실패: ' + (e as Error).message);
@@ -423,7 +423,7 @@ export function useGardenActions() {
     if (!uid || !progress) return false;
     const cost = SPRINGWATER_COST.WATER;
     if ((progress.springWater ?? 0) < cost) {
-      toast.error(`샘물이 부족합니다. 습관을 이행해 모아보세요. (필요: 🪣${cost})`);
+      toast.error(`샘물이 부족합니다. 습관을 이행해 모아보세요. (필요: 💧${cost})`);
       return false;
     }
     const plant = progress.gardenState.plants.find((p) => p.id === plantId);

@@ -693,7 +693,7 @@ export default function Garden() {
                             className="w-full gap-2"
                           >
                             <Droplets size={15} />
-                            {alreadyWatered ? '물 줌 ✓ · 내일 자람' : `물주기 (🪣${SPRINGWATER_COST.WATER})`}
+                            {alreadyWatered ? '물 줌 ✓ · 내일 자람' : `물주기 (💧${SPRINGWATER_COST.WATER})`}
                           </Button>
                         );
                       })()
@@ -762,8 +762,8 @@ export default function Garden() {
             </div>
           </div>
           <p className="text-[11px] text-[var(--fg-faint)] leading-relaxed">
-            물주기 🪣{SPRINGWATER_COST.WATER} · 심기 🪣{SPRINGWATER_COST.PLANT}+씨앗값 · 희귀+{POINT_PRICES.HARVEST_BONUS_RARE} · 에픽+{POINT_PRICES.HARVEST_BONUS_RARE + POINT_PRICES.HARVEST_BONUS_EPIC} · 전설+{POINT_PRICES.HARVEST_BONUS_RARE + POINT_PRICES.HARVEST_BONUS_EPIC + POINT_PRICES.HARVEST_BONUS_LEGENDARY} 수확 보너스.<br />
-            🪣샘물(용량 {SPRINGWATER_CAP})은 <b>매일 04:00에 자동으로 차오르고</b>(알찬 하루엔 조금 더), 가득 차면 흘러넘쳐 사라집니다. 심기 횟수 제한은 없고 샘물이 한도 역할을 합니다. 물을 준 식물은 <b>다음날 04:00에 한 단계</b> 자랍니다. 만개 식물은 매일 자동 P 생성.
+            물주기 💧{SPRINGWATER_COST.WATER} · 심기 💧{SPRINGWATER_COST.PLANT}+씨앗값 · 희귀+{POINT_PRICES.HARVEST_BONUS_RARE} · 에픽+{POINT_PRICES.HARVEST_BONUS_RARE + POINT_PRICES.HARVEST_BONUS_EPIC} · 전설+{POINT_PRICES.HARVEST_BONUS_RARE + POINT_PRICES.HARVEST_BONUS_EPIC + POINT_PRICES.HARVEST_BONUS_LEGENDARY} 수확 보너스.<br />
+            💧샘물(용량 {SPRINGWATER_CAP})은 <b>매일 04:00에 자동으로 차오르고</b>(알찬 하루엔 조금 더), 가득 차면 흘러넘쳐 사라집니다. 심기 횟수 제한은 없고 샘물이 한도 역할을 합니다. 물을 준 식물은 <b>다음날 04:00에 한 단계</b> 자랍니다. 만개 식물은 매일 자동 P 생성.
           </p>
           {gardenState.plants.length >= MAX_BEDS * PLANTS_PER_BED && (
             <p className="text-[11px] text-amber-600 font-medium">
@@ -804,7 +804,7 @@ export default function Garden() {
                     </div>
                     {unlocked ? (
                       <Button size="sm" variant="secondary" onClick={() => plantSeed(sp.id)} disabled={isFull || springWater < SPRINGWATER_COST.PLANT}>
-                        {springWater < SPRINGWATER_COST.PLANT ? '샘물 부족' : `심기 (${seedCost}P·🪣${SPRINGWATER_COST.PLANT})`}
+                        {springWater < SPRINGWATER_COST.PLANT ? '샘물 부족' : `심기 (${seedCost}P·💧${SPRINGWATER_COST.PLANT})`}
                       </Button>
                     ) : (
                       <Button size="sm" variant="outline" onClick={() => unlockSpecies(sp.id)} className="gap-1">
