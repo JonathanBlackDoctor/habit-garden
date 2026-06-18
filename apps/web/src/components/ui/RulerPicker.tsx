@@ -51,6 +51,7 @@ export function RulerPicker({
   const programmaticRef = React.useRef(false);
   const rafRef = React.useRef<number>();
   const commitRef = React.useRef<ReturnType<typeof setTimeout>>();
+  const releaseRef = React.useRef<ReturnType<typeof setTimeout>>();
   const lastTickRef = React.useRef<number>();
 
   // 미기록이면 눈금을 둘 기준 위치 (값은 아직 확정 안 함).
@@ -72,6 +73,15 @@ export function RulerPicker({
     else setTouched(true);
   }, [value]);
 
+  // 언마운트 시 보류 중인 타이머/프레임 정리.
+  React.useEffect(() => {
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      if (commitRef.current) clearTimeout(commitRef.current);
+      if (releaseRef.current) clearTimeout(releaseRef.current);
+    };
+  }, []);
+
   // 컨테이너 너비 측정 → 양끝 여백(가운데 정렬용)
   React.useLayoutEffect(() => {
     const el = scrollRef.current;
@@ -89,12 +99,16 @@ export function RulerPicker({
     if (!el || halfW === 0) return;
     const target = indexOf(effective) * gap;
     if (Math.abs(el.scrollLeft - target) > 1) {
+      // scrollLeft 설정으로 생기는 'scroll' 이벤트는 비동기로 도착하므로,
+      // 한 프레임이 아니라 스크롤이 가라앉은 뒤에 가드를 풀어야 프로그램 스크롤이
+      // 사용자 입력으로 오인돼 다이얼이 튀는 일을 막을 수 있다.
       programmaticRef.current = true;
       el.scrollLeft = target;
       setDisplay(effective);
-      requestAnimationFrame(() => {
+      if (releaseRef.current) clearTimeout(releaseRef.current);
+      releaseRef.current = setTimeout(() => {
         programmaticRef.current = false;
-      });
+      }, 120);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effective, halfW, gap, min, max, step]);

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { doc, setDoc, onSnapshot, serverTimestamp, deleteField } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
@@ -11,18 +11,16 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import PastDateBanner from '@/components/PastDateBanner';
 import ConditionAnalysis from '@/features/condition/ConditionAnalysis';
 
-function useDebouncedSave(uid: string | null, date: string, data: ConditionData) {
-  useEffect(() => {
-    if (!uid) return;
-    const t = setTimeout(() => {
-      setDoc(
-        doc(db, 'users', uid, 'days', date),
-        { condition: data, updatedAt: serverTimestamp() },
-        { merge: true }
-      );
-    }, 600);
-    return () => clearTimeout(t);
-  }, [uid, date, data]);
+// 키 순서에 무관한 안정적 직렬화 — 값 비교용. (서버 에코로 인한 불필요한
+// 재저장·되돌림을 막기 위한 기준키를 만든다.)
+function stableKey(v: unknown): string {
+  if (v === null || typeof v !== 'object') return JSON.stringify(v) ?? 'null';
+  if (Array.isArray(v)) return `[${v.map(stableKey).join(',')}]`;
+  const o = v as Record<string, unknown>;
+  return `{${Object.keys(o)
+    .sort()
+    .map((k) => JSON.stringify(k) + ':' + stableKey(o[k]))
+    .join(',')}}`;
 }
 
 export default function Condition() {
@@ -37,16 +35,50 @@ export default function Condition() {
   const [cond, setCond] = useState<ConditionData>({});
   const [loaded, setLoaded] = useState(false);
 
+  // 서버와 마지막으로 동기화된 값의 기준키. 이 값과 같으면 저장하지 않고(에코 루프 차단),
+  // 편집 중 들어온 옛 스냅샷이 로컬 입력을 덮어쓰지 않게 하는 기준이 된다.
+  const syncedRef = useRef<string>('');
+  const condRef = useRef(cond);
+  condRef.current = cond;
+
   useEffect(() => {
     if (!uid) return;
+    // 날짜/계정이 바뀌면 이전 데이터가 새 날짜로 새어 저장되지 않도록 초기화한다.
+    syncedRef.current = '';
+    setLoaded(false);
+    setCond({});
     const ref = doc(db, 'users', uid, 'days', date);
     return onSnapshot(ref, (snap) => {
-      if (snap.exists()) setCond(snap.data().condition ?? {});
+      const incoming: ConditionData = snap.exists()
+        ? ((snap.data().condition as ConditionData) ?? {})
+        : {};
+      const incomingKey = stableKey(incoming);
+      const localKey = stableKey(condRef.current);
+      // 아직 저장 안 된 로컬 편집이 있는 상태(dirty)에서, 서버가 그와 다른 값을
+      // 돌려주면 무시한다. → 입력 중 다이얼이 옛 값으로 튀는 현상 방지.
+      const dirty = syncedRef.current !== '' && localKey !== syncedRef.current;
+      if (!dirty || incomingKey === localKey) {
+        if (incomingKey !== localKey) setCond(incoming);
+        syncedRef.current = incomingKey;
+      }
       setLoaded(true);
     });
   }, [uid, date]);
 
-  useDebouncedSave(uid, date, cond);
+  // 사용자가 바꾼 값만 저장한다. 서버 값과 같으면(스냅샷 에코) 저장을 건너뛰어
+  // 가만히 있어도 600ms마다 쓰던 무한 저장 루프를 끊는다.
+  useEffect(() => {
+    if (!uid || !loaded) return;
+    if (stableKey(cond) === syncedRef.current) return;
+    const t = setTimeout(() => {
+      void setDoc(
+        doc(db, 'users', uid, 'days', date),
+        { condition: cond, updatedAt: serverTimestamp() },
+        { merge: true },
+      );
+    }, 600);
+    return () => clearTimeout(t);
+  }, [uid, date, cond, loaded]);
 
   const set = (k: keyof ConditionData, v: unknown) =>
     setCond((prev) => ({ ...prev, [k]: v }));
