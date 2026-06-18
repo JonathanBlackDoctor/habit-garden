@@ -85,11 +85,6 @@
     @apply rounded-[var(--radius)] border border-[var(--border-soft)] bg-[var(--bg-surface)] shadow-[var(--shadow-sm)];
   }
 
-  /* 핵심 위젯·강조 카드 — 더 큰 라운드 + 한 단계 깊은 그림자 */
-  .card-elevated {
-    @apply rounded-[var(--radius-lg)] border border-[var(--border-soft)] bg-[var(--bg-surface)] shadow-[var(--shadow-md)];
-  }
-
   /* ── 탭바 안전 영역 ── */
   .tab-bar-safe {
     padding-bottom: max(env(safe-area-inset-bottom), 8px);
