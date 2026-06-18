@@ -90,10 +90,10 @@ export default function More() {
     const month = today.slice(0, 7);
     const usedThisMonth = sickDays?.month === month ? sickDays.daysUsed : 0;
     if (usedThisMonth >= 1) {
-      toast.error('이번 달 아픔 데이를 이미 사용했어요');
+      toast.error('이번 달 병가를 이미 사용했어요');
       return;
     }
-    if (!window.confirm('오늘 아픔 데이를 사용할까요?\n이번 달 1회만 사용할 수 있으며, 오늘 하루 스트릭이 보호됩니다.')) {
+    if (!window.confirm('오늘 병가를 사용할까요?\n이번 달 1회만 사용할 수 있으며, 오늘 하루 스트릭이 보호됩니다.')) {
       return;
     }
     await setDoc(doc(db, 'users', uid, 'progress', 'main'), {
@@ -297,7 +297,7 @@ export default function More() {
           <p className="text-sm font-medium text-[var(--fg-primary)]">스트릭 보호</p>
         </div>
         <p className="text-[11px] leading-snug text-[var(--fg-faint)]">
-          매주 1회는 자동 그레이스로 스트릭이 보호돼요. 길게 쉴 땐 휴가 모드, 아픈 날엔 아픔 데이(월 1회)를 쓰세요.
+          매주 1회는 자동 그레이스로 스트릭이 보호돼요. 길게 쉴 땐 휴가 모드, 아픈 날엔 병가(월 1회)를 쓰세요.
         </p>
 
         {vacationActive ? (
@@ -328,7 +328,7 @@ export default function More() {
         >
           <Thermometer size={16} className="text-[var(--bloom)]" />
           <div className="flex-1">
-            <p className="text-[var(--fg-primary)]">🤒 오늘 아픔 데이</p>
+            <p className="text-[var(--fg-primary)]">🤒 오늘 병가</p>
             <p className="text-[10px] text-[var(--fg-faint)]">
               {sickUsedThisMonth >= 1 ? '이번 달 사용 완료' : '이번 달 1회 남음'}
             </p>

@@ -202,9 +202,9 @@ export default function Admin() {
     setSeeding(true);
     try {
       const n = await seedDefaultHabits(uid);
-      toast(`✅ 시드 습관 ${n}개를 추가했습니다!`);
+      toast(`✅ 기본 습관 ${n}개를 추가했습니다!`);
     } catch (e) {
-      toast.error('시드 추가 실패');
+      toast.error('기본 습관 추가 실패');
     } finally {
       setSeeding(false);
     }
@@ -234,9 +234,9 @@ export default function Admin() {
           updatedAt: now,
         });
       }
-      toast(`🙏 시드 기도제목 ${SEED_PRAYERS.length}개를 추가했습니다!`);
+      toast(`🙏 기본 기도제목 ${SEED_PRAYERS.length}개를 추가했습니다!`);
     } catch {
-      toast.error('기도 시드 추가 실패');
+      toast.error('기본 기도제목 추가 실패');
     } finally {
       setPrayerSeeding(false);
     }
@@ -522,11 +522,11 @@ export default function Admin() {
         </section>
       )}
 
-      {/* 시드 습관 */}
+      {/* 기본 습관 */}
       <section className="card p-4 space-y-3">
-        <h3 className="text-sm font-medium text-[var(--fg-primary)]">시드 데이터</h3>
+        <h3 className="text-sm font-medium text-[var(--fg-primary)]">기본 데이터</h3>
         <p className="text-xs text-[var(--fg-muted)]">
-          시드 습관 8개를 처음 추가합니다. 이미 추가된 경우 중복됩니다.
+          기본 습관 8개를 처음 추가합니다. 이미 추가된 경우 중복됩니다.
         </p>
         <Button
           onClick={seedHabits}
@@ -535,7 +535,7 @@ export default function Admin() {
           className="w-full gap-2"
         >
           <Leaf size={15} />
-          {seeding ? '추가 중…' : '시드 습관 8개 추가'}
+          {seeding ? '추가 중…' : '기본 습관 8개 추가'}
         </Button>
         <Button
           onClick={seedPrayers}
@@ -544,7 +544,7 @@ export default function Admin() {
           className="w-full gap-2"
         >
           <HandHeart size={15} />
-          {prayerSeeding ? '추가 중…' : `시드 기도제목 ${SEED_PRAYERS.length}개 추가`}
+          {prayerSeeding ? '추가 중…' : `기본 기도제목 ${SEED_PRAYERS.length}개 추가`}
         </Button>
         <Button
           onClick={migratePrayers}
@@ -562,7 +562,7 @@ export default function Admin() {
           <h3 className="text-sm font-medium text-[var(--fg-primary)]">습관 목록 ({habits.length})</h3>
         </div>
         {habits.length === 0 && (
-          <p className="text-sm text-[var(--fg-faint)] text-center py-8">습관이 없습니다. 시드를 추가해보세요.</p>
+          <p className="text-sm text-[var(--fg-faint)] text-center py-8">습관이 없습니다. 기본 습관을 추가해보세요.</p>
         )}
         {habits.map((habit) => (
           <div key={habit.id} className="card p-3 flex items-center gap-3">

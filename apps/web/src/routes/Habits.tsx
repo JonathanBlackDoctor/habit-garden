@@ -2,10 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, animate } from 'framer-motion';
 import { addDoc, collection, updateDoc } from 'firebase/firestore';
-import { Pencil, Check, Plus, Settings, Sprout } from 'lucide-react';
+import { Pencil, Check, Plus, Settings, Sprout, Sunrise, Sun, Sunset, Moon, Clock, type LucideIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
+import { isOwner } from '@/lib/auth';
 import EmptyState from '@/components/EmptyState';
 import SeedHabitsButton from '@/features/habits/SeedHabitsButton';
 import { useHabits, useHabitChecks, useSaveHabitCheck, useClearHabitCheck } from '@/features/habits/useHabits';
@@ -21,11 +22,18 @@ import { timeOfDay } from '@/lib/dayBoundary';
 import { useTabBloomKey } from '@/lib/tabActive';
 
 const TIME_LABELS: Record<string, string> = {
-  morning:   '🌅 아침',
-  afternoon: '☀️ 점심',
-  evening:   '🌆 저녁',
-  night:     '🌙 밤',
-  anytime:   '🕐 언제든',
+  morning:   '아침',
+  afternoon: '점심',
+  evening:   '저녁',
+  night:     '밤',
+  anytime:   '언제든',
+};
+const TIME_ICONS: Record<string, LucideIcon> = {
+  morning: Sunrise,
+  afternoon: Sun,
+  evening: Sunset,
+  night: Moon,
+  anytime: Clock,
 };
 const TIME_ORDER = ['morning', 'afternoon', 'evening', 'night', 'anytime'];
 
@@ -59,6 +67,7 @@ export default function Habits() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const uid    = useAppStore((s) => s.uid);
+  const realUid = useAppStore((s) => s.realUid);
   const today  = useAppStore((s) => s.currentDate);
   const dateParam = searchParams.get('date');
   const date   = dateParam ?? today;
@@ -151,7 +160,7 @@ export default function Habits() {
       {/* 헤더 */}
       <div className="pt-2 flex items-start justify-between gap-2">
         <div>
-          <h2 className="text-base font-semibold text-[var(--fg-primary)]">습관 체크</h2>
+          <h2 className="text-lg font-bold text-[var(--fg-primary)]">습관 체크</h2>
           <p className="text-sm text-[var(--fg-muted)]">
             달성 {totalAchieved}/{totalActive} · 체크 {totalChecked}/{totalActive}
           </p>
@@ -169,7 +178,7 @@ export default function Habits() {
         <div className="flex items-center gap-1">
           <button
             onClick={addNewHabit}
-            className="rounded-full p-1.5 text-[var(--fg-muted)] hover:bg-[var(--leaf-soft)] hover:text-[var(--leaf)]"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--fg-muted)] transition-colors hover:bg-[var(--leaf-soft)] hover:text-[var(--leaf)] active:scale-95"
             aria-label="습관 추가"
             title="습관 추가"
           >
@@ -177,20 +186,22 @@ export default function Habits() {
           </button>
           <button
             onClick={() => setEditMode((v) => !v)}
-            className={`rounded-full p-1.5 ${editMode ? 'bg-[var(--leaf-soft)] text-[var(--leaf)]' : 'text-[var(--fg-muted)] hover:bg-[var(--leaf-soft)] hover:text-[var(--leaf)]'}`}
+            className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors active:scale-95 ${editMode ? 'bg-[var(--leaf-soft)] text-[var(--leaf)]' : 'text-[var(--fg-muted)] hover:bg-[var(--leaf-soft)] hover:text-[var(--leaf)]'}`}
             aria-label={editMode ? '편집 완료' : '편집'}
             title={editMode ? '편집 완료' : '편집'}
           >
             {editMode ? <Check size={18} /> : <Pencil size={18} />}
           </button>
-          <button
-            onClick={() => navigate('/admin')}
-            className="rounded-full p-1.5 text-[var(--fg-muted)] hover:bg-[var(--leaf-soft)] hover:text-[var(--leaf)]"
-            aria-label="관리"
-            title="관리 페이지"
-          >
-            <Settings size={18} />
-          </button>
+          {isOwner(realUid) && (
+            <button
+              onClick={() => navigate('/admin')}
+              className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--fg-muted)] transition-colors hover:bg-[var(--leaf-soft)] hover:text-[var(--leaf)] active:scale-95"
+              aria-label="관리"
+              title="관리 페이지"
+            >
+              <Settings size={18} />
+            </button>
+          )}
         </div>
       </div>
 
@@ -250,6 +261,7 @@ export default function Habits() {
         // 달성률이 0이면 dim, 100%면 full, 중간은 보간 — 단순화: 50% 임계
         const bg = ratio >= 0.5 ? bgFull : bgDim;
         const isNight = tod === 'night';
+        const TodIcon = TIME_ICONS[tod];
         return (
           <section
             key={tod}
@@ -262,10 +274,16 @@ export default function Habits() {
           >
             <div className="flex items-center justify-between">
               <h3
-                className="text-sm font-medium"
+                className="flex items-center gap-1.5 text-sm font-semibold"
                 style={{ color: isNight ? '#E5E7EB' : 'var(--fg-primary)' }}
               >
-                {TIME_LABELS[tod]} {isNow && <span className="ml-1 text-[10px] text-[var(--bloom)]">지금</span>}
+                <TodIcon size={15} className="shrink-0 opacity-80" />
+                {TIME_LABELS[tod]}
+                {isNow && (
+                  <span className="ml-0.5 rounded-full bg-[var(--bloom)]/15 px-1.5 py-0.5 text-[10px] font-medium text-[var(--bloom)]">
+                    지금
+                  </span>
+                )}
               </h3>
               <span
                 className="text-xs tabular-nums"

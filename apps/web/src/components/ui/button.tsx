@@ -4,15 +4,15 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[var(--radius)] text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[var(--radius)] text-sm font-medium transition-all duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--leaf)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-base)] disabled:pointer-events-none disabled:opacity-50 disabled:active:scale-100',
   {
     variants: {
       variant: {
-        default:   'bg-[var(--leaf)] text-white hover:opacity-90 active:opacity-80',
+        default:   'bg-[var(--leaf)] text-white shadow-[var(--shadow-sm)] hover:opacity-90 active:opacity-80',
         secondary: 'bg-[var(--leaf-soft)] text-[var(--leaf)] hover:opacity-90',
         ghost:     'hover:bg-[var(--leaf-soft)] text-[var(--fg-muted)]',
         outline:   'border border-[var(--border)] bg-transparent hover:bg-[var(--leaf-soft)]',
-        bloom:     'bg-[var(--bloom)] text-white hover:opacity-90',
+        bloom:     'bg-[var(--bloom)] text-white shadow-[var(--shadow-sm)] hover:opacity-90',
         destructive: 'bg-red-100 text-red-700 hover:bg-red-200',
       },
       size: {
