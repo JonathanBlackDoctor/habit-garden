@@ -97,7 +97,7 @@ export default function HabitCard({ habit, check, streak = 0, isNow = false, onS
       animate={{ scale: status === 'achieved' || status === 'skipped' ? 0.97 : 1 }}
       transition={{ type: 'spring', stiffness: 320, damping: 26 }}
       className={cn(
-        'relative card px-4 py-3 transition-all',
+        'relative card px-3 py-2 transition-all',
         status === 'todo' &&
           'border-l-4 border-l-[var(--leaf)] shadow-[var(--shadow-sm)]',
         status === 'todo' && isNow && 'ring-1 ring-[var(--leaf)]/40',
@@ -149,7 +149,7 @@ export default function HabitCard({ habit, check, streak = 0, isNow = false, onS
           )}
           {/* 중요도 뱃지 */}
           <span
-            className="shrink-0 rounded-full bg-[var(--leaf-soft)] px-2 py-0.5 text-[11px] font-medium text-[var(--leaf)] tabular-nums"
+            className="shrink-0 rounded-full bg-[var(--leaf-soft)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--leaf)] tabular-nums"
             title="중요도"
             aria-label={`중요도 ${habit.weight}`}
           >
@@ -165,11 +165,11 @@ export default function HabitCard({ habit, check, streak = 0, isNow = false, onS
         {skipped && (
           <button
             onClick={onClear}
-            className="flex h-7 shrink-0 items-center gap-0.5 rounded-full bg-[var(--bg-base)] px-2.5 text-[11px] font-medium text-[var(--fg-muted)] hover:text-[var(--fg-primary)]"
+            className="flex shrink-0 items-center gap-0.5 rounded-full bg-[var(--bg-base)] px-2 py-0.5 text-[10px] font-medium text-[var(--fg-muted)] hover:text-[var(--fg-primary)]"
             title="건너뜀 취소"
           >
             건너뜀
-            <X size={12} />
+            <X size={11} />
           </button>
         )}
 
@@ -185,15 +185,15 @@ export default function HabitCard({ habit, check, streak = 0, isNow = false, onS
         <button
           onClick={() => (skipped ? onClear() : onScore(null))}
           className={cn(
-            'flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors active:scale-95',
+            'rounded-full p-1 transition-colors',
             skipped
               ? 'bg-[var(--bg-base)] text-[var(--fg-muted)] hover:text-[var(--fg-primary)]'
-              : 'text-[var(--fg-faint)] hover:bg-[var(--leaf-soft)] hover:text-[var(--fg-muted)]'
+              : 'text-[var(--fg-faint)] hover:text-[var(--fg-muted)]'
           )}
           aria-label={skipped ? '건너뜀 취소' : '건너뜀'}
           title={skipped ? '건너뜀 취소' : '건너뜀'}
         >
-          <SkipForward size={16} />
+          <SkipForward size={14} />
         </button>
       </div>
 
@@ -206,45 +206,43 @@ export default function HabitCard({ habit, check, streak = 0, isNow = false, onS
       )}
 
       {/* 점수 입력 */}
-      <div className="mt-2">
+      <div className="mt-1.5">
         {habit.scoreMode === 'scaled' ? (
-          <div className="space-y-1">
-            <div className="grid grid-cols-5 gap-1.5">
-              {[1, 2, 3, 4, 5].map((s) => (
-                <button
-                  key={s}
-                  onClick={() => onScore(s)}
-                  aria-label={`${s}점 · ${SCORE_LABELS[s]}`}
-                  className={cn(
-                    'flex h-9 items-center justify-center rounded-[var(--radius-sm)] text-sm font-semibold transition-all active:scale-95',
-                    currentScore === s
-                      ? 'bg-[var(--leaf)] text-white shadow-[var(--shadow-sm)]'
-                      : currentScore !== null && currentScore > s
-                      ? 'bg-[var(--leaf-soft)] text-[var(--leaf)]'
-                      : 'bg-[var(--bg-base)] text-[var(--fg-muted)] hover:bg-[var(--leaf-soft)]'
-                  )}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-            {currentScore !== null && currentScore >= 1 && (
-              <p className="text-center text-xs font-medium text-[var(--fg-muted)]">
+          <div className="flex gap-1.5">
+            {[1, 2, 3, 4, 5].map((s) => (
+              <button
+                key={s}
+                onClick={() => onScore(s)}
+                aria-label={`${s}점 · ${SCORE_LABELS[s]}`}
+                className={cn(
+                  'flex h-7 w-7 items-center justify-center rounded-full text-sm font-medium transition-all',
+                  currentScore === s
+                    ? 'bg-[var(--leaf)] text-white scale-110'
+                    : currentScore !== null && currentScore > s
+                    ? 'bg-[var(--leaf-soft)] text-[var(--leaf)]'
+                    : 'bg-[var(--bg-base)] text-[var(--fg-muted)] hover:bg-[var(--leaf-soft)]'
+                )}
+              >
+                {s}
+              </button>
+            ))}
+            {currentScore !== null && (
+              <span className="ml-1 self-center text-xs text-[var(--fg-muted)]">
                 {SCORE_LABELS[currentScore]}
-              </p>
+              </span>
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-2">
+          <div className="flex gap-2">
             {[0, 1].map((s) => (
               <button
                 key={s}
                 onClick={() => onScore(s)}
                 className={cn(
-                  'flex h-10 items-center justify-center rounded-[var(--radius-sm)] text-sm font-medium transition-all active:scale-95',
+                  'flex-1 rounded-[var(--radius-sm)] py-1 text-sm font-medium transition-colors',
                   currentScore === s
                     ? s === 1
-                      ? 'bg-[var(--leaf)] text-white shadow-[var(--shadow-sm)]'
+                      ? 'bg-[var(--leaf)] text-white'
                       : 'bg-[var(--wither)] text-[var(--fg-muted)]'
                     : 'bg-[var(--bg-base)] text-[var(--fg-muted)] hover:bg-[var(--leaf-soft)]'
                 )}
@@ -302,7 +300,7 @@ export default function HabitCard({ habit, check, streak = 0, isNow = false, onS
                   나중에
                 </button>
               </div>
-              <div className="grid grid-cols-5 gap-1.5">
+              <div className="flex justify-between">
                 {MOOD_EMOJIS.map((emoji, i) => {
                   const m = (i + 1) as 1 | 2 | 3 | 4 | 5;
                   return (
@@ -311,10 +309,10 @@ export default function HabitCard({ habit, check, streak = 0, isNow = false, onS
                       onClick={() => setMood(m)}
                       aria-label={`기분 ${m}점`}
                       className={cn(
-                        'flex h-10 items-center justify-center rounded-[var(--radius-sm)] text-lg transition-all active:scale-95',
+                        'flex h-8 w-8 items-center justify-center rounded-full text-base transition-all',
                         mood === m
-                          ? 'bg-[var(--leaf-soft)] ring-1 ring-[var(--leaf)]/40'
-                          : 'bg-[var(--bg-base)] hover:bg-[var(--leaf-soft)]/60',
+                          ? 'bg-[var(--leaf-soft)] scale-110'
+                          : 'hover:bg-[var(--leaf-soft)]/50',
                       )}
                     >
                       {emoji}
