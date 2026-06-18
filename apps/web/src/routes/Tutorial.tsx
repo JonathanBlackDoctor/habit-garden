@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { SPRINGWATER_CAP, SPRINGWATER_COST } from 'shared/types/firestore';
 import {
   ChevronLeft,
   ChevronDown,
@@ -162,12 +163,12 @@ export default function Tutorial() {
           step="STEP 03"
           icon={<Flower2 size={16} />}
           tone="soil"
-          title="습관으로 샘물을 모아 정원을 키워요"
-          desc="습관·회고·기도·말씀을 이행하면 🪣샘물이 모여요. 씨앗을 심고 물을 줄 때 샘물을 쓰고, 물을 준 식물은 다음날 04:00에 한 단계 자랍니다. 만개하면 수확해 포인트를 얻어요."
+          title="샘물 우물로 정원을 키워요"
+          desc="🪣샘물 우물이 매일 04:00에 자동으로 차오릅니다(알찬 하루엔 조금 더). 씨앗을 심고 물을 줄 때 샘물을 쓰고, 물을 준 식물은 다음날 한 단계 자라요. 만개하면 수확해 포인트를 얻어요."
           bullets={[
-            '씨앗 심기 — 씨앗값(P) + 샘물 🪣1',
-            '물주기 — 샘물 🪣1 → 다음날 한 단계 성장',
-            '샘물은 습관 이행으로만 모여요 (자동 성장 없음)',
+            `우물 용량 🪣${SPRINGWATER_CAP} · 매일 자동으로 차오름 (가득 차면 흘러넘침)`,
+            `씨앗 심기 씨앗값(P)+🪣${SPRINGWATER_COST.PLANT} · 물주기 🪣${SPRINGWATER_COST.WATER} → 다음날 성장`,
+            '심기 횟수 제한 없음 — 샘물이 한도 역할',
           ]}
           details={
             <div className="space-y-3 text-[12.5px] leading-relaxed text-[var(--fg-muted)]">

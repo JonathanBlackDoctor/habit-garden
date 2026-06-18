@@ -10,8 +10,7 @@ import ForecastCard from '@/features/garden/ForecastCard';
 import TranscendAtmosphere from '@/features/garden/TranscendAtmosphere';
 import { useAppStore } from '@/lib/store';
 import { useNickname } from '@/lib/features';
-import { PLANT_SPECIES, POINT_PRICES, SPRINGWATER_COST, DAILY_YIELD_BY_RARITY, PLANTS_PER_BED, PLANTS_PER_ROW, CODEX_SPECIES_COUNT, MAX_BEDS, DAILY_PLANT_LIMIT } from 'shared/types/firestore';
-import { getGameDayKST } from '@/features/garden/useGarden';
+import { PLANT_SPECIES, POINT_PRICES, SPRINGWATER_COST, SPRINGWATER_CAP, DAILY_YIELD_BY_RARITY, PLANTS_PER_BED, PLANTS_PER_ROW, CODEX_SPECIES_COUNT, MAX_BEDS } from 'shared/types/firestore';
 import { computePassiveYield } from 'shared/lib/gardenYield';
 import type { PlantInstance, PlantSpecies } from 'shared/types/firestore';
 import { Button } from '@/components/ui/button';
@@ -289,11 +288,7 @@ export default function Garden() {
   const pendingGrowthCount = plants.filter((p) => p.pendingGrowth).length;  // 다음 정산에 자랄 식물 수
   const codexCount = progress.gardenStats?.codexEntries?.length ?? 0;
   const dailyIncome = computePassiveYield(plants);  // 현재 만개 식물들의 하루 자동 수익(P)
-
-  const gameDay = getGameDayKST();
-  const prevPlantDate = progress.gardenStats?.dailyDirectPlantsDate ?? '';
-  const todayPlanted = prevPlantDate === gameDay ? (progress.gardenStats?.dailyDirectPlants ?? 0) : 0;
-  const plantLimitReached = todayPlanted >= DAILY_PLANT_LIMIT;
+  const wellFull = springWater >= SPRINGWATER_CAP;
 
   return (
     <div className="min-h-screen p-4 space-y-4 pb-8">
@@ -352,15 +347,17 @@ export default function Garden() {
             <Wheat size={11} />
             만개 +{dailyIncome}P/일
           </span>
-          {/* 샘물 칩 — 성장 전용 자원(습관 이행으로 모임). 물 준 식물은 내일 자란다. */}
+          {/* 샘물 우물 칩 — 매일 차오르는 성장 자원. 가득 차면 흘러넘쳐 소실. */}
           <span className={cn(
             'flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-medium tabular-nums',
-            springWater > 0
-              ? 'bg-[#DCEEFF] text-[#1E5A8A]'
-              : 'bg-[var(--leaf-soft)]/40 text-[var(--fg-faint)]',
+            wellFull
+              ? 'bg-[#FFF3CC] text-[#8A6A1E]'
+              : springWater > 0
+                ? 'bg-[#DCEEFF] text-[#1E5A8A]'
+                : 'bg-[var(--leaf-soft)]/40 text-[var(--fg-faint)]',
           )}>
             <Droplets size={11} />
-            샘물 {springWater}{pendingGrowthCount > 0 ? ` · 내일 +${pendingGrowthCount}🌱` : ''}
+            우물 {springWater}/{SPRINGWATER_CAP}{wellFull ? ' 가득' : pendingGrowthCount > 0 ? ` · 내일 +${pendingGrowthCount}🌱` : ''}
           </span>
         </div>
       </div>
@@ -756,25 +753,18 @@ export default function Garden() {
             <h3 className="text-sm font-semibold text-[var(--fg-primary)]">상점 · 씨앗 심기 / 식물 해금</h3>
             <div className={cn(
               'flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold tabular-nums',
-              plantLimitReached
-                ? 'bg-[#FEF2F2] text-[#A83A30]'
-                : todayPlanted >= DAILY_PLANT_LIMIT - 1
-                  ? 'bg-[#FFF8E1] text-[#A07A1E]'
-                  : 'bg-[var(--leaf-soft)] text-[var(--leaf-strong,var(--leaf))]',
+              wellFull
+                ? 'bg-[#FFF8E1] text-[#A07A1E]'
+                : 'bg-[#DCEEFF] text-[#1E5A8A]',
             )}>
-              <Sprout size={11} />
-              오늘 심기 {todayPlanted}/{DAILY_PLANT_LIMIT}
+              <Droplets size={11} />
+              우물 {springWater}/{SPRINGWATER_CAP}{wellFull ? ' 가득' : ''}
             </div>
           </div>
           <p className="text-[11px] text-[var(--fg-faint)] leading-relaxed">
             물주기 🪣{SPRINGWATER_COST.WATER} · 심기 🪣{SPRINGWATER_COST.PLANT}+씨앗값 · 희귀+{POINT_PRICES.HARVEST_BONUS_RARE} · 에픽+{POINT_PRICES.HARVEST_BONUS_RARE + POINT_PRICES.HARVEST_BONUS_EPIC} · 전설+{POINT_PRICES.HARVEST_BONUS_RARE + POINT_PRICES.HARVEST_BONUS_EPIC + POINT_PRICES.HARVEST_BONUS_LEGENDARY} 수확 보너스.<br />
-            🪣샘물은 습관·회고·기도·말씀을 이행해야 모입니다. 물을 준 식물은 <b>다음날 04:00에 한 단계</b> 자랍니다(자동 성장 없음). 만개 식물은 매일 자동 P 생성. 심을 때 10% 확률로 한 등급 위 씨앗 발견(lucky 15%).
+            🪣샘물 우물(용량 {SPRINGWATER_CAP})은 <b>매일 04:00에 자동으로 차오르고</b>(알찬 하루엔 조금 더), 가득 차면 흘러넘쳐 사라집니다. 심기 횟수 제한은 없고 샘물이 한도 역할을 합니다. 물을 준 식물은 <b>다음날 04:00에 한 단계</b> 자랍니다. 만개 식물은 매일 자동 P 생성.
           </p>
-          {plantLimitReached && (
-            <p className="text-[11px] text-[#A83A30] font-medium">
-              오늘 직접 심기 {DAILY_PLANT_LIMIT}회 한도에 도달했습니다. 내일 04:00에 초기화됩니다.
-            </p>
-          )}
           {gardenState.plants.length >= MAX_BEDS * PLANTS_PER_BED && (
             <p className="text-[11px] text-amber-600 font-medium">
               화단이 가득 찼습니다. (최대 {MAX_BEDS}개 · {MAX_BEDS * PLANTS_PER_BED}칸) 식물을 수확하거나 캐내면 새로 심을 수 있어요.
@@ -813,8 +803,8 @@ export default function Garden() {
                       )}
                     </div>
                     {unlocked ? (
-                      <Button size="sm" variant="secondary" onClick={() => plantSeed(sp.id)} disabled={isFull || plantLimitReached}>
-                        {plantLimitReached ? '한도 초과' : `심기 (${seedCost}P)`}
+                      <Button size="sm" variant="secondary" onClick={() => plantSeed(sp.id)} disabled={isFull || springWater < SPRINGWATER_COST.PLANT}>
+                        {springWater < SPRINGWATER_COST.PLANT ? '샘물 부족' : `심기 (${seedCost}P·🪣${SPRINGWATER_COST.PLANT})`}
                       </Button>
                     ) : (
                       <Button size="sm" variant="outline" onClick={() => unlockSpecies(sp.id)} className="gap-1">

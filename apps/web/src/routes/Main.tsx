@@ -15,7 +15,7 @@ import BloomBadge from '@/components/BloomBadge';
 import { useTabBloomKey } from '@/lib/tabActive';
 import ProgressRing from '@/components/ProgressRing';
 import type { DayDoc, TodayTodoDoc } from 'shared/types/firestore';
-import { PLANT_SPECIES } from 'shared/types/firestore';
+import { PLANT_SPECIES, SPRINGWATER_CAP } from 'shared/types/firestore';
 import { motion, Reorder, useDragControls } from 'framer-motion';
 import { ArrowRight, CheckCircle2, RefreshCw, Sparkles, X, PenLine, GripVertical, Pencil, Check, RotateCcw, Eye, EyeOff } from 'lucide-react';
 import { useComeback } from '@/features/comeback/useComeback';
@@ -350,7 +350,7 @@ export default function Main() {
         <div className="flex items-center justify-between">
           <TodayGrowth achieved={totalAchieved} total={totalHabits} />
           <div className="flex items-center gap-2 tabular-nums">
-            <span className="text-xs text-[#1E5A8A]">🪣{springWater}</span>
+            <span className="text-xs text-[#1E5A8A]">🪣{springWater}/{SPRINGWATER_CAP}</span>
             {forecastPoints > 0 && <span className="text-xs text-[var(--fg-muted)]">+{forecastPoints}P 예상</span>}
           </div>
         </div>

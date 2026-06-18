@@ -13,6 +13,9 @@ import {
   MAX_GARDEN_PLANTS,
   WATER_GROWTH_STAGES,
   WATER_GROWTH_BONUS_STAGES,
+  SPRINGWATER_CAP,
+  SPRINGWATER_DAILY_GRANT,
+  SPRINGWATER_SUCCESS_BONUS,
   type ProgressDoc,
   type PlantInstance,
   type GardenStats,
@@ -48,19 +51,6 @@ function gameDayKST(): string {
 
 function maxStageOf(speciesId: string): number {
   return (speciesOf(speciesId)?.stages ?? 4) - 1;
-}
-
-/**
- * 샘물 지급 — 습관·회고·기도·말씀 이행 시 호출 (옛 growRandomPlant 자리).
- * 랜덤/즉시 성장은 폐지됐다. 대신 성장 전용 자원인 샘물만 적립한다.
- * 샘물은 포인트(P)·원장과 분리되므로 progress.springWater 만 증가시킨다.
- */
-export async function grantSpringWater(uid: string, amount: number): Promise<void> {
-  if (amount <= 0) return;
-  await db.doc(`users/${uid}/progress/main`).set({
-    springWater: FieldValue.increment(amount),
-    updatedAt: FieldValue.serverTimestamp(),
-  }, { merge: true });
 }
 
 /** 정원 생기(health) 가산 (0~100 클램프). */
@@ -432,6 +422,14 @@ export async function processDailyGarden(
   }
   if (passiveYield > 0) {
     patch.totalPoints = FieldValue.increment(passiveYield);
+  }
+  // 샘물 우물: 매일 일정량 차오름 + 성공일 소량 보너스, 용량(CAP) 클램프(넘침은 소실).
+  //   샘물 증가 지점이 이 일일 정산뿐이라 절대 set 으로 안전. 초과 보유자는 강제 차감하지 않는다.
+  {
+    const grant = SPRINGWATER_DAILY_GRANT + (yesterdaySuccess ? SPRINGWATER_SUCCESS_BONUS : 0);
+    const curSW = prog.springWater ?? 0;
+    const nextSW = curSW >= SPRINGWATER_CAP ? curSW : Math.min(curSW + grant, SPRINGWATER_CAP);
+    if (nextSW !== curSW) patch.springWater = nextSW;
   }
   await ref.set(patch, { merge: true });
 

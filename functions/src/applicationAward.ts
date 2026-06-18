@@ -14,11 +14,9 @@ import { FieldValue } from 'firebase-admin/firestore';
 import {
   APPLICATION_POINT_EARN,
   APPLICATION_DAILY_CHECK_CAP,
-  SPRINGWATER_EARN,
   type ApplicationDoc,
   type DayDoc,
 } from '../../shared/types/firestore';
-import { grantSpringWater } from './gardenAutogrow';
 import { applyLevelUps } from './levelEngine';
 
 const db = admin.firestore();
@@ -99,7 +97,6 @@ export const applicationAward = functions
       }
       if (pointsDelta > 0) {
         await creditPoints(uid, pointsDelta, 'application_check', `${date}/${appId}`);
-        await grantSpringWater(uid, SPRINGWATER_EARN.APPLICATION_CHECK);  // 말씀 적용 실천 → 샘물
       }
     } else if (pointsDelta < 0) {
       // 해제 — 적립됐던 포인트만 삭감. practiceCount/streak 은 되돌리지 않는다(영구 기록).
@@ -119,7 +116,6 @@ export const applicationCompleteAward = functions
     if (before.status === 'completed' || after.status !== 'completed') return;
 
     await creditPoints(uid, APPLICATION_POINT_EARN.COMPLETE, 'application_complete', after.id);
-    await grantSpringWater(uid, SPRINGWATER_EARN.APPLICATION_COMPLETE);  // 말씀 적용 완료 → 샘물
   });
 
 // ── 헬퍼 ───────────────────────────────────────────────────
