@@ -4,15 +4,15 @@ import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import { writePublicGarden } from '@/lib/features';
 import type { ProgressDoc, PlantInstance, GardenState, DailyGardenRecap } from 'shared/types/firestore';
-import { PLANT_SPECIES, POINT_PRICES, CODEX_SPECIES_COUNT, MAX_BEDS, PLANTS_PER_BED, DAILY_PLANT_LIMIT } from 'shared/types/firestore';
+import { PLANT_SPECIES, POINT_PRICES, CODEX_SPECIES_COUNT, MAX_BEDS, PLANTS_PER_BED, SPRINGWATER_COST, STARTER_SPRINGWATER, WATER_GROWTH_STAGES, WATER_GROWTH_BONUS_STAGES } from 'shared/types/firestore';
 import { computePassiveYield, computeYieldBreakdown } from 'shared/lib/gardenYield';
 import { toast } from 'sonner';
 
 // 공개 정원 미러 중복 쓰기 방지: uid → 마지막 미러 해시. 모듈 레벨이라 다중 마운트 시 공유된다.
 const gardenMirrorCache = new Map<string, string>();
 
-// fast 자동 성장 세션 가드: `${uid}:${gameDay}` 1회만 시도 (Firestore 마커 확정 전 중복 쓰기 방지).
-const fastGrowGuard = new Set<string>();
+// 샘물 성장(pendingGrowth) 보완 세션 가드: `${uid}:${gameDay}` 1회만 시도 (중복 쓰기 방지).
+const pendingGrowthGuard = new Set<string>();
 
 // passive yield 지급 세션 가드: `${uid}:${gameDay}` 1회만 시도 (Firestore 마커 확정 전 중복 쓰기 방지).
 const passiveYieldGuard = new Set<string>();
@@ -55,41 +55,42 @@ export function getGameDayKST(): string {
 }
 
 /**
- * fast 트레잇(대나무·민트) 생기 자동 성장 — 클라이언트 이중 경로.
+ * 샘물 성장(pendingGrowth) 보완 — 클라이언트 이중 경로.
  *
- * 원래 이 성장은 매일 04:00 KST 스케줄드 서버 리셋(processDailyGarden)에서만 일어났다.
- * 스케줄드 함수가 누락/지연되면 "생기 80 이상인데 대나무가 안 자라는" 증상이 생긴다.
- * 서버와 동일한 게임일 마커(gardenState.lastFastGrowDate)를 공유해, 둘 중 먼저 도는
- * 쪽이 하루 1회만 성장시키고 마커를 기록한다 → 중복 성장 없이 누락만 보완한다.
+ * 물을 준 식물은 '다음 게임일' 정산(processDailyGarden)에서 한 단계 자란다.
+ * 스케줄드 서버 리셋이 누락/지연되면 "어제 물 줬는데 안 자라는" 증상이 생기므로,
+ * 지난 게임일에 물을 줘 성장이 밀린 식물을 클라이언트가 같은 규칙으로 자라게 한다.
+ * (오늘 준 물은 오늘 자라지 않는다 — wateredAt 이 오늘이 아닌 것만 대상.)
+ * pendingGrowth 플래그 자체가 멱등 가드다(자란 뒤 false, 물주기는 하루 1회뿐).
  */
-function maybeRunFastGrowth(uid: string, data: ProgressDoc): void {
+function maybeRunPendingGrowth(uid: string, data: ProgressDoc): void {
   const garden = data.gardenState;
   if (!garden) return;
 
   const gameDay = getGameDayKST();
-  if (garden.lastFastGrowDate === gameDay) return;   // 오늘 이미 적용됨(서버 또는 클라이언트)
-  if ((garden.health ?? 100) < 80) return;            // 생기 80 이상에서만
-
   const key = `${uid}:${gameDay}`;
-  if (fastGrowGuard.has(key)) return;                 // 세션 내 1회
+  if (pendingGrowthGuard.has(key)) return;            // 세션 내 1회
 
-  let grew = false;
+  // 지난 게임일에 물을 줘 성장이 밀린 식물만 (오늘 준 건 내일 자란다)
+  const isOverdue = (p: PlantInstance) =>
+    !!p.pendingGrowth && !!p.wateredAt && !isWateredToday(p.wateredAt);
+  if (!(garden.plants ?? []).some(isOverdue)) return;
+  pendingGrowthGuard.add(key);
+
   const plants = (garden.plants ?? []).map((p) => {
+    if (!isOverdue(p)) return p;
     const sp = PLANT_SPECIES.find((s) => s.id === p.speciesId);
-    if (sp?.trait?.kind !== 'fast') return p;
-    const max = (sp.stages ?? 4) - 1;
-    if (p.stage >= max) return p;
-    grew = true;
-    return { ...p, stage: p.stage + 1, witheredSince: undefined };
+    const max = (sp?.stages ?? 4) - 1;
+    const by = (sp?.trait?.kind === 'fast' || sp?.trait?.kind === 'bloomer')
+      ? WATER_GROWTH_BONUS_STAGES : WATER_GROWTH_STAGES;
+    return { ...p, stage: Math.min(p.stage + by, max), witheredSince: undefined, pendingGrowth: false };
   });
-  if (!grew) return;                                  // 자랄 fast 식물 없음 → 마커도 남기지 않음
 
-  fastGrowGuard.add(key);
   setDoc(
     doc(db, 'users', uid, 'progress', 'main'),
-    { gardenState: { ...garden, plants, lastFastGrowDate: gameDay }, updatedAt: serverTimestamp() },
+    { gardenState: { ...garden, plants }, updatedAt: serverTimestamp() },
     { merge: true },
-  ).catch(() => fastGrowGuard.delete(key));           // 실패 시 다음 스냅샷에서 재시도 허용
+  ).catch(() => pendingGrowthGuard.delete(key));      // 실패 시 다음 스냅샷에서 재시도 허용
 }
 
 /**
@@ -213,6 +214,7 @@ export function isWateredToday(wateredAt: { toMillis(): number }): boolean {
 const DEFAULT_PROGRESS: Omit<ProgressDoc, 'updatedAt'> = {
   totalPoints:      200,
   spendablePoints:  200,
+  springWater:      STARTER_SPRINGWATER,
   level:            1,
   xpInLevel:        0,
   globalStreak:     0,
@@ -239,11 +241,18 @@ export function useProgress() {
         const data = snap.data() as ProgressDoc;
         setProgress(data);
 
-        // 생기 자동 성장 보완 (스케줄드 서버 리셋 누락 대비) — 서버와 마커 공유로 중복 방지
-        maybeRunFastGrowth(uid, data);
+        // 샘물 성장(pendingGrowth) 보완 (스케줄드 서버 리셋 누락 대비)
+        maybeRunPendingGrowth(uid, data);
 
         // 만개 식물 passive yield 보완 (스케줄드 리셋 누락 대비) — 서버와 마커 공유로 중복 방지
         maybeRunPassiveYield(uid, data);
+
+        // 샘물 도입 마이그레이션 — springWater 필드가 없는 기존 사용자에게 1회 시작 샘물 지급.
+        // (undefined→숫자 1회 전이. 이후 0이 되어도 재지급되지 않는다.)
+        if (data.springWater === undefined) {
+          setDoc(doc(db, 'users', uid, 'progress', 'main'),
+            { springWater: STARTER_SPRINGWATER, updatedAt: serverTimestamp() }, { merge: true });
+        }
 
         // 오늘 적립된 passive yield 체감 토스트 (서버·클라이언트 어느 경로든 1일 1회)
         maybeShowPassiveYieldToast(uid, data);
@@ -326,19 +335,18 @@ export function useGardenActions() {
       toast.error(`화단은 최대 ${MAX_BEDS}개(${MAX_BEDS * PLANTS_PER_BED}칸)까지만 사용할 수 있습니다.`);
       return;
     }
-    // 일일 직접 심기 한도 (레벨업 보상 씨앗은 이 카운터를 사용하지 않음)
-    const gameDay = getGameDayKST();
+    // 심기 횟수 제한은 없다 — 샘물 우물 예산이 그 한도 역할을 대신한다(아래 샘물 검사).
     const prevStats = progress.gardenStats ?? {};
-    const prevPlantDate = prevStats.dailyDirectPlantsDate ?? '';
-    const todayPlanted = prevPlantDate === gameDay ? (prevStats.dailyDirectPlants ?? 0) : 0;
-    if (todayPlanted >= DAILY_PLANT_LIMIT) {
-      toast.error(`오늘 직접 심기는 ${DAILY_PLANT_LIMIT}회까지입니다. (${todayPlanted}/${DAILY_PLANT_LIMIT}) 내일 04:00에 초기화됩니다.`);
-      return;
-    }
 
     const cost = baseSpecies.seedCost ?? POINT_PRICES.SEED;
     if (progress.spendablePoints < cost) {
       toast.error(`포인트가 부족합니다. (필요: ${cost}P)`);
+      return;
+    }
+    // 심을 때 씨앗값(P)과 함께 샘물도 필요하다 — 샘물은 습관 이행으로만 모인다.
+    const waterCost = SPRINGWATER_COST.PLANT;
+    if ((progress.springWater ?? 0) < waterCost) {
+      toast.error(`샘물이 부족합니다. 습관을 이행해 모아보세요. (필요: 🪣${waterCost})`);
       return;
     }
 
@@ -380,20 +388,16 @@ export function useGardenActions() {
       ? [...unlocked, finalSpecies.id]
       : unlocked;
 
-    const nextTodayPlanted = todayPlanted + 1;
-    const remaining = DAILY_PLANT_LIMIT - nextTodayPlanted;
-
     const newPlants = [...progress.gardenState.plants, newPlant];
     try {
       await setDoc(doc(db, 'users', uid, 'progress', 'main'), {
         spendablePoints: progress.spendablePoints - cost,
+        springWater: (progress.springWater ?? 0) - waterCost,
         gardenState: { ...progress.gardenState, plants: newPlants, unlockedSpecies: nextUnlockedSpecies },
         gardenStats: {
           ...prevStats,
           codexEntries: nextCodex,
           rareDropsTriggered: nextRareDrops,
-          dailyDirectPlants: nextTodayPlanted,
-          dailyDirectPlantsDate: gameDay,
         },
         updatedAt: serverTimestamp(),
       }, { merge: true });
@@ -403,13 +407,12 @@ export function useGardenActions() {
         createdAt: serverTimestamp(),
       });
 
-      const countMsg = remaining > 0 ? ` · 오늘 ${remaining}회 남음` : ' · 오늘 마지막!';
       if (upgraded) {
-        toast(`🌟 희귀 씨앗 발견! ${finalSpecies.name} 가 자랐어요! (-${cost}P)${countMsg}`);
+        toast(`🌟 희귀 씨앗 발견! ${finalSpecies.name} 가 자랐어요! (-${cost}P · 🪣${waterCost})`);
       } else if (luckyStart) {
-        toast(`🍀 ${finalSpecies.name} — 행운! 새싹부터 시작! (-${cost}P)${countMsg}`);
+        toast(`🍀 ${finalSpecies.name} — 행운! 새싹부터 시작! (-${cost}P · 🪣${waterCost})`);
       } else {
-        toast(`🌱 ${finalSpecies.name} 씨앗을 심었습니다! (-${cost}P)${countMsg}`);
+        toast(`🌱 ${finalSpecies.name} 씨앗을 심었습니다! (-${cost}P · 🪣${waterCost})`);
       }
     } catch (e) {
       toast.error('저장 실패: ' + (e as Error).message);
@@ -418,35 +421,35 @@ export function useGardenActions() {
 
   const waterPlant = async (plantId: string): Promise<boolean> => {
     if (!uid || !progress) return false;
-    const cost = POINT_PRICES.WATER;
-    if (progress.spendablePoints < cost) {
-      toast.error(`포인트가 부족합니다. (필요: ${cost}P)`);
+    const cost = SPRINGWATER_COST.WATER;
+    if ((progress.springWater ?? 0) < cost) {
+      toast.error(`샘물이 부족합니다. 습관을 이행해 모아보세요. (필요: 🪣${cost})`);
       return false;
     }
     const plant = progress.gardenState.plants.find((p) => p.id === plantId);
-    if (plant?.wateredAt && isWateredToday(plant.wateredAt)) {
-      toast.error('오늘은 이미 물을 줬습니다. 내일 다시 시도하세요.');
+    if (!plant) return false;
+    const species = PLANT_SPECIES.find((s) => s.id === plant.speciesId);
+    const maxStage = (species?.stages ?? 4) - 1;
+    if (plant.stage >= maxStage) {
+      toast.error('이미 만개했습니다. 수확해 보세요.');
       return false;
     }
-    const plants = progress.gardenState.plants.map((p) => {
-      if (p.id !== plantId) return p;
-      const species = PLANT_SPECIES.find((s) => s.id === p.speciesId);
-      const maxStage = (species?.stages ?? 4) - 1;
-      return { ...p, stage: Math.min(p.stage + 1, maxStage), witheredSince: undefined, wateredAt: Timestamp.now() as any };
-    });
+    if (plant.wateredAt && isWateredToday(plant.wateredAt)) {
+      toast.error('오늘은 이미 물을 줬습니다. 내일 04:00에 한 단계 자랍니다.');
+      return false;
+    }
+    // 즉시 자라지 않는다 — 샘물을 받은 식물은 다음 정산(다음날 04:00)에 자란다(pendingGrowth).
+    const plants = progress.gardenState.plants.map((p) =>
+      p.id !== plantId ? p
+        : { ...p, witheredSince: undefined, wateredAt: Timestamp.now() as any, pendingGrowth: true },
+    );
 
     try {
       await setDoc(doc(db, 'users', uid, 'progress', 'main'), {
-        spendablePoints: progress.spendablePoints - cost,
+        springWater: (progress.springWater ?? 0) - cost,
         gardenState: { ...progress.gardenState, plants },
         updatedAt: serverTimestamp(),
       }, { merge: true });
-
-      await addDoc(collection(db, 'users', uid, 'pointLedger'), {
-        delta: -cost, reason: 'spend_water', refId: plantId,
-        createdAt: serverTimestamp(),
-      });
-
       return true;
     } catch (e) {
       toast.error('저장 실패: ' + (e as Error).message);

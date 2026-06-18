@@ -426,6 +426,7 @@ export interface TodayTodoDoc {
 export interface ProgressDoc {
   totalPoints: number;
   spendablePoints: number;
+  springWater?: number;          // 🪣 샘물 — '성장 전용' 자원. 습관·회고·기도·말씀 이행에서만 얻고 심기·물주기에만 쓴다(포인트로 못 산다).
   level: number;
   xpInLevel: number;
   globalStreak: number;
@@ -539,6 +540,7 @@ export interface PlantInstance {
   witheredSince?: Timestamp;
   neglectStreak?: number;         // 연속 실패(게으른)일 수 — 연약 전설 trait 에서 사용
   wateredAt?: Timestamp;          // 마지막 물주기 시각 (하루 1회 제한)
+  pendingGrowth?: boolean;        // 오늘 샘물을 받아 '다음 04:00 정산'에 한 단계 자랄 예정 (즉시 성장 없음)
 }
 
 // ── 공개 정원 (둘러보기) ──────────────────────────────────
@@ -602,6 +604,30 @@ export const POINT_PRICES = {
   HARVEST_BONUS_LEGENDARY: 100,   // 전설 수확 시 추가 (위에 누적)
 } as const;
 
+// ── 샘물(springWater) 경제 — "우물" ───────────────────────────
+// 샘물은 '성장 전용' 자원이다(포인트 P 로는 살 수 없다). 씨앗을 심을 때(씨앗값 P 와 별도)·
+// 물을 줄 때 쓴다. 물을 준 식물은 그날이 아니라 '다음 04:00 정산'에 한 단계 자란다(pendingGrowth).
+//
+// 우물(저장소)에는 용량 상한(CAP)이 있다. 매일 04:00 정산에서 일정량(DAILY_GRANT)이 차오르고,
+// 어제가 성공일이면 소량 보너스(SUCCESS_BONUS)가 더해진다. 가득 차면 흘러넘쳐 소실되므로
+// 매일 비우게(=정원을 가꾸게) 유도한다. (성장 자체는 샘물이, 식물 생존은 생기가 가른다.)
+export const SPRINGWATER_CAP = 50;            // 우물 용량(보유 상한). 초과분은 흘러넘쳐 소실.
+export const SPRINGWATER_DAILY_GRANT = 15;    // 매일 차오르는 기본량 (보호일 포함 매일)
+export const SPRINGWATER_SUCCESS_BONUS = 3;   // 알찬 하루(성공일) 소량 보너스
+
+export const SPRINGWATER_COST = {
+  PLANT: 1,   // 씨앗 심기 (P 씨앗값과 별도로 추가)
+  WATER: 1,   // 물주기 1회 → 다음 정산에 +1단계 (fast·bloomer 종은 +2단계)
+} as const;
+
+// 물주기 1회로 자라는 단계 수. fast(대나무·민트)·bloomer(생명나무)는 옛 자동 성장을
+// '물주기 보너스'로 전환해 1회에 2단계 자란다. 그 외 종은 1단계.
+export const WATER_GROWTH_STAGES = 1;
+export const WATER_GROWTH_BONUS_STAGES = 2;
+
+// 새 사용자 시작 샘물 (씨앗을 심고 며칠 키워볼 수 있는 양, ≤ CAP)
+export const STARTER_SPRINGWATER = 20;
+
 export const PLANTS_PER_BED = 8;   // 화단 한 페이지에 보이는 식물 수
 export const PLANTS_PER_ROW = 4;   // 계단식 한 줄당 식물 수 (8개 = 2줄)
 export const MAX_BEDS = 3;         // 최대 화단 수
@@ -643,8 +669,7 @@ export const LEVELUP_REWARD = {
   MILESTONE_SEED_SPECIES: 'clover', // 큰 보상 씨앗 (미해금 시 sprout 로 대체)
 } as const;
 
-// 하루 직접 심기 상한 (레벨업 보상 씨앗은 제외)
-export const DAILY_PLANT_LIMIT = 5;
+// (옛 DAILY_PLANT_LIMIT 제거 — 이제 샘물 우물 예산이 심기 한도 역할을 대신한다.)
 
 // 하루 기도 체크 포인트 상한 (인플레이션 방지)
 export const PRAYER_DAILY_CHECK_CAP = 30;
@@ -660,9 +685,10 @@ export const HABIT_PENALTY = {
   POINT_PER_WEIGHT: 1,     // 미기록 습관 1개당 가중치 × 이 값 P 차감
   MISSED_FACTOR: 0.5,      // 미달성(시도)은 위 패널티의 절반만
   DAILY_POINT_CAP: 40,     // 하루 포인트 차감 상한
-  HEALTH_PER_TODO: 2,      // 미기록 1개당 정원 생기 감소
-  HEALTH_PER_MISSED: 1,    // 미달성 1개당 정원 생기 감소
-  DAILY_HEALTH_CAP: 12,    // 하루 생기 감소 상한
+  // 생기 변화폭 확대(매우 강하게): 하루 습관 성과로 생기가 크게 출렁이게 한다.
+  HEALTH_PER_TODO: 5,      // 미기록 1개당 정원 생기 감소
+  HEALTH_PER_MISSED: 3,    // 미달성 1개당 정원 생기 감소
+  DAILY_HEALTH_CAP: 40,    // 하루 생기 감소 상한 (미완료 패널티)
 } as const;
 
 // ── 할 일(todo) 포인트 상수 ───────────────────────────────

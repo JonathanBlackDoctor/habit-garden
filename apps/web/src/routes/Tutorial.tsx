@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { SPRINGWATER_CAP, SPRINGWATER_COST } from 'shared/types/firestore';
 import {
   ChevronLeft,
   ChevronDown,
@@ -162,12 +163,12 @@ export default function Tutorial() {
           step="STEP 03"
           icon={<Flower2 size={16} />}
           tone="soil"
-          title="포인트로 정원을 가꿔요"
-          desc="모은 포인트로 씨앗을 심고 물을 주며 식물을 키웁니다. 만개하면 수확해 보너스 포인트를 얻어요."
+          title="샘물 우물로 정원을 키워요"
+          desc="🪣샘물 우물이 매일 04:00에 자동으로 차오릅니다(알찬 하루엔 조금 더). 씨앗을 심고 물을 줄 때 샘물을 쓰고, 물을 준 식물은 다음날 한 단계 자라요. 만개하면 수확해 포인트를 얻어요."
           bullets={[
-            '씨앗 심기 50P (저렴한 종 25P)',
-            '물주기 10P',
-            '희귀도가 높을수록 수확 보너스 ↑',
+            `우물 용량 🪣${SPRINGWATER_CAP} · 매일 자동으로 차오름 (가득 차면 흘러넘침)`,
+            `씨앗 심기 씨앗값(P)+🪣${SPRINGWATER_COST.PLANT} · 물주기 🪣${SPRINGWATER_COST.WATER} → 다음날 성장`,
+            '심기 횟수 제한 없음 — 샘물이 한도 역할',
           ]}
           details={
             <div className="space-y-3 text-[12.5px] leading-relaxed text-[var(--fg-muted)]">
@@ -184,9 +185,9 @@ export default function Tutorial() {
                   <li>· lucky — 희귀 씨앗 드롭 확률 ↑</li>
                   <li>· beauty — 매일 추가 경험치 자동 획득</li>
                   <li>· hardy — 시들지 않음</li>
-                  <li>· fast — 정원 생기 80 초과 시 매일 자동 성장</li>
+                  <li>· fast — 물주기 1회에 2단계씩 자람 (대나무·민트)</li>
                   <li>· healer — 수확 시 정원 생기 회복</li>
-                  <li>· bloomer — 매일 자동 성장 (레전더리 전용)</li>
+                  <li>· bloomer — 물주기 1회에 2단계씩 자람 (생명나무)</li>
                   <li>· streakSync — 기도 스트릭 연동 시 수확 +50%</li>
                 </ul>
                 <p className="ml-3 mt-1 text-[var(--fg-faint)]">
@@ -195,8 +196,9 @@ export default function Tutorial() {
                 </p>
               </DetailBlock>
               <DetailBlock title="정원 생기 (Vitality)">
-                정원 전체 컨디션을 0~100으로 표현합니다. healer 특성 식물을 수확하면 회복돼요.
-                생기가 80을 넘으면 fast 특성이 더 자주 발동합니다.
+                정원 전체 컨디션을 0~100으로 표현합니다. 어제 습관 성과에 따라 하루에도 크게 출렁여요
+                (성공 +15 · 실패 −35). 보호되지 않은 날은 매일 자연히 −5씩 줄어, 계속 가꿔야 유지됩니다.
+                생기가 50 이하로 떨어지면 식물이 하나씩 시들기 시작해요. healer 특성 식물을 수확하면 회복돼요.
               </DetailBlock>
             </div>
           }

@@ -35,24 +35,24 @@ describe('projectTomorrowHealth', () => {
   });
 
   it('기록이 없으면 hasAnyCheck=false (실패 + 미기록 패널티 합산)', () => {
-    // 8개 미기록 → 패널티 min(8*2,12)=12, 실패 -10 → 80-10-12=58
+    // 8개 미기록 → 패널티 min(8*5,40)=40, 실패 -35, 자연감소 -5 → 80-35-5-40=0
     const habits = Array.from({ length: 8 }, (_, i) => habit(`h${i}`));
     const f = run({ habits, currentHealth: 80 });
     expect(f.hasAnyCheck).toBe(false);
     expect(f.daySuccess).toBe(false);
     expect(f.habitHealthLoss).toBe(HABIT_PENALTY.DAILY_HEALTH_CAP);
-    expect(f.projected).toBe(58);
-    expect(f.delta).toBe(-22);
+    expect(f.projected).toBe(0);
+    expect(f.delta).toBe(-80);
   });
 
-  it('전부 달성하면 성공 +3, 패널티 0', () => {
+  it('전부 달성하면 성공 보너스, 패널티 0', () => {
     const habits = [habit('a'), habit('b')];
     const checks = { a: check(1, true), b: check(1, true) };
     const f = run({ habits, checks, currentHealth: 80 });
     expect(f.daySuccess).toBe(true);
     expect(f.successDelta).toBe(HEALTH_RULES.SUCCESS_DELTA);
     expect(f.habitHealthLoss).toBe(0);
-    expect(f.projected).toBe(83);
+    expect(f.projected).toBe(90);                   // 80 +15(성공) -5(자연감소)
   });
 
   it('성공 판정은 기록된(score≠null) 체크 기준 — 1개만 달성·기록해도 성공', () => {
@@ -60,9 +60,9 @@ describe('projectTomorrowHealth', () => {
     const checks = { a: check(1, true) };           // b,c 미기록
     const f = run({ habits, checks, currentHealth: 80 });
     expect(f.daySuccess).toBe(true);                // 달성/기록 = 1/1 = 100%
-    // 미기록 b,c 패널티 = 2*2=4, 성공 +3 → 80+3-4=79
-    expect(f.habitHealthLoss).toBe(4);
-    expect(f.projected).toBe(79);
+    // 미기록 b,c 패널티 = 2*5=10, 성공 +15, 자연감소 -5 → 80+15-5-10=80
+    expect(f.habitHealthLoss).toBe(10);
+    expect(f.projected).toBe(80);
   });
 
   it('미달성·미기록이 섞인 실패일 패널티', () => {
@@ -70,9 +70,9 @@ describe('projectTomorrowHealth', () => {
     const checks = { a: check(0, false), b: check(0, false) };  // 미달성 2, c 미기록 1
     const f = run({ habits, checks, currentHealth: 70 });
     expect(f.daySuccess).toBe(false);               // 0/2 = 0%
-    // 미달성 1+1, 미기록 2 → 4, 실패 -10 → 70-10-4=56
-    expect(f.habitHealthLoss).toBe(4);
-    expect(f.projected).toBe(56);
+    // 미달성 3+3, 미기록 5 → 11, 실패 -35, 자연감소 -5 → 70-35-5-11=19
+    expect(f.habitHealthLoss).toBe(11);
+    expect(f.projected).toBe(19);
   });
 
   it('건너뛰기(score=null)는 성공 분모·패널티에서 모두 제외', () => {
@@ -81,7 +81,7 @@ describe('projectTomorrowHealth', () => {
     const f = run({ habits, checks, currentHealth: 80 });
     expect(f.daySuccess).toBe(true);                // 1/1
     expect(f.habitHealthLoss).toBe(0);              // 건너뜀은 패널티 없음
-    expect(f.projected).toBe(83);
+    expect(f.projected).toBe(90);                   // 80 +15 -5
   });
 
   it('flipsToSuccessNeeded — 미달성 2개 중 하나만 뒤집으면 성공(1/2=50%<60%, 2/2 필요)', () => {
@@ -99,7 +99,7 @@ describe('projectTomorrowHealth', () => {
     expect(f.flipsToSuccessNeeded).toBe(1);
   });
 
-  it('보호된 날 — 실패여도 -10·패널티 없음 (생기 변동 없음)', () => {
+  it('보호된 날 — 실패여도 패널티·자연감소 없음 (생기 변동 없음)', () => {
     const habits = [habit('a'), habit('b')];
     const checks = { a: check(0, false) };          // 실패 + 미기록
     const f = run({ habits, checks, currentHealth: 60, protectedDay: true });
@@ -113,7 +113,7 @@ describe('projectTomorrowHealth', () => {
     const checks = { a: check(1, true) };
     const f = run({ habits, checks, plants: [plant('eternal_bloom')], currentHealth: 80, spendablePoints: 100 });
     expect(f.transcendentVitality).toBe(1);
-    expect(f.projected).toBe(84);                   // 80 +3(성공) +1(초월)
+    expect(f.projected).toBe(91);                   // 80 +15(성공) +1(초월) -5(자연감소)
   });
 
   it('eternal_bloom — 실패(미보호)면 즉사라 보너스 없음', () => {
@@ -134,7 +134,7 @@ describe('projectTomorrowHealth', () => {
     const habits = [habit('a')];
     const checks = { a: check(1, true) };
     const f = run({ habits, checks, currentHealth: 99 });
-    expect(f.projected).toBe(100);                  // 99+3=102 → 100
+    expect(f.projected).toBe(95);                   // 99+15=114→100 클램프 후 자연감소 -5 → 95
   });
 
   it('0 미만 클램프', () => {
@@ -145,14 +145,14 @@ describe('projectTomorrowHealth', () => {
 
   it('시들기 구간 진입 감지 (현재>50, 예보≤50)', () => {
     const habits = Array.from({ length: 8 }, (_, i) => habit(`h${i}`));
-    const f = run({ habits, currentHealth: 60 });   // 60-10-12=38 ≤50
+    const f = run({ habits, currentHealth: 60 });   // 60-35-5=20, 패널티40 → 0 ≤50
     expect(f.intoWitheringZone).toBe(true);
   });
 
   it('이미 시들기 구간이면 새 진입으로 보지 않음', () => {
     const habits = [habit('a')];
     const checks = { a: check(1, true) };
-    const f = run({ habits, checks, currentHealth: 45 });  // 45+3=48, current<=50
+    const f = run({ habits, checks, currentHealth: 45 });  // 45+15-5=55, current<=50
     expect(f.intoWitheringZone).toBe(false);
   });
 
@@ -163,8 +163,8 @@ describe('projectTomorrowHealth', () => {
     ];
     const checks = { b: check(1, true) };
     const f = run({ habits, checks, currentHealth: 80 });
-    // a는 휴면이라 미기록 패널티 없음, b 성공 → 1/1 성공 +3
+    // a는 휴면이라 미기록 패널티 없음, b 성공 → 1/1 성공 +15, 자연감소 -5
     expect(f.habitHealthLoss).toBe(0);
-    expect(f.projected).toBe(83);
+    expect(f.projected).toBe(90);
   });
 });
