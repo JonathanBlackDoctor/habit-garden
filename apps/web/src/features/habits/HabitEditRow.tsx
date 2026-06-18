@@ -122,7 +122,7 @@ export default function HabitEditRow({ habit, groupSiblings }: Props) {
 
       <div className="flex items-center gap-2 flex-wrap">
         <label className="flex items-center gap-1 text-[11px] text-[var(--fg-muted)]">
-          W
+          중요도
           <input
             type="number"
             min={1}
@@ -132,14 +132,14 @@ export default function HabitEditRow({ habit, groupSiblings }: Props) {
               const n = Math.max(1, Math.min(10, Number(e.target.value) || habit.weight));
               if (n !== habit.weight) updateField({ weight: n });
             }}
-            className="w-12 rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-1.5 py-0.5 text-xs tabular-nums text-[var(--fg-primary)] focus:border-[var(--leaf)] focus:outline-none"
+            className="w-14 rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-2 py-1 text-xs tabular-nums text-[var(--fg-primary)] focus:border-[var(--leaf)] focus:outline-none"
           />
         </label>
 
         <select
           value={habit.timeOfDay}
           onChange={(e) => updateField({ timeOfDay: e.target.value as HabitDoc['timeOfDay'] })}
-          className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-1.5 py-0.5 text-xs text-[var(--fg-primary)] focus:border-[var(--leaf)] focus:outline-none"
+          className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-2 py-1 text-xs text-[var(--fg-primary)] focus:border-[var(--leaf)] focus:outline-none"
         >
           {TIME_OPTIONS.map((t) => (
             <option key={t} value={t}>{TIME_LABEL[t]}</option>
@@ -153,7 +153,7 @@ export default function HabitEditRow({ habit, groupSiblings }: Props) {
             // 척도 전환 시 임계값도 함께 맞춘다 — scaled는 3(1·2점 미달성, 3점부터 달성), binary는 1
             updateField({ scoreMode, achieveThreshold: scoreMode === 'scaled' ? 3 : 1 });
           }}
-          className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-1.5 py-0.5 text-xs text-[var(--fg-primary)] focus:border-[var(--leaf)] focus:outline-none"
+          className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-2 py-1 text-xs text-[var(--fg-primary)] focus:border-[var(--leaf)] focus:outline-none"
         >
           <option value="binary">완료형</option>
           <option value="scaled">5점</option>
@@ -163,7 +163,7 @@ export default function HabitEditRow({ habit, groupSiblings }: Props) {
           value={habit.groupId ?? '__none'}
           onChange={(e) => onGroupChange(e.target.value)}
           title="습관 묶음 (일괄 건너뛰기 단위)"
-          className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-1.5 py-0.5 text-xs text-[var(--fg-primary)] focus:border-[var(--leaf)] focus:outline-none"
+          className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-2 py-1 text-xs text-[var(--fg-primary)] focus:border-[var(--leaf)] focus:outline-none"
         >
           <option value="__none">묶음 없음</option>
           {groups.map((g) => (
@@ -176,44 +176,44 @@ export default function HabitEditRow({ habit, groupSiblings }: Props) {
           {hibernating ? (
             <button
               onClick={wake}
-              className="rounded-full p-1 text-[var(--bloom)] hover:bg-[var(--leaf-soft)]"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-fulltext-[var(--bloom)] hover:bg-[var(--leaf-soft)]"
               aria-label="깨우기"
               title="깨우기"
             >
-              <Sunrise size={15} />
+              <Sunrise size={16} />
             </button>
           ) : (
             <button
               onClick={startHibernate}
-              className="rounded-full p-1 text-[var(--fg-muted)] hover:bg-[var(--leaf-soft)] hover:text-[var(--leaf)]"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-fulltext-[var(--fg-muted)] hover:bg-[var(--leaf-soft)] hover:text-[var(--leaf)]"
               aria-label="휴면"
               title="휴면 (잠시 쉬기)"
             >
-              <Moon size={15} />
+              <Moon size={16} />
             </button>
           )}
           <button
             onClick={() => swapOrder(-1)}
             disabled={!canUp}
-            className="rounded-full p-1 text-[var(--fg-muted)] hover:bg-[var(--leaf-soft)] disabled:opacity-30"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-fulltext-[var(--fg-muted)] hover:bg-[var(--leaf-soft)] disabled:opacity-30"
             aria-label="위로"
           >
-            <ChevronUp size={15} />
+            <ChevronUp size={16} />
           </button>
           <button
             onClick={() => swapOrder(1)}
             disabled={!canDown}
-            className="rounded-full p-1 text-[var(--fg-muted)] hover:bg-[var(--leaf-soft)] disabled:opacity-30"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-fulltext-[var(--fg-muted)] hover:bg-[var(--leaf-soft)] disabled:opacity-30"
             aria-label="아래로"
           >
-            <ChevronDown size={15} />
+            <ChevronDown size={16} />
           </button>
           <button
             onClick={remove}
-            className="rounded-full p-1 text-red-400 hover:bg-red-50 hover:text-red-500"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-fulltext-red-400 hover:bg-red-50 hover:text-red-500"
             aria-label="삭제"
           >
-            <Trash2 size={15} />
+            <Trash2 size={16} />
           </button>
         </div>
       </div>

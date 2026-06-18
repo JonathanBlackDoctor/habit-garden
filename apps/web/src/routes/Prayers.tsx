@@ -17,6 +17,7 @@ import BulkParse from '@/features/prayers/BulkParse';
 import PrayerMode from '@/features/prayers/PrayerMode';
 import { DuplicateFinder } from '@/features/prayers/DuplicateFinder';
 import { WeeklyDigestCard } from '@/features/prayers/WeeklyDigestCard';
+import EmptyState from '@/components/EmptyState';
 import { selectMorePrayers, type RotationInput } from 'shared/prayerRotation';
 import { Plus, ClipboardList, Search, Heart, ListChecks, Layers, ChevronDown, HandHeart, BookOpen } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -456,7 +457,7 @@ function AllView({ prayers, onOpen }: { prayers: PrayerDoc[]; onOpen: (p: Prayer
       {!sel.selectMode && <DuplicateFinder prayers={active} onOpen={onOpen} />}
 
       {filtered.length === 0 ? (
-        <EmptyState text="조건에 맞는 기도제목이 없습니다." />
+        <EmptyState compact title="조건에 맞는 기도제목이 없습니다." />
       ) : (
         <div className="space-y-2">
           <SelectToolbar
@@ -482,7 +483,7 @@ function AllView({ prayers, onOpen }: { prayers: PrayerDoc[]; onOpen: (p: Prayer
 
 function ListView({ prayers, empty, onOpen }: { prayers: PrayerDoc[]; empty: string; onOpen: (p: PrayerDoc) => void }) {
   const sel = usePrayerSelection();
-  if (prayers.length === 0) return <EmptyState text={empty} />;
+  if (prayers.length === 0) return <EmptyState compact title={empty} />;
   return (
     <div className="space-y-2">
       {sel.selectMode && <BulkActionBar ids={[...sel.selectedIds]} onDone={sel.exit} prayers={prayers} />}
@@ -664,8 +665,4 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
       {children}
     </button>
   );
-}
-
-function EmptyState({ text }: { text: string }) {
-  return <p className="py-12 text-center text-sm text-[var(--fg-faint)]">{text}</p>;
 }

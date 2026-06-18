@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, animate } from 'framer-motion';
-import { addDoc, collection, updateDoc } from 'firebase/firestore';
-import { Pencil, Check, Plus, Settings } from 'lucide-react';
-import { toast } from 'sonner';
-import { db } from '@/lib/firebase';
+import { Pencil, Check, Plus, Settings, Sprout, Sunrise, Sun, Sunset, Moon, Clock, type LucideIcon } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
+import { isOwner } from '@/lib/auth';
+import EmptyState from '@/components/EmptyState';
+import SeedHabitsButton from '@/features/habits/SeedHabitsButton';
+import AddHabitDialog from '@/features/habits/AddHabitDialog';
 import { useHabits, useHabitChecks, useSaveHabitCheck, useClearHabitCheck } from '@/features/habits/useHabits';
 import { useHabitGroups, useBulkSkip } from '@/features/habits/useHabitGroups';
 import { useHabitStreaks } from '@/features/habits/useHabitStreaks';
@@ -19,11 +20,18 @@ import { timeOfDay } from '@/lib/dayBoundary';
 import { useTabBloomKey } from '@/lib/tabActive';
 
 const TIME_LABELS: Record<string, string> = {
-  morning:   '🌅 아침',
-  afternoon: '☀️ 점심',
-  evening:   '🌆 저녁',
-  night:     '🌙 밤',
-  anytime:   '🕐 언제든',
+  morning:   '아침',
+  afternoon: '점심',
+  evening:   '저녁',
+  night:     '밤',
+  anytime:   '언제든',
+};
+const TIME_ICONS: Record<string, LucideIcon> = {
+  morning: Sunrise,
+  afternoon: Sun,
+  evening: Sunset,
+  night: Moon,
+  anytime: Clock,
 };
 const TIME_ORDER = ['morning', 'afternoon', 'evening', 'night', 'anytime'];
 
@@ -57,11 +65,13 @@ export default function Habits() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const uid    = useAppStore((s) => s.uid);
+  const realUid = useAppStore((s) => s.realUid);
   const today  = useAppStore((s) => s.currentDate);
   const dateParam = searchParams.get('date');
   const date   = dateParam ?? today;
   const isPast = !!dateParam && dateParam !== today;
   const [editMode, setEditMode] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
   const habits = useHabits({ includeInactive: editMode, includeHibernating: true });
   const checks = useHabitChecks(date);
   const save   = useSaveHabitCheck(isPast ? date : undefined);
@@ -120,28 +130,7 @@ export default function Habits() {
     : remaining <= 3  ? `거의 다 왔어요 · ${remaining}개 남음`
     : `오늘 ${remaining}개 남았어요`;
 
-  const addNewHabit = async () => {
-    if (!uid) return;
-    try {
-      const nextOrder = habits.length > 0 ? Math.max(...habits.map((h) => h.order)) + 1 : 0;
-      const ref = await addDoc(collection(db, 'users', uid, 'habits'), {
-        id: '',
-        title: '새 습관',
-        weight: 5,
-        timeOfDay: 'anytime',
-        order: nextOrder,
-        scoreMode: 'binary',
-        achieveThreshold: 1,
-        iconName: 'leaf',
-        active: true,
-      });
-      await updateDoc(ref, { id: ref.id });
-      setEditMode(true);
-      toast('새 습관 추가됨');
-    } catch {
-      toast.error('습관 추가 실패');
-    }
-  };
+  const nextOrder = habits.length > 0 ? Math.max(...habits.map((h) => h.order)) + 1 : 0;
 
   return (
     <div className="min-h-screen p-4 space-y-4 pb-8">
@@ -149,7 +138,7 @@ export default function Habits() {
       {/* 헤더 */}
       <div className="pt-2 flex items-start justify-between gap-2">
         <div>
-          <h2 className="text-base font-semibold text-[var(--fg-primary)]">습관 체크</h2>
+          <h2 className="text-lg font-bold text-[var(--fg-primary)]">습관 체크</h2>
           <p className="text-sm text-[var(--fg-muted)]">
             달성 {totalAchieved}/{totalActive} · 체크 {totalChecked}/{totalActive}
           </p>
@@ -166,8 +155,8 @@ export default function Habits() {
         </div>
         <div className="flex items-center gap-1">
           <button
-            onClick={addNewHabit}
-            className="rounded-full p-1.5 text-[var(--fg-muted)] hover:bg-[var(--leaf-soft)] hover:text-[var(--leaf)]"
+            onClick={() => setAddOpen(true)}
+            className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--fg-muted)] transition-colors hover:bg-[var(--leaf-soft)] hover:text-[var(--leaf)] active:scale-95"
             aria-label="습관 추가"
             title="습관 추가"
           >
@@ -175,20 +164,22 @@ export default function Habits() {
           </button>
           <button
             onClick={() => setEditMode((v) => !v)}
-            className={`rounded-full p-1.5 ${editMode ? 'bg-[var(--leaf-soft)] text-[var(--leaf)]' : 'text-[var(--fg-muted)] hover:bg-[var(--leaf-soft)] hover:text-[var(--leaf)]'}`}
+            className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors active:scale-95 ${editMode ? 'bg-[var(--leaf-soft)] text-[var(--leaf)]' : 'text-[var(--fg-muted)] hover:bg-[var(--leaf-soft)] hover:text-[var(--leaf)]'}`}
             aria-label={editMode ? '편집 완료' : '편집'}
             title={editMode ? '편집 완료' : '편집'}
           >
             {editMode ? <Check size={18} /> : <Pencil size={18} />}
           </button>
-          <button
-            onClick={() => navigate('/admin')}
-            className="rounded-full p-1.5 text-[var(--fg-muted)] hover:bg-[var(--leaf-soft)] hover:text-[var(--leaf)]"
-            aria-label="관리"
-            title="관리 페이지"
-          >
-            <Settings size={18} />
-          </button>
+          {isOwner(realUid) && (
+            <button
+              onClick={() => navigate('/admin')}
+              className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--fg-muted)] transition-colors hover:bg-[var(--leaf-soft)] hover:text-[var(--leaf)] active:scale-95"
+              aria-label="관리"
+              title="관리 페이지"
+            >
+              <Settings size={18} />
+            </button>
+          )}
         </div>
       </div>
 
@@ -248,6 +239,7 @@ export default function Habits() {
         // 달성률이 0이면 dim, 100%면 full, 중간은 보간 — 단순화: 50% 임계
         const bg = ratio >= 0.5 ? bgFull : bgDim;
         const isNight = tod === 'night';
+        const TodIcon = TIME_ICONS[tod];
         return (
           <section
             key={tod}
@@ -260,10 +252,16 @@ export default function Habits() {
           >
             <div className="flex items-center justify-between">
               <h3
-                className="text-sm font-medium"
+                className="flex items-center gap-1.5 text-sm font-semibold"
                 style={{ color: isNight ? '#E5E7EB' : 'var(--fg-primary)' }}
               >
-                {TIME_LABELS[tod]} {isNow && <span className="ml-1 text-[10px] text-[var(--bloom)]">지금</span>}
+                <TodIcon size={15} className="shrink-0 opacity-80" />
+                {TIME_LABELS[tod]}
+                {isNow && (
+                  <span className="ml-0.5 rounded-full bg-[var(--bloom)]/15 px-1.5 py-0.5 text-[10px] font-medium text-[var(--bloom)]">
+                    지금
+                  </span>
+                )}
               </h3>
               <span
                 className="text-xs tabular-nums"
@@ -324,11 +322,15 @@ export default function Habits() {
       )}
 
       {habits.length === 0 && (
-        <div className="flex flex-col items-center gap-2 py-16 text-[var(--fg-faint)]">
-          <p className="text-sm">습관이 없습니다.</p>
-          <p className="text-xs">우측 상단 + 버튼으로 추가하거나, ⚙ 관리에서 시드를 불러오세요.</p>
-        </div>
+        <EmptyState
+          icon={Sprout}
+          title="아직 습관이 없어요"
+          description="기본 습관을 담아 바로 시작하거나, 우측 상단 + 로 직접 추가할 수 있어요."
+          action={<SeedHabitsButton />}
+        />
       )}
+
+      <AddHabitDialog open={addOpen} onOpenChange={setAddOpen} nextOrder={nextOrder} />
     </div>
   );
 }

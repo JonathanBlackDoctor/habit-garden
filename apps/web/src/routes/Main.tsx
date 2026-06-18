@@ -27,6 +27,7 @@ import SignupCTA from '@/components/SignupCTA';
 import { useCrisisWatcher } from '@/features/coach/useCrisisWatcher';
 import { useFaithEnabled, useIsPremium } from '@/lib/features';
 import HabitStatusDot from '@/features/habits/HabitStatusDot';
+import SeedHabitsButton from '@/features/habits/SeedHabitsButton';
 import { statusOf } from '@/features/habits/habitStatus';
 import MorningBriefingCard from '@/features/recap/MorningBriefingCard';
 import { pointsForCheck } from 'shared/lib/habitPoints';
@@ -238,7 +239,10 @@ export default function Main() {
           </button>
         </div>
         {groupedHabits.length === 0 ? (
-          <p className="text-xs text-[var(--fg-faint)] text-center py-2">관리 메뉴에서 시드 습관을 추가하세요.</p>
+          <div className="flex flex-col items-center gap-2 py-3 text-center">
+            <p className="text-xs text-[var(--fg-muted)]">아직 습관이 없어요. 기본 습관으로 바로 시작해요.</p>
+            <SeedHabitsButton />
+          </div>
         ) : (
           <div className="flex items-center gap-3">
             <ProgressRing key={bloomKey} progress={ratio} size={76} stroke={8} color={ratio >= 1 ? 'var(--bloom)' : 'var(--leaf)'}>
@@ -437,10 +441,10 @@ export default function Main() {
           <path d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66.95-2.3c.48.17.98.3 1.49.39C18 19 22 14 22 7c0-1.72-.22-3.24-.6-4.6C19.5 1.4 17 1 14 1 9 1 5 4 5 9c0 4 4 7 12 7-1.5-2-3.5-3.5-6-4z"/>
         </svg>
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
+          <div className="flex min-w-0 items-center gap-2.5">
             <BloomBadge level={level} size={34} burstKey={bloomKey || undefined} />
-            <div>
-              <p className="text-xs opacity-80">{GREETINGS[currentTOD]} · {formatKoreanDate(date)}</p>
+            <div className="min-w-0">
+              <p className="truncate text-xs opacity-80">{GREETINGS[currentTOD]} · {formatKoreanDate(date)}</p>
               <p className="text-lg font-semibold leading-tight">
                 Lv.{level}
                 {streak > 0 && <span className="ml-2 text-sm opacity-90">🔥{streak}일</span>}
@@ -453,13 +457,13 @@ export default function Main() {
               </div>
             </div>
           </div>
-          <div className="flex items-start gap-2">
+          <div className="flex shrink-0 items-center gap-1.5">
             <div className="text-right">
               <p className="text-xs opacity-80">생기 {health}</p>
               <p className="text-lg font-semibold tabular-nums leading-tight">✦{spendable.toLocaleString()}P</p>
             </div>
-            <button onClick={() => window.location.reload()} aria-label="새로고침" className="mt-0.5 rounded-full p-1.5 text-white/90 transition-colors hover:bg-white/15 active:bg-white/20">
-              <RefreshCw size={14} />
+            <button onClick={() => window.location.reload()} aria-label="새로고침" className="flex h-9 w-9 items-center justify-center rounded-full text-white/90 transition-colors hover:bg-white/15 active:scale-95">
+              <RefreshCw size={15} />
             </button>
           </div>
         </div>
