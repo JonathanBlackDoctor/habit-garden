@@ -108,12 +108,51 @@ describe('projectTomorrowHealth', () => {
     expect(f.projected).toBe(60);
   });
 
+  it('주간 그레이스 — 실패일이라도 보호 가능하면 페널티·자연감소 없음 (서버 자동 보호 미러)', () => {
+    // 스트릭 유지 중 그 주 첫 실패: 서버는 그레이스로 보호 → 생기 그대로. 예보도 동일해야 한다.
+    const habits = [habit('a'), habit('b')];
+    const checks = { a: check(0, false) };           // 실패 + 미기록
+    const f = run({ habits, checks, currentHealth: 80, weeklyGraceProtectable: true });
+    expect(f.daySuccess).toBe(false);
+    expect(f.successDelta).toBe(0);
+    expect(f.habitHealthLoss).toBe(0);
+    expect(f.projected).toBe(80);                    // 변동 없음
+  });
+
+  it('주간 그레이스 — 성공일에는 보호로 치지 않아 자연감소(-5)는 그대로 적용', () => {
+    // 서버: 성공일은 보호 평가 자체를 건너뛰어 자연감소가 빠진다. 그레이스 가용이어도 동일.
+    const habits = [habit('a')];
+    const checks = { a: check(1, true) };
+    const f = run({ habits, checks, currentHealth: 80, weeklyGraceProtectable: true });
+    expect(f.daySuccess).toBe(true);
+    expect(f.projected).toBe(90);                    // 80 +15 -5 (자연감소 적용)
+  });
+
+  it('주간 그레이스 — 이미 소진(protectable=false)이면 실패일 페널티 전부 적용', () => {
+    const habits = [habit('a'), habit('b')];
+    const checks = { a: check(0, false) };           // 실패 + 미기록 b
+    const f = run({ habits, checks, currentHealth: 80, weeklyGraceProtectable: false });
+    // 실패 -35, 자연감소 -5, 미달성 a 3 + 미기록 b 5 = 8 → 80-35-5-8=32
+    expect(f.successDelta).toBe(HEALTH_RULES.FAILURE_DELTA);
+    expect(f.projected).toBe(32);
+  });
+
   it('eternal_bloom — 성공·유지비 충분 시 생기 +1', () => {
     const habits = [habit('a')];
     const checks = { a: check(1, true) };
     const f = run({ habits, checks, plants: [plant('eternal_bloom')], currentHealth: 80, spendablePoints: 100 });
     expect(f.transcendentVitality).toBe(1);
     expect(f.projected).toBe(91);                   // 80 +15(성공) +1(초월) -5(자연감소)
+  });
+
+  it('eternal_bloom — 고생기 성공일: 자연감소→초월 순서(서버와 동일)로 100 클램프 후 보너스가 살아난다', () => {
+    // 서버: 90 +15 →100(클램프) -5(자연감소)=95 +1(초월)=96.
+    // (초월을 자연감소 앞에 더하면 100에서 잘려 95로 어긋남 — drift 회귀 방지)
+    const habits = [habit('a')];
+    const checks = { a: check(1, true) };
+    const f = run({ habits, checks, plants: [plant('eternal_bloom')], currentHealth: 90, spendablePoints: 100 });
+    expect(f.transcendentVitality).toBe(1);
+    expect(f.projected).toBe(96);
   });
 
   it('eternal_bloom — 실패(미보호)면 즉사라 보너스 없음', () => {

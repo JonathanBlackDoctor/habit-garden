@@ -6,14 +6,36 @@ import { projectTomorrowHealth, type HealthForecast } from 'shared/lib/healthFor
 import type { ProgressDoc } from 'shared/types/firestore';
 
 /**
- * 소모 없이 해당 날짜가 보호되는지만 판단 — 서버 dailyReset.isDayProtected 의 보수적 미러.
- * 그레이스(주 1회)는 소비가 서버측이라 클라이언트에서 확신할 수 없으므로, over-promise 를
- * 피하기 위해 휴가(vacationUntil)·freeze 토큰만 보호로 인정한다.
+ * 휴가(vacationUntil)·freeze 토큰으로 보호되는 날인지 — 스트릭과 무관하게 적용되는 보호.
+ * 서버 dailyReset.isDayProtected / tryConsumeStreakProtection 의 휴가·freeze 분기를 미러.
  */
 function isDayProtectedClient(prog: ProgressDoc, date: string): boolean {
   if (prog.vacationUntil && prog.vacationUntil >= date) return true;
   if (prog.freezeProtectedDate && prog.freezeProtectedDate === date) return true;
   return false;
+}
+
+/** 주의 시작(월요일) 'YYYY-MM-DD' — 서버 dailyReset.getWeekStart 와 동일 알고리즘(UTC 기준). */
+function weekStartOf(dateStr: string): string {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  const day = d.getUTCDay();             // 0=일 … 6=토
+  const diff = day === 0 ? -6 : 1 - day; // 월요일로 보정
+  d.setUTCDate(d.getUTCDate() + diff);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * 실패일에 '주간 그레이스(주 1회)'로 스트릭이 보호될 수 있는 상태인가.
+ * 서버 tryConsumeStreakProtection 와 동일: globalStreak>0 이고 이번 주 그레이스 미사용일 때.
+ * 필요한 데이터(globalStreak·graceUsed)가 모두 클라이언트 progress 에 있어 정확히 예측 가능하다.
+ * (소비는 서버가 하지만, 예보는 '이대로면' 시나리오라 가용 여부만 알면 충분하다.)
+ */
+function weeklyGraceProtectableClient(prog: ProgressDoc, date: string): boolean {
+  if ((prog.globalStreak ?? 0) <= 0) return false;
+  const weekStart = weekStartOf(date);
+  const grace = prog.graceUsed;
+  const usedThisWeek = grace && grace.weekStart === weekStart ? (grace.daysUsed ?? 0) : 0;
+  return usedThisWeek < 1;
 }
 
 /**
@@ -36,6 +58,7 @@ export function useHealthForecast(): HealthForecast | null {
       plants: progress.gardenState?.plants ?? [],
       spendablePoints: progress.spendablePoints ?? 0,
       protectedDay: isDayProtectedClient(progress, date),
+      weeklyGraceProtectable: weeklyGraceProtectableClient(progress, date),
       date,
     });
   }, [progress, habits, checks, date]);
