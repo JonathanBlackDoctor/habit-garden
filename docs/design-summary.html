@@ -110,6 +110,77 @@
   @media (prefers-reduced-motion: reduce){
     .plant-sway,.aura-pulse,.halo-rotate,.sparkle,.transcend-chip{ animation:none !important; }
   }
+  .tabular-nums { font-variant-numeric:tabular-nums; }
+
+  /* 감성 축 */
+  .mood { display:grid; grid-template-columns:repeat(auto-fill,minmax(165px,1fr)); gap:10px; }
+  .mood .m { border-radius:var(--radius); border:1px solid var(--border-soft); overflow:hidden; }
+  .mood .m .cap { height:10px; }
+  .mood .m .b { padding:10px 12px; }
+  .mood .m .b b { display:block; font-size:13.5px; }
+  .mood .m .b span { font-size:12px; color:var(--fg-muted); }
+
+  /* 원칙 리스트 */
+  .princ { margin:0; padding-left:0; list-style:none; }
+  .princ li { padding:9px 0 9px 26px; position:relative; border-bottom:1px solid var(--border-soft); font-size:14px; }
+  .princ li:last-child { border-bottom:0; }
+  .princ li::before { content:'🌱'; position:absolute; left:0; top:8px; font-size:13px; }
+
+  /* 보이스 do / don't */
+  .voice-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media (max-width:640px){ .voice-grid{ grid-template-columns:1fr; } }
+  .dd { border-radius:var(--radius); padding:14px; }
+  .dd.do   { background:var(--leaf-soft); border:1px solid #CDE3BA; }
+  .dd.dont { background:#FBEDED; border:1px solid #F0D2D2; }
+  .dd h4 { margin:0 0 8px; font-size:13px; }
+  .dd.do h4 { color:var(--leaf); } .dd.dont h4 { color:#B4453C; }
+  .dd .ex { background:#fff; border-radius:8px; padding:8px 10px; font-size:13px; margin:6px 0 0; }
+
+  /* 코치 말풍선 / 시스템 프롬프트 */
+  .bubble { background:var(--bloom-soft); border:1px solid #EAD6B0; border-radius:14px 14px 14px 4px; padding:12px 14px; font-size:13.5px; color:#6a4a16; }
+  .bubble .who { font-size:11px; color:var(--bloom); font-weight:700; margin-bottom:5px; letter-spacing:.03em; }
+  pre.sys { background:#23271F; color:#D6E7C7; padding:14px 16px; border-radius:12px; font-size:12px; line-height:1.65; overflow-x:auto; white-space:pre-wrap; margin:0; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+
+  /* 카피 모음 */
+  .copyset { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:10px; }
+  .copyset .ci { border:1px solid var(--border-soft); border-radius:var(--radius-sm); padding:10px 12px; background:#fff; }
+  .copyset .ci .ctx { font-size:11px; color:var(--fg-faint); text-transform:uppercase; letter-spacing:.04em; }
+  .copyset .ci .txt { font-size:13.5px; margin-top:3px; }
+
+  /* 화면 흐름 스텝 */
+  .flow { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .flow .step { background:#fff; border:1px solid var(--border); border-radius:var(--radius-full); padding:7px 14px; font-size:13px; font-weight:600; }
+  .flow .arr { color:var(--fg-faint); }
+
+  /* 폰 목업 */
+  .phone { width:300px; margin:0 auto; border:10px solid #2A2E27; border-radius:34px; overflow:hidden; box-shadow:var(--shadow-md); background:var(--bg-base); }
+  .phone .scr { height:560px; overflow-y:auto; }
+  .ph-top { padding:14px 14px 6px; }
+  .ph-date { font-size:12px; color:var(--fg-muted); }
+  .ph-h { font-size:18px; font-weight:700; margin-top:2px; }
+  .ph-card { background:#fff; border:1px solid var(--border-soft); border-radius:var(--radius); box-shadow:var(--shadow-sm); margin:10px 12px; padding:12px; }
+  .ph-card .ttl { font-size:12px; color:var(--fg-muted); font-weight:700; margin-bottom:8px; display:flex; justify-content:space-between; gap:8px; }
+  .ph-hab { display:flex; align-items:center; gap:10px; padding:7px 0; border-bottom:1px solid var(--border-soft); font-size:14px; }
+  .ph-hab:last-child { border-bottom:0; }
+  .ph-hab .dot { width:18px; height:18px; border-radius:50%; border:2px solid var(--leaf); flex:none; }
+  .ph-hab .dot.on { background:var(--leaf); }
+  .ph-vit { height:8px; background:var(--leaf-soft); border-radius:99px; overflow:hidden; margin-bottom:8px; }
+  .ph-vit i { display:block; height:100%; background:var(--leaf); border-radius:99px; }
+  .ph-garden { display:flex; gap:4px; justify-content:space-around; align-items:flex-end; background:linear-gradient(180deg,var(--garden-sky-top),var(--garden-sky-bottom)); border-radius:10px; padding:8px 4px 4px; }
+  .ph-wither { background:var(--bloom-soft); border:1px solid #EAD6B0; border-radius:10px; padding:10px; display:flex; gap:10px; align-items:center; font-size:12.5px; color:#6a4a16; }
+  .ph-tab { display:flex; justify-content:space-around; border-top:1px solid var(--border-soft); background:#fff; padding:9px 0 11px; position:sticky; bottom:0; font-size:10.5px; color:var(--fg-faint); }
+  .ph-tab .t.on { color:var(--leaf); font-weight:700; }
+  .ph-pts { color:var(--bloom); font-weight:700; }
+
+  /* 모션 */
+  .motion-list { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  @media (max-width:640px){ .motion-list{ grid-template-columns:1fr; } }
+  .motion-list .mi { border:1px solid var(--border-soft); border-radius:var(--radius-sm); padding:10px 12px; font-size:13px; }
+  .motion-list .mi b { display:block; margin-bottom:2px; }
+  .pulse-demo { display:inline-block; background:var(--bloom); color:#fff; font-weight:700; padding:6px 16px; border-radius:99px; animation:cel-pulse 1.6s var(--ease-out) infinite; }
+  @keyframes cel-pulse { 0%,100%{ transform:scale(1); } 50%{ transform:scale(1.12); } }
+  @media (prefers-reduced-motion: reduce){ .pulse-demo{ animation:none !important; } }
+
   footer { margin-top:48px; text-align:center; color:var(--fg-faint); font-size:12.5px; }
 </style>
 </head>
@@ -118,12 +189,27 @@
 
   <header class="hero">
     <h1>🌱 습관 정원 — 디자인 요약</h1>
-    <p>식물 디자인 · UI 디자인 토큰 · 레벨 배지 시스템을 한 페이지로</p>
+    <p>디자인 철학 · 감성 &amp; 보이스 톤 · 식물 에셋 · UI 토큰 · 화면 흐름 · 모션을 한 페이지로</p>
     <div class="meta">소스: <code>PlantSVG.tsx</code> · <code>index.css</code> · <code>firestore.ts (PLANT_SPECIES)</code> · <code>level_desigh/</code></div>
   </header>
 
-  <!-- 1. 디자인 토큰 -->
-  <h2><span class="num">01</span>UI 디자인 토큰 (컬러)</h2>
+  <!-- 01. 디자인 철학 & 무드 -->
+  <h2><span class="num">01</span>디자인 철학 &amp; 무드</h2>
+  <p class="sub">"앱을 쓸 때의 느낌"을 결정하는 방향. 기획서 §12에서 확정된 디자인 원칙입니다.</p>
+  <div class="card">
+    <ul class="princ">
+      <li><b>자연스럽고 차분한 유기적 톤</b> — 식물·정원 메타포. 번쩍이는 네온 같은 과한 게임 UI는 피합니다.</li>
+      <li><b>부드러운 그린·흙·햇살 + 절제된 강조</b> — 연한 자연광 배경, 포인트는 햇살색으로만 짚어줍니다.</li>
+      <li><b>모바일 우선</b> — 380px 기준(412px까지 확장), 큰 터치 타깃, 1~2분 안에 끝나는 입력 흐름.</li>
+      <li><b>시듦은 '경고'가 아니다</b> — 빨강 대신 차분한 베이지(<code>--wither</code>)로, 언제나 회복 가능성을 함께 제시합니다.</li>
+      <li><b>라이트 고정</b> — 다크 모드는 MVP 범위 밖. 토큰이 CSS 변수라 추후 분기는 가능합니다.</li>
+    </ul>
+  </div>
+  <h3>감성 축 — 색이 전달하는 정서</h3>
+  <div class="card"><div class="mood" id="mood"></div></div>
+
+  <!-- 02. UI 디자인 토큰 -->
+  <h2><span class="num">02</span>UI 디자인 토큰 (컬러)</h2>
   <p class="sub">계획서 §12에서 확정된 핵심 팔레트. CSS 변수로 정의되어 전 컴포넌트가 공유합니다.</p>
   <div class="card">
     <div class="swatches" id="swatches"></div>
@@ -152,8 +238,31 @@
     </div>
   </div>
 
-  <!-- 2. 식물 렌더링 시스템 -->
-  <h2><span class="num">02</span>식물 렌더링 시스템 (PlantSVG)</h2>
+  <!-- 03. 타이포 & 레이아웃 -->
+  <h2><span class="num">03</span>타이포 &amp; 레이아웃 원칙</h2>
+  <p class="sub">헤비 웨이트를 지양한 차분한 가독성. shadcn/ui 기본 스케일을 따릅니다.</p>
+  <div class="grid2">
+    <div class="card">
+      <table>
+        <tr><th>항목</th><th>값</th></tr>
+        <tr><td>본문 폰트</td><td>Pretendard / system-ui / Noto Sans KR</td></tr>
+        <tr><td>폰트 두께</td><td>400 · 500 위주 <span style="color:var(--fg-faint)">(헤비 지양)</span></td></tr>
+        <tr><td>숫자</td><td><code>tabular-nums</code> — 정렬 안정</td></tr>
+        <tr><td>간격 스케일</td><td>4px · 모바일 패딩 <code>px-3 py-2</code></td></tr>
+        <tr><td>기준 폭</td><td>380 → 412px (모바일 우선)</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0;">샘플</h3>
+      <div style="font-weight:700; font-size:18px;">오늘의 습관</div>
+      <div style="color:var(--fg-muted); margin:2px 0 14px;">목 · 5월 21일 · 5개 중 2개 완료</div>
+      <div class="tabular-nums" style="font-size:30px; font-weight:700; color:var(--bloom); line-height:1;">82<span style="font-size:13px; color:var(--fg-muted); font-weight:400;"> 생기</span></div>
+      <div style="margin-top:10px; color:var(--fg-muted); font-size:13px;">절제된 강조 — 숫자만 햇살색으로, 나머지는 차분하게.</div>
+    </div>
+  </div>
+
+  <!-- 04. 식물 렌더링 시스템 -->
+  <h2><span class="num">04</span>식물 렌더링 시스템 (PlantSVG)</h2>
   <p class="sub">종 × 성장 단계(stage)별 벡터 렌더러. 모든 도형은 <code>color-mix</code> 파생 그라데이션으로 입체감을 가지며, 줄기는 곡선 path·잎은 중앙맥 포함 잎 path로 그립니다.</p>
   <div class="card">
     <h3 style="margin-top:0;">성장 5단계 — 새싹풀(sprout) 예시</h3>
@@ -166,7 +275,7 @@
   </div>
 
   <!-- 3. 등급 -->
-  <h2><span class="num">03</span>등급(rarity) × 장식 위계</h2>
+  <h2><span class="num">05</span>등급(rarity) × 장식 위계</h2>
   <p class="sub"><code>RARITY_FX</code> 데이터로 글로우·후광(aura)·sparkle·궤도 입자(mote)를 단계적으로 강화합니다. 같은 종이라도 등급이 오를수록 화려해집니다.</p>
   <div class="card" style="overflow-x:auto;">
     <table>
@@ -184,7 +293,7 @@
   </div>
 
   <!-- 4. 종 도감 -->
-  <h2><span class="num">04</span>식물 종 도감 (PLANT_SPECIES · 31종)</h2>
+  <h2><span class="num">06</span>식물 종 도감 (PLANT_SPECIES · 31종)</h2>
   <p class="sub">기본(3) · 일반(8) · 희귀(8) · 에픽(4) · 전설(6) · 초월(3). 도감 카운트는 초월 제외 28종.</p>
 
   <div id="codex"></div>
@@ -196,16 +305,139 @@
     </table>
   </div>
 
-  <!-- 5. 레벨 배지 -->
-  <h2><span class="num">05</span>레벨 배지 시스템 (Bloom · 6티어 × 5서브 = 30레벨)</h2>
+  <!-- 07. 보이스 & 카피 톤 -->
+  <h2><span class="num">07</span>보이스 &amp; 카피 톤 (앱의 감성)</h2>
+  <p class="sub">이 앱의 "느낌"은 카피에서 나옵니다. 아래 문구는 모두 실제 코드·기획서에서 추출했습니다.</p>
+  <div class="card">
+    <h3 style="margin-top:0;">작성 원칙 — 균형형 톤</h3>
+    <ul class="princ">
+      <li>과장된 칭찬·공허한 위로·이모지 남발·느낌표를 <b>지양</b>합니다.</li>
+      <li>정량 데이터에 근거한 <b>객관적 진술</b>을 우선 — 시간·점수·횟수는 숫자로.</li>
+      <li>진전·연속성(스트릭, 추세 개선)은 <b>사실에 근거해 한 줄로 인정</b>하고 다음 행동으로 잇습니다(momentum).</li>
+      <li>실패·시듦에도 <b>회복 가능성을 항상 함께</b> 제시합니다.</li>
+    </ul>
+  </div>
+
+  <div class="grid2" style="margin-top:14px;">
+    <div class="card">
+      <h3 style="margin-top:0;">AI 코치 시스템 프롬프트 (발췌)</h3>
+      <pre class="sys">당신은 본인 1인의 일일 데이터를 분석하는 코치다.
+한국어로 응답한다. 정량 데이터에 근거한
+객관적 진술을 우선한다.
+과장된 칭찬·공허한 위로·이모지·느낌표는
+쓰지 않는다. 단, 진전과 연속성은 사실에
+근거해 한 줄로 인정하고, 다음 행동을
+이어가도록 동기를 부여한다(momentum).</pre>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0;">코치 카드 예시 톤</h3>
+      <div class="bubble"><div class="who">AI 코치 · 균형형</div>어제 수면 78점, 기분 7. 아침 습관은 5일 연속 유지 중이다. 저녁 기록이 이틀 비었으니, 오늘은 21시 알림 뒤 한 줄만 남겨보자.</div>
+      <p class="sub" style="margin:10px 0 0;">사실(숫자) → 연속성 인정 → 구체적 다음 행동. 느낌표·이모지 없음.</p>
+    </div>
+  </div>
+
+  <h3>Do / Don't</h3>
+  <div class="voice-grid">
+    <div class="dd do"><h4>이렇게 — 회복 지향·사실 기반</h4>
+      <div class="ex">"허브가 물을 기다리고 있어요. 며칠 돌보면 다시 살아나요."</div>
+      <div class="ex">"오늘도 한 걸음만."</div>
+      <div class="ex">"하루를 돌아보고 꾸준함을 키워요"</div>
+    </div>
+    <div class="dd dont"><h4>이렇게는 — 지양</h4>
+      <div class="ex">"대단해요!! 당신은 최고예요 🎉🔥"</div>
+      <div class="ex">"실패! 연속 기록이 깨졌습니다 ⚠️"</div>
+      <div class="ex">"힘내세요, 다 잘 될 거예요"</div>
+    </div>
+  </div>
+
+  <h3>실제 카피 모음 <span style="font-weight:400; text-transform:none; letter-spacing:0; color:var(--fg-faint); font-size:12px;">(UI·알림 카피는 절제된 이모지 1개까지 허용 · AI 코치 피드백은 0개)</span></h3>
+  <div class="card"><div class="copyset" id="copyset"></div></div>
+
+  <h3>시듦 → 회복 (감성의 핵심)</h3>
+  <div class="card" style="display:flex; gap:18px; align-items:center; flex-wrap:wrap;">
+    <div id="wither-demo" style="flex:none;"></div>
+    <div>
+      <div style="font-weight:700;">허브 · 시듦 · <span style="color:var(--bloom);">회복 가능</span></div>
+      <div style="color:var(--fg-muted); margin-top:5px; max-width:440px;">"허브가 물을 기다리고 있어요. 며칠 돌보면 다시 살아나요."</div>
+      <div style="margin-top:9px;"><span class="rchip" style="background:var(--bloom-soft); color:var(--bloom);">회복 80P</span></div>
+      <div style="color:var(--fg-faint); font-size:12px; margin-top:8px;">시든 식물은 채도를 잃은 베이지 단색 + 모션 OFF. 빨강 경고색은 쓰지 않습니다.</div>
+    </div>
+  </div>
+
+  <!-- 08. 화면 & UX 흐름 -->
+  <h2><span class="num">08</span>화면 &amp; UX 흐름</h2>
+  <p class="sub">메인 대시보드의 시선 유도 순서 (기획서 §12 · 확정 목업 <code>04_목업_mockups.html</code> 기준).</p>
+  <div class="card">
+    <div class="flow">
+      <span class="step">오늘의 습관</span><span class="arr">→</span>
+      <span class="step">정원 보상</span><span class="arr">→</span>
+      <span class="step">컨디션</span><span class="arr">→</span>
+      <span class="step">플래너 · 회고</span><span class="arr">→</span>
+      <span class="step">경건</span>
+    </div>
+    <p class="sub" style="margin:12px 0 0;">하단 탭: 오늘 · 정원 · 진척 · 회고. 한 화면에서 1~2분 안에 완결되는 입력 흐름.</p>
+  </div>
+
+  <h3>메인 대시보드 목업 — 실제 카피 · 라이브 식물</h3>
+  <div class="phone">
+    <div class="scr">
+      <div class="ph-top">
+        <div class="ph-date">목 · 5월 21일</div>
+        <div class="ph-h">오늘의 습관</div>
+      </div>
+      <div class="ph-card">
+        <div class="ttl"><span>오늘 할 일 · 5</span><span class="ph-pts">아침 2 · 점심 2 · 저녁 0</span></div>
+        <div class="ph-hab"><span class="dot on"></span> 물 2L 마시기</div>
+        <div class="ph-hab"><span class="dot on"></span> 아침 스트레칭</div>
+        <div class="ph-hab"><span class="dot"></span> 저녁 산책</div>
+      </div>
+      <div class="ph-card">
+        <div class="ttl"><span>내 정원 · 식물 4그루 · 도감 6</span><span class="ph-pts">생기 82</span></div>
+        <div class="ph-vit"><i style="width:82%"></i></div>
+        <div class="ph-garden" id="phone-garden"></div>
+      </div>
+      <div style="margin:10px 12px;">
+        <div class="ph-wither"><span id="phone-wither" style="flex:none;"></span>
+          <span>허브가 물을 기다리고 있어요. 며칠 돌보면 다시 살아나요. <b style="color:var(--bloom);">회복 80P</b></span></div>
+      </div>
+      <div class="ph-card">
+        <div class="ttl"><span>하루 회고</span><span style="color:var(--fg-faint); font-weight:400;">미작성</span></div>
+        <div style="color:var(--fg-muted); font-size:13px;">오늘 하루, 한 줄로 남겨볼까요?</div>
+      </div>
+      <div class="ph-tab">
+        <span class="t on">오늘</span><span class="t">정원</span><span class="t">진척</span><span class="t">회고</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 09. 모션 & 인터랙션 감성 -->
+  <h2><span class="num">09</span>모션 &amp; 인터랙션 감성</h2>
+  <p class="sub">"기분 좋은 미세 동작"을 지향합니다. 과하지 않게, 그러나 살아있게. <code>prefers-reduced-motion</code>을 존중합니다.</p>
+  <div class="card">
+    <div class="motion-list">
+      <div class="mi"><b>식물 idle 흔들림</b> plant-sway 7s — 종마다 위상·주기를 달리해 lockstep 방지</div>
+      <div class="mi"><b>보상 적립</b> Framer Motion 미세 애니메이션 + 포인트 토스트(개화색)</div>
+      <div class="mi"><b>달성 셀러브레이션</b> "완벽!" · "만개! 🌸" · "레벨 업!" 오버레이</div>
+      <div class="mi"><b>등급 후광·회전</b> aura-pulse · halo-rotate · sparkle (전설·초월)</div>
+      <div class="mi"><b>전환 곡선</b> ease-out <code>cubic-bezier(.22,1,.36,1)</code> · 140/220/380ms</div>
+      <div class="mi"><b>접근성</b> reduce 설정 시 모든 모션 자동 OFF</div>
+    </div>
+    <div style="margin-top:14px; display:flex; gap:14px; align-items:center; flex-wrap:wrap;">
+      <span class="pulse-demo">완벽!</span>
+      <span class="sub" style="margin:0;">← 셀러브레이션 펄스 예시 (실제 앱에선 1회 재생 후 사라짐)</span>
+    </div>
+  </div>
+
+  <!-- 10. 레벨 배지 -->
+  <h2><span class="num">10</span>레벨 배지 시스템 (Bloom · 6티어 × 5서브 = 30레벨)</h2>
   <p class="sub"><code>level_desigh/</code> 시안. 5단계 빌드업: core → +form(꽃잎) → +dust(별가루) → +gem → +aura. 꽃잎 회전 28–90s, 호흡 3.4–6.0s, 코어 맥동 3.2s.</p>
   <div class="card">
     <div class="tiers" id="tiers"></div>
   </div>
 
   <footer>
-    이 문서는 코드(<code>PlantSVG.tsx</code>·<code>index.css</code>·<code>firestore.ts</code>)에서 추출해 자동 생성된 요약본입니다.<br/>
-    식물 SVG는 원본 렌더러를 바닐라 JS로 충실히 포팅해 실제 렌더링합니다.
+    이 문서는 코드·기획서(<code>PlantSVG.tsx</code>·<code>index.css</code>·<code>firestore.ts</code>·<code>02_습관앱_계획서.md</code>·<code>04_목업_mockups.html</code>)에서<br/>
+    추출해 자동 생성한 요약본입니다. 식물 SVG는 원본 렌더러를 바닐라 JS로 포팅해 실제 렌더링하며, 카피·톤은 모두 실제 문구를 인용했습니다.
   </footer>
 </div>
 
@@ -631,6 +863,37 @@ document.getElementById('species-table').innerHTML +=
 document.getElementById('tiers').innerHTML = TIERS.map(([t,name,range,c1,c2,c3])=>
   `<div class="tier"><div class="bar" style="background:linear-gradient(135deg,${c1},${c2},${c3});"></div>`+
   `<div class="body"><b>T${t} · ${name}</b><span>${range}<br>${c2} / ${c3}</span></div></div>`).join('');
+
+// 감성 축
+document.getElementById('mood').innerHTML = [
+  ['성장 · 달성','#4F7A37','잎 그린 — 진행·완료 게이지'],
+  ['안정 · 뿌리','#8A6E4B','흙 — 화단·장식'],
+  ['보상 · 햇살','#A85D0B','개화 — 포인트·스트릭 강조'],
+  ['차분 · 회복','#1F5FA5','물·하늘 — 컨디션·경건'],
+  ['회복 대기','#C7B68A','시듦 — 경고가 아닌 차분한 신호'],
+].map(([t,c,d])=>`<div class="m"><div class="cap" style="background:${c}"></div><div class="b"><b>${t}</b><span>${d}</span></div></div>`).join('');
+
+// 실제 카피 모음
+document.getElementById('copyset').innerHTML = [
+  ['환영','습관 정원에 오신 걸 환영해요'],
+  ['온보딩','습관을 체크하면 포인트가 쌓여요'],
+  ['온보딩','포인트로 정원을 가꿔요'],
+  ['회고','하루를 돌아보고 꾸준함을 키워요'],
+  ['습관 평가','오늘 이 습관, 어땠어?'],
+  ['시듦','정원이 시들고 있어요 · 생기를 회복하세요'],
+  ['개화','만개! 🌸'],
+  ['아침 알림','☀️ 오늘의 브리프 · 어젯밤 정원 소식'],
+  ['리마인더','오늘도 한 걸음만.'],
+  ['경건','남은 기도 3개 — 조용히 머무는 시간을 가져보세요'],
+  ['해금','이제 정원을 가꿔볼까요? 🌱'],
+].map(([ctx,txt])=>`<div class="ci"><div class="ctx">${ctx}</div><div class="txt">${txt}</div></div>`).join('');
+
+// 시든 식물 데모 + 폰 목업 식물
+document.getElementById('wither-demo').innerHTML = PlantSVG({speciesId:'herb',stage:3,withered:true,size:90});
+document.getElementById('phone-garden').innerHTML =
+  ['sprout','rose','sunflower','tree_of_life'].map(id=>{ const sp=SPECIES.find(s=>s.id===id);
+    return PlantSVG({speciesId:id,stage:5,rarity:sp.rarity,size:46}); }).join('');
+document.getElementById('phone-wither').innerHTML = PlantSVG({speciesId:'herb',stage:3,withered:true,size:40});
 </script>
 </body>
 </html>
