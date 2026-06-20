@@ -42,7 +42,8 @@ export interface HealthForecastInput {
   checks: Record<string, HabitCheckDoc>;    // 오늘의 체크, habit.id 키
   plants: PlantInstance[];                  // eternal_bloom(초월) 생기 보너스 감지용
   spendablePoints: number;                  // 초월 식물 유지비(upkeep) 생존 판정
-  protectedDay: boolean;                    // 휴가/freeze 등으로 보호된 날인가
+  protectedDay: boolean;                    // 휴가(vacationUntil)/freeze 토큰으로 보호된 날인가 (실패일에만 효력)
+  weeklyGraceProtectable?: boolean;         // 주간 그레이스로 막을 수 있는 상태인가 — 스트릭>0 && 이번 주 미사용. 서버 tryConsumeStreakProtection 미러.
   date: string;                             // 게임일 'YYYY-MM-DD' (휴면 구간 판정용)
 }
 
@@ -75,7 +76,7 @@ function isAchieved(h: HabitDoc, c: HabitCheckDoc): boolean {
  * (decay 와 초월 보너스 순서는 100 클램프 때문에 결과가 달라지므로 서버와 정확히 일치시킨다.)
  */
 export function projectTomorrowHealth(input: HealthForecastInput): HealthForecast {
-  const { currentHealth, checks, plants, spendablePoints, protectedDay, date } = input;
+  const { currentHealth, checks, plants, spendablePoints, date } = input;
   const current = clamp(currentHealth);
 
   // 활성·비휴면 습관만 패널티·달성 판단 대상 (서버 applyHabitPenalty 와 동일).
@@ -87,6 +88,13 @@ export function projectTomorrowHealth(input: HealthForecastInput): HealthForecas
   const achievedScored = scored.filter((c) => c.achieved).length;
   const hasAnyCheck = scored.length > 0;
   const daySuccess = scored.length > 0 && achievedScored / scored.length >= HEALTH_RULES.SUCCESS_THRESHOLD;
+
+  // ── 1.5) 보호일 판정 — 서버 dailyReset.processUserDay 와 정확히 일치시킨다.
+  //   서버는 '성공하지 못한 날'에만 보호를 평가한다(성공일은 보호와 무관, 자연감소는 그대로).
+  //   실패일이면: 휴가/freeze(스트릭 무관) + 주간 그레이스(스트릭>0 && 주 1회 미사용)로 보호.
+  //   그레이스를 빼먹으면 '스트릭 유지 중 그 주 첫 실패일'에 예보가 폭락하지만 실제 정산은
+  //   보호되어 생기가 그대로라, 예보가 서버와 크게 어긋난다(신뢰 붕괴) — 그래서 함께 반영한다.
+  const protectedDay = !daySuccess && (input.protectedDay || (input.weeklyGraceProtectable ?? false));
 
   // ── 2) 생기 델타 (보호된 날은 실패 페널티 없음) ──
   const successDelta = daySuccess
