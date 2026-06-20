@@ -116,6 +116,16 @@ describe('projectTomorrowHealth', () => {
     expect(f.projected).toBe(91);                   // 80 +15(성공) +1(초월) -5(자연감소)
   });
 
+  it('eternal_bloom — 고생기 성공일: 자연감소→초월 순서(서버와 동일)로 100 클램프 후 보너스가 살아난다', () => {
+    // 서버: 90 +15 →100(클램프) -5(자연감소)=95 +1(초월)=96.
+    // (초월을 자연감소 앞에 더하면 100에서 잘려 95로 어긋남 — drift 회귀 방지)
+    const habits = [habit('a')];
+    const checks = { a: check(1, true) };
+    const f = run({ habits, checks, plants: [plant('eternal_bloom')], currentHealth: 90, spendablePoints: 100 });
+    expect(f.transcendentVitality).toBe(1);
+    expect(f.projected).toBe(96);
+  });
+
   it('eternal_bloom — 실패(미보호)면 즉사라 보너스 없음', () => {
     const habits = [habit('a')];
     const checks = { a: check(0, false) };

@@ -71,7 +71,8 @@ function isAchieved(h: HabitDoc, c: HabitCheckDoc): boolean {
 
 /**
  * 오늘 데이터로 내일 아침 정산이 돌았을 때의 생기를 예측한다.
- * 서버 순서를 그대로 따른다: 성공 델타 → 초월 생기 보너스 → (시들기 판정) → 습관 패널티.
+ * 서버 순서를 그대로 따른다: 성공 델타 → 자연 감소 → 초월 생기 보너스 → (시들기 판정) → 습관 패널티.
+ * (decay 와 초월 보너스 순서는 100 클램프 때문에 결과가 달라지므로 서버와 정확히 일치시킨다.)
  */
 export function projectTomorrowHealth(input: HealthForecastInput): HealthForecast {
   const { currentHealth, checks, plants, spendablePoints, protectedDay, date } = input;
@@ -129,8 +130,10 @@ export function projectTomorrowHealth(input: HealthForecastInput): HealthForecas
   let h = current;
   if (daySuccess) h = Math.min(100, h + HEALTH_RULES.SUCCESS_DELTA);
   else if (!protectedDay) h = Math.max(0, h + HEALTH_RULES.FAILURE_DELTA);
-  h = Math.min(100, h + transcendentVitality);
+  // 서버(gardenAutogrow)는 자연 감소를 먼저 적용한 뒤 초월 보너스를 더한다.
+  // 100 클램프가 끼면 둘의 순서가 결과를 바꾸므로(예: 영겁화·성공·고생기일) 동일 순서를 지킨다.
   if (dailyDecay) h = Math.max(0, h - dailyDecay);
+  h = Math.min(100, h + transcendentVitality);
   const projected = Math.max(0, h - habitHealthLoss);
 
   return {
