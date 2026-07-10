@@ -24,6 +24,7 @@ const BINARY_LABELS = ['미완료', '완료'];
 const MOOD_EMOJIS = ['😣', '😕', '😐', '🙂', '😄'] as const;
 export default function HabitCard({ habit, check, streak = 0, isNow = false, onScore, onClear }: Props) {
   const [expanded, setExpanded] = useState(false);
+  const [precise, setPrecise] = useState(false);
   const [showReflection, setShowReflection] = useState(false);
   const [mood, setMood] = useState<1 | 2 | 3 | 4 | 5 | null>(null);
   const [note, setNote] = useState('');
@@ -66,6 +67,7 @@ export default function HabitCard({ habit, check, streak = 0, isNow = false, onS
     if (lastCheckedRef.current === ts) return;
     lastCheckedRef.current = ts;
     setShowReflection(false);
+    setPrecise(false);
     setMood(null);
     setNote('');
     setTags([]);
@@ -208,30 +210,65 @@ export default function HabitCard({ habit, check, streak = 0, isNow = false, onS
       {/* 점수 입력 */}
       <div className="mt-1.5">
         {habit.scoreMode === 'scaled' ? (
-          <div className="flex gap-1.5">
-            {[1, 2, 3, 4, 5].map((s) => (
+          // 원탭 '완료'(=보통·달성 3점)를 기본으로, 정밀한 1~5점은 접어둔다.
+          // 이미 3점이 아닌 등급이 매겨져 있으면(2·4·5점 등) 그 값을 보여주려 척도를 편다.
+          precise || (currentScore !== null && currentScore !== SCALED_ACHIEVE_THRESHOLD) ? (
+            <div className="space-y-1">
+              <div className="flex items-center gap-1.5">
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => onScore(s)}
+                    aria-label={`${s}점 · ${SCORE_LABELS[s]}`}
+                    className={cn(
+                      'flex h-7 w-7 items-center justify-center rounded-full text-sm font-medium transition-all',
+                      currentScore === s
+                        ? 'bg-[var(--leaf)] text-white scale-110'
+                        : currentScore !== null && currentScore > s
+                        ? 'bg-[var(--leaf-soft)] text-[var(--leaf)]'
+                        : 'bg-[var(--bg-base)] text-[var(--fg-muted)] hover:bg-[var(--leaf-soft)]'
+                    )}
+                  >
+                    {s}
+                  </button>
+                ))}
+                {currentScore !== null && (
+                  <span className="ml-1 self-center text-xs text-[var(--fg-muted)]">
+                    {SCORE_LABELS[currentScore]}
+                  </span>
+                )}
+              </div>
               <button
-                key={s}
-                onClick={() => onScore(s)}
-                aria-label={`${s}점 · ${SCORE_LABELS[s]}`}
+                onClick={() => setPrecise(false)}
+                className="text-[10px] text-[var(--fg-faint)] hover:text-[var(--fg-muted)] transition-colors"
+              >
+                간단히 ▴
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => onScore(SCALED_ACHIEVE_THRESHOLD)}
+                aria-label="완료 · 달성으로 기록"
                 className={cn(
-                  'flex h-7 w-7 items-center justify-center rounded-full text-sm font-medium transition-all',
-                  currentScore === s
-                    ? 'bg-[var(--leaf)] text-white scale-110'
-                    : currentScore !== null && currentScore > s
-                    ? 'bg-[var(--leaf-soft)] text-[var(--leaf)]'
-                    : 'bg-[var(--bg-base)] text-[var(--fg-muted)] hover:bg-[var(--leaf-soft)]'
+                  'flex-1 rounded-[var(--radius-sm)] py-1.5 text-sm font-medium transition-colors',
+                  achieved
+                    ? 'bg-[var(--leaf)] text-white'
+                    : 'bg-[var(--leaf-soft)] text-[var(--leaf)] hover:bg-[var(--leaf)] hover:text-white'
                 )}
               >
-                {s}
+                완료
               </button>
-            ))}
-            {currentScore !== null && (
-              <span className="ml-1 self-center text-xs text-[var(--fg-muted)]">
-                {SCORE_LABELS[currentScore]}
-              </span>
-            )}
-          </div>
+              <button
+                onClick={() => setPrecise(true)}
+                aria-label="1~5점으로 자세히 남기기"
+                title="1~5점으로 자세히"
+                className="shrink-0 rounded-[var(--radius-sm)] bg-[var(--bg-base)] px-2.5 py-1.5 text-xs font-medium text-[var(--fg-muted)] transition-colors hover:bg-[var(--leaf-soft)] hover:text-[var(--leaf)]"
+              >
+                1–5
+              </button>
+            </div>
+          )
         ) : (
           <div className="flex gap-2">
             {[0, 1].map((s) => (
