@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { motion, animate } from 'framer-motion';
-import { Pencil, Check, Plus, Sprout, Sunrise, Sun, Sunset, Moon, Clock, type LucideIcon } from 'lucide-react';
+import { motion, animate, AnimatePresence } from 'framer-motion';
+import { Pencil, Check, Plus, Sprout, Sunrise, Sun, Sunset, Moon, Clock, ChevronDown, type LucideIcon } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
+import { cn } from '@/lib/utils';
 import EmptyState from '@/components/EmptyState';
 import SeedHabitsButton from '@/features/habits/SeedHabitsButton';
 import AddHabitDialog from '@/features/habits/AddHabitDialog';
@@ -227,6 +228,33 @@ export default function Habits() {
         const bg = ratio >= 0.5 ? bgFull : bgDim;
         const isNight = tod === 'night';
         const TodIcon = TIME_ICONS[tod];
+
+        const renderCard = (habit: HabitDoc) => (
+          <div key={habit.id} data-tour={habit.id === firstTourHabitId ? 'habit-first' : undefined}>
+            <HabitCard
+              habit={habit}
+              check={checks[habit.id]}
+              streak={streaks[habit.id] ?? 0}
+              isNow={isNow}
+              onScore={(score) => save(habit, score, checks[habit.id], streaks[habit.id] ?? 0)}
+              onClear={() => clear(habit, checks[habit.id])}
+            />
+          </div>
+        );
+
+        // 처리 끝난 습관(달성·건너뜀)은 목록에서 접어 '완료 N개'로 모으고,
+        // 아직 남은 습관만 카드로 펼쳐 화면을 가볍게 유지한다. 편집 모드는 전부 나열.
+        const isResolved = (h: HabitDoc) => {
+          const s = statusOf(checks[h.id]);
+          return s === 'achieved' || s === 'skipped';
+        };
+        const resolved = editMode ? [] : group.filter(isResolved);
+        const remainingNodes = editMode
+          ? group.map((habit) => (
+              <HabitEditRow key={habit.id} habit={habit} groupSiblings={group} />
+            ))
+          : group.filter((h) => !isResolved(h)).map(renderCard);
+
         return (
           <section
             key={tod}
@@ -257,29 +285,10 @@ export default function Habits() {
                 {groupAchieved}/{group.length}
               </span>
             </div>
-            {(() => {
-              const cards = group.map((habit) => (
-                editMode ? (
-                  <HabitEditRow
-                    key={habit.id}
-                    habit={habit}
-                    groupSiblings={group}
-                  />
-                ) : (
-                  <div key={habit.id} data-tour={habit.id === firstTourHabitId ? 'habit-first' : undefined}>
-                    <HabitCard
-                      habit={habit}
-                      check={checks[habit.id]}
-                      streak={streaks[habit.id] ?? 0}
-                      isNow={isNow}
-                      onScore={(score) => save(habit, score, checks[habit.id], streaks[habit.id] ?? 0)}
-                      onClear={() => clear(habit, checks[habit.id])}
-                    />
-                  </div>
-                )
-              ));
-              // 현재 시간대 그룹은 탭 진입/재탭 시 살짝 확대되며 강조
-              return isNow && !editMode ? (
+
+            {/* 남은 습관 — 현재 시간대는 탭 진입/재탭 시 살짝 확대되며 강조 */}
+            {remainingNodes.length > 0 ? (
+              isNow && !editMode ? (
                 <motion.div
                   key={bloomKey}
                   initial={{ scale: 1 }}
@@ -288,12 +297,28 @@ export default function Habits() {
                   style={{ transformOrigin: 'center' }}
                   className="space-y-1.5"
                 >
-                  {cards}
+                  {remainingNodes}
                 </motion.div>
               ) : (
-                cards
-              );
-            })()}
+                remainingNodes
+              )
+            ) : (
+              !editMode && (
+                <p
+                  className="px-1 text-xs font-medium"
+                  style={{ color: isNight ? '#D1D5DB' : 'var(--leaf)' }}
+                >
+                  다 했어요 🌱
+                </p>
+              )
+            )}
+
+            {/* 완료한 습관 — 접어두고 필요할 때만 펼침 */}
+            {resolved.length > 0 && (
+              <CompletedFold count={resolved.length} isNight={isNight}>
+                {resolved.map(renderCard)}
+              </CompletedFold>
+            )}
           </section>
         );
       })}
@@ -318,6 +343,49 @@ export default function Habits() {
       )}
 
       <AddHabitDialog open={addOpen} onOpenChange={setAddOpen} nextOrder={nextOrder} />
+    </div>
+  );
+}
+
+// 완료한(달성·건너뜀) 습관을 접어 '완료 N개'로 모으는 접이식 섹션.
+// 눌러서 펼치면 카드가 그대로 나와 되돌리기(건너뜀 취소·점수 수정)도 가능하다.
+function CompletedFold({
+  count,
+  isNight,
+  children,
+}: {
+  count: number;
+  isNight?: boolean;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center gap-1 rounded-[var(--radius-sm)] px-1 py-1 text-xs font-medium transition-colors"
+        style={{ color: isNight ? '#D1D5DB' : 'var(--fg-muted)' }}
+        aria-expanded={open}
+      >
+        <Check size={13} className="opacity-70" />
+        완료 {count}개
+        <ChevronDown
+          size={13}
+          className={cn('opacity-70 transition-transform', open && 'rotate-180')}
+        />
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="mt-1 space-y-1.5 overflow-hidden"
+          >
+            {children}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
