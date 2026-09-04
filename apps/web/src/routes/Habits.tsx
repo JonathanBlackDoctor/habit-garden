@@ -272,7 +272,7 @@ export default function Habits() {
                       check={checks[habit.id]}
                       streak={streaks[habit.id] ?? 0}
                       isNow={isNow}
-                      onScore={(score) => save(habit, score, checks[habit.id], streaks[habit.id] ?? 0)}
+                      onScore={(score) => save(habit, score, checks[habit.id])}
                       onClear={() => clear(habit, checks[habit.id])}
                     />
                   </div>

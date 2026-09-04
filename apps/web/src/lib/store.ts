@@ -36,30 +36,6 @@ interface AppState {
   settings: UserSettingsDoc | null;
   setSettings: (settings: UserSettingsDoc | null) => void;
 
-  // ── 하루 1회 보상 게이트 ──
-  // 오늘 이미 보상 피드백(포인트 토스트·콤보·셀러브레이션)을 준 습관 id.
-  // 서버가 포인트 중복 지급을 막지만, 클라이언트 연출도 하루 한 번만 나오게 한다.
-  rewardedHabitIds: Record<string, true>;
-  /** 아직 오늘 보상하지 않은 습관이면 표시 후 true 반환, 이미 보상했으면 false. */
-  tryRewardHabit: (habitId: string) => boolean;
-
-  // ── 셀러브레이션 트리거 (Phase 1-1) ──
-  celebrationKind: 'perfect' | 'streak7' | 'levelup' | null;
-  celebrationPayload?: { title: string; points: number; detail?: string };
-  triggerCelebration: (
-    kind: 'perfect' | 'streak7' | 'levelup',
-    payload: { title: string; points: number; detail?: string },
-  ) => void;
-  clearCelebration: () => void;
-
-  // ── 레벨업 창 (보상 수령) ──
-  // 서버가 보상을 자동 지급하면 progress 변화를 감지해 fromLevel→toLevel 구간을 띄운다.
-  // 사용자가 "보상 수령"을 누르면 닫힌다(보상 자체는 이미 계정에 반영됨).
-  levelUp: { fromLevel: number; toLevel: number } | null;
-  /** 레벨업 창을 띄운다. 이미 열려 있으면 구간을 합쳐 가장 넓게 표시. */
-  showLevelUp: (fromLevel: number, toLevel: number) => void;
-  clearLevelUp: () => void;
-
   // ── 온보딩(웰컴 + 인터랙티브 가이드) ──
   // 첫 실행 시 useOnboardingTrigger 가 자동으로, 더보기에서 수동으로 연다.
   // 완료/건너뛰기 시 onboardingState.markOnboarded() 는 플로우 컴포넌트가 호출한다.
@@ -80,9 +56,9 @@ interface AppState {
   closeWidgetEdit: () => void;
 }
 
-export const useAppStore = create<AppState>((set, get) => ({
+export const useAppStore = create<AppState>((set) => ({
   currentDate:     plannerDate(),
-  setCurrentDate:  (date) => set({ currentDate: date, rewardedHabitIds: {} }),
+  setCurrentDate:  (date) => set({ currentDate: date }),
   realUid:         null,
   sandbox:         readSandbox(),
   uid:             null,
@@ -93,8 +69,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((s) => ({
       sandbox: on,
       uid: effectiveUid(s.realUid, on),
-      // 모드 전환 시 하루 보상 게이트 초기화 (모드 간 연출 혼선 방지)
-      rewardedHabitIds: {},
     }));
   },
   user:            null,
@@ -106,29 +80,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   setProfile:      (profile) => set({ profile }),
   settings:        null,
   setSettings:     (settings) => set({ settings }),
-
-  rewardedHabitIds: {},
-  tryRewardHabit: (habitId) => {
-    if (get().rewardedHabitIds[habitId]) return false;
-    set((s) => ({ rewardedHabitIds: { ...s.rewardedHabitIds, [habitId]: true } }));
-    return true;
-  },
-
-  celebrationKind:    null,
-  celebrationPayload: undefined,
-  triggerCelebration: (kind, payload) =>
-    set({ celebrationKind: kind, celebrationPayload: payload }),
-  clearCelebration:   () => set({ celebrationKind: null, celebrationPayload: undefined }),
-
-  levelUp: null,
-  showLevelUp: (fromLevel, toLevel) =>
-    set((s) => ({
-      levelUp: {
-        fromLevel: s.levelUp ? Math.min(s.levelUp.fromLevel, fromLevel) : fromLevel,
-        toLevel:   s.levelUp ? Math.max(s.levelUp.toLevel, toLevel)     : toLevel,
-      },
-    })),
-  clearLevelUp: () => set({ levelUp: null }),
 
   onboardingOpen: false,
   startOnboarding: () => set({ onboardingOpen: true }),

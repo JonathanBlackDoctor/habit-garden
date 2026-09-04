@@ -5,7 +5,6 @@ import { animate, motion, useMotionValue } from 'framer-motion';
 import { useVisibleTabs } from '@/lib/tabs';
 import Main from '@/routes/Main';
 import Habits from '@/routes/Habits';
-import Garden from '@/routes/Garden';
 import Prayers from '@/routes/Prayers';
 import More from '@/routes/More';
 
@@ -14,7 +13,6 @@ import More from '@/routes/More';
 const TAB_ELEMENTS: Record<string, ReactElement> = {
   '/': <Main />,
   '/habits': <Habits />,
-  '/garden': <Garden />,
   '/prayers': <Prayers />,
   '/more': <More />,
 };

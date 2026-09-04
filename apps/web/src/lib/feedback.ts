@@ -6,7 +6,7 @@
 const HAPTIC_KEY = 'feedback.haptic';
 const SOUND_KEY  = 'feedback.sound';
 
-export type FeedbackKind = 'check' | 'achieve' | 'perfect' | 'combo' | 'levelup';
+export type FeedbackKind = 'check' | 'achieve';
 
 export function isHapticEnabled(): boolean {
   if (typeof window === 'undefined') return false;
@@ -32,9 +32,6 @@ export function setSoundEnabled(on: boolean) {
 const HAPTIC_PATTERNS: Record<FeedbackKind, number | number[]> = {
   check:   10,
   achieve: [10, 30, 10],
-  perfect: [12, 30, 12, 30, 18],
-  combo:   [8, 20, 8],
-  levelup: [20, 40, 20, 40, 30],
 };
 
 function vibrate(pattern: number | number[]) {
@@ -60,21 +57,6 @@ const SOUND_PATTERNS: Record<FeedbackKind, Tone[]> = {
   achieve: [
     { freq: 660, dur: 0.10, type: 'sine', gain: 0.10 },
     { freq: 990, dur: 0.16, delay: 0.08, type: 'sine', gain: 0.10 },
-  ],
-  perfect: [
-    { freq: 660, dur: 0.10, type: 'sine', gain: 0.10 },
-    { freq: 880, dur: 0.10, delay: 0.08, type: 'sine', gain: 0.10 },
-    { freq: 1320, dur: 0.22, delay: 0.16, type: 'sine', gain: 0.12 },
-  ],
-  combo: [
-    { freq: 1175, dur: 0.05, type: 'triangle', gain: 0.07 },
-    { freq: 1480, dur: 0.08, delay: 0.05, type: 'triangle', gain: 0.07 },
-  ],
-  levelup: [
-    { freq: 523, dur: 0.10, type: 'sine', gain: 0.10 },
-    { freq: 659, dur: 0.10, delay: 0.10, type: 'sine', gain: 0.10 },
-    { freq: 784, dur: 0.10, delay: 0.20, type: 'sine', gain: 0.10 },
-    { freq: 1047, dur: 0.30, delay: 0.30, type: 'sine', gain: 0.12 },
   ],
 };
 

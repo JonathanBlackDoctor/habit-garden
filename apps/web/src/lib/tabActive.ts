@@ -5,7 +5,7 @@ export type TabActive = { path: string | null; nonce: number };
 export const TabActiveContext = createContext<TabActive>({ path: null, nonce: 0 });
 
 // 해당 path 탭이 '활성화'되거나(다른 탭 → 이 탭) '재탭'될 때마다 1씩 증가하는 키.
-// BloomBadge burstKey, CountUp replayKey 등에 넘겨 탭 진입/재탭 시 애니메이션을 재생.
+// CountUp replayKey, ProgressRing key 등에 넘겨 탭 진입/재탭 시 애니메이션을 재생.
 export function useTabBloomKey(path: string): number {
   const { path: active, nonce } = useContext(TabActiveContext);
   const [key, setKey] = useState(0);

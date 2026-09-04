@@ -59,7 +59,7 @@ export default defineConfig(({ mode }) => {
       manifest: {
         name: '습관 정원 (Habit Garden)',
         short_name: '습관정원',
-        description: '함께하는 습관 체크와 정원 가꾸기',
+        description: '매일의 습관 체크와 회고',
         start_url: '/habit-garden/',
         scope: '/habit-garden/',
         display: 'standalone',

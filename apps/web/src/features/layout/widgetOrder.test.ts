@@ -14,18 +14,18 @@ describe('mergeWidgetOrder', () => {
   });
 
   it('알 수 없는(삭제된) id 는 버린다', () => {
-    const result = mergeWidgetOrder(['habits', 'ghost', 'garden']);
+    const result = mergeWidgetOrder(['habits', 'ghost', 'todos']);
     expect(result).toContain('habits');
-    expect(result).toContain('garden');
+    expect(result).toContain('todos');
     expect(result).not.toContain('ghost' as never);
   });
 
   it('저장 순서에 없는 새 위젯도 빠짐없이 끼워 넣는다(누락 없음)', () => {
     // 사용자가 일부만 저장해 둔 상태에서도 모든 위젯이 결과에 존재해야 한다.
-    const result = mergeWidgetOrder(['garden', 'habits']);
+    const result = mergeWidgetOrder(['todos', 'habits']);
     expect([...result].sort()).toEqual([...MAIN_WIDGET_IDS].sort());
     // 사용자가 정한 우선 순서는 보존된다.
-    expect(result.indexOf('garden')).toBeLessThan(result.indexOf('habits'));
+    expect(result.indexOf('todos')).toBeLessThan(result.indexOf('habits'));
   });
 
   it('전체를 저장해 둔 경우 그 순서를 그대로 유지한다', () => {
@@ -35,7 +35,7 @@ describe('mergeWidgetOrder', () => {
 });
 
 describe('초보자 레이아웃', () => {
-  it('코어(습관·정원·할 일)는 숨김 목록에 없다', () => {
+  it('코어(습관·할 일)는 숨김 목록에 없다', () => {
     for (const id of BEGINNER_CORE_WIDGETS) {
       expect(BEGINNER_HIDDEN_WIDGETS).not.toContain(id);
     }

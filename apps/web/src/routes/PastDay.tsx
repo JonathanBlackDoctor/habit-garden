@@ -113,7 +113,7 @@ export default function PastDay() {
 
           {!isToday && (
             <p className="text-[11px] text-[var(--fg-faint)] px-1 leading-relaxed">
-              지난 날 기록을 수정해도 포인트·콤보·셀러브레이션은 다시 트리거되지 않습니다.
+              지난 날 기록을 수정하면 통계와 히트맵에 그대로 반영됩니다.
               저장한 점수에 따라 하루 점수만 다시 계산됩니다.
             </p>
           )}

@@ -92,7 +92,7 @@ export default function SignupCTA({
         disabled={loading}
         className="mt-3 flex w-full items-center justify-center gap-2 rounded-[var(--radius-sm)] bg-[var(--leaf)] px-4 py-2.5 text-sm font-medium text-white shadow-[var(--shadow-sm)] active:opacity-80 disabled:opacity-50"
       >
-        {loading ? '연결 중…' : 'Google로 가입하고 내 정원 지키기'}
+        {loading ? '연결 중…' : 'Google로 가입하고 내 기록 지키기'}
         {!loading && <ArrowRight size={16} />}
       </button>
       <p className="mt-2 text-center text-[11px] text-[var(--fg-faint)]">

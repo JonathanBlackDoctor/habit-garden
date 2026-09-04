@@ -15,7 +15,6 @@ import { toast } from 'sonner';
 import { isOwner } from '@/lib/auth';
 import { replyToInquiry, deleteInquiry } from '@/lib/inquiries';
 import { seedDefaultHabits } from '@/lib/seed';
-import { useProgress } from '@/features/garden/useGarden';
 import { useIsPremium } from '@/lib/features';
 import NotificationStatsCard from '@/features/notifications/NotificationStatsCard';
 
@@ -37,79 +36,6 @@ export default function Admin() {
   const [replyingId, setReplyingId] = useState<string | null>(null);
   const showAdminControls = isOwner(realUid);
   const isPremium = useIsPremium();
-
-  // ── 개발자 테스트 (owner 전용): 포인트·경험치 자유 조절 ──
-  const progress = useProgress();
-  const [devFields, setDevFields] = useState({
-    totalPoints: '', spendablePoints: '', level: '', xpInLevel: '',
-  });
-  // progress 가 로드되거나 모드(sandbox)가 바뀔 때 입력칸을 현재값으로 채운다.
-  const [devLoaded, setDevLoaded] = useState(false);
-  useEffect(() => { setDevLoaded(false); }, [sandbox]); // 모드 전환 시 재적재
-  useEffect(() => {
-    if (devLoaded || !progress) return;
-    setDevFields({
-      totalPoints:     String(progress.totalPoints ?? 0),
-      spendablePoints: String(progress.spendablePoints ?? 0),
-      level:           String(progress.level ?? 0),
-      xpInLevel:       String(progress.xpInLevel ?? 0),
-    });
-    setDevLoaded(true);
-  }, [progress, devLoaded]);
-
-  // 포인트·경험치 편집은 실제 데이터 보호를 위해 샌드박스 모드에서만 허용한다.
-  const canEditProgress = isOwner(realUid) && sandbox;
-
-  const applyDevProgress = async () => {
-    if (!uid || !canEditProgress) return;
-    const parsed = {
-      totalPoints:     Number(devFields.totalPoints),
-      spendablePoints: Number(devFields.spendablePoints),
-      level:           Number(devFields.level),
-      xpInLevel:       Number(devFields.xpInLevel),
-    };
-    if (Object.values(parsed).some((n) => !Number.isFinite(n))) {
-      toast.error('숫자만 입력하세요.');
-      return;
-    }
-    try {
-      await setDoc(doc(db, 'users', uid, 'progress', 'main'), {
-        ...parsed,
-        updatedAt: serverTimestamp(),
-      }, { merge: true });
-      toast('🧪 포인트·경험치를 적용했습니다.');
-    } catch (e: any) {
-      toast.error(`적용 실패: ${e?.message ?? '오류'}`);
-    }
-  };
-
-  // 빠른 가감: 보유 포인트(spendable)와 누적 포인트(total)를 함께 증감
-  const bumpPoints = async (delta: number) => {
-    if (!uid || !canEditProgress) return;
-    const total = Math.max(0, (progress?.totalPoints ?? 0) + delta);
-    const spend = Math.max(0, (progress?.spendablePoints ?? 0) + delta);
-    try {
-      await setDoc(doc(db, 'users', uid, 'progress', 'main'), {
-        totalPoints: total, spendablePoints: spend, updatedAt: serverTimestamp(),
-      }, { merge: true });
-      setDevFields((f) => ({ ...f, totalPoints: String(total), spendablePoints: String(spend) }));
-    } catch (e: any) {
-      toast.error(`처리 실패: ${e?.message ?? '오류'}`);
-    }
-  };
-
-  const bumpLevel = async (delta: number) => {
-    if (!uid || !canEditProgress) return;
-    const level = Math.max(0, (progress?.level ?? 0) + delta);
-    try {
-      await setDoc(doc(db, 'users', uid, 'progress', 'main'), {
-        level, updatedAt: serverTimestamp(),
-      }, { merge: true });
-      setDevFields((f) => ({ ...f, level: String(level) }));
-    } catch (e: any) {
-      toast.error(`처리 실패: ${e?.message ?? '오류'}`);
-    }
-  };
 
   useEffect(() => {
     if (!showAdminControls) return;
@@ -464,60 +390,10 @@ export default function Admin() {
             <Switch checked={sandbox} onCheckedChange={setSandbox} />
           </div>
 
-          {sandbox ? (
-            <p className="rounded-md bg-amber-500/10 px-3 py-2 text-[11px] font-medium text-amber-600">
-              🧪 현재 테스트 공간입니다. 아래 조절은 테스트 데이터에만 적용됩니다.
-            </p>
-          ) : (
-            <p className="text-[11px] text-[var(--fg-muted)]">
-              실제 데이터 보호를 위해, 포인트·경험치 조절은 테스트 모드를 켜야 사용할 수 있습니다.
-            </p>
-          )}
-
           {sandbox && (
-            <>
-              {/* 빠른 가감 */}
-              <div className="space-y-2">
-                <p className="text-xs font-medium text-[var(--fg-muted)]">포인트 빠른 조절</p>
-                <div className="grid grid-cols-4 gap-2">
-                  <Button variant="secondary" className="px-0 text-xs" onClick={() => bumpPoints(100)}>+100</Button>
-                  <Button variant="secondary" className="px-0 text-xs" onClick={() => bumpPoints(1000)}>+1000</Button>
-                  <Button variant="secondary" className="px-0 text-xs" onClick={() => bumpPoints(-100)}>-100</Button>
-                  <Button variant="secondary" className="px-0 text-xs" onClick={() => bumpPoints(-1000)}>-1000</Button>
-                </div>
-                <p className="text-xs font-medium text-[var(--fg-muted)]">레벨 빠른 조절</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button variant="secondary" className="px-0 text-xs" onClick={() => bumpLevel(1)}>레벨 +1</Button>
-                  <Button variant="secondary" className="px-0 text-xs" onClick={() => bumpLevel(-1)}>레벨 -1</Button>
-                </div>
-              </div>
-
-              {/* 직접 입력 */}
-              <div className="space-y-2 pt-1">
-                <p className="text-xs font-medium text-[var(--fg-muted)]">직접 입력 후 적용</p>
-                {([
-                  ['보유 포인트 (spendable)', 'spendablePoints'],
-                  ['누적 포인트 (total)',     'totalPoints'],
-                  ['레벨 (level)',            'level'],
-                  ['레벨 내 경험치 (xp)',     'xpInLevel'],
-                ] as const).map(([label, key]) => (
-                  <label key={key} className="flex items-center justify-between gap-3">
-                    <span className="text-xs text-[var(--fg-primary)]">{label}</span>
-                    <input
-                      type="number"
-                      inputMode="numeric"
-                      value={devFields[key]}
-                      onChange={(e) => setDevFields((f) => ({ ...f, [key]: e.target.value }))}
-                      className="w-28 rounded-md border border-[var(--leaf-soft)] bg-[var(--bg-base)] px-2 py-1 text-right text-sm text-[var(--fg-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--bloom)]"
-                    />
-                  </label>
-                ))}
-                <Button onClick={applyDevProgress} className="w-full gap-2">
-                  <FlaskConical size={15} />
-                  입력값 적용
-                </Button>
-              </div>
-            </>
+            <p className="rounded-md bg-amber-500/10 px-3 py-2 text-[11px] font-medium text-amber-600">
+              🧪 현재 테스트 공간입니다. 실제 데이터는 그대로 보존됩니다.
+            </p>
           )}
         </section>
       )}
