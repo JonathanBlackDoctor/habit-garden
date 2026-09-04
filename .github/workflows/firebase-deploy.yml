@@ -36,10 +36,13 @@ jobs:
         run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > "${{ github.workspace }}/firebase-sa.json"
 
       - name: Firebase 배포
+        # --force: 소스에서 삭제된 함수가 프로젝트에 남아 있으면 배포가 삭제 확인을 묻는데,
+        #   --non-interactive 라 답할 수 없어 전체 배포가 중단된다. 자동 삭제를 승인해 진행시킨다.
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/firebase-sa.json
         run: |
           pnpm exec firebase deploy \
             --only functions,firestore,storage \
             --project planner-web-quick \
-            --non-interactive
+            --non-interactive \
+            --force
