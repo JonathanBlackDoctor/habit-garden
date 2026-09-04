@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>*{box-sizing:border-box}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>습관 정원 디자인 핸드오프</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+</head>
+<body>
+<style>
+  :root {
+    --ground:   #FBFBF8;
+    --surface:  #FFFFFF;
+    --sunk:     #F2F3EE;
+    --ink:      #23271F;
+    --ink-2:    #5E6459;
+    --ink-3:    #8E9488;
+    --rule:     #E3E6DD;
+    --rule-2:   #EEF0EA;
+    --accent:   #4F7A37;
+    --accent-w: #E7F0DD;
+    --flag:     #A85D0B;
+    --flag-w:   #FAEEDA;
+
+    --serif: 'Gowun Batang', 'Nanum Myeongjo', Georgia, serif;
+    --sans:  'IBM Plex Sans KR', 'Pretendard', system-ui, sans-serif;
+    --mono:  'IBM Plex Mono', ui-monospace, 'SFMono-Regular', monospace;
+
+    --measure: 68ch;
+    --pad: clamp(20px, 5vw, 56px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:   #14170F;
+      --surface:  #1C2018;
+      --sunk:     #232719;
+      --ink:      #E9ECE2;
+      --ink-2:    #A7AE9C;
+      --ink-3:    #767D6D;
+      --rule:     #2F3428;
+      --rule-2:   #262B1F;
+      --accent:   #9CC97A;
+      --accent-w: #2A3520;
+      --flag:     #E0A25A;
+      --flag-w:   #37281440;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:   #14170F;
+    --surface:  #1C2018;
+    --sunk:     #232719;
+    --ink:      #E9ECE2;
+    --ink-2:    #A7AE9C;
+    --ink-3:    #767D6D;
+    --rule:     #2F3428;
+    --rule-2:   #262B1F;
+    --accent:   #9CC97A;
+    --accent-w: #2A3520;
+    --flag:     #E0A25A;
+    --flag-w:   #37281440;
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-weight: 400;
+    font-size: 15px;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: var(--pad) var(--pad) 96px; }
+
+  /* ── 헤더 ── */
+  .masthead { border-bottom: 2px solid var(--ink); padding-bottom: 22px; }
+  .kicker {
+    font-family: var(--mono); font-size: 11px; font-weight: 500;
+    letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent);
+  }
+  h1 {
+    font-family: var(--serif); font-weight: 700;
+    font-size: clamp(30px, 5.4vw, 46px); line-height: 1.2;
+    margin: 10px 0 8px; text-wrap: balance; letter-spacing: -0.01em;
+  }
+  .standfirst { color: var(--ink-2); max-width: var(--measure); margin: 0; font-size: 16px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 18px; }
+  .chip {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .02em;
+    padding: 4px 9px; border: 1px solid var(--rule); border-radius: 3px;
+    color: var(--ink-2); background: var(--surface);
+  }
+
+  /* ── 섹션 ── */
+  section { margin-top: 58px; }
+  .sec-head { display: flex; align-items: baseline; gap: 12px; border-bottom: 1px solid var(--rule); padding-bottom: 9px; margin-bottom: 22px; }
+  .sec-num { font-family: var(--mono); font-size: 12px; color: var(--ink-3); font-weight: 500; }
+  h2 { font-family: var(--serif); font-weight: 700; font-size: 23px; margin: 0; letter-spacing: -0.005em; }
+  .sec-note { margin-left: auto; font-size: 12px; color: var(--ink-3); font-family: var(--mono); }
+  p { max-width: var(--measure); }
+  p.lead { margin-top: 0; color: var(--ink-2); }
+  a { color: var(--accent); }
+
+  /* ── 셸 해부도 ── */
+  .anatomy { display: flex; flex-wrap: wrap; gap: 34px; align-items: flex-start; }
+  .phone {
+    width: 258px; flex: none; border: 1px solid var(--rule); border-radius: 14px;
+    background: var(--surface); overflow: hidden; box-shadow: 0 6px 20px -10px rgba(35,39,31,.25);
+  }
+  .phone-row { padding: 8px 12px; font-size: 12px; color: var(--ink-2); border-bottom: 1px dashed var(--rule); }
+  .phone-safe { background: var(--sunk); font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); text-align: center; }
+  .phone-panel { height: 208px; display: flex; flex-direction: column; justify-content: center; gap: 8px; padding: 14px; background: var(--ground); }
+  .fake-card { height: 30px; border-radius: 8px; background: var(--surface); border: 1px solid var(--rule-2); }
+  .fake-card.tall { height: 62px; }
+  .phone-toast {
+    margin: 0 26px; text-align: center; font-size: 10.5px; font-family: var(--mono);
+    background: var(--flag-w); color: var(--flag); border: 1px solid var(--flag); border-radius: 999px; padding: 3px 0;
+  }
+  .phone-tabs { display: flex; border-top: 1px solid var(--rule); background: var(--surface); }
+  .phone-tabs div { flex: 1; text-align: center; padding: 9px 0 10px; font-size: 10.5px; color: var(--ink-3); }
+  .phone-tabs div.on { color: var(--accent); font-weight: 600; }
+  .anatomy-notes { flex: 1; min-width: 260px; }
+  dl.specs { display: grid; grid-template-columns: auto 1fr; gap: 7px 16px; margin: 0; font-size: 13.5px; }
+  dl.specs dt { font-family: var(--mono); font-size: 12px; color: var(--ink-3); white-space: nowrap; }
+  dl.specs dd { margin: 0; color: var(--ink-2); }
+
+  /* ── 팔레트 ── */
+  .pal-group { margin-bottom: 26px; }
+  .pal-label { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 10px; }
+  .pal { display: grid; grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); gap: 10px; }
+  .sw { border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; background: var(--surface); }
+  .sw .patch { height: 54px; border-bottom: 1px solid var(--rule); }
+  .sw .meta { padding: 8px 10px 10px; }
+  .sw .name { font-family: var(--mono); font-size: 11.5px; font-weight: 500; }
+  .sw .hex  { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+  .sw .use  { font-size: 11.5px; color: var(--ink-2); line-height: 1.45; margin-top: 4px; }
+
+  /* ── 타이포 감사 차트 ── */
+  .chart { display: grid; grid-template-columns: 52px 1fr 48px; gap: 5px 10px; align-items: center; font-size: 12.5px; }
+  .chart .lab { font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); text-align: right; }
+  .chart .track { background: var(--sunk); border-radius: 2px; height: 15px; }
+  .chart .bar { height: 15px; border-radius: 2px; background: var(--accent); }
+  .chart .bar.warn { background: var(--flag); }
+  .chart .val { font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .chart-key { font-size: 12px; color: var(--ink-2); margin-top: 14px; display: flex; gap: 16px; flex-wrap: wrap; }
+  .key-dot { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; vertical-align: baseline; }
+
+  /* ── 표 ── */
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; min-width: 480px; }
+  th, td { text-align: left; padding: 8px 12px 8px 0; border-bottom: 1px solid var(--rule-2); vertical-align: top; }
+  th { font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); font-weight: 500; border-bottom-color: var(--rule); }
+  td.path { font-family: var(--mono); font-size: 12px; color: var(--accent); white-space: nowrap; }
+  td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--ink-3); text-align: right; white-space: nowrap; }
+  .tag { font-family: var(--mono); font-size: 10.5px; padding: 1px 6px; border-radius: 3px; white-space: nowrap; }
+  .tag.on  { background: var(--accent-w); color: var(--accent); }
+  .tag.off { background: var(--sunk); color: var(--ink-3); }
+
+  /* ── 버튼 실물 ── */
+  .btnrow { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .btn {
+    font-family: var(--sans); font-size: 13px; font-weight: 500;
+    height: 40px; padding: 0 16px; border-radius: 12px; border: 1px solid transparent;
+    display: inline-flex; align-items: center; cursor: default;
+  }
+  .btn.b-default   { background: #4F7A37; color: #fff; }
+  .btn.b-secondary { background: #E7F0DD; color: #4F7A37; }
+  .btn.b-ghost     { background: transparent; color: #6B7164; }
+  .btn.b-outline   { background: transparent; color: #2A2E27; border-color: #DDE5D0; }
+  .btn.b-bloom     { background: #A85D0B; color: #fff; }
+  .btn.b-destruct  { background: #FEE2E2; color: #B91C1C; }
+  .btn-note { font-size: 12px; color: var(--ink-3); margin-top: 10px; }
+
+  /* ── 금지 목록 ── */
+  ul.locks { list-style: none; padding: 0; margin: 0; display: grid; gap: 1px; background: var(--rule-2); border: 1px solid var(--rule-2); border-radius: 6px; overflow: hidden; }
+  ul.locks li { background: var(--surface); padding: 11px 14px; font-size: 13.5px; display: flex; gap: 12px; align-items: baseline; }
+  ul.locks li b { font-weight: 600; flex: none; min-width: 0; }
+  ul.locks li span { color: var(--ink-2); font-size: 12.5px; }
+
+  footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--rule); font-size: 12.5px; color: var(--ink-3); }
+  footer code { font-family: var(--mono); font-size: 12px; color: var(--ink-2); }
+
+  @media (max-width: 620px) {
+    .sec-note { display: none; }
+    dl.specs { grid-template-columns: 1fr; gap: 2px 0; }
+    dl.specs dd { margin-bottom: 8px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="kicker">디자인 개편 핸드오프 · 시각 요약</div>
+    <h1>습관 정원 디자인 핸드오프</h1>
+    <p class="standfirst">
+      외부 디자이너·에이전트가 개편 착수 전에 훑어볼 한 장짜리 시각 요약이다.
+      전체 문서는 저장소의 <code>docs/design-handoff/</code> 에 있다.
+    </p>
+    <div class="chips">
+      <span class="chip">모바일 온리</span>
+      <span class="chip">셸 max 480px · 기준 380px</span>
+      <span class="chip">라이트 고정</span>
+      <span class="chip">한국어 전용</span>
+      <span class="chip">PWA standalone</span>
+      <span class="chip">화면 17 · 컴포넌트 60+ · 9,700줄</span>
+    </div>
+  </header>
+
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">01</span>
+      <h2>앱 셸 해부</h2>
+      <span class="sec-note">380px 기준 · 축소 표시</span>
+    </div>
+    <div class="anatomy">
+      <div class="phone">
+        <div class="phone-safe">env(safe-area-inset-top)</div>
+        <div class="phone-row">상단바 — 레벨 배지 · XP 링 · 포인트</div>
+        <div class="phone-panel">
+          <div class="fake-card tall"></div>
+          <div class="fake-card"></div>
+          <div class="fake-card"></div>
+          <div class="phone-toast">토스트 · 탭바 위 72px</div>
+        </div>
+        <div class="phone-tabs">
+          <div class="on">오늘</div><div>습관</div><div>정원</div><div>신앙</div><div>더보기</div>
+        </div>
+        <div class="phone-safe">max(env(safe-area-inset-bottom), 8px)</div>
+      </div>
+      <div class="anatomy-notes">
+        <dl class="specs">
+          <dt>셸</dt><dd><code>fixed inset-0</code> · <code>max-w-[480px]</code> 중앙 정렬 · <code>100dvh</code></dd>
+          <dt>탭바</dt><dd>64px + safe-area. 신앙 기능이 꺼지면 <b>탭이 4개가 된다</b> — 두 경우 모두 성립해야 한다</dd>
+          <dt>스크롤</dt><dd>페이지가 아니라 <b>탭 패널 단위</b>. sticky 헤더는 패널 안에서 해결</dd>
+          <dt>제스처</dt><dd>좌우 스와이프가 <b>이미 탭 전환에 쓰인다</b>. 패널 안 좌우 제스처 UI는 충돌</dd>
+          <dt>재탭</dt><dd>정원↔둘러보기 · 기도↔말씀 적용 토글, 습관은 현재 시간대로 스크롤, 그 외 맨 위로</dd>
+          <dt>라우터</dt><dd>HashRouter — 딥링크는 <code>/#/garden</code> 형태</dd>
+          <dt>일일 경계</dt><dd><b>04:00 KST</b>. 자정이 하루의 끝이 아니다</dd>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">02</span>
+      <h2>현행 팔레트</h2>
+      <span class="sec-note">apps/web/src/index.css</span>
+    </div>
+
+    <div class="pal-group">
+      <div class="pal-label">표면 · 텍스트 · 보더</div>
+      <div class="pal">
+        <div class="sw"><div class="patch" style="background:#F4F6EE"></div><div class="meta"><div class="name">--bg-base</div><div class="hex">#F4F6EE</div><div class="use">페이지 배경 · PWA theme_color</div></div></div>
+        <div class="sw"><div class="patch" style="background:#FFFFFF"></div><div class="meta"><div class="name">--bg-surface</div><div class="hex">#FFFFFF</div><div class="use">카드 · 탭바</div></div></div>
+        <div class="sw"><div class="patch" style="background:#2A2E27"></div><div class="meta"><div class="name">--fg-primary</div><div class="hex">#2A2E27</div><div class="use">본문</div></div></div>
+        <div class="sw"><div class="patch" style="background:#6B7164"></div><div class="meta"><div class="name">--fg-muted</div><div class="hex">#6B7164</div><div class="use">보조</div></div></div>
+        <div class="sw"><div class="patch" style="background:#9AA08F"></div><div class="meta"><div class="name">--fg-faint</div><div class="hex">#9AA08F</div><div class="use">힌트 · 비활성 탭 — 대비 검증 필요</div></div></div>
+        <div class="sw"><div class="patch" style="background:#DDE5D0"></div><div class="meta"><div class="name">--border</div><div class="hex">#DDE5D0</div><div class="use">구분선</div></div></div>
+      </div>
+    </div>
+
+    <div class="pal-group">
+      <div class="pal-label">의미색 — 각 색은 본색 + soft 배경 한 쌍</div>
+      <div class="pal">
+        <div class="sw"><div class="patch" style="background:linear-gradient(90deg,#4F7A37 0 62%,#E7F0DD 62% 100%)"></div><div class="meta"><div class="name">--leaf / --leaf-soft</div><div class="hex">#4F7A37 · #E7F0DD</div><div class="use">주색. 성장 · 달성 · 진행 게이지 · 활성 탭 · primary 버튼</div></div></div>
+        <div class="sw"><div class="patch" style="background:linear-gradient(90deg,#A85D0B 0 62%,#FAEEDA 62% 100%)"></div><div class="meta"><div class="name">--bloom / --bloom-soft</div><div class="hex">#A85D0B · #FAEEDA</div><div class="use">개화 · <b>포인트(✦ P)</b> · 보상 · 스트릭 · 토스트</div></div></div>
+        <div class="sw"><div class="patch" style="background:linear-gradient(90deg,#1F5FA5 0 62%,#E6F1FB 62% 100%)"></div><div class="meta"><div class="name">--sky / --sky-soft</div><div class="hex">#1F5FA5 · #E6F1FB</div><div class="use">컨디션 · <b>샘물(💧)</b> · 경건</div></div></div>
+        <div class="sw"><div class="patch" style="background:#8A6E4B"></div><div class="meta"><div class="name">--soil</div><div class="hex">#8A6E4B</div><div class="use">흙 · 화단 · 장식</div></div></div>
+        <div class="sw"><div class="patch" style="background:#C7B68A"></div><div class="meta"><div class="name">--wither</div><div class="hex">#C7B68A</div><div class="use"><b>시듦.</b> 의도적으로 빨강이 아닌 차분한 베이지 — 실패를 나무라지 않는다</div></div></div>
+        <div class="sw" style="border-style:dashed;border-color:var(--flag)"><div class="patch" style="background:repeating-linear-gradient(45deg,var(--sunk) 0 8px,transparent 8px 16px)"></div><div class="meta"><div class="name" style="color:var(--flag)">경고색 없음</div><div class="hex">—</div><div class="use">그래서 코드 <b>42곳</b>이 Tailwind 기본 red/amber를 직접 쓴다. v2에 정식 토큰으로 추가할 것</div></div></div>
+      </div>
+    </div>
+
+    <div class="pal-group">
+      <div class="pal-label">정원 씬 — 일러스트 배경</div>
+      <div class="pal">
+        <div class="sw"><div class="patch" style="background:linear-gradient(#CDEBF6,#EAF6DA)"></div><div class="meta"><div class="name">garden-sky</div><div class="hex">#CDEBF6 → #EAF6DA</div><div class="use">하늘 그라데이션</div></div></div>
+        <div class="sw"><div class="patch" style="background:#FFF1C2"></div><div class="meta"><div class="name">garden-sun</div><div class="hex">#FFF1C2</div><div class="use">햇살</div></div></div>
+        <div class="sw"><div class="patch" style="background:#BFE0A0"></div><div class="meta"><div class="name">garden-hill</div><div class="hex">#BFE0A0</div><div class="use">언덕</div></div></div>
+        <div class="sw"><div class="patch" style="background:linear-gradient(#A98559,#7C5C38)"></div><div class="meta"><div class="name">garden-soil</div><div class="hex">#A98559 → #7C5C38</div><div class="use">흙바닥</div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">03</span>
+      <h2>타이포 실태 — 개편 1순위</h2>
+      <span class="sec-note">임의 px값 전수 조사 · 241곳</span>
+    </div>
+    <p class="lead">
+      타이포 스케일 토큰이 없어 화면마다 <code>text-[11px]</code> 같은 임의값을 직접 쓴다.
+      그중 <b>11px 이하가 206곳</b> — 모바일 가독성에서 가장 먼저 손볼 지점이다.
+    </p>
+    <div class="chart" role="img" aria-label="임의 폰트 크기 사용 빈도. 11px 114회, 10px 83회, 13px 10회, 12px 5회, 9px 5회, 16px 5회, 8px 4회, 14px 4회, 18px 3회, 기타 8회.">
+      <div class="lab">11px</div><div class="track"><div class="bar warn" style="width:100%"></div></div><div class="val">114</div>
+      <div class="lab">10px</div><div class="track"><div class="bar warn" style="width:72.8%"></div></div><div class="val">83</div>
+      <div class="lab">13px</div><div class="track"><div class="bar" style="width:8.8%"></div></div><div class="val">10</div>
+      <div class="lab">12px</div><div class="track"><div class="bar" style="width:4.4%"></div></div><div class="val">5</div>
+      <div class="lab">9px</div><div class="track"><div class="bar warn" style="width:4.4%"></div></div><div class="val">5</div>
+      <div class="lab">16px</div><div class="track"><div class="bar" style="width:4.4%"></div></div><div class="val">5</div>
+      <div class="lab">8px</div><div class="track"><div class="bar warn" style="width:3.5%"></div></div><div class="val">4</div>
+      <div class="lab">14px</div><div class="track"><div class="bar" style="width:3.5%"></div></div><div class="val">4</div>
+      <div class="lab">18px</div><div class="track"><div class="bar" style="width:2.6%"></div></div><div class="val">3</div>
+      <div class="lab">기타</div><div class="track"><div class="bar" style="width:7%"></div></div><div class="val">8</div>
+    </div>
+    <div class="chart-key">
+      <span><span class="key-dot" style="background:var(--flag)"></span>11px 이하 — 교체 대상 206곳</span>
+      <span><span class="key-dot" style="background:var(--accent)"></span>12px 이상 35곳</span>
+      <span>가로축: 사용 횟수, 최대 114</span>
+    </div>
+    <p style="margin-top:18px">
+      본문 폰트는 <b>Pretendard Variable</b>(jsdelivr CDN). 계획서 §12에는 <code>system-ui, Noto Sans KR</code>로 적혀 있어
+      <b>문서와 코드가 어긋나 있고</b>, 외부 CDN 의존이라 오프라인 PWA에서 폴백된다.
+    </p>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">04</span>
+      <h2>화면 지도</h2>
+      <span class="sec-note">화면 17 · 라우트 18</span>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>화면</th><th>경로</th><th>구분</th><th>내용</th><th style="text-align:right">줄</th></tr></thead>
+        <tbody>
+          <tr><td>로그인</td><td class="path">/login</td><td>셸 밖</td><td>구글 로그인 · 게스트 시작 · 인앱 브라우저 감지</td><td class="num">263</td></tr>
+          <tr><td>승인 대기</td><td class="path">/pending</td><td>셸 밖</td><td>owner 승인 대기 안내</td><td class="num">165</td></tr>
+          <tr><td><b>오늘</b></td><td class="path">/</td><td>탭 1</td><td>상단바 + 순서 변경 가능한 위젯 12종</td><td class="num">550</td></tr>
+          <tr><td><b>습관</b></td><td class="path">/habits</td><td>탭 2</td><td>시간대별 0~5점 체크 · 묶음 일괄 건너뛰기 · 편집</td><td class="num">323</td></tr>
+          <tr><td><b>정원</b></td><td class="path">/garden</td><td>탭 3</td><td>화단 3×8 · 상점 · 도감 · 둘러보기</td><td class="num">855</td></tr>
+          <tr><td><b>신앙</b></td><td class="path">/prayers</td><td>탭 4 <span class="tag off">조건부</span></td><td>기도제목 로테이션 / 말씀 적용</td><td class="num">668</td></tr>
+          <tr><td><b>더보기</b></td><td class="path">/more</td><td>탭 5</td><td>프로필 · 바로가기 6 · 토글 3 · 휴가 모드 · PWA 설치</td><td class="num">392</td></tr>
+          <tr><td>플래너</td><td class="path">/planner</td><td>더보기</td><td>오늘·내일·모레 할 일 · 우선순위 · 장기 목표</td><td class="num">870</td></tr>
+          <tr><td>사용 설명서</td><td class="path">/tutorial</td><td>더보기</td><td>아코디언식 규칙 설명</td><td class="num">594</td></tr>
+          <tr><td>관리</td><td class="path">/admin</td><td>owner</td><td>가입 승인 · 문의 답변 · 시드 · 포인트 조정</td><td class="num">590</td></tr>
+          <tr><td>회고</td><td class="path">/reflection</td><td>오늘 탭</td><td>질문 답변 · 내일의 다짐 · +20P</td><td class="num">276</td></tr>
+          <tr><td>진척 현황</td><td class="path">/progress</td><td>더보기</td><td>레벨 · 배지 그리드 · 히트맵 · 주간 리포트</td><td class="num">218</td></tr>
+          <tr><td>컨디션</td><td class="path">/condition</td><td>더보기</td><td>슬라이더 · 수면 시각 다이얼 · 분석</td><td class="num">201</td></tr>
+          <tr><td>포인트 내역</td><td class="path">/points</td><td>더보기</td><td>획득/사용 필터 · 요일별 원장</td><td class="num">167</td></tr>
+          <tr><td>알림 설정</td><td class="path">/settings/notifications</td><td>더보기</td><td>푸시 권한 · 종류별 토글 · 방해금지</td><td class="num">158</td></tr>
+          <tr><td>지난 날</td><td class="path">/day/:date</td><td>딥링크</td><td>과거 하루 요약(읽기 전용)</td><td class="num">124</td></tr>
+          <tr><td>경건</td><td class="path">/devotion</td><td>신앙 ON</td><td>경건 · 감사 저널</td><td class="num">80</td></tr>
+          <tr><td style="color:var(--ink-3)">말씀 적용</td><td class="path" style="color:var(--ink-3)">/applications</td><td>—</td><td style="color:var(--ink-3)">신앙 탭으로 리다이렉트 (옛 딥링크 호환)</td><td class="num">—</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">05</span>
+      <h2>오늘 탭 위젯 12종</h2>
+      <span class="sec-note">사용자가 순서 변경 · 개별 숨김</span>
+    </div>
+    <p class="lead">
+      신규 사용자에게는 <b>3개만</b> 보인다. 개편안은 <b>위젯 3개인 화면</b>과 <b>12개 전부 켠 화면</b>이 둘 다 성립해야 한다.
+    </p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th style="width:34px">#</th><th>위젯</th><th>id</th><th>신규 기본</th><th>내용</th></tr></thead>
+        <tbody>
+          <tr><td class="num">1</td><td>아침 브리핑</td><td class="path">recap</td><td><span class="tag off">숨김</span></td><td>어제 돌아보기 + 오늘 브리프 + 어제 다짐 실천</td></tr>
+          <tr><td class="num">2</td><td><b>오늘의 습관</b></td><td class="path">habits</td><td><span class="tag on">표시</span></td><td>시간대별 미체크 요약 + 빠른 체크</td></tr>
+          <tr><td class="num">3</td><td><b>할 일 · 회고</b></td><td class="path">todos</td><td><span class="tag on">표시</span></td><td>오늘 할 일 + 회고 진입</td></tr>
+          <tr><td class="num">4</td><td><b>정원 미리보기</b></td><td class="path">garden</td><td><span class="tag on">표시</span></td><td>대표 식물 SVG + 생기 게이지</td></tr>
+          <tr><td class="num">5</td><td>내일 정원 예보</td><td class="path">forecast</td><td><span class="tag off">숨김</span></td><td>지금 상태면 내일 생기가 어떻게 되는지 선제 경고</td></tr>
+          <tr><td class="num">6</td><td>컨디션</td><td class="path">condition</td><td><span class="tag off">숨김</span></td><td>오늘 컨디션 입력 유도</td></tr>
+          <tr><td class="num">7</td><td>AI 코치</td><td class="path">coach</td><td><span class="tag off">숨김</span></td><td>Gemini 생성 피드백</td></tr>
+          <tr><td class="num">8</td><td>주간 퀘스트</td><td class="path">weeklyQuest</td><td><span class="tag off">숨김</span></td><td>주간 목표 진행률</td></tr>
+          <tr><td class="num">9</td><td>시즌 챌린지</td><td class="path">season</td><td><span class="tag off">숨김</span></td><td>시즌 이벤트</td></tr>
+          <tr><td class="num">10</td><td>1년 전 오늘</td><td class="path">oneYearAgo</td><td><span class="tag off">숨김</span></td><td>회상 카드</td></tr>
+          <tr><td class="num">11</td><td>컴백 환영</td><td class="path">comeback</td><td><span class="tag off">숨김</span></td><td>오래 쉬다 돌아온 사용자 환영</td></tr>
+          <tr><td class="num">12</td><td>기도 · 말씀</td><td class="path">faith</td><td><span class="tag off">숨김</span></td><td>신앙 기능 ON일 때만</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">06</span>
+      <h2>버튼 variant 실물</h2>
+      <span class="sec-note">앱 색 그대로 · 라이트 기준</span>
+    </div>
+    <div class="btnrow">
+      <span class="btn b-default">default</span>
+      <span class="btn b-secondary">secondary</span>
+      <span class="btn b-ghost">ghost</span>
+      <span class="btn b-outline">outline</span>
+      <span class="btn b-bloom">bloom</span>
+      <span class="btn b-destruct">destructive</span>
+    </div>
+    <p class="btn-note">
+      sizes: sm 32 · default 40 · lg 48 · icon 40×40 · radius 12px · 누름 <code>scale(0.97)</code> · 포커스 링 leaf 2px.
+      <b>destructive만 토큰 밖</b>(Tailwind red-100/700)이다.
+    </p>
+    <p style="margin-top:16px">
+      shadcn 래퍼는 <b>5개뿐</b>(button · tabs · dialog · switch · slider). 다만 Radix
+      accordion · label · select · separator · toast · tooltip은 <b>이미 설치돼 있어</b> 추가 설치 없이 만들 수 있다.
+    </p>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">07</span>
+      <h2>손대지 말 것</h2>
+      <span class="sec-note">05-constraints.md 요약</span>
+    </div>
+    <ul class="locks">
+      <li><b>포인트 · XP · 레벨 · 생기 규칙</b><span>서버(awardEngine · dailyReset)가 계산한다. 표현은 자유롭게, 수치는 그대로</span></li>
+      <li><b>04:00 KST 일일 경계</b><span>정산 · 스트릭 · 샘물 충전이 전부 여기 묶여 있다</span></li>
+      <li><b>owner 승인 게이팅</b><span>초대제 앱의 근간. 승인 대기 화면은 남는다</span></li>
+      <li><b>신앙 기능 기본 OFF</b><span>사적 영역이라 의도적으로 숨긴 것</span></li>
+      <li><b>30레벨 배지 디자인</b><span>3차 시안 끝에 확정한 자산(level_desigh/). 개편 대상 아님</span></li>
+      <li><b>탭 재탭 동작 규칙</b><span>정원 · 신앙 뷰 토글, 습관 시간대 스크롤</span></li>
+      <li><b>위젯 순서 변경 · 숨김 기능</b><span>사용자 데이터에 저장돼 있다. UI는 바꿔도 기능은 유지</span></li>
+      <li><b>게스트 모드</b><span>로그인 없이 전체 체험 → 가입 전환 경로</span></li>
+    </ul>
+    <p style="margin-top:16px">
+      <b>협의 후 진행</b>: 식물 SVG 아트 재제작(PlantSVG 1,077줄) · 탭 구성 변경 · 폰트 교체 · 다크 모드 추가 · 새 npm 의존성.
+    </p>
+  </section>
+
+  <footer>
+    전체 문서 6종 + <code>tokens.json</code>은 저장소 <code>docs/design-handoff/</code>.
+    이 페이지는 그중 <code>screens.html</code>의 사본이다. 충돌 시 <b>코드 &gt; 핸드오프 문서 &gt; 기존 계획서</b> 순으로 신뢰한다.
+  </footer>
+
+</div>
+</body>
+</html>
