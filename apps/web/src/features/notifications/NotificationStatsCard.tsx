@@ -63,7 +63,7 @@ export default function NotificationStatsCard() {
   const totalFailed = TYPES.reduce((s, t) => s + agg[t].failed, 0);
 
   return (
-    <section className="card p-4 space-y-3">
+    <section className="card-flat p-4 space-y-3">
       <div className="flex items-center gap-2">
         <BarChart3 size={16} className="text-[var(--leaf)]" />
         <h3 className="text-sm font-medium text-[var(--fg-primary)]">알림 통계</h3>

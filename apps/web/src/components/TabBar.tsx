@@ -26,7 +26,7 @@ export default function TabBar() {
     scrollToTop();
   };
   return (
-    <nav className="tab-bar-safe fixed bottom-0 left-0 right-0 z-40 flex border-t border-[var(--border)] bg-[var(--bg-surface)]">
+    <nav className="tab-bar-safe fixed bottom-0 left-0 right-0 z-40 flex border-t border-[var(--divider)] bg-[var(--bg-surface)]">
       <div data-tour="tabbar" className="mx-auto flex w-full max-w-[480px] items-center justify-around">
         {tabs.map(({ to, icon: Icon, label }) => {
           const badge = badges[to] ?? 0;
@@ -39,9 +39,9 @@ export default function TabBar() {
             onClick={(e) => handleReTap(e, to)}
             className={({ isActive }) =>
               cn(
-                'flex flex-1 flex-col items-center gap-0.5 py-2 text-xs transition-colors',
+                'flex flex-1 flex-col items-center gap-[5px] pb-3.5 pt-3 text-[11px] transition-colors',
                 isActive
-                  ? 'text-[var(--leaf)]'
+                  ? 'font-semibold text-[var(--leaf)]'
                   : 'text-[var(--fg-faint)]'
               )
             }
@@ -50,14 +50,14 @@ export default function TabBar() {
               <>
                 <span className="relative">
                   <Icon
-                    size={22}
-                    strokeWidth={isActive ? 2.2 : 1.8}
+                    size={20}
+                    strokeWidth={1.7}
                     className={isActive ? 'text-[var(--leaf)]' : 'text-[var(--fg-faint)]'}
                   />
                   {badge > 0 && (
                     <span
                       aria-label={`${badge}개 할 일`}
-                      className="absolute -right-2.5 -top-1.5 flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-[var(--bg-surface)]"
+                      className="absolute -right-2.5 -top-1.5 flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-[var(--bloom)] px-1 text-[10px] font-semibold leading-none text-white ring-2 ring-[var(--bg-surface)]"
                     >
                       {badge > 99 ? '99+' : badge}
                     </span>

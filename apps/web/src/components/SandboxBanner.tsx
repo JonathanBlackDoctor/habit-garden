@@ -16,7 +16,7 @@ export default function SandboxBanner() {
       className="fixed inset-x-0 top-0 z-[100] w-full bg-amber-500 px-3 text-center text-[11px] font-semibold text-white shadow-md"
       style={{ paddingTop: 'calc(env(safe-area-inset-top) + 4px)', paddingBottom: '4px' }}
     >
-      🧪 테스트 모드 — 실제 데이터가 아닙니다 · 탭하여 종료
+      테스트 모드 — 실제 데이터가 아닙니다 · 탭하여 종료
     </button>
   );
 }

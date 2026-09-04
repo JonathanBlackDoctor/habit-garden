@@ -55,7 +55,7 @@ export default function SignupCTA({
   // 미승인 정식 계정 — 승인 대기 안내
   if (!isGuest) {
     return (
-      <div className="rounded-[var(--radius)] border border-[var(--border-soft)] bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-sm)]">
+      <div className="rounded-[var(--radius)] border border-[var(--border-soft)] bg-[var(--bg-surface)] p-4">
         <div className="flex items-center gap-2">
           <Clock size={18} className="text-[var(--bloom)]" />
           <p className="text-sm font-medium text-[var(--fg-primary)]">승인 대기 중</p>
@@ -76,7 +76,7 @@ export default function SignupCTA({
 
   // 게스트 — Google 가입 유도
   return (
-    <div className="relative overflow-hidden rounded-[var(--radius)] border border-[var(--border-soft)] bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-sm)]">
+    <div className="relative overflow-hidden rounded-[var(--radius)] border border-[var(--border-soft)] bg-[var(--bg-surface)] p-4">
       <div
         aria-hidden
         className="absolute left-0 top-0 h-full w-[3px]"
@@ -90,7 +90,7 @@ export default function SignupCTA({
       <button
         onClick={onUpgrade}
         disabled={loading}
-        className="mt-3 flex w-full items-center justify-center gap-2 rounded-[var(--radius-sm)] bg-[var(--leaf)] px-4 py-2.5 text-sm font-medium text-white shadow-[var(--shadow-sm)] active:opacity-80 disabled:opacity-50"
+        className="mt-3 flex w-full items-center justify-center gap-2 rounded-[var(--radius-sm)] bg-[var(--leaf)] px-4 py-2.5 text-sm font-medium text-white active:opacity-80 disabled:opacity-50"
       >
         {loading ? '연결 중…' : 'Google로 가입하고 내 기록 지키기'}
         {!loading && <ArrowRight size={16} />}

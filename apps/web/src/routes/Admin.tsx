@@ -229,7 +229,7 @@ export default function Admin() {
         <button onClick={() => navigate(-1)} className="text-[var(--fg-muted)]">
           <ChevronLeft size={22} />
         </button>
-        <h2 className="text-base font-semibold text-[var(--fg-primary)]">관리</h2>
+        <h2 className="text-[24px] font-semibold tracking-[-0.01em] text-[var(--fg-primary)]">관리</h2>
       </div>
 
       {/* 알림 통계 (전달/오픈 트래킹) — 본인 데이터 */}
@@ -237,7 +237,7 @@ export default function Admin() {
 
       {/* 사용자 승인 (owner 전용) */}
       {showAdminControls && (
-        <section className="card p-4 space-y-3">
+        <section className="card-flat p-4 space-y-3">
           <h3 className="text-sm font-medium text-[var(--fg-primary)]">
             대기 중인 사용자 ({pending.length})
           </h3>
@@ -311,7 +311,7 @@ export default function Admin() {
 
       {/* 문의 / 버그 신고 (owner 전용) */}
       {showAdminControls && (
-        <section className="card p-4 space-y-3">
+        <section className="card-flat p-4 space-y-3">
           <div className="flex items-center gap-2">
             <MessageCircle size={16} className="text-[var(--leaf)]" />
             <h3 className="text-sm font-medium text-[var(--fg-primary)]">
@@ -373,7 +373,7 @@ export default function Admin() {
 
       {/* 개발자 테스트 (owner 전용) */}
       {showAdminControls && (
-        <section className="card p-4 space-y-3">
+        <section className="card-flat p-4 space-y-3">
           <div className="flex items-center gap-2">
             <FlaskConical size={16} className="text-[var(--bloom)]" />
             <h3 className="text-sm font-medium text-[var(--fg-primary)]">개발자 테스트</h3>
@@ -392,14 +392,14 @@ export default function Admin() {
 
           {sandbox && (
             <p className="rounded-md bg-amber-500/10 px-3 py-2 text-[11px] font-medium text-amber-600">
-              🧪 현재 테스트 공간입니다. 실제 데이터는 그대로 보존됩니다.
+              현재 테스트 공간입니다. 실제 데이터는 그대로 보존됩니다.
             </p>
           )}
         </section>
       )}
 
       {/* 기본 습관 */}
-      <section className="card p-4 space-y-3">
+      <section className="card-flat p-4 space-y-3">
         <h3 className="text-sm font-medium text-[var(--fg-primary)]">기본 데이터</h3>
         <p className="text-xs text-[var(--fg-muted)]">
           기본 습관 8개를 처음 추가합니다. 이미 추가된 경우 중복됩니다.
@@ -441,7 +441,7 @@ export default function Admin() {
           <p className="text-sm text-[var(--fg-faint)] text-center py-8">습관이 없습니다. 기본 습관을 추가해보세요.</p>
         )}
         {habits.map((habit) => (
-          <div key={habit.id} className="card p-3 flex items-center gap-3">
+          <div key={habit.id} className="card-flat p-3 flex items-center gap-3">
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-[var(--fg-primary)] truncate">{habit.title}</p>
               <p className="text-xs text-[var(--fg-muted)]">

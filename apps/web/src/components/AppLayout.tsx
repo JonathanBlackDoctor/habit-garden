@@ -47,7 +47,8 @@ export default function AppLayout() {
           className="fixed inset-0 mx-auto flex max-w-[480px] flex-col bg-[var(--bg-base)]"
           style={{
             paddingTop: 'env(safe-area-inset-top)',
-            paddingBottom: 'calc(64px + env(safe-area-inset-bottom))',
+            // 탭바 실측 높이와 맞춘다: 콘텐츠 67px + .tab-bar-safe 의 max(safe-area, 8px)
+            paddingBottom: 'calc(67px + max(env(safe-area-inset-bottom), 8px))',
           }}
         >
           <div ref={hostRef} className="flex-1 min-h-0 overflow-hidden">

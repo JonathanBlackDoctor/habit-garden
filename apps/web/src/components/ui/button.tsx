@@ -8,11 +8,11 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default:   'bg-[var(--leaf)] text-white shadow-[var(--shadow-sm)] hover:opacity-90 active:opacity-80',
+        default:   'bg-[var(--leaf)] text-white hover:opacity-90 active:opacity-80',
         secondary: 'bg-[var(--leaf-soft)] text-[var(--leaf)] hover:opacity-90',
         ghost:     'hover:bg-[var(--leaf-soft)] text-[var(--fg-muted)]',
         outline:   'border border-[var(--border)] bg-transparent hover:bg-[var(--leaf-soft)]',
-        bloom:     'bg-[var(--bloom)] text-white shadow-[var(--shadow-sm)] hover:opacity-90',
+        bloom:     'bg-[var(--bloom)] text-white hover:opacity-90',
         destructive: 'bg-red-100 text-red-700 hover:bg-red-200',
       },
       size: {

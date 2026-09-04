@@ -108,12 +108,12 @@ export default function Condition() {
         <button onClick={() => navigate(-1)} className="text-[var(--fg-muted)]">
           <ChevronLeft size={22} />
         </button>
-        <h2 className="text-base font-semibold text-[var(--fg-primary)]">컨디션</h2>
+        <h2 className="text-[24px] font-semibold tracking-[-0.01em] text-[var(--fg-primary)]">컨디션</h2>
       </div>
       {isPast && <PastDateBanner date={date} />}
 
       {/* 눈금 휠 — 수면·에너지 (좌우로 밀어 조절) */}
-      <section className="card p-4 space-y-6">
+      <section className="card-flat p-4 space-y-6">
         <RulerPicker
           label="수면 점수"
           value={cond.sleepScore}
@@ -163,7 +163,7 @@ export default function Condition() {
       </section>
 
       {/* 수면 시각 */}
-      <section className="card p-4 space-y-3">
+      <section className="card-flat p-4 space-y-3">
         <h3 className="text-sm font-medium text-[var(--fg-primary)]">수면 시각</h3>
         <div className="flex gap-4">
           <div className="flex-1 space-y-1">

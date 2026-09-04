@@ -25,12 +25,13 @@ function levelFromScore(score: number): 0 | 1 | 2 | 3 | 4 {
   return 4;
 }
 
+// 7일 리듬 그래프와 같은 초록 램프 (leaf-soft → leaf-mid → leaf)
 const LEVEL_COLORS = [
   'var(--leaf-soft)',
-  '#CDE2B0',
-  '#9BC772',
-  '#6FA847',
-  '#3F6228',
+  'color-mix(in srgb, var(--leaf-mid) 45%, var(--leaf-soft))',
+  'var(--leaf-mid)',
+  'color-mix(in srgb, var(--leaf) 60%, var(--leaf-mid))',
+  'var(--leaf)',
 ];
 
 export default function HabitHeatmap() {
@@ -85,7 +86,7 @@ export default function HabitHeatmap() {
   }, [scoreMap]);
 
   return (
-    <div className="card p-4 space-y-3">
+    <div className="card-flat p-4 space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-medium text-[var(--fg-primary)]">1년 잔디</h3>
         <span className="text-[10px] text-[var(--fg-faint)]">

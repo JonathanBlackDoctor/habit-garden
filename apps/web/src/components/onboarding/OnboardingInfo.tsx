@@ -79,7 +79,7 @@ export function DataSafetySection({ delay = 0 }: { delay?: number }) {
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.55, delay, ease: [0.22, 1, 0.36, 1] }}
-      className="mt-8 rounded-[var(--radius-lg)] border border-[var(--border-soft)] bg-[var(--bg-surface)]/80 p-5 shadow-[var(--shadow-sm)] backdrop-blur-sm"
+      className="mt-8 rounded-[var(--radius-lg)] border border-[var(--border-soft)] bg-[var(--bg-surface)]/80 p-5 backdrop-blur-sm"
     >
       <div className="flex items-start gap-3">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--leaf-soft)]">
@@ -115,7 +115,7 @@ function FeatureRow({
 }: { icon: React.ReactNode; title: string; desc: string; tone: Tone }) {
   const t = toneStyles[tone];
   return (
-    <div className="flex items-start gap-3 rounded-[var(--radius-lg)] border border-[var(--border-soft)] bg-[var(--bg-surface)]/80 p-4 shadow-[var(--shadow-sm)] backdrop-blur-sm">
+    <div className="flex items-start gap-3 rounded-[var(--radius-lg)] border border-[var(--border-soft)] bg-[var(--bg-surface)]/80 p-4 backdrop-blur-sm">
       <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${t.bg} ${t.fg}`}>
         {icon}
       </div>

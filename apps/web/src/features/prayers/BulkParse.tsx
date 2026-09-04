@@ -224,7 +224,7 @@ export default function BulkParse({
                     </select>
                     <select value={it.target} onChange={(e) => patch(idx, { target: e.target.value })} className={SELECT_CLS}>
                       {(targets.includes(it.target) ? targets : [it.target, ...targets]).map((t) => (
-                        <option key={t} value={t}>🙏 {t}</option>
+                        <option key={t} value={t}>{t}</option>
                       ))}
                     </select>
                     <select value={it.priority} onChange={(e) => patch(idx, { priority: e.target.value as PrayerPriority })} className={SELECT_CLS}>

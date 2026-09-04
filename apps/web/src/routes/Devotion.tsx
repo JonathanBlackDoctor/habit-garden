@@ -46,7 +46,7 @@ function DevotionInner() {
         <button onClick={() => navigate(-1)} className="text-[var(--fg-muted)]">
           <ChevronLeft size={22} />
         </button>
-        <h2 className="text-base font-semibold text-[var(--fg-primary)]">경건 · 감사</h2>
+        <h2 className="text-[24px] font-semibold tracking-[-0.01em] text-[var(--fg-primary)]">경건 · 감사</h2>
       </div>
 
       <div className="flex gap-2">
@@ -67,10 +67,10 @@ function DevotionInner() {
 
       <div className="space-y-2">
         {entries.length === 0 && (
-          <p className="text-center text-sm text-[var(--fg-faint)] py-8">🙏 오늘의 감사와 기도를 기록해보세요.</p>
+          <p className="text-center text-sm text-[var(--fg-faint)] py-8">오늘의 감사와 기도를 기록해보세요.</p>
         )}
         {entries.map((e) => (
-          <div key={e.id} className="card p-3 text-sm text-[var(--fg-primary)]">
+          <div key={e.id} className="card-flat p-3 text-sm text-[var(--fg-primary)]">
             {e.text}
           </div>
         ))}

@@ -27,7 +27,7 @@ export function WeeklyDigestCard({
     <motion.div
       initial={{ opacity: 0, y: -6 }}
       animate={{ opacity: 1, y: 0 }}
-      className="card space-y-2.5 bg-gradient-to-br from-[var(--bg-base)] to-white p-3"
+      className="card-flat space-y-2.5 bg-gradient-to-br from-[var(--bg-base)] to-white p-3"
     >
       <div className="flex items-center gap-1.5 text-xs font-medium text-[var(--leaf)]">
         <Sparkles size={13} /> 이번 주 기도 회고
@@ -42,7 +42,7 @@ export function WeeklyDigestCard({
             <span>총 {digest.totalChecks}회 기도</span>
             <span>집중 모임: {digest.topGroup}</span>
             {digest.answeredCount > 0 && (
-              <span className="text-[var(--leaf)]">응답 {digest.answeredCount}건 ✨</span>
+              <span className="text-[var(--leaf)]">응답 {digest.answeredCount}건</span>
             )}
             {pendingToday != null && pendingToday > 0 && (
               <span>오늘 대기 {pendingToday}개</span>

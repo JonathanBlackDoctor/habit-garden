@@ -62,18 +62,18 @@ export function PrayerCheckCard({
   onOpen: () => void;
 }) {
   return (
-    <div className="card flex items-start gap-3 p-3">
+    <div className="flex items-start gap-3 border-t border-[var(--divider)] py-3">
       <button
         onClick={() => (checked ? onUncheck() : onCheck())}
         className={cn(
-          'mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition-colors',
+          'order-last mt-0.5 flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border-[1.6px] transition-colors',
           checked
             ? 'border-[var(--leaf)] bg-[var(--leaf)] text-white'
-            : 'border-[var(--border)] bg-white text-transparent'
+            : 'border-[var(--border)] bg-transparent text-transparent'
         )}
         aria-label={checked ? '기도 취소' : '기도 완료'}
       >
-        <Check size={16} strokeWidth={3} />
+        <Check size={12} strokeWidth={2.6} />
       </button>
       <button onClick={onOpen} className="min-w-0 flex-1 text-left">
         <div className="flex items-center gap-1.5">
@@ -85,7 +85,7 @@ export function PrayerCheckCard({
         <div className="mt-0.5 flex items-center gap-1.5">
           <GroupBadge group={prayer.group} />
           {prayer.target && (
-            <span className="truncate text-[11px] text-[var(--fg-muted)]">🙏 {prayer.target}</span>
+            <span className="truncate text-[11px] text-[var(--fg-muted)]">{prayer.target}</span>
           )}
           {prayer.streak > 1 && (
             <span className="flex items-center gap-0.5 text-[10px] text-[var(--bloom)]">
@@ -128,7 +128,7 @@ export function PrayerListCard({
       <div className="mt-1 flex flex-wrap items-center gap-1.5">
         <GroupBadge group={prayer.group} />
         {prayer.target && (
-          <span className="text-[11px] text-[var(--fg-muted)]">🙏 {prayer.target}</span>
+          <span className="text-[11px] text-[var(--fg-muted)]">{prayer.target}</span>
         )}
         {prayer.batchId && (
           <span className="flex items-center gap-0.5 rounded-full bg-[var(--bg-base)] px-1.5 py-0.5 text-[10px] text-[var(--fg-muted)]">
@@ -141,8 +141,8 @@ export function PrayerListCard({
         </span>
       </div>
       {prayer.status === 'answered' && prayer.answerNote && (
-        <p className="mt-1.5 rounded bg-[var(--leaf-soft)] px-2 py-1 text-[11px] text-[var(--leaf)]">
-          ✨ {prayer.answerNote}
+        <p className="mt-1.5 rounded-[var(--radius-sm)] bg-[var(--leaf-soft)] px-2 py-1 text-[11px] text-[var(--leaf)]">
+          {prayer.answerNote}
         </p>
       )}
     </>
@@ -153,8 +153,8 @@ export function PrayerListCard({
       <button
         onClick={onToggleSelect}
         className={cn(
-          'card flex w-full items-start gap-3 p-3 text-left transition-colors',
-          selected && 'ring-2 ring-[var(--leaf)]'
+          'flex w-full items-start gap-3 border-t border-[var(--divider)] py-3 text-left transition-colors',
+          selected && 'bg-[var(--leaf-soft)]/40'
         )}
       >
         <span
@@ -171,7 +171,7 @@ export function PrayerListCard({
   }
 
   return (
-    <button onClick={onOpen} className="card w-full p-3 text-left">
+    <button onClick={onOpen} className="w-full border-t border-[var(--divider)] py-3 text-left">
       {inner}
     </button>
   );
@@ -673,7 +673,7 @@ export function PrayerDetailDialog({
           <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-2">
               <GroupBadge group={prayer.group} />
-              {prayer.target && <span className="text-xs text-[var(--fg-muted)]">🙏 {prayer.target}</span>}
+              {prayer.target && <span className="text-xs text-[var(--fg-muted)]">{prayer.target}</span>}
               <span className="text-xs text-[var(--fg-muted)]">{PRAYER_PRIORITY_LABELS[prayer.priority]}</span>
               <span className="text-xs text-[var(--fg-faint)]">· {prayer.prayCount}회 기도</span>
               {tsToLabel(prayer.receivedAt) && (

@@ -104,7 +104,7 @@ export default function More() {
 
   return (
     <div className="min-h-screen p-4 space-y-2">
-      <h2 className="py-2 text-base font-semibold text-[var(--fg-primary)]">더보기</h2>
+      <h2 className="py-2 text-[24px] font-semibold tracking-[-0.01em] text-[var(--fg-primary)]">더보기</h2>
 
       {/* 가입 유도 — 게스트/미승인 사용자 */}
       {!isPremium && (
@@ -121,7 +121,7 @@ export default function More() {
         <button
           key={to}
           onClick={() => navigate(to)}
-          className="flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3.5 text-sm text-[var(--fg-primary)] shadow-[var(--shadow-sm)] active:opacity-70"
+          className="flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3.5 text-sm text-[var(--fg-primary)] active:opacity-70"
         >
           <Icon size={18} className="text-[var(--leaf)]" />
           {label}
@@ -131,7 +131,7 @@ export default function More() {
       {/* 인터랙티브 온보딩 다시 보기 (웰컴 + 화면 가이드) */}
       <button
         onClick={startOnboarding}
-        className="flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3.5 text-sm text-[var(--fg-primary)] shadow-[var(--shadow-sm)] active:opacity-70"
+        className="flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3.5 text-sm text-[var(--fg-primary)] active:opacity-70"
       >
         <Sparkles size={18} className="text-[var(--leaf)]" />
         튜토리얼 다시 보기
@@ -141,7 +141,7 @@ export default function More() {
       <p className="px-1 pt-3 text-[11px] font-medium text-[var(--fg-faint)]">함께하기</p>
       <button
         onClick={onShare}
-        className="flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3.5 text-sm text-[var(--fg-primary)] shadow-[var(--shadow-sm)] active:opacity-70 text-left"
+        className="flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3.5 text-sm text-[var(--fg-primary)] active:opacity-70 text-left"
       >
         <Share2 size={18} className="text-[var(--leaf)]" />
         <div className="flex-1">
@@ -151,7 +151,7 @@ export default function More() {
       </button>
       <button
         onClick={() => setContactOpen(true)}
-        className="flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3.5 text-sm text-[var(--fg-primary)] shadow-[var(--shadow-sm)] active:opacity-70 text-left"
+        className="flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3.5 text-sm text-[var(--fg-primary)] active:opacity-70 text-left"
       >
         <MessageCircle size={18} className="text-[var(--leaf)]" />
         <div className="flex-1">
@@ -167,7 +167,7 @@ export default function More() {
       {isPremium && (
         <button
           onClick={() => navigate('/settings/notifications')}
-          className="flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3.5 text-sm text-[var(--fg-primary)] shadow-[var(--shadow-sm)] active:opacity-70 text-left"
+          className="flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3.5 text-sm text-[var(--fg-primary)] active:opacity-70 text-left"
         >
           <Bell size={18} className="text-[var(--leaf)]" />
           <div className="flex-1">
@@ -179,7 +179,7 @@ export default function More() {
           <ChevronRight size={16} className="text-[var(--fg-faint)]" />
         </button>
       )}
-      <div className="rounded-[var(--radius)] bg-[var(--bg-surface)] shadow-[var(--shadow-sm)] divide-y divide-[var(--leaf-soft)]">
+      <div className="rounded-[var(--radius)] bg-[var(--bg-surface)] divide-y divide-[var(--leaf-soft)]">
         <ToggleRow
           icon={<Vibrate size={18} className="text-[var(--leaf)]" />}
           label="햅틱"
@@ -212,7 +212,7 @@ export default function More() {
       {/* 오늘 탭 위젯 순서 편집 */}
       <button
         onClick={() => { openWidgetEdit(); navigate('/'); }}
-        className="flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3.5 text-sm text-[var(--fg-primary)] shadow-[var(--shadow-sm)] active:opacity-70 text-left"
+        className="flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3.5 text-sm text-[var(--fg-primary)] active:opacity-70 text-left"
       >
         <LayoutGrid size={18} className="text-[var(--leaf)]" />
         <div className="flex-1">
@@ -225,7 +225,7 @@ export default function More() {
       {faithEnabled && (
         <button
           onClick={() => setTaxonomyOpen(true)}
-          className="flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3.5 text-sm text-[var(--fg-primary)] shadow-[var(--shadow-sm)] active:opacity-70 text-left"
+          className="flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3.5 text-sm text-[var(--fg-primary)] active:opacity-70 text-left"
         >
           <Tags size={18} className="text-[var(--leaf)]" />
           <div className="flex-1">
@@ -240,7 +240,7 @@ export default function More() {
       {faithEnabled && isPremium && (
         <button
           onClick={() => setLifeCtxOpen(true)}
-          className="flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3.5 text-sm text-[var(--fg-primary)] shadow-[var(--shadow-sm)] active:opacity-70 text-left"
+          className="flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3.5 text-sm text-[var(--fg-primary)] active:opacity-70 text-left"
         >
           <Leaf size={18} className="text-[var(--leaf)]" />
           <div className="flex-1">
@@ -260,7 +260,7 @@ export default function More() {
       {!isStandalone && (
         <button
           onClick={onInstallClick}
-          className="flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3.5 text-sm text-[var(--fg-primary)] shadow-[var(--shadow-sm)] active:opacity-70 text-left"
+          className="flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3.5 text-sm text-[var(--fg-primary)] active:opacity-70 text-left"
         >
           <Download size={18} className="text-[var(--leaf)]" />
           <div className="flex-1">
@@ -277,7 +277,7 @@ export default function More() {
           }
           signOutUser();
         }}
-        className="flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3.5 text-sm text-red-500 shadow-[var(--shadow-sm)] active:opacity-70 mt-2"
+        className="flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3.5 text-sm text-red-500 active:opacity-70 mt-2"
       >
         <LogOut size={18} />
         {isGuest ? '게스트 종료' : '로그아웃'}

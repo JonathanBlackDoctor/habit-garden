@@ -120,7 +120,7 @@ export default function Reflection() {
         <button onClick={() => navigate(-1)} className="text-[var(--fg-muted)]">
           <ChevronLeft size={22} />
         </button>
-        <h2 className="text-base font-semibold text-[var(--fg-primary)]">하루 회고</h2>
+        <h2 className="text-[24px] font-semibold tracking-[-0.01em] text-[var(--fg-primary)]">하루 회고</h2>
         {completed && <CheckCircle2 size={18} className="text-[var(--leaf)] ml-auto" />}
       </div>
       {isPast && <PastDateBanner date={date} />}
@@ -166,7 +166,7 @@ export default function Reflection() {
             <div
               key={q.id}
               className={cn(
-                'card p-4 space-y-2',
+                'card-flat p-4 space-y-2',
                 isTomorrow && 'border border-[var(--bloom)]/35',
               )}
             >
@@ -196,7 +196,7 @@ export default function Reflection() {
       </div>
 
       {/* 오늘 하루 만족도 — 주관적 자기평가 (컨디션 분석의 종속변수) */}
-      <div className="card p-4 space-y-2.5">
+      <div className="card-flat p-4 space-y-2.5">
         <div className="flex items-center justify-between">
           <label className="flex items-center gap-1.5 text-sm font-medium text-[var(--fg-primary)]">
             <Gauge size={15} className="text-[var(--bloom)]" />
@@ -230,7 +230,7 @@ export default function Reflection() {
       </div>
 
       {/* 오늘 스마트폰 사용 시간 */}
-      <div className="card p-4 space-y-2.5">
+      <div className="card-flat p-4 space-y-2.5">
         <label className="flex items-center gap-1.5 text-sm font-medium text-[var(--fg-primary)]">
           <Smartphone size={15} className="text-[var(--sky)]" />
           오늘 스마트폰 사용 시간

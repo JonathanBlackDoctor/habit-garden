@@ -25,8 +25,15 @@
     --border:      #DDE5D0;
     --border-soft: #EAF0E0;
 
+    /* ── Habit Garden Mobile 리스킨 토큰 ──
+       카드·이모지·뱃지를 걷어낸 담백한 톤. 위 팔레트는 그대로 두고 네 값만 추가한다. */
+    --leaf-mid:     #96B67C;   /* 7일 리듬 그래프의 지난 일자 막대 */
+    --divider:      #E3E8D8;   /* 탭바·섹션 상단 구분선 (border 보다 밝음) */
+    --divider-soft: #F1F4EA;   /* 카드 '내부' 행 구분선 */
+
     --radius:      12px;
     --radius-sm:   8px;
+    --radius-md:   14px;
     --radius-lg:   16px;
     --radius-full: 999px;
 
@@ -75,6 +82,28 @@
   /* ── 공통 카드 ── */
   .card {
     @apply rounded-[var(--radius)] border border-[var(--border-soft)] bg-[var(--bg-surface)] shadow-[var(--shadow-sm)];
+  }
+
+  /* ── 리스킨 카드 — 그림자 없이 테두리만. 디자인의 기본 면(面) ── */
+  .card-flat {
+    @apply rounded-[var(--radius-lg)] border border-[var(--border-soft)] bg-[var(--bg-surface)];
+  }
+
+  /* 현재 시간대처럼 '지금 할 것'만 살짝 떠 보이게 한다 */
+  .card-raised {
+    @apply rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--bg-surface)];
+    box-shadow: 0 6px 16px -8px rgba(42, 46, 39, 0.14);
+  }
+
+  /* 카드 내부 행 구분선 — 행을 카드로 쪼개지 않고 선으로만 나눈다 */
+  .row-divide > * + * {
+    border-top: 1px solid var(--divider-soft);
+  }
+
+  /* 섹션 kicker — 12px / 600 / 넓은 자간 */
+  .kicker {
+    @apply text-[12px] font-semibold text-[var(--fg-faint)];
+    letter-spacing: 0.12em;
   }
 
   /* ── 탭바 안전 영역 ── */

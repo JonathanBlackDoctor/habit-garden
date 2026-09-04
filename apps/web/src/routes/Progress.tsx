@@ -47,11 +47,11 @@ export default function Progress() {
 
   return (
     <div className="min-h-screen p-4 space-y-4 pb-8">
-      <h2 className="text-base font-semibold text-[var(--fg-primary)] pt-2">진척 현황</h2>
+      <h2 className="text-[24px] font-semibold tracking-[-0.01em] text-[var(--fg-primary)] pt-2">진척 현황</h2>
 
       {/* 스트릭 */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="card p-3 text-center">
+        <div className="card-flat p-3 text-center">
           <motion.div key={bloomKey} initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 420, damping: 16 }}>
             <Flame size={20} className="text-[var(--bloom)] mx-auto mb-1" />
           </motion.div>
@@ -60,7 +60,7 @@ export default function Progress() {
           </p>
           <p className="text-xs text-[var(--fg-muted)]">현재 스트릭</p>
         </div>
-        <div className="card p-3 text-center">
+        <div className="card-flat p-3 text-center">
           <motion.div key={bloomKey} initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 420, damping: 16 }}>
             <Star size={20} className="text-[var(--bloom)] mx-auto mb-1" />
           </motion.div>
@@ -72,19 +72,20 @@ export default function Progress() {
       </div>
 
       {/* 잔디 히트맵 */}
-      <div className="card p-4 space-y-2">
+      <div className="card-flat p-4 space-y-2">
         <h3 className="text-sm font-medium text-[var(--fg-primary)]">최근 30일 · 탭하여 수정</h3>
         <div className="flex flex-wrap gap-1">
           {Array.from({ length: 30 }).map((_, i) => {
             const date = last30Dates[i];
             const score = scoreByDate.get(date) ?? 0;
+            // 7일 리듬 그래프와 같은 초록 램프 (leaf-soft → leaf-mid → leaf)
             const bg = score === 0
               ? 'var(--leaf-soft)'
               : score < 40
-              ? '#B8D89A'
+              ? 'color-mix(in srgb, var(--leaf-mid) 45%, var(--leaf-soft))'
               : score < 70
-              ? '#7CB95B'
-              : '#4F7A37';
+              ? 'var(--leaf-mid)'
+              : 'var(--leaf)';
             const dayNum = Number(date.slice(8, 10));
             return (
               <button

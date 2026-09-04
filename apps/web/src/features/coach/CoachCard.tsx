@@ -8,7 +8,7 @@ export default function CoachCard() {
   if (error) return null;
   if (loading && !data) {
     return (
-      <div className="card flex items-center gap-2 px-3 py-2 text-xs text-[var(--fg-muted)]">
+      <div className="card-flat flex items-center gap-2 px-3 py-2 text-xs text-[var(--fg-muted)]">
         <Sparkles size={14} className="text-[var(--leaf)] animate-pulse" />
         오늘의 한마디 준비 중…
       </div>

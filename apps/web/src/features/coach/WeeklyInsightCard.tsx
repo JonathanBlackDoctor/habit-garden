@@ -5,7 +5,7 @@ export default function WeeklyInsightCard() {
   const { data, loading, refresh } = useWeeklyCoach();
 
   return (
-    <div className="card p-4 space-y-2">
+    <div className="card-flat p-4 space-y-2">
       <div className="flex items-center justify-between">
         <h3 className="flex items-center gap-1.5 text-sm font-medium text-[var(--fg-primary)]">
           <Brain size={14} className="text-[var(--leaf)]" />

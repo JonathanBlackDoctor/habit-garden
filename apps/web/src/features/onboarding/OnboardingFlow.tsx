@@ -14,7 +14,7 @@ const MAIN_TOUR_STEPS: Step[] = [
   {
     target: '[data-tour="hero"]',
     title: '오늘 한눈에 보기',
-    body: '오늘 날짜와 🔥스트릭(연속 성공일)을 여기서 한눈에 확인해요.',
+    body: '오늘 날짜와 스트릭(연속 성공일)을 여기서 한눈에 확인해요.',
   },
   {
     target: '[data-tour="today"]',

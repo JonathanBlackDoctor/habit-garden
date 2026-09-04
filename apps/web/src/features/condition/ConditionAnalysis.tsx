@@ -166,7 +166,7 @@ export default function ConditionAnalysis() {
 
   if (recordedCount < 3) {
     return (
-      <section className="card p-4 space-y-2">
+      <section className="card-flat p-4 space-y-2">
         <div className="flex items-center gap-2">
           <BarChart3 size={16} className="text-[var(--leaf)]" />
           <h3 className="text-sm font-medium text-[var(--fg-primary)]">컨디션 분석</h3>
@@ -181,7 +181,7 @@ export default function ConditionAnalysis() {
   const hasDriverAvg = sleep.recent !== null || energy.recent !== null || avgDuration !== null;
 
   return (
-    <section className="card p-4 space-y-3">
+    <section className="card-flat p-4 space-y-3">
       <div className="flex items-center gap-2">
         <BarChart3 size={16} className="text-[var(--leaf)]" />
         <h3 className="text-sm font-medium text-[var(--fg-primary)]">컨디션 분석</h3>

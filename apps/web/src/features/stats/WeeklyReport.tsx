@@ -3,6 +3,7 @@ import { collection, collectionGroup, onSnapshot, query, where, orderBy, limit }
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import type { DayDoc, HabitCheckDoc, HabitDoc } from 'shared/types/firestore';
+import { lastNDates } from '@/lib/dayBoundary';
 import { TrendingUp, TrendingDown, Star } from 'lucide-react';
 
 /**
@@ -12,17 +13,6 @@ import { TrendingUp, TrendingDown, Star } from 'lucide-react';
  * - 가장 미흡한 습관 1개
  * - 전주 대비 평균 dayScore 차이
  */
-function lastNDates(today: string, n: number): string[] {
-  const out: string[] = [];
-  const t = new Date(today);
-  for (let i = n - 1; i >= 0; i--) {
-    const d = new Date(t);
-    d.setDate(d.getDate() - i);
-    out.push(d.toISOString().slice(0, 10));
-  }
-  return out;
-}
-
 export default function WeeklyReport() {
   const uid = useAppStore((s) => s.uid);
   const today = useAppStore((s) => s.currentDate);
@@ -109,7 +99,7 @@ export default function WeeklyReport() {
   }, [days, habits, checks, today]);
 
   return (
-    <div className="card p-4 space-y-3">
+    <div className="card-flat p-4 space-y-3">
       <h3 className="text-sm font-medium text-[var(--fg-primary)]">이번 주 리포트</h3>
 
       <div className="grid grid-cols-3 gap-2 text-center">
@@ -137,7 +127,7 @@ export default function WeeklyReport() {
           <p className="text-[10px] text-[var(--fg-faint)]">잘한 습관 TOP 3</p>
           {report.top3.map((r, i) => (
             <div key={r.habit.id} className="flex items-center gap-2 text-xs">
-              <span className="text-[var(--bloom)]">{['🥇', '🥈', '🥉'][i]}</span>
+              <span className="w-3 tabular-nums text-[var(--fg-faint)]">{i + 1}</span>
               <span className="flex-1 text-[var(--fg-primary)]">{r.habit.title}</span>
               <span className="tabular-nums text-[var(--fg-muted)]">{r.achieved}/{r.total}</span>
             </div>
