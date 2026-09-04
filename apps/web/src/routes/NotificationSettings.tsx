@@ -55,18 +55,18 @@ export default function NotificationSettings() {
         <button onClick={() => navigate(-1)} className="text-[var(--fg-muted)]">
           <ChevronLeft size={22} />
         </button>
-        <h2 className="text-base font-semibold text-[var(--fg-primary)]">알림 설정</h2>
+        <h2 className="text-[24px] font-semibold tracking-[-0.01em] text-[var(--fg-primary)]">알림 설정</h2>
       </div>
 
       {!isPremium ? (
-        <p className="card p-4 text-sm leading-relaxed text-[var(--fg-muted)]">
+        <p className="card-flat p-4 text-sm leading-relaxed text-[var(--fg-muted)]">
           푸시 알림은 가입·승인된 사용자에게 제공돼요. 가입하면 시간대별 리마인더와
           모닝 브리프를 받아볼 수 있어요.
         </p>
       ) : (
         <>
           {/* 마스터 토글 */}
-          <div className="rounded-[var(--radius)] bg-[var(--bg-surface)] shadow-[var(--shadow-sm)]">
+          <div className="rounded-[var(--radius)] bg-[var(--bg-surface)]">
             <ToggleRow
               icon={<Bell size={18} className="text-[var(--leaf)]" />}
               label="푸시 알림"
@@ -80,7 +80,7 @@ export default function NotificationSettings() {
           {push ? (
             <>
               <p className="px-1 pt-1 text-[11px] font-medium text-[var(--fg-faint)]">알림 종류</p>
-              <div className="rounded-[var(--radius)] bg-[var(--bg-surface)] shadow-[var(--shadow-sm)] divide-y divide-[var(--leaf-soft)]">
+              <div className="rounded-[var(--radius)] bg-[var(--bg-surface)] divide-y divide-[var(--leaf-soft)]">
                 <ToggleRow
                   icon={<BellRing size={18} className="text-[var(--leaf)]" />}
                   label="습관 리마인더"

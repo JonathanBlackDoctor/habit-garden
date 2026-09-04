@@ -3,7 +3,6 @@ import { Activity } from 'lucide-react';
 import { useRecentReflections } from '@/features/habits/useReflections';
 import { useHabits } from '@/features/habits/useHabits';
 
-const MOOD_EMOJIS = ['😣', '😕', '😐', '🙂', '😄'];
 
 interface Row {
   habitId: string;
@@ -47,7 +46,7 @@ export default function CorrelationCard() {
   if (rows.length === 0) return null;
 
   return (
-    <div className="card p-4 space-y-3">
+    <div className="card-flat p-4 space-y-3">
       <div className="flex items-center gap-2">
         <Activity size={16} className="text-[var(--leaf)]" />
         <h3 className="text-sm font-medium text-[var(--fg-primary)]">습관별 기분</h3>
@@ -60,7 +59,18 @@ export default function CorrelationCard() {
           const idx = Math.min(4, Math.max(0, Math.round(r.avgMood) - 1));
           return (
             <li key={r.habitId} className="flex items-center gap-2 text-sm">
-              <span className="text-base">{MOOD_EMOJIS[idx]}</span>
+              <span className="flex h-4 w-8 shrink-0 items-end gap-[2px]" aria-hidden>
+                {[0, 1, 2, 3, 4].map((i) => (
+                  <i
+                    key={i}
+                    className="block w-[4px] rounded-[1px]"
+                    style={{
+                      height: `${(i + 1) * 20}%`,
+                      background: i <= idx ? 'var(--leaf)' : 'var(--leaf-soft)',
+                    }}
+                  />
+                ))}
+              </span>
               <span className="flex-1 truncate text-[var(--fg-primary)]">{r.title}</span>
               <span className="tabular-nums text-xs text-[var(--fg-muted)]">{r.avgMood.toFixed(1)}</span>
               <span className="tabular-nums text-[10px] text-[var(--fg-faint)]">({r.n})</span>

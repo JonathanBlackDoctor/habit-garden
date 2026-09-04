@@ -97,7 +97,7 @@ export default function HabitEditRow({ habit, groupSiblings }: Props) {
     >
       {hibernating && (
         <span className="self-start rounded-full bg-[var(--leaf-soft)] px-2 py-0.5 text-[11px] text-[var(--leaf)]">
-          🌙 휴면 중
+          휴면 중
         </span>
       )}
       <div className="flex items-center gap-2">

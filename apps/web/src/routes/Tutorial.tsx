@@ -39,7 +39,7 @@ export default function Tutorial() {
         >
           <ChevronLeft size={22} />
         </button>
-        <h2 className="text-base font-semibold text-[var(--fg-primary)]">사용 설명서</h2>
+        <h2 className="text-[24px] font-semibold tracking-[-0.01em] text-[var(--fg-primary)]">사용 설명서</h2>
       </div>
 
       {/* Intro */}
@@ -151,7 +151,7 @@ export default function Tutorial() {
           title="꾸준함을 한눈에 확인해요"
           desc="연속 달성일(스트릭), 히트맵, 주간/월간 통계로 성장 흐름을 추적합니다."
           bullets={[
-            '스트릭 🔥 — 기록한 습관의 60% 이상을 달성한 ‘성공한 날’이 이어지면 누적',
+            '스트릭 — 기록한 습관의 60% 이상을 달성한 ‘성공한 날’이 이어지면 누적',
             '히트맵 — 최근 활동 시각화',
           ]}
           details={
@@ -192,7 +192,7 @@ export default function Tutorial() {
 
         <button
           onClick={() => setAdvancedOpen((v) => !v)}
-          className="mt-3 flex w-full items-center justify-between rounded-[var(--radius-lg)] border border-[var(--border-soft)] bg-[var(--bg-surface)]/80 px-4 py-3 text-left shadow-[var(--shadow-sm)] backdrop-blur-sm active:opacity-70"
+          className="mt-3 flex w-full items-center justify-between rounded-[var(--radius-lg)] border border-[var(--border-soft)] bg-[var(--bg-surface)]/80 px-4 py-3 text-left backdrop-blur-sm active:opacity-70"
           aria-expanded={advancedOpen}
         >
           <span className="text-[13px] font-medium text-[var(--fg-primary)]">
@@ -265,7 +265,7 @@ export default function Tutorial() {
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.55, delay: 0.4, ease: EASE }}
-        className="rounded-[var(--radius-lg)] border border-[var(--border-soft)] bg-[var(--bg-surface)]/80 p-4 shadow-[var(--shadow-sm)] backdrop-blur-sm"
+        className="rounded-[var(--radius-lg)] border border-[var(--border-soft)] bg-[var(--bg-surface)]/80 p-4 backdrop-blur-sm"
       >
         <div className="flex items-start gap-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--leaf-soft)] text-[var(--leaf)]">
@@ -318,7 +318,7 @@ function StepCard({
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="rounded-[var(--radius-lg)] border border-[var(--border-soft)] bg-[var(--bg-surface)]/80 p-4 shadow-[var(--shadow-sm)] backdrop-blur-sm">
+    <div className="rounded-[var(--radius-lg)] border border-[var(--border-soft)] bg-[var(--bg-surface)]/80 p-4 backdrop-blur-sm">
       <div className="flex items-start gap-3">
         <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${t.bg} ${t.fg}`}>
           {icon}
@@ -390,7 +390,7 @@ function AdvancedItem({
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="rounded-[var(--radius-lg)] border border-[var(--border-soft)] bg-[var(--bg-surface)]/80 shadow-[var(--shadow-sm)] backdrop-blur-sm">
+    <div className="rounded-[var(--radius-lg)] border border-[var(--border-soft)] bg-[var(--bg-surface)]/80 backdrop-blur-sm">
       <button
         onClick={() => setOpen((v) => !v)}
         className="flex w-full items-center gap-3 p-3.5 text-left active:opacity-70"

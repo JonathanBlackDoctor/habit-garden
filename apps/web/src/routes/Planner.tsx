@@ -92,7 +92,7 @@ export default function Planner() {
         <button onClick={() => navigate(-1)} className="text-[var(--fg-muted)]">
           <ChevronLeft size={22} />
         </button>
-        <h2 className="text-base font-semibold text-[var(--fg-primary)]">플래너</h2>
+        <h2 className="text-[24px] font-semibold tracking-[-0.01em] text-[var(--fg-primary)]">플래너</h2>
       </div>
 
       {/* ───────── 장기 목표 요약 ───────── */}
@@ -130,7 +130,7 @@ export default function Planner() {
       <section className="space-y-3">
         <h3 className="text-sm font-semibold text-[var(--fg-primary)]">장기 목표</h3>
 
-        <div className="space-y-2 rounded-[var(--radius)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-sm)]">
+        <div className="space-y-2 rounded-[var(--radius)] bg-[var(--bg-surface)] p-3">
           <input
             value={longInput}
             onChange={(e) => setLongInput(e.target.value)}
@@ -341,10 +341,10 @@ function ArchiveSection({
 }
 
 function encourageCopy(total: number, done: number): string {
-  if (total === 0) return '오늘 할 일을 추가해보세요 🌱';
+  if (total === 0) return '오늘 할 일을 추가해보세요.';
   const remaining = total - done;
   if (done === 0) return '하나만 시작해볼까요?';
-  if (remaining === 0) return '오늘 할 일 완수! 🌿';
+  if (remaining === 0) return '오늘 할 일 완수';
   return `좋아요! ${remaining}개 남았어요`;
 }
 
@@ -396,7 +396,7 @@ function TodayTodoItem({
     return (
       <motion.div
         layout
-        className={`flex w-full items-center gap-2 rounded-[var(--radius)] bg-[var(--bg-surface)] px-3 shadow-[var(--shadow-sm)] ${isToday ? 'py-2.5' : 'py-2'}`}
+        className={`flex w-full items-center gap-2 rounded-[var(--radius)] bg-[var(--bg-surface)] px-3 ${isToday ? 'py-2.5' : 'py-2'}`}
       >
         <input
           autoFocus
@@ -424,7 +424,7 @@ function TodayTodoItem({
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -6 }}
-      className={`flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 shadow-[var(--shadow-sm)] ${isToday ? 'py-3.5' : 'py-3'}`}
+      className={`flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 ${isToday ? 'py-3.5' : 'py-3'}`}
     >
       <button onClick={onToggle} className="flex min-w-0 flex-1 items-center gap-3 text-left">
         <motion.div
@@ -609,7 +609,7 @@ function DayTodoList({
         <div className="flex items-center gap-3">
           <TodayProgressRing done={doneCount} total={todos.length} />
           <div className="min-w-0">
-            <h3 className="text-base font-semibold text-[var(--fg-primary)]">{title}</h3>
+            <h3 className="text-[24px] font-semibold tracking-[-0.01em] text-[var(--fg-primary)]">{title}</h3>
             <p className="text-sm text-[var(--leaf)]">{encourageCopy(todos.length, doneCount)}</p>
           </div>
         </div>
@@ -715,7 +715,7 @@ function LongTodoItem({
   // ── 편집 모드 ──
   if (editing) {
     return (
-      <div className="space-y-2 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3 shadow-[var(--shadow-sm)]">
+      <div className="space-y-2 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3">
         <input
           value={eTitle}
           onChange={(e) => setETitle(e.target.value)}
@@ -790,7 +790,7 @@ function LongTodoItem({
 
   // ── 진행 중 항목 ──
   return (
-    <div className="rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3 shadow-[var(--shadow-sm)] space-y-2">
+    <div className="rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3 space-y-2">
       <div className="flex items-center gap-2">
         {confirmDone ? (
           <div className="flex items-center gap-1">

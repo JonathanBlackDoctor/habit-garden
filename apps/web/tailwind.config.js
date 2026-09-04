@@ -11,6 +11,9 @@ export default {
         'fg-faint':    'var(--fg-faint)',
         leaf:          'var(--leaf)',
         'leaf-soft':   'var(--leaf-soft)',
+        'leaf-mid':    'var(--leaf-mid)',
+        divider:       'var(--divider)',
+        'divider-soft':'var(--divider-soft)',
         soil:          'var(--soil)',
         bloom:         'var(--bloom)',
         'bloom-soft':  'var(--bloom-soft)',
@@ -21,6 +24,7 @@ export default {
       borderRadius: {
         DEFAULT: 'var(--radius)',
         sm:      'var(--radius-sm)',
+        md:      'var(--radius-md)',
         lg:      'var(--radius-lg)',
         full:    'var(--radius-full)',
       },

@@ -75,7 +75,7 @@ export default function MorningBriefingCard({
     <motion.section
       initial={{ opacity: 0, y: -6 }}
       animate={{ opacity: 1, y: 0 }}
-      className="relative rounded-[var(--radius)] border border-[var(--bloom)]/25 bg-[var(--bg-surface)] p-3.5 shadow-[var(--shadow-sm)]"
+      className="relative rounded-[var(--radius)] border border-[var(--bloom)]/25 bg-[var(--bg-surface)] p-3.5"
     >
       {/* ── 헤더 ── */}
       <div className="flex items-center justify-between">
@@ -140,7 +140,7 @@ export default function MorningBriefingCard({
             <span className="text-[11px] text-[var(--fg-muted)]">오늘 핵심</span>
             {priorityHabits.map((h) => (
               <span key={h.id} className="rounded-full bg-[var(--leaf-soft)] px-2 py-0.5 text-[11px] text-[var(--leaf-strong,var(--leaf))]">
-                ⭐ {h.title}
+                {h.title}
               </span>
             ))}
           </div>
@@ -161,7 +161,7 @@ export default function MorningBriefingCard({
                 {recap.achieved}/{recap.intended} 달성
                 {dayScore !== undefined && ` · ${dayScore}점`}
               </span>
-              {allDone && <span className="text-[var(--leaf)]">· 완벽한 하루 🔥</span>}
+              {allDone && <span className="text-[var(--leaf)]">· 완벽한 하루</span>}
             </span>
             <ChevronDown
               size={14}
@@ -181,7 +181,7 @@ export default function MorningBriefingCard({
                 <div className="space-y-2 pt-2.5">
                   {allDone ? (
                     <p className="text-xs leading-snug text-[var(--leaf)]">
-                      어제 {recap.achieved}개 모두 달성! 완벽한 하루였어요. 오늘도 이어가요 🔥
+                      어제 {recap.achieved}개 모두 달성 — 완벽한 하루였어요. 오늘도 이어가요
                     </p>
                   ) : (
                     <>

@@ -50,8 +50,8 @@ export default function App() {
             richColors
             closeButton
             swipeDirections={['left', 'right']}
-            offset={{ bottom: 'calc(72px + env(safe-area-inset-bottom))' }}
-            mobileOffset={{ bottom: 'calc(72px + env(safe-area-inset-bottom))' }}
+            offset={{ bottom: 'calc(80px + env(safe-area-inset-bottom))' }}
+            mobileOffset={{ bottom: 'calc(80px + env(safe-area-inset-bottom))' }}
             toastOptions={{
               closeButtonAriaLabel: '알림 닫기',
               style: { background: 'var(--bloom-soft)', border: '1px solid var(--bloom)', color: 'var(--bloom)' },

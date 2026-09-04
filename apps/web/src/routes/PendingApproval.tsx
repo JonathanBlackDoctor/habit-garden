@@ -26,8 +26,7 @@ export default function PendingApproval() {
   if (profile?.status === 'rejected') {
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-[var(--bg-base)] px-6">
-        <div className="text-5xl">🚫</div>
-        <p className="text-base text-[var(--fg-primary)]">접근이 거부되었습니다.</p>
+                <p className="text-base text-[var(--fg-primary)]">접근이 거부되었습니다.</p>
         <button
           onClick={() => signOutUser()}
           className="text-sm text-[var(--fg-muted)] underline"
@@ -79,7 +78,7 @@ export default function PendingApproval() {
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, delay: 0.12, ease: [0.22, 1, 0.36, 1] }}
-          className="relative mt-10 overflow-hidden rounded-[var(--radius-lg)] border border-[var(--bloom)]/20 bg-[var(--bloom-soft)]/60 p-5 shadow-[var(--shadow-sm)] backdrop-blur-sm"
+          className="relative mt-10 overflow-hidden rounded-[var(--radius-lg)] border border-[var(--bloom)]/20 bg-[var(--bloom-soft)]/60 p-5 backdrop-blur-sm"
         >
           <div
             aria-hidden
@@ -87,7 +86,7 @@ export default function PendingApproval() {
             style={{ background: 'var(--bloom)' }}
           />
           <div className="flex items-start gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white shadow-[var(--shadow-sm)]">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white">
               <Mail size={16} className="text-[var(--bloom)]" />
             </div>
             <div className="min-w-0 flex-1 space-y-1.5">
@@ -111,7 +110,7 @@ export default function PendingApproval() {
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
-          className="mt-5 rounded-[var(--radius-lg)] border border-[var(--border-soft)] bg-[var(--bg-surface)]/80 p-5 shadow-[var(--shadow-sm)] backdrop-blur-sm"
+          className="mt-5 rounded-[var(--radius-lg)] border border-[var(--border-soft)] bg-[var(--bg-surface)]/80 p-5 backdrop-blur-sm"
         >
           <p className="text-[12.5px] leading-relaxed text-[var(--fg-muted)]">
             안녕하세요. 이 앱은 <span className="font-medium text-[var(--fg-primary)]">조나단</span>이 가족·지인과 함께 쓰려고 개인적으로 만든 프로젝트입니다. 가입도 사용도 모두 무료이고, 광고도 없고, 데이터는 본인에게만 보입니다.
@@ -158,8 +157,7 @@ function PulseRing() {
         transition={{ duration: 2.4, repeat: Infinity, ease: 'easeOut', delay: 0.3 }}
       />
       <div className="relative flex h-11 w-11 items-center justify-center rounded-full bg-white shadow-[var(--shadow-md)]">
-        <span className="text-[22px] leading-none">🌱</span>
-      </div>
+              </div>
     </div>
   );
 }

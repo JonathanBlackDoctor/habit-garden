@@ -101,8 +101,7 @@ export default function Login() {
               transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
               className="text-[68px] leading-none"
             >
-              🌱
-            </motion.div>
+              </motion.div>
           </div>
 
           <div className="flex flex-col items-center gap-1.5">
@@ -143,7 +142,7 @@ export default function Login() {
 
           {/* 인앱 브라우저 안내 — Google 로그인은 카카오톡/인앱 브라우저에서 차단됨 */}
           {inAppBrowser && (
-            <div className="relative w-full overflow-hidden rounded-[var(--radius-lg)] border border-[var(--bloom)]/40 bg-[var(--bloom-soft)]/60 px-5 py-4 shadow-[var(--shadow-sm)]">
+            <div className="relative w-full overflow-hidden rounded-[var(--radius-lg)] border border-[var(--bloom)]/40 bg-[var(--bloom-soft)]/60 px-5 py-4">
               <div className="space-y-2 text-[12.5px] leading-relaxed text-[var(--fg-muted)]">
                 <p className="font-semibold text-[var(--fg-primary)]">
                   인앱 브라우저에서는 Google 로그인이 막혀 있어요
@@ -174,7 +173,7 @@ export default function Login() {
 
           <button
             onClick={handleLogin}
-            className="group relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-white px-6 py-3.5 text-[15px] font-medium text-[var(--fg-primary)] shadow-[var(--shadow-sm)] transition-all duration-200 active:scale-[0.985] active:opacity-90"
+            className="group relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-white px-6 py-3.5 text-[15px] font-medium text-[var(--fg-primary)] transition-all duration-200 active:scale-[0.985] active:opacity-90"
           >
             <span
               aria-hidden
@@ -190,7 +189,7 @@ export default function Login() {
           </button>
 
           {/* 안내 카드 */}
-          <div className="relative w-full overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border-soft)] bg-[var(--bg-surface)]/80 px-5 py-4 shadow-[var(--shadow-sm)] backdrop-blur-sm">
+          <div className="relative w-full overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border-soft)] bg-[var(--bg-surface)]/80 px-5 py-4 backdrop-blur-sm">
             <div
               aria-hidden
               className="absolute left-0 top-0 h-full w-[3px]"

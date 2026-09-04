@@ -19,9 +19,6 @@ import {
 } from 'shared/types/firestore';
 
 export const TYPE_ORDER: ApplicationType[] = ['qt', 'sermon', 'meditation', 'lgm', 'etc'];
-export const TYPE_EMOJI: Record<ApplicationType, string> = {
-  qt: '🌅', sermon: '⛪', meditation: '📖', lgm: '👥', etc: '📝',
-};
 
 /** 말씀 적용 패널 — 신앙 탭(Prayers)의 '말씀 적용' 세그먼트에 임베드된다. */
 export function ApplicationsPanel() {
@@ -42,7 +39,7 @@ export function ApplicationsPanel() {
         <button
           data-tour="application-add"
           onClick={() => setShowForm((v) => !v)}
-          className="flex items-center gap-1 rounded-[var(--radius)] bg-[var(--leaf)] px-3 py-1.5 text-xs font-medium text-white shadow-[var(--shadow-sm)] active:opacity-80"
+          className="flex items-center gap-1 rounded-[var(--radius)] bg-[var(--leaf)] px-3 py-1.5 text-xs font-medium text-white active:opacity-80"
           aria-label="적용 추가"
         >
           <Plus size={14} className={cn('transition-transform', showForm && 'rotate-45')} /> 추가
@@ -88,7 +85,7 @@ export function ApplicationsPanel() {
         <div className="pt-2">
           <button
             onClick={() => setShowDone((v) => !v)}
-            className="flex w-full items-center justify-between rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--fg-muted)] shadow-[var(--shadow-sm)]"
+            className="flex w-full items-center justify-between rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--fg-muted)]"
           >
             <span>완료·보관 ({finished.length})</span>
             <ChevronLeft size={16} className={cn('transition-transform', showDone ? '-rotate-90' : 'rotate-0')} />
@@ -118,7 +115,7 @@ function TypeSelector({ type, setType }: { type: ApplicationType; setType: (t: A
             type === t ? 'bg-[var(--leaf)] text-white' : 'bg-[var(--bg-base)] text-[var(--fg-muted)]',
           )}
         >
-          {TYPE_EMOJI[t]} {APPLICATION_TYPE_LABELS[t]}
+          {APPLICATION_TYPE_LABELS[t]}
         </button>
       ))}
     </div>
@@ -134,7 +131,7 @@ function AddForm({ onDone }: { onDone: () => void }) {
   const [type, setType] = useState<ApplicationType>('qt');
 
   return (
-    <div className="card space-y-2.5 p-3.5">
+    <div className="card-flat space-y-2.5 p-3.5">
       {/* 입력 방식 — AI 정리는 승인 사용자 전용 */}
       {isPremium && (
         <div className="flex gap-1.5 rounded-full bg-[var(--bg-base)] p-1">
@@ -158,7 +155,7 @@ function ModeTab({ active, onClick, icon, label }: { active: boolean; onClick: (
       onClick={onClick}
       className={cn(
         'flex flex-1 items-center justify-center gap-1 rounded-full py-1.5 text-xs font-medium transition-colors',
-        active ? 'bg-[var(--bg-surface)] text-[var(--leaf)] shadow-[var(--shadow-sm)]' : 'text-[var(--fg-muted)]',
+        active ? 'bg-[var(--bg-surface)] text-[var(--leaf)]' : 'text-[var(--fg-muted)]',
       )}
     >
       {icon} {label}
@@ -413,17 +410,17 @@ function ApplicationCard({ app, practicedToday }: { app: ApplicationDoc; practic
 
   if (editing) {
     return (
-      <motion.div layout className="card p-3.5">
+      <motion.div layout className="card-flat p-3.5">
         <EditForm app={app} onDone={() => setEditing(false)} />
       </motion.div>
     );
   }
 
   return (
-    <motion.div layout className="card space-y-2 p-3.5">
+    <motion.div layout className="card-flat space-y-2 p-3.5">
       <div className="flex items-start gap-2">
         <span className="mt-0.5 shrink-0 rounded-full bg-[var(--leaf-soft)] px-2 py-0.5 text-[10px] font-medium text-[var(--leaf)]">
-          {TYPE_EMOJI[app.type]} {APPLICATION_TYPE_LABELS[app.type]}
+          {APPLICATION_TYPE_LABELS[app.type]}
         </span>
         <div className="min-w-0 flex-1">
           {app.reference && (
@@ -431,7 +428,7 @@ function ApplicationCard({ app, practicedToday }: { app: ApplicationDoc; practic
           )}
           <p className="text-sm font-medium leading-snug text-[var(--fg-primary)]">{app.application}</p>
           {app.insight && (
-            <p className="mt-0.5 text-xs leading-snug text-[var(--fg-muted)]">💡 {app.insight}</p>
+            <p className="mt-0.5 text-xs leading-snug text-[var(--fg-muted)]">{app.insight}</p>
           )}
         </div>
         <button
@@ -462,7 +459,7 @@ function ApplicationCard({ app, practicedToday }: { app: ApplicationDoc; practic
       </div>
 
       {goalMet && isActive && (
-        <p className="text-[11px] font-medium text-[var(--bloom)]">🎉 목표 달성! 삶에 정착됐다면 완료로 마무리하세요.</p>
+        <p className="text-[11px] font-medium text-[var(--bloom)]">목표 달성 — 삶에 정착됐다면 완료로 마무리하세요.</p>
       )}
 
       {/* 액션 */}

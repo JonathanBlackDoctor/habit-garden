@@ -92,7 +92,7 @@ export default function PrayerTaxonomyManager({
               onClick={() => setKind(k)}
               className={cn(
                 'flex-1 rounded-[calc(var(--radius)-2px)] py-1.5 text-xs font-medium transition-colors',
-                kind === k ? 'bg-white text-[var(--leaf)] shadow-[var(--shadow-sm)]' : 'text-[var(--fg-muted)]'
+                kind === k ? 'bg-white text-[var(--leaf)]' : 'text-[var(--fg-muted)]'
               )}
             >
               {k === 'group' ? '받은 모임' : '기도 대상'}

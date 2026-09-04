@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { motion, animate } from 'framer-motion';
-import { Pencil, Check, Plus, Sprout, Sunrise, Sun, Sunset, Moon, Clock, type LucideIcon } from 'lucide-react';
+import { animate } from 'framer-motion';
+import { Pencil, Check, Plus, Sprout, ChevronRight } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
+import { cn } from '@/lib/utils';
 import EmptyState from '@/components/EmptyState';
 import SeedHabitsButton from '@/features/habits/SeedHabitsButton';
 import AddHabitDialog from '@/features/habits/AddHabitDialog';
@@ -25,31 +26,7 @@ const TIME_LABELS: Record<string, string> = {
   night:     '밤',
   anytime:   '언제든',
 };
-const TIME_ICONS: Record<string, LucideIcon> = {
-  morning: Sunrise,
-  afternoon: Sun,
-  evening: Sunset,
-  night: Moon,
-  anytime: Clock,
-};
 const TIME_ORDER = ['morning', 'afternoon', 'evening', 'night', 'anytime'];
-
-// 시간대별 배경 그라데이션 (Phase 1-4)
-const TIME_GRADIENTS: Record<string, string> = {
-  morning:   'linear-gradient(180deg, #FFF6E5 0%, #FFE9C2 100%)',
-  afternoon: 'linear-gradient(180deg, #FFF8D6 0%, #FFE6A0 100%)',
-  evening:   'linear-gradient(180deg, #FFDCC0 0%, #FFB497 100%)',
-  night:     'linear-gradient(180deg, #2A2F4A 0%, #1A1F36 100%)',
-  anytime:   'linear-gradient(180deg, #E8F0F8 0%, #D2E1F0 100%)',
-};
-// 미달성 상태 시 흐릿하게
-const TIME_GRADIENTS_DIM: Record<string, string> = {
-  morning:   'linear-gradient(180deg, #F2EFE6 0%, #E8E1D0 100%)',
-  afternoon: 'linear-gradient(180deg, #F0EDE0 0%, #E6DFC8 100%)',
-  evening:   'linear-gradient(180deg, #ECE2D9 0%, #D9C8BC 100%)',
-  night:     'linear-gradient(180deg, #2B2E3B 0%, #1F2230 100%)',
-  anytime:   'linear-gradient(180deg, #ECECEC 0%, #DCDCDC 100%)',
-};
 
 function groupByTime(habits: HabitDoc[]) {
   const groups: Record<string, HabitDoc[]> = {};
@@ -69,6 +46,8 @@ export default function Habits() {
   const isPast = !!dateParam && dateParam !== today;
   const [editMode, setEditMode] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+  // 현재 시간대가 아닌 그룹 중 사용자가 직접 펼친 것들
+  const [openTods, setOpenTods] = useState<string[]>([]);
   const habits = useHabits({ includeInactive: editMode, includeHibernating: true });
   const checks = useHabitChecks(date);
   const save   = useSaveHabitCheck(isPast ? date : undefined);
@@ -122,8 +101,8 @@ export default function Habits() {
   const remaining      = activeHabits.filter((h) => checks[h.id] === undefined).length;
   const nudge =
     totalActive === 0 ? null
-    : remaining === 0 ? '오늘 다 했어요 🌱'
-    : remaining === 1 ? '딱 하나만 더!'
+    : remaining === 0 ? '오늘 다 했어요'
+    : remaining === 1 ? '딱 하나만 더'
     : remaining <= 3  ? `거의 다 왔어요 · ${remaining}개 남음`
     : `오늘 ${remaining}개 남았어요`;
 
@@ -135,9 +114,9 @@ export default function Habits() {
       {/* 헤더 */}
       <div className="pt-2 flex items-start justify-between gap-2">
         <div>
-          <h2 className="text-lg font-bold text-[var(--fg-primary)]">습관 체크</h2>
-          <p className="text-sm text-[var(--fg-muted)]">
-            달성 {totalAchieved}/{totalActive} · 체크 {totalChecked}/{totalActive}
+          <h2 className="text-[24px] font-semibold tracking-[-0.01em] text-[var(--fg-primary)]">습관</h2>
+          <p className="mt-1 text-[13px] tabular-nums text-[var(--fg-muted)]">
+            {totalAchieved} / {totalActive} 달성 · {totalChecked} / {totalActive} 기록
           </p>
           {nudge && (
             <p className={`mt-0.5 text-xs font-medium ${remaining === 0 ? 'text-[var(--leaf)]' : 'text-[var(--bloom)]'}`}>
@@ -146,7 +125,7 @@ export default function Habits() {
           )}
           {!editMode && totalActive === 0 && hibernatingHabits.length > 0 && (
             <p className="mt-0.5 text-xs font-medium text-[var(--fg-muted)]">
-              모든 습관이 휴면 중이에요 🌙 · 편집에서 깨울 수 있어요
+              모든 습관이 휴면 중이에요 · 편집에서 깨울 수 있어요
             </p>
           )}
         </div>
@@ -184,9 +163,8 @@ export default function Habits() {
               return (
                 <div
                   key={group.id}
-                  className="flex items-center gap-2 rounded-[var(--radius)] bg-[var(--bg-surface)] px-3 py-2 shadow-[var(--shadow-sm)]"
+                  className="flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-soft)] bg-[var(--bg-surface)] px-3.5 py-2.5"
                 >
-                  <span className="text-base">🎒</span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-[var(--fg-primary)]">{group.name}</p>
                     <p className="text-[11px] text-[var(--fg-faint)] tabular-nums">
@@ -214,59 +192,73 @@ export default function Habits() {
         );
       })()}
 
-      {/* 시간대별 그룹 */}
+      {/* 시간대별 그룹 — 1a: 현재 시간대만 펼치고 나머지는 한 줄로 접는다.
+          편집 모드에서는 전부 펼쳐야 손댈 수 있으므로 접기를 끈다. */}
       {TIME_ORDER.map((tod) => {
         const group = groups[tod];
         if (!group || group.length === 0) return null;
         const groupAchieved = group.filter((h) => checks[h.id]?.achieved).length;
-        const ratio = group.length > 0 ? groupAchieved / group.length : 0;
         const isNow = tod === currentTOD;
-        const bgFull = TIME_GRADIENTS[tod];
-        const bgDim  = TIME_GRADIENTS_DIM[tod];
-        // 달성률이 0이면 dim, 100%면 full, 중간은 보간 — 단순화: 50% 임계
-        const bg = ratio >= 0.5 ? bgFull : bgDim;
-        const isNight = tod === 'night';
-        const TodIcon = TIME_ICONS[tod];
+        const settled = group.every((h) => checks[h.id] !== undefined);
+        const expanded = editMode || isNow || openTods.includes(tod);
+
+        if (!expanded) {
+          return (
+            <button
+              key={tod}
+              onClick={() => setOpenTods((prev) => [...prev, tod])}
+              className={cn(
+                'flex w-full items-center gap-3 rounded-[var(--radius-md)] border border-[var(--border-soft)] bg-[var(--bg-surface)] px-[18px] py-[15px] text-left transition-opacity',
+                settled && 'opacity-[.62]',
+              )}
+            >
+              <span className="flex-1 text-[15px] text-[var(--fg-primary)]">{TIME_LABELS[tod]}</span>
+              <span
+                className={cn(
+                  'text-[13px] tabular-nums',
+                  settled ? 'text-[var(--leaf)]' : 'text-[var(--fg-faint)]',
+                )}
+              >
+                {groupAchieved} / {group.length}
+              </span>
+              <ChevronRight size={13} className="shrink-0 text-[var(--fg-faint)]" />
+            </button>
+          );
+        }
+
         return (
           <section
             key={tod}
             ref={isNow ? nowSectionRef : undefined}
-            className="space-y-1.5 rounded-[var(--radius-lg)] p-2.5 transition-all"
-            style={{
-              background: bg,
-              boxShadow: isNow ? '0 0 0 2px var(--leaf), 0 6px 20px -8px var(--leaf)' : undefined,
-            }}
+            className={cn(
+              'flex flex-col',
+              isNow && !editMode ? 'card-raised' : 'card-flat',
+            )}
           >
-            <div className="flex items-center justify-between">
-              <h3
-                className="flex items-center gap-1.5 text-sm font-semibold"
-                style={{ color: isNight ? '#E5E7EB' : 'var(--fg-primary)' }}
-              >
-                <TodIcon size={15} className="shrink-0 opacity-80" />
+            <div className="flex items-center gap-3 px-[18px] pb-3.5 pt-[17px]">
+              <h3 className="flex-1 text-[16px] font-semibold text-[var(--fg-primary)]">
                 {TIME_LABELS[tod]}
-                {isNow && (
-                  <span className="ml-0.5 rounded-full bg-[var(--bloom)]/15 px-1.5 py-0.5 text-[10px] font-medium text-[var(--bloom)]">
-                    지금
-                  </span>
-                )}
               </h3>
-              <span
-                className="text-xs tabular-nums"
-                style={{ color: isNight ? '#D1D5DB' : 'var(--fg-muted)' }}
-              >
-                {groupAchieved}/{group.length}
+              {isNow && (
+                <span className="rounded-full bg-[var(--bloom-soft)] px-2.5 py-1 text-[12px] leading-none text-[var(--bloom)]">
+                  지금
+                </span>
+              )}
+              <span className="text-[13px] tabular-nums text-[var(--fg-muted)]">
+                {groupAchieved} / {group.length}
               </span>
             </div>
-            {(() => {
-              const cards = group.map((habit) => (
+            <div className="row-divide flex flex-col border-t border-[var(--divider-soft)] px-[18px]">
+              {group.map((habit) => (
                 editMode ? (
-                  <HabitEditRow
-                    key={habit.id}
-                    habit={habit}
-                    groupSiblings={group}
-                  />
+                  <div key={habit.id} className="py-2">
+                    <HabitEditRow habit={habit} groupSiblings={group} />
+                  </div>
                 ) : (
-                  <div key={habit.id} data-tour={habit.id === firstTourHabitId ? 'habit-first' : undefined}>
+                  <div
+                    key={habit.id}
+                    data-tour={habit.id === firstTourHabitId ? 'habit-first' : undefined}
+                  >
                     <HabitCard
                       habit={habit}
                       check={checks[habit.id]}
@@ -277,31 +269,16 @@ export default function Habits() {
                     />
                   </div>
                 )
-              ));
-              // 현재 시간대 그룹은 탭 진입/재탭 시 살짝 확대되며 강조
-              return isNow && !editMode ? (
-                <motion.div
-                  key={bloomKey}
-                  initial={{ scale: 1 }}
-                  animate={{ scale: [1, 1.08, 1] }}
-                  transition={{ duration: 0.7, times: [0, 0.4, 1], ease: 'easeOut', delay: 0.15 }}
-                  style={{ transformOrigin: 'center' }}
-                  className="space-y-1.5"
-                >
-                  {cards}
-                </motion.div>
-              ) : (
-                cards
-              );
-            })()}
+              ))}
+            </div>
           </section>
         );
       })}
 
       {/* 휴면 중인 습관 — 편집 모드 전용. 여기서 깨운다. */}
       {editMode && hibernatingHabits.length > 0 && (
-        <section className="space-y-1.5 rounded-[var(--radius-lg)] bg-[var(--bg-surface)] p-2.5">
-          <h3 className="text-sm font-medium text-[var(--fg-muted)]">🌙 휴면 중인 습관</h3>
+        <section className="card-flat space-y-1.5 p-3">
+          <h3 className="text-sm font-medium text-[var(--fg-muted)]">휴면 중인 습관</h3>
           {hibernatingHabits.map((habit) => (
             <HabitEditRow key={habit.id} habit={habit} groupSiblings={hibernatingHabits} />
           ))}

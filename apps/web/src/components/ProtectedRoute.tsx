@@ -19,7 +19,7 @@ export default function ProtectedRoute() {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-[var(--bg-base)]">
         <div className="flex flex-col items-center gap-3 text-[var(--fg-muted)]">
-          <div className="text-3xl">🌱</div>
+          <div className="h-2 w-2 rounded-full bg-[var(--leaf)]" />
           <p className="text-sm">로딩 중…</p>
         </div>
       </div>
@@ -38,7 +38,7 @@ export default function ProtectedRoute() {
       return (
         <div className="flex min-h-dvh items-center justify-center bg-[var(--bg-base)]">
           <div className="flex flex-col items-center gap-3 text-[var(--fg-muted)]">
-            <div className="text-3xl">🌱</div>
+            <div className="h-2 w-2 rounded-full bg-[var(--leaf)]" />
             <p className="text-sm">계정 초기화 중…</p>
           </div>
         </div>
@@ -46,8 +46,7 @@ export default function ProtectedRoute() {
     }
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-[var(--bg-base)] px-6 text-center">
-        <div className="text-4xl">⚠️</div>
-        <p className="text-sm text-[var(--fg-primary)]">계정 정보를 가져오지 못했어요.</p>
+                <p className="text-sm text-[var(--fg-primary)]">계정 정보를 가져오지 못했어요.</p>
         <p className="max-w-xs text-xs leading-relaxed text-[var(--fg-muted)]">
           네트워크 상태를 확인하거나 잠시 후 다시 시도해주세요. 문제가 계속되면<br />
           <span className="text-[var(--fg-primary)]">alpaomegastartend@gmail.com</span> 으로 알려주세요.
@@ -55,7 +54,7 @@ export default function ProtectedRoute() {
         <div className="mt-2 flex gap-3">
           <button
             onClick={() => window.location.reload()}
-            className="rounded-[var(--radius)] border border-[var(--border)] bg-white px-4 py-2 text-xs text-[var(--fg-primary)] shadow-[var(--shadow-sm)]"
+            className="rounded-[var(--radius)] border border-[var(--border)] bg-white px-4 py-2 text-xs text-[var(--fg-primary)]"
           >
             새로고침
           </button>
@@ -75,8 +74,7 @@ export default function ProtectedRoute() {
   if (profile.status === 'rejected') {
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-[var(--bg-base)] px-6">
-        <div className="text-4xl">🚫</div>
-        <p className="text-sm text-[var(--fg-primary)]">접근이 거부되었습니다.</p>
+                <p className="text-sm text-[var(--fg-primary)]">접근이 거부되었습니다.</p>
         <p className="text-xs text-[var(--fg-faint)] text-center">
           이 계정은 이용이 허용되지 않았습니다. 관리자에게 문의하세요.
         </p>

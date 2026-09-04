@@ -40,8 +40,7 @@ export default class ErrorBoundary extends React.Component<
             fontFamily: 'system-ui, -apple-system, sans-serif',
           }}
         >
-          <div style={{ fontSize: 40, marginBottom: 12 }}>🌧</div>
-          <p style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+                    <p style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
             화면을 표시하지 못했습니다.
           </p>
           <p style={{ fontSize: 12, color: '#666', textAlign: 'center', marginBottom: 16 }}>

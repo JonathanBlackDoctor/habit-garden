@@ -356,8 +356,7 @@ export default function PrayerMode({
                   animate={{ opacity: 1, scale: 1 }}
                   className="space-y-3"
                 >
-                  <p className="text-4xl">🙏</p>
-                  <p className="text-lg font-medium">기도를 마쳤습니다</p>
+                                    <p className="text-lg font-medium">기도를 마쳤습니다</p>
                   <p className={cn('text-sm', DARK.muted)}>
                     {checkedInSession.size > 0 && `${checkedInSession.size}개 기도 · `}
                     {fmtClock(elapsed)} 머물렀어요

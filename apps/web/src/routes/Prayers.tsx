@@ -19,7 +19,7 @@ import { DuplicateFinder } from '@/features/prayers/DuplicateFinder';
 import { WeeklyDigestCard } from '@/features/prayers/WeeklyDigestCard';
 import EmptyState from '@/components/EmptyState';
 import { selectMorePrayers, type RotationInput } from 'shared/prayerRotation';
-import { Plus, ClipboardList, Search, Heart, ListChecks, Layers, ChevronDown, HandHeart, BookOpen } from 'lucide-react';
+import { Plus, ClipboardList, Search, Heart, ListChecks, Layers, ChevronDown } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { Navigate, useSearchParams } from 'react-router-dom';
@@ -88,10 +88,15 @@ function PrayersInner() {
 
   return (
     <div className="flex flex-col gap-3 p-4 pb-6">
-      {/* 신앙 탭 상단 전환 — 기도 / 말씀 적용 */}
-      <div className="flex rounded-[var(--radius)] bg-[var(--bg-base)] p-0.5">
-        <FaithViewTab active={view === 'prayer'} onClick={() => setView('prayer')} icon={<HandHeart size={15} />} label="기도" />
-        <FaithViewTab active={view === 'application'} onClick={() => setView('application')} icon={<BookOpen size={15} />} label="말씀 적용" />
+      {/* 신앙 탭 상단 — 제목 + 기도/말씀 알약 세그먼트 */}
+      <div className="flex flex-col gap-3.5">
+        <h1 className="text-[24px] font-semibold tracking-[-0.01em] text-[var(--fg-primary)]">
+          {view === 'application' ? '말씀 적용' : '기도'}
+        </h1>
+        <div className="flex rounded-full bg-[#E7EBE0] p-[3px]">
+          <FaithViewTab active={view === 'prayer'} onClick={() => setView('prayer')} label="기도제목" />
+          <FaithViewTab active={view === 'application'} onClick={() => setView('application')} label="말씀 적용" />
+        </div>
       </div>
 
       {view === 'application' ? (
@@ -111,18 +116,18 @@ function PrayersInner() {
   );
 }
 
-function FaithViewTab({ active, onClick, icon, label }: {
-  active: boolean; onClick: () => void; icon: React.ReactNode; label: string;
+function FaithViewTab({ active, onClick, label }: {
+  active: boolean; onClick: () => void; label: string;
 }) {
   return (
     <button
       onClick={onClick}
       className={cn(
-        'flex flex-1 items-center justify-center gap-1.5 rounded-[calc(var(--radius)-2px)] py-2 text-sm font-medium transition-colors',
-        active ? 'bg-white text-[var(--leaf)] shadow-[var(--shadow-sm)]' : 'text-[var(--fg-muted)]',
+        'flex-1 rounded-full py-2 text-[13px] transition-colors',
+        active ? 'bg-[var(--bg-surface)] font-semibold text-[var(--fg-primary)]' : 'text-[var(--fg-muted)]',
       )}
     >
-      {icon} {label}
+      {label}
     </button>
   );
 }
@@ -149,14 +154,14 @@ function PrayerSection({
     <div className="flex flex-col gap-3">
       {/* 세그먼트 + 추가·무더기 */}
       <div data-tour="prayer-segments" className="flex items-center gap-2">
-        <div className="flex flex-1 rounded-[var(--radius)] bg-[var(--bg-base)] p-0.5">
+        <div className="flex flex-1 rounded-full bg-[#E7EBE0] p-[3px]">
           {SEGMENTS.map((s) => (
             <button
               key={s.id}
               onClick={() => setSeg(s.id)}
               className={cn(
-                'flex-1 rounded-[calc(var(--radius)-2px)] py-1.5 text-xs font-medium transition-colors',
-                seg === s.id ? 'bg-white text-[var(--leaf)] shadow-[var(--shadow-sm)]' : 'text-[var(--fg-muted)]'
+                'flex-1 rounded-full py-1.5 text-[12px] transition-colors',
+                seg === s.id ? 'bg-[var(--bg-surface)] font-semibold text-[var(--fg-primary)]' : 'text-[var(--fg-muted)]'
               )}
             >
               {s.label}
@@ -165,7 +170,7 @@ function PrayerSection({
         </div>
         <button
           onClick={() => setAddOpen(true)}
-          className="flex items-center gap-1 rounded-[var(--radius)] bg-[var(--leaf)] px-3 py-1.5 text-xs font-medium text-white shadow-[var(--shadow-sm)]"
+          className="flex items-center gap-1 rounded-full bg-[var(--leaf)] px-3.5 py-2 text-[12px] font-medium text-white"
         >
           <Plus size={14} /> 추가
         </button>
@@ -282,7 +287,7 @@ function TodayView({
           className="flex w-full items-center justify-between rounded-[var(--radius-lg)] bg-gradient-to-br from-[#1B222C] to-[#10141A] px-5 py-4 text-left shadow-[var(--shadow-md)]"
         >
           <div>
-            <p className="text-sm font-medium text-[#E7E5DF]">🙏 기도 시작</p>
+            <p className="text-sm font-medium text-[#E7E5DF]">기도 시작</p>
             <p className="mt-0.5 text-xs text-[#9AA0A6]">
               {total - done > 0 ? `남은 기도 ${total - done}개 · ` : ''}조용히 머무는 시간
             </p>
@@ -293,7 +298,7 @@ function TodayView({
 
       {/* 진행 표시 (목록이 있을 때만) */}
       {total > 0 ? (
-        <div className="card p-3">
+        <div className="card-flat p-3">
           <div className="mb-1.5 flex items-center justify-between text-xs">
             <span className="font-medium text-[var(--fg-primary)]">오늘 {done} / {total} 기도</span>
             <span className="tabular-nums text-[var(--fg-muted)]">{pct}%</span>
@@ -313,13 +318,13 @@ function TodayView({
         </div>
       ) : (
         <p className="px-1 py-6 text-center text-sm text-[var(--fg-faint)]">
-          오늘 자동 추천 목록이 비어 있어요.{hasMore ? ' 아래에서 더 받아보세요 🙏' : ' 위에서 기도제목을 추가해보세요 🙏'}
+          오늘 자동 추천 목록이 비어 있어요.{hasMore ? ' 아래에서 더 받아보세요.' : ' 위에서 기도제목을 추가해보세요.'}
         </p>
       )}
 
       {pinned.length > 0 && (
-        <section className="space-y-2">
-          <h3 className="px-1 text-xs font-medium text-[var(--fg-muted)]">📌 고정</h3>
+        <section>
+          <h3 className="kicker pb-2">고정</h3>
           {pinned.map((p) => (
             <PrayerCheckCard
               key={p.id} prayer={p} checked={!!checks[p.id]}
@@ -331,8 +336,8 @@ function TodayView({
       )}
 
       {rotation.length > 0 && (
-        <section className="space-y-2">
-          <h3 className="px-1 text-xs font-medium text-[var(--fg-muted)]">오늘의 로테이션</h3>
+        <section>
+          <h3 className="kicker pb-2">오늘의 로테이션</h3>
           {rotation.map((p) => (
             <PrayerCheckCard
               key={p.id} prayer={p} checked={!!checks[p.id]}
@@ -344,8 +349,8 @@ function TodayView({
       )}
 
       {extra.length > 0 && (
-        <section className="space-y-2">
-          <h3 className="px-1 text-xs font-medium text-[var(--fg-muted)]">더 받은 기도</h3>
+        <section>
+          <h3 className="kicker pb-2">더 받은 기도</h3>
           {extra.map((p) => (
             <PrayerCheckCard
               key={p.id} prayer={p} checked={!!checks[p.id]}
@@ -485,7 +490,7 @@ function ListView({ prayers, empty, onOpen }: { prayers: PrayerDoc[]; empty: str
   const sel = usePrayerSelection();
   if (prayers.length === 0) return <EmptyState compact title={empty} />;
   return (
-    <div className="space-y-2">
+    <div>
       {sel.selectMode && <BulkActionBar ids={[...sel.selectedIds]} onDone={sel.exit} prayers={prayers} />}
       <SelectToolbar count={prayers.length} sel={sel} allIds={prayers.map((p) => p.id)} />
       {prayers.map((p) => (
@@ -581,7 +586,7 @@ function BatchGroupPanel({
         />
       </button>
       {open && batches.map((b) => (
-        <div key={b.batchId} className="card flex items-center gap-2 p-3">
+        <div key={b.batchId} className="card-flat flex items-center gap-2 p-3">
           <div className="min-w-0 flex-1">
             <p className="text-sm text-[var(--fg-primary)]">
               {b.items.length}개 묶음{b.receivedLabel && ` · ${b.receivedLabel} 받음`}
@@ -624,7 +629,7 @@ function GratitudeSection({ date }: { date: string }) {
   };
 
   return (
-    <section className="card mt-1 space-y-2 p-3">
+    <section className="card-flat mt-1 space-y-2 p-3">
       <button
         onClick={() => setOpenForm((v) => !v)}
         className="flex w-full items-center gap-2 text-left text-xs font-medium text-[var(--fg-muted)]"

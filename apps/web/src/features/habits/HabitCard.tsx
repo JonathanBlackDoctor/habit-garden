@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { HabitDoc, HabitCheckDoc } from 'shared/types/firestore';
-import { Flame, SkipForward, X } from 'lucide-react';
+import { SkipForward, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSaveReflection, useSaveMissReason } from '@/features/habits/useReflections';
 import { useHabitHistory } from '@/features/habits/useHabitHistory';
@@ -14,6 +14,7 @@ interface Props {
   habit: HabitDoc;
   check?: HabitCheckDoc;
   streak?: number;
+  /** 현재 시간대 그룹인지 — 지금은 그룹 카드가 강조를 맡아 행에서는 쓰지 않는다 */
   isNow?: boolean;
   onScore: (score: number | null) => void;
   onClear: () => void;
@@ -21,41 +22,31 @@ interface Props {
 
 const SCORE_LABELS = ['', '매우 부족', '부족', '보통', '양호', '우수'];
 const BINARY_LABELS = ['미완료', '완료'];
-const MOOD_EMOJIS = ['😣', '😕', '😐', '🙂', '😄'] as const;
-export default function HabitCard({ habit, check, streak = 0, isNow = false, onScore, onClear }: Props) {
+const MOOD_LABELS = ['', '많이 힘듦', '힘듦', '보통', '좋음', '아주 좋음'];
+export default function HabitCard({ habit, check, streak = 0, onScore, onClear }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [showReflection, setShowReflection] = useState(false);
   const [mood, setMood] = useState<1 | 2 | 3 | 4 | 5 | null>(null);
   const [note, setNote] = useState('');
   const [tags, setTags] = useState<string[]>([]);
-  const [reward, setReward] = useState(false);
   const saveReflection = useSaveReflection();
   const saveMissReason = useSaveMissReason();
   const lastCheckedRef = useRef<number | null>(null);
-  const prevAchievedRef = useRef(check?.achieved ?? false);
   const currentScore = check?.score ?? null;
   const achieved = check?.achieved ?? false;
   // 의도적 건너뛰기: 체크 문서는 있으나 점수가 null (미기록과 구분)
   const skipped = currentScore === null && check !== undefined;
   // 미달성(점수 입력했지만 임계 미만) → 원인 추적 모드
   const missed = currentScore !== null && currentScore !== undefined && !achieved;
-  // 아직 손대지 않음 (체크 문서 없음) → 강조 대상
-  const todo = check === undefined;
   // 카드 상태 — 스타일 분기용
   const status = statusOf(check);
   // 점수는 입력됐지만 아직 회고를 저장하지 않은 상태
   const canReflect = currentScore !== null && !check?.mood && !check?.whyMissed;
-
-  // 미기록 → 달성 전이 시 1회성 마이크로 보상 애니메이션
-  useEffect(() => {
-    if (achieved && !prevAchievedRef.current) {
-      setReward(true);
-      const t = setTimeout(() => setReward(false), 700);
-      prevAchievedRef.current = achieved;
-      return () => clearTimeout(t);
-    }
-    prevAchievedRef.current = achieved;
-  }, [achieved]);
+  // 부제 — 걷어낸 '중요도 N' 뱃지 자리를 대신한다 ("5단계 · 12일 연속")
+  const subtitle = [
+    habit.scoreMode === 'scaled' ? '5단계' : '완료 여부',
+    streak > 0 ? `${streak}일 연속` : null,
+  ].filter(Boolean).join(' · ');
 
   // 점수가 새로 변경되면 폼 초기화 (자동 오픈 없음)
   useEffect(() => {
@@ -93,79 +84,32 @@ export default function HabitCard({ habit, check, streak = 0, isNow = false, onS
     setTags((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
 
   return (
-    <motion.div
-      animate={{ scale: status === 'achieved' || status === 'skipped' ? 0.97 : 1 }}
-      transition={{ type: 'spring', stiffness: 320, damping: 26 }}
+    <div
       className={cn(
-        'relative card px-3 py-2 transition-all',
-        status === 'todo' &&
-          'border-l-4 border-l-[var(--leaf)] shadow-[var(--shadow-sm)]',
-        status === 'todo' && isNow && 'ring-1 ring-[var(--leaf)]/40',
-        // 미기록이 아닌(처리된) 카드는 덜 중요 → 흐리게.
-        // 미달성(missed)은 회고·원인 입력 UI 가독성을 위해 덜 흐리게 유지
-        status === 'missed' && 'opacity-60',
-        (status === 'achieved' || status === 'skipped') && 'opacity-50',
-        status === 'achieved' && 'border-[var(--leaf-soft)] bg-[var(--leaf-soft)]/40',
-        status === 'skipped' && 'bg-[var(--bg-base)]/60'
+        'relative py-3.5 transition-opacity',
+        // 처리된 행은 뒤로 물러나고, 미달성은 원인 입력 가독성을 위해 덜 흐리게 둔다
+        status === 'missed' && 'opacity-70',
+        (status === 'achieved' || status === 'skipped') && 'opacity-45',
       )}
     >
-      {/* 마이크로 보상 — 달성 순간 1회성 필 + 스파클 */}
-      <AnimatePresence>
-        {reward && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.25 }}
-            className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center overflow-hidden rounded-[var(--radius)]"
-          >
-            <motion.div
-              initial={{ x: '-110%' }}
-              animate={{ x: '110%' }}
-              transition={{ duration: 0.6, ease: 'easeOut' }}
-              className="absolute inset-y-0 w-1/2 bg-gradient-to-r from-transparent via-[var(--leaf-soft)] to-transparent"
-            />
-            <motion.span
-              initial={{ scale: 0, rotate: -20 }}
-              animate={{ scale: [0, 1.3, 1], rotate: 0 }}
-              transition={{ duration: 0.5 }}
-              className="text-2xl"
-            >
-              ✓
-            </motion.span>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* 상단 행 */}
-      <div className="flex items-center gap-2">
+      {/* 상단 행 — 제목 + 부제(입력 방식 · 연속 일수) */}
+      <div className="flex items-center gap-3">
         <button
           onClick={() => setExpanded(!expanded)}
-          className="flex min-w-0 flex-1 items-center gap-2 text-left"
+          className="flex min-w-0 flex-1 flex-col gap-[3px] text-left"
         >
-          {/* 미기록 표식 — '할 차례' */}
-          {todo && (
-            <span className="shrink-0 h-1.5 w-1.5 rounded-full bg-[var(--leaf)]" aria-label="할 차례" />
-          )}
-          {/* 중요도 뱃지 */}
-          <span
-            className="shrink-0 rounded-full bg-[var(--leaf-soft)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--leaf)] tabular-nums"
-            title="중요도"
-            aria-label={`중요도 ${habit.weight}`}
-          >
-            중요도 {habit.weight}
-          </span>
           <span className={cn(
-            'min-w-0 flex-1 truncate text-sm font-medium text-[var(--fg-primary)]',
+            'min-w-0 truncate text-[16px] text-[var(--fg-primary)]',
             (status === 'achieved' || status === 'skipped') && 'line-through decoration-[var(--fg-faint)]'
           )}>{habit.title}</span>
+          <span className="truncate text-[12px] text-[var(--fg-faint)]">{subtitle}</span>
         </button>
 
-        {/* 건너뜀 뱃지 — 클릭 시 취소 */}
+        {/* 건너뜀 표시 — 클릭 시 취소 */}
         {skipped && (
           <button
             onClick={onClear}
-            className="flex shrink-0 items-center gap-0.5 rounded-full bg-[var(--bg-base)] px-2 py-0.5 text-[10px] font-medium text-[var(--fg-muted)] hover:text-[var(--fg-primary)]"
+            className="flex shrink-0 items-center gap-0.5 rounded-full border border-[var(--border)] px-2.5 py-1 text-[12px] text-[var(--fg-muted)] hover:text-[var(--fg-primary)]"
             title="건너뜀 취소"
           >
             건너뜀
@@ -173,23 +117,10 @@ export default function HabitCard({ habit, check, streak = 0, isNow = false, onS
           </button>
         )}
 
-        {/* 스트릭 */}
-        {streak > 0 && (
-          <span className="flex items-center gap-0.5 text-xs text-[var(--bloom)] tabular-nums">
-            <Flame size={13} />
-            {streak}
-          </span>
-        )}
-
         {/* Pass / 건너뜀 취소 토글 */}
         <button
           onClick={() => (skipped ? onClear() : onScore(null))}
-          className={cn(
-            'rounded-full p-1 transition-colors',
-            skipped
-              ? 'bg-[var(--bg-base)] text-[var(--fg-muted)] hover:text-[var(--fg-primary)]'
-              : 'text-[var(--fg-faint)] hover:text-[var(--fg-muted)]'
-          )}
+          className="shrink-0 rounded-full p-1 text-[var(--fg-faint)] transition-colors hover:text-[var(--fg-muted)]"
           aria-label={skipped ? '건너뜀 취소' : '건너뜀'}
           title={skipped ? '건너뜀 취소' : '건너뜀'}
         >
@@ -199,52 +130,51 @@ export default function HabitCard({ habit, check, streak = 0, isNow = false, onS
 
       {/* 스트릭 위험 경고 — 미기록 + 진행 중 스트릭 */}
       {status === 'todo' && streak >= 2 && (
-        <div className="mt-1 flex items-center gap-1 rounded-[var(--radius-sm)] bg-[var(--bloom)]/10 px-2 py-1 text-[11px] font-medium text-[var(--bloom)]">
-          <Flame size={12} />
+        <p className="mt-2 text-[12px] text-[var(--bloom)]">
           {streak}일 연속 — 오늘 지키면 이어져요
-        </div>
+        </p>
       )}
 
-      {/* 점수 입력 */}
-      <div className="mt-1.5">
+      {/* 점수 입력 — 5단계는 원형 숫자, 완료 여부는 알약 버튼 */}
+      <div className="mt-2.5">
         {habit.scoreMode === 'scaled' ? (
-          <div className="flex gap-1.5">
+          <div className="flex items-center gap-1.5">
             {[1, 2, 3, 4, 5].map((s) => (
               <button
                 key={s}
                 onClick={() => onScore(s)}
                 aria-label={`${s}점 · ${SCORE_LABELS[s]}`}
                 className={cn(
-                  'flex h-7 w-7 items-center justify-center rounded-full text-sm font-medium transition-all',
+                  'flex h-7 w-7 items-center justify-center rounded-full text-[13px] transition-colors',
                   currentScore === s
-                    ? 'bg-[var(--leaf)] text-white scale-110'
+                    ? 'bg-[var(--leaf)] font-semibold text-white'
                     : currentScore !== null && currentScore > s
                     ? 'bg-[var(--leaf-soft)] text-[var(--leaf)]'
-                    : 'bg-[var(--bg-base)] text-[var(--fg-muted)] hover:bg-[var(--leaf-soft)]'
+                    : 'bg-[var(--bg-base)] text-[var(--fg-faint)] hover:bg-[var(--leaf-soft)]'
                 )}
               >
                 {s}
               </button>
             ))}
             {currentScore !== null && (
-              <span className="ml-1 self-center text-xs text-[var(--fg-muted)]">
+              <span className="ml-1 text-[12px] text-[var(--fg-faint)]">
                 {SCORE_LABELS[currentScore]}
               </span>
             )}
           </div>
         ) : (
           <div className="flex gap-2">
-            {[0, 1].map((s) => (
+            {[1, 0].map((s) => (
               <button
                 key={s}
                 onClick={() => onScore(s)}
                 className={cn(
-                  'flex-1 rounded-[var(--radius-sm)] py-1 text-sm font-medium transition-colors',
+                  'rounded-full border px-4 py-2 text-[13px] transition-colors',
                   currentScore === s
                     ? s === 1
-                      ? 'bg-[var(--leaf)] text-white'
-                      : 'bg-[var(--wither)] text-[var(--fg-muted)]'
-                    : 'bg-[var(--bg-base)] text-[var(--fg-muted)] hover:bg-[var(--leaf-soft)]'
+                      ? 'border-[var(--leaf)] bg-[var(--leaf)] text-white'
+                      : 'border-[var(--border)] bg-[var(--bg-base)] text-[var(--fg-muted)]'
+                    : 'border-[var(--border)] text-[var(--fg-muted)] hover:bg-[var(--leaf-soft)]'
                 )}
               >
                 {BINARY_LABELS[s]}
@@ -275,7 +205,7 @@ export default function HabitCard({ habit, check, streak = 0, isNow = false, onS
       {canReflect && !showReflection && (
         <button
           onClick={() => setShowReflection(true)}
-          className="mt-1 w-full text-left text-[10px] text-[var(--fg-faint)] hover:text-[var(--fg-muted)] transition-colors"
+          className="mt-2 w-full text-left text-[12px] text-[var(--fg-faint)] transition-colors hover:text-[var(--fg-muted)]"
         >
           {missed ? '왜 못 했을까? 짧게 남기기 ▾' : '오늘 이 습관 평가 남기기 ▾'}
         </button>
@@ -288,7 +218,7 @@ export default function HabitCard({ habit, check, streak = 0, isNow = false, onS
             exit={{ height: 0, opacity: 0 }}
             className="mt-1.5 overflow-hidden"
           >
-            <div className="rounded-[var(--radius-sm)] bg-[var(--bg-base)] p-2.5 space-y-2">
+            <div className="rounded-[var(--radius)] bg-[var(--bg-base)] p-3 space-y-2.5">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs text-[var(--fg-muted)]">
                   {missed ? '왜 못 했을까? 다음을 위해 짧게 남겨봐' : '오늘 이 습관, 어땠어?'}
@@ -300,22 +230,23 @@ export default function HabitCard({ habit, check, streak = 0, isNow = false, onS
                   나중에
                 </button>
               </div>
-              <div className="flex justify-between">
-                {MOOD_EMOJIS.map((emoji, i) => {
-                  const m = (i + 1) as 1 | 2 | 3 | 4 | 5;
+              <div className="flex gap-1.5">
+                {[1, 2, 3, 4, 5].map((i) => {
+                  const m = i as 1 | 2 | 3 | 4 | 5;
                   return (
                     <button
-                      key={emoji}
+                      key={m}
                       onClick={() => setMood(m)}
-                      aria-label={`기분 ${m}점`}
+                      aria-label={`기분 ${m}점 · ${MOOD_LABELS[m]}`}
+                      title={MOOD_LABELS[m]}
                       className={cn(
-                        'flex h-8 w-8 items-center justify-center rounded-full text-base transition-all',
+                        'flex h-7 w-7 items-center justify-center rounded-full text-[13px] transition-colors',
                         mood === m
-                          ? 'bg-[var(--leaf-soft)] scale-110'
-                          : 'hover:bg-[var(--leaf-soft)]/50',
+                          ? 'bg-[var(--leaf)] font-semibold text-white'
+                          : 'bg-[var(--bg-surface)] text-[var(--fg-faint)] hover:bg-[var(--leaf-soft)]',
                       )}
                     >
-                      {emoji}
+                      {m}
                     </button>
                   );
                 })}
@@ -361,7 +292,7 @@ export default function HabitCard({ habit, check, streak = 0, isNow = false, onS
           </motion.div>
         )}
       </AnimatePresence>
-    </motion.div>
+    </div>
   );
 }
 
@@ -376,17 +307,16 @@ function HabitStreakCalendar({ habitId, threshold }: { habitId: string; threshol
       <div className="flex flex-wrap gap-[3px]">
         {dates.map((d) => {
           const c = history[d];
+          // 7일 리듬 그래프와 같은 3단 초록(leaf-soft → leaf-mid → leaf)으로 통일
           let bg = 'var(--leaf-soft)';
           let title = `${d} · 미체크`;
           if (c) {
-            if (c.score === null) { bg = '#D7D2C0'; title = `${d} · 건너뜀`; }
+            if (c.score === null) { bg = 'var(--wither)'; title = `${d} · 건너뜀`; }
             else if (c.score >= threshold) {
-              const ratio = Math.min(c.score / 5, 1);
-              const intensity = Math.round(80 + ratio * 80);
-              bg = c.score === 5 ? '#3F6228' : `rgb(${120 - ratio * 50}, ${168 - ratio * 40}, ${intensity})`;
+              bg = c.score === 5 ? 'var(--leaf)' : 'var(--leaf-mid)';
               title = `${d} · ${c.score}점`;
             } else {
-              bg = '#E5C3B0';
+              bg = 'var(--bloom-soft)';
               title = `${d} · ${c.score}점 (미달)`;
             }
           }

@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { motion, AnimatePresence, type PanInfo } from 'framer-motion';
-import { CheckSquare, Sparkles, Flame } from 'lucide-react';
+import { CheckSquare, Sparkles, Flame, Sprout } from 'lucide-react';
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
 type Slide = {
-  emoji: string;
+  /** 슬라이드 대표 아이콘 — 이모지 대신 선(線) 아이콘으로 톤을 맞춘다 */
+  icon: React.ReactNode;
   badge: { icon: React.ReactNode; tone: Tone }[];
   eyebrow: string;
   title: string;
@@ -22,21 +23,21 @@ const toneStyles: Record<Tone, { bg: string; fg: string }> = {
 
 const SLIDES: Slide[] = [
   {
-    emoji: '🌱',
+    icon: <Sprout size={64} strokeWidth={1.4} />,
     badge: [],
     eyebrow: 'Habit Garden',
     title: '습관 정원에 오신 걸\n환영해요',
     body: '매일의 작은 습관을 기록하고 돌아보는 공간입니다. 30초만 둘러보면 핵심 사용법을 익힐 수 있어요.',
   },
   {
-    emoji: '✅',
+    icon: <CheckSquare size={64} strokeWidth={1.4} />,
     badge: [{ icon: <CheckSquare size={18} />, tone: 'leaf' }],
     eyebrow: 'Step 1 · 습관 체크',
     title: '매일 습관을\n0~5점으로 기록해요',
     body: '시간대별로 습관을 모아두고 하루에 몇 번이든 가볍게 체크해요. 하기 어려운 날은 건너뛰기로 중립 처리할 수 있어요.',
   },
   {
-    emoji: '✨',
+    icon: <Sparkles size={64} strokeWidth={1.4} />,
     badge: [
       { icon: <Sparkles size={18} />, tone: 'sky' },
       { icon: <Flame size={18} />, tone: 'bloom' },
@@ -125,7 +126,7 @@ export default function WelcomeCarousel({
                 <motion.div
                   animate={{ y: [0, -8, 0] }}
                   transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
-                  className="relative text-[80px] leading-none"
+                  className="relative text-[var(--leaf)]"
                 >
                   <div
                     aria-hidden
@@ -135,7 +136,7 @@ export default function WelcomeCarousel({
                         'radial-gradient(50% 50% at 50% 50%, var(--leaf-soft) 0%, transparent 70%)',
                     }}
                   />
-                  {slide.emoji}
+                  {slide.icon}
                 </motion.div>
 
                 {slide.badge.length > 0 && (
@@ -145,7 +146,7 @@ export default function WelcomeCarousel({
                       return (
                         <div
                           key={i}
-                          className={`flex h-11 w-11 items-center justify-center rounded-full ${t.bg} ${t.fg} shadow-[var(--shadow-sm)]`}
+                          className={`flex h-11 w-11 items-center justify-center rounded-full ${t.bg} ${t.fg}`}
                         >
                           {b.icon}
                         </div>

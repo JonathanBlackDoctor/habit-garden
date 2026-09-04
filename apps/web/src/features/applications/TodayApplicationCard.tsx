@@ -6,7 +6,6 @@ import { cn } from '@/lib/utils';
 import {
   useApplications, useApplicationChecks, useApplicationActions,
 } from '@/features/applications/useApplications';
-import { TYPE_EMOJI } from '@/routes/Applications';
 import type { ApplicationDoc } from 'shared/types/firestore';
 
 /** 메인(오늘 탭)에 노출되는 '오늘의 말씀 적용' 카드 — 진행 중 적용을 바로 보고 원탭 체크. */
@@ -23,10 +22,9 @@ export default function TodayApplicationCard() {
     return (
       <button
         onClick={goApplications}
-        className="card flex w-full items-center gap-3 px-4 py-3 text-left"
+        className="card-flat flex w-full items-center gap-3 px-4 py-3 text-left"
       >
-        <span className="text-lg">📖</span>
-        <div className="min-w-0 flex-1">
+                <div className="min-w-0 flex-1">
           <p className="text-sm font-medium text-[var(--fg-primary)]">말씀 적용</p>
           <p className="truncate text-xs text-[var(--fg-faint)]">오늘 받은 말씀을 어떻게 살지 한 줄로 적어보세요</p>
         </div>
@@ -47,7 +45,7 @@ export default function TodayApplicationCard() {
   const doneCount = active.filter((a) => checks[a.id]).length;
 
   return (
-    <div className="card space-y-2.5 p-3.5">
+    <div className="card-flat space-y-2.5 p-3.5">
       <button onClick={goApplications} className="flex w-full items-center gap-2 text-left">
         <BookOpen size={15} className="shrink-0 text-[var(--leaf)]" />
         <span className="text-sm font-semibold text-[var(--fg-primary)]">오늘의 말씀 적용</span>
@@ -82,7 +80,7 @@ function ApplicationRow({ app, practicedToday }: { app: ApplicationDoc; practice
           'truncate text-sm leading-snug',
           practicedToday ? 'text-[var(--fg-faint)] line-through' : 'font-medium text-[var(--fg-primary)]',
         )}>
-          <span className="mr-1">{TYPE_EMOJI[app.type]}</span>{app.application}
+          {app.application}
         </p>
         <div className="mt-1 flex items-center gap-1.5">
           <div className="h-1 flex-1 overflow-hidden rounded-full bg-[var(--bg-surface)]">

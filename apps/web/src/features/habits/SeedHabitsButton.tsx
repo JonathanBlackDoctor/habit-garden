@@ -39,7 +39,7 @@ export default function SeedHabitsButton({ className }: { className?: string }) 
       onClick={onClick}
       disabled={loading}
       className={cn(
-        'inline-flex h-10 items-center gap-1.5 rounded-full bg-[var(--leaf)] px-5 text-sm font-semibold text-white shadow-[var(--shadow-sm)] transition-all hover:opacity-95 active:scale-95 disabled:opacity-60',
+        'inline-flex h-10 items-center gap-1.5 rounded-full bg-[var(--leaf)] px-5 text-sm font-semibold text-white transition-all hover:opacity-95 active:scale-95 disabled:opacity-60',
         className,
       )}
     >

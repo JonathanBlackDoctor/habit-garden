@@ -204,7 +204,7 @@ export default function AddHabitDialog({
             type="button"
             onClick={submit}
             disabled={saving || !title.trim()}
-            className="flex-1 rounded-[var(--radius-sm)] bg-[var(--leaf)] py-2.5 text-sm font-semibold text-white shadow-[var(--shadow-sm)] transition-all active:scale-95 disabled:opacity-50"
+            className="flex-1 rounded-[var(--radius-sm)] bg-[var(--leaf)] py-2.5 text-sm font-semibold text-white transition-all active:scale-95 disabled:opacity-50"
           >
             {saving ? '추가 중…' : '추가'}
           </button>

@@ -48,18 +48,18 @@ export default function PastDay() {
         <button onClick={() => navigate(-1)} className="text-[var(--fg-muted)]">
           <ChevronLeft size={22} />
         </button>
-        <h2 className="text-base font-semibold text-[var(--fg-primary)]">
+        <h2 className="text-[24px] font-semibold tracking-[-0.01em] text-[var(--fg-primary)]">
           {formatKoreanDate(date)} {isToday && <span className="text-xs text-[var(--leaf)]">· 오늘</span>}
         </h2>
       </div>
 
       {isFuture ? (
-        <div className="card p-6 text-center text-sm text-[var(--fg-muted)]">
+        <div className="card-flat p-6 text-center text-sm text-[var(--fg-muted)]">
           아직 오지 않은 날입니다.
         </div>
       ) : (
         <>
-          <div className="card p-4 flex items-center justify-between">
+          <div className="card-flat p-4 flex items-center justify-between">
             <div>
               <p className="text-xs text-[var(--fg-muted)]">하루 점수</p>
               <p className="text-2xl font-bold text-[var(--leaf)] tabular-nums">{score}</p>
@@ -73,7 +73,7 @@ export default function PastDay() {
           <div className="space-y-2">
             <Link
               to={`/habits${q}`}
-              className="card flex items-center gap-3 p-4 active:bg-[var(--leaf-soft)]"
+              className="card-flat flex items-center gap-3 p-4 active:bg-[var(--leaf-soft)]"
             >
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--leaf-soft)] text-[var(--leaf)]">
                 <ListChecks size={20} />
@@ -86,7 +86,7 @@ export default function PastDay() {
 
             <Link
               to={`/condition${q}`}
-              className="card flex items-center gap-3 p-4 active:bg-[var(--leaf-soft)]"
+              className="card-flat flex items-center gap-3 p-4 active:bg-[var(--leaf-soft)]"
             >
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--leaf-soft)] text-[var(--leaf)]">
                 <HeartPulse size={20} />
@@ -99,7 +99,7 @@ export default function PastDay() {
 
             <Link
               to={`/reflection${q}`}
-              className="card flex items-center gap-3 p-4 active:bg-[var(--leaf-soft)]"
+              className="card-flat flex items-center gap-3 p-4 active:bg-[var(--leaf-soft)]"
             >
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--leaf-soft)] text-[var(--leaf)]">
                 <PenLine size={20} />
