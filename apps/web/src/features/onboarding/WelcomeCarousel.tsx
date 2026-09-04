@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence, type PanInfo } from 'framer-motion';
-import { CheckSquare, Coins, Flower2, Sparkles, Flame } from 'lucide-react';
+import { CheckSquare, Sparkles, Flame } from 'lucide-react';
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
@@ -26,24 +26,14 @@ const SLIDES: Slide[] = [
     badge: [],
     eyebrow: 'Habit Garden',
     title: '습관 정원에 오신 걸\n환영해요',
-    body: '매일의 작은 습관이 모여 당신만의 정원을 자라게 합니다. 30초만 둘러보면 핵심 사용법을 익힐 수 있어요.',
+    body: '매일의 작은 습관을 기록하고 돌아보는 공간입니다. 30초만 둘러보면 핵심 사용법을 익힐 수 있어요.',
   },
   {
     emoji: '✅',
-    badge: [
-      { icon: <CheckSquare size={18} />, tone: 'leaf' },
-      { icon: <Coins size={18} />, tone: 'bloom' },
-    ],
+    badge: [{ icon: <CheckSquare size={18} />, tone: 'leaf' }],
     eyebrow: 'Step 1 · 습관 체크',
-    title: '습관을 체크하면\n포인트가 쌓여요',
-    body: '매일 습관을 0~5점으로 기록해요. 어려운 습관일수록 가중치가 높아 더 많은 포인트를 줍니다.',
-  },
-  {
-    emoji: '🌷',
-    badge: [{ icon: <Flower2 size={18} />, tone: 'bloom' }],
-    eyebrow: 'Step 2 · 정원 가꾸기',
-    title: '포인트로\n정원을 가꿔요',
-    body: '모은 포인트로 씨앗을 심고 물을 주며 식물을 키워요. 만개하면 수확해 보너스 포인트를 얻습니다.',
+    title: '매일 습관을\n0~5점으로 기록해요',
+    body: '시간대별로 습관을 모아두고 하루에 몇 번이든 가볍게 체크해요. 하기 어려운 날은 건너뛰기로 중립 처리할 수 있어요.',
   },
   {
     emoji: '✨',
@@ -51,9 +41,9 @@ const SLIDES: Slide[] = [
       { icon: <Sparkles size={18} />, tone: 'sky' },
       { icon: <Flame size={18} />, tone: 'bloom' },
     ],
-    eyebrow: 'Step 3 · 회고 & 꾸준함',
+    eyebrow: 'Step 2 · 회고 & 꾸준함',
     title: '하루를 돌아보고\n꾸준함을 키워요',
-    body: '저녁에 한 줄 회고를 남기면 +20P, AI 코치가 오늘의 패턴을 짚어줘요. 스트릭·레벨로 성장을 추적합니다.',
+    body: '저녁에 한 줄 회고를 남기면 AI 코치가 오늘의 패턴을 짚어줘요. 스트릭·히트맵으로 꾸준함을 추적합니다.',
   },
 ];
 

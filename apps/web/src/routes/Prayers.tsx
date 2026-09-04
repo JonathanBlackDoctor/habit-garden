@@ -308,7 +308,7 @@ function TodayView({
             />
           </div>
           {done === total && (
-            <p className="mt-2 text-center text-xs text-[var(--leaf)]">오늘의 기도 완료 — 수고했어요! (+15P)</p>
+            <p className="mt-2 text-center text-xs text-[var(--leaf)]">오늘의 기도 완료 — 수고했어요!</p>
           )}
         </div>
       ) : (

@@ -16,9 +16,7 @@ import PendingApproval from '@/routes/PendingApproval';
 import Main       from '@/routes/Main';
 import Habits     from '@/routes/Habits';
 import Reflection from '@/routes/Reflection';
-import Garden     from '@/routes/Garden';
 import Progress   from '@/routes/Progress';
-import PointHistory from '@/routes/PointHistory';
 import Condition  from '@/routes/Condition';
 import Planner    from '@/routes/Planner';
 import Devotion   from '@/routes/Devotion';
@@ -67,12 +65,10 @@ export default function App() {
                 <Route path="/"          element={<Main />} />
                 <Route path="/habits"    element={<Habits />} />
                 <Route path="/reflection" element={<Reflection />} />
-                <Route path="/garden"    element={<Garden />} />
                 <Route path="/prayers"   element={<Prayers />} />
                 {/* 말씀 적용은 신앙 탭에 통합됨 — 옛 경로·딥링크는 신앙 탭으로 보낸다 */}
                 <Route path="/applications" element={<Navigate to="/prayers?view=application" replace />} />
                 <Route path="/progress"  element={<Progress />} />
-                <Route path="/points"    element={<PointHistory />} />
                 <Route path="/condition" element={<Condition />} />
                 <Route path="/planner"   element={<Planner />} />
                 <Route path="/devotion"  element={<Devotion />} />

@@ -3,22 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { collection, onSnapshot, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
-import { useProgress } from '@/features/garden/useGarden';
-import { BADGE_DEFS } from 'shared/types/firestore';
-import type { BadgeDoc, DayDoc } from 'shared/types/firestore';
-import { xpForLevel } from '@/lib/utils';
-import BloomBadge from '@/components/BloomBadge';
+import { useProgress } from '@/features/progress/useProgress';
+import type { DayDoc } from 'shared/types/firestore';
 import CountUp from '@/components/CountUp';
 import { motion } from 'framer-motion';
 import { useTabBloomKey } from '@/lib/tabActive';
 import { plannerDate } from '@/lib/dayBoundary';
-import { Flame, Star, Award } from 'lucide-react';
+import { Flame, Star } from 'lucide-react';
 import HabitHeatmap from '@/features/stats/HabitHeatmap';
 import WeeklyReport from '@/features/stats/WeeklyReport';
 import WeeklyInsightCard from '@/features/coach/WeeklyInsightCard';
 import CorrelationCard from '@/features/insights/CorrelationCard';
 import SignupCTA from '@/components/SignupCTA';
-// 시즌 챌린지(SeasonCard)는 오늘 탭으로 이동했다 — 보상 트랜잭션 중복을 막기 위해 여기선 렌더하지 않는다.
 import { useIsPremium } from '@/lib/features';
 
 export default function Progress() {
@@ -26,16 +22,8 @@ export default function Progress() {
   const navigate = useNavigate();
   const isPremium = useIsPremium();
   const progress = useProgress();
-  const bloomKey = useTabBloomKey('/progress'); // 진척 탭에 들어올 때 배지 재생
-  const [badges, setBadges]   = useState<BadgeDoc[]>([]);
+  const bloomKey = useTabBloomKey('/progress'); // 진척 탭에 들어올 때 카운트 재생
   const [recentDays, setRecentDays] = useState<DayDoc[]>([]);
-
-  useEffect(() => {
-    if (!uid) return;
-    return onSnapshot(collection(db, 'users', uid, 'badges'), (snap) => {
-      setBadges(snap.docs.map((d) => d.data() as BadgeDoc));
-    });
-  }, [uid]);
 
   useEffect(() => {
     if (!uid) return;
@@ -45,11 +33,9 @@ export default function Progress() {
     });
   }, [uid]);
 
-  if (!progress) return null;
-
-  const { level, xpInLevel, globalStreak, globalBestStreak, spendablePoints, totalPoints } = progress;
-  const xpNeeded = xpForLevel(level);
-  const earnedIds = new Set(badges.map((b) => b.badgeId));
+  // progress 문서는 서버가 merge 쓰기로 만들 때까지 없을 수 있다 — 통계는 0으로 시작.
+  const globalStreak = progress?.globalStreak ?? 0;
+  const globalBestStreak = progress?.globalBestStreak ?? 0;
 
   const scoreByDate = new Map(recentDays.map((d) => [d.date, d.dayScore ?? 0]));
   const base = new Date(plannerDate() + 'T00:00:00Z');
@@ -62,41 +48,6 @@ export default function Progress() {
   return (
     <div className="min-h-screen p-4 space-y-4 pb-8">
       <h2 className="text-base font-semibold text-[var(--fg-primary)] pt-2">진척 현황</h2>
-
-      {/* 레벨 카드 */}
-      <div className="card p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <BloomBadge level={level} size={48} burstKey={bloomKey || undefined} />
-            <div>
-              <p className="text-xs text-[var(--fg-muted)]">레벨</p>
-              <p className="text-2xl font-bold text-[var(--leaf)] tabular-nums">Lv.{level}</p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => navigate('/points')}
-            className="text-right rounded-lg -m-1 p-1 transition-colors hover:bg-[var(--leaf-soft)] focus:outline-none focus:ring-2 focus:ring-[var(--leaf)]"
-            aria-label="포인트 내역 보기"
-          >
-            <p className="text-xs text-[var(--fg-muted)]">포인트 · 내역 ›</p>
-            <p className="text-xl font-bold text-[var(--bloom)] tabular-nums">✦{spendablePoints.toLocaleString()}</p>
-            <p className="text-xs text-[var(--fg-faint)] tabular-nums">누적 {totalPoints.toLocaleString()}P</p>
-          </button>
-        </div>
-        <div className="space-y-1">
-          <div className="flex justify-between text-xs text-[var(--fg-muted)]">
-            <span>경험치</span>
-            <span className="tabular-nums">{xpInLevel}/{xpNeeded}</span>
-          </div>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--leaf-soft)]">
-            <div
-              className="h-full rounded-full bg-[var(--leaf)] transition-all"
-              style={{ width: `${Math.min((xpInLevel / xpNeeded) * 100, 100)}%` }}
-            />
-          </div>
-        </div>
-      </div>
 
       {/* 스트릭 */}
       <div className="grid grid-cols-2 gap-3">
@@ -177,42 +128,6 @@ export default function Progress() {
 
       {/* 1년 잔디 히트맵 */}
       <HabitHeatmap />
-
-      {/* 배지 */}
-      <div className="card p-4 space-y-3">
-        <h3 className="text-sm font-medium text-[var(--fg-primary)]">배지</h3>
-        <div className="grid grid-cols-4 gap-3">
-          {BADGE_DEFS.map((def, idx) => {
-            const earned = earnedIds.has(def.id);
-            return (
-              <motion.div
-                key={`${def.id}-${bloomKey}`}
-                initial={{ scale: 0.5, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: Math.min(idx * 0.03, 0.45), type: 'spring', stiffness: 380, damping: 20 }}
-                className="flex flex-col items-center gap-1 text-center"
-              >
-                <div
-                  className={`flex h-12 w-12 items-center justify-center rounded-full text-xl ${
-                    earned
-                      ? def.tier === 'gold'
-                        ? 'bg-yellow-100 text-yellow-600'
-                        : def.tier === 'silver'
-                        ? 'bg-gray-100 text-gray-500'
-                        : 'bg-orange-50 text-orange-400'
-                      : 'bg-[var(--bg-base)] text-[var(--fg-faint)]'
-                  }`}
-                >
-                  <Award size={22} />
-                </div>
-                <span className={`text-[10px] leading-tight ${earned ? 'text-[var(--fg-primary)]' : 'text-[var(--fg-faint)]'}`}>
-                  {def.title}
-                </span>
-              </motion.div>
-            );
-          })}
-        </div>
-      </div>
     </div>
   );
 }

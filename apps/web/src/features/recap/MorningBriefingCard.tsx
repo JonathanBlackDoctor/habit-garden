@@ -41,7 +41,7 @@ export default function MorningBriefingCard({
   const navigate = useNavigate();
   const uid = useAppStore((s) => s.uid);
   const today = useAppStore((s) => s.currentDate);
-  const { recap, dayScore, penalty, yesterday, resolution, visible } = useYesterdayRecap(habits);
+  const { recap, dayScore, yesterday, resolution, visible } = useYesterdayRecap(habits);
 
   // 어제의 다짐 실천 체크 — 오늘 DayDoc.resolutionPracticed 에 저장
   const [practiced, setPracticed] = useState(false);
@@ -224,18 +224,6 @@ export default function MorningBriefingCard({
                         </div>
                       )}
 
-                      {/* 미완료 패널티 */}
-                      {penalty && (
-                        <div className="flex items-center gap-1.5 rounded-md bg-[var(--wither)]/15 px-2.5 py-1.5 text-[11px] text-[var(--fg-muted)]">
-                          <span className="text-[var(--wither)]">▾</span>
-                          <span>
-                            미완료 패널티
-                            {penalty.points > 0 && <b className="text-[var(--fg-primary)]"> −{penalty.points}P</b>}
-                            {penalty.healthLoss > 0 && <span> · 생기 −{penalty.healthLoss}</span>}
-                            {penalty.count > 0 && <span className="text-[var(--fg-faint)]"> ({penalty.count}개)</span>}
-                          </span>
-                        </div>
-                      )}
                     </>
                   )}
 

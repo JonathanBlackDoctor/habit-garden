@@ -2,9 +2,6 @@ import { useCallback, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { animate } from 'framer-motion';
 import TabBar from './TabBar';
-import CelebrationOverlay from '@/features/habits/CelebrationOverlay';
-import LevelUpModal from '@/features/garden/LevelUpModal';
-import { useLevelUpWatcher } from '@/features/garden/useLevelUpWatcher';
 import { ScrollTopContext } from '@/lib/scrollContext';
 import { TabActiveContext } from '@/lib/tabActive';
 import { useVisibleTabs } from '@/lib/tabs';
@@ -14,7 +11,6 @@ import PrayerTour from '@/features/onboarding/PrayerTour';
 import { useOnboardingTrigger } from '@/features/onboarding/useOnboardingTrigger';
 
 export default function AppLayout() {
-  useLevelUpWatcher();
   useOnboardingTrigger();
   const hostRef = useRef<HTMLDivElement>(null);
   const tabs = useVisibleTabs();
@@ -58,8 +54,6 @@ export default function AppLayout() {
             <SwipeTabs />
           </div>
           <TabBar />
-          <CelebrationOverlay />
-          <LevelUpModal />
           <OnboardingFlow />
           <PrayerTour />
         </div>

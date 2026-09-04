@@ -13,8 +13,8 @@ type Phase = 'welcome' | 'tour';
 const MAIN_TOUR_STEPS: Step[] = [
   {
     target: '[data-tour="hero"]',
-    title: '내 정원 현황',
-    body: '레벨 · 🔥스트릭 · 사용 가능 포인트를 여기서 한눈에 확인해요.',
+    title: '오늘 한눈에 보기',
+    body: '오늘 날짜와 🔥스트릭(연속 성공일)을 여기서 한눈에 확인해요.',
   },
   {
     target: '[data-tour="today"]',
@@ -24,7 +24,7 @@ const MAIN_TOUR_STEPS: Step[] = [
   {
     target: '[data-tour="tabbar"]',
     title: '화면 이동',
-    body: '하단 탭으로 오늘 · 습관 · 정원 · 진척 · 더보기를 자유롭게 오갈 수 있어요.',
+    body: '하단 탭으로 오늘 · 습관 · 더보기를 자유롭게 오갈 수 있어요.',
   },
   {
     target: '[data-tour="habit-first"]',
@@ -58,7 +58,7 @@ export default function OnboardingFlow() {
     markOnboarded();
     if (uid) void firstRunSetup(uid);
     close();
-    toast.success('이제 정원을 가꿔볼까요? 🌱');
+    toast.success('이제 첫 습관을 체크해볼까요? 🌱');
   };
 
   const skip = () => {

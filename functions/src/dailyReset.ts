@@ -10,9 +10,7 @@ import * as admin from 'firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import { subDays, format, parseISO } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
-import { processDailyGarden } from './gardenAutogrow';
-import { applyHabitPenalty } from './habitPenalty';
-import { HEALTH_RULES } from '../../shared/lib/healthForecast';
+import { SUCCESS_THRESHOLD } from '../../shared/lib/daySuccess';
 import { shouldBecomeDormant, selectTodayPrayers, type RotationInput } from '../../shared/prayerRotation';
 import { selectCarryOverItems, CARRY_LOOKBACK_DAYS, type CarryDay } from '../../shared/todoCarryover';
 import {
@@ -51,9 +49,7 @@ export const dailyReset = functions
     for (const profileDoc of profilesSnap.docs) {
       const uid = profileDoc.id;
       try {
-        const { success, protected: protectedDay } = await processUserDay(uid, today, yesterday);
-        await processDailyGarden(uid, success, protectedDay);  // 정원 트레잇·생기·시들기·보너스 시드
-        await applyHabitPenalty(uid, yesterday, protectedDay); // 어제 미완료 습관 패널티 (포인트·생기 차감)
+        await processUserDay(uid, today, yesterday);
         const { count: dormantCount, remainingActive } = await processDormantTransitions(uid);  // 잊혀짐 자동 전이 (설계 §5)
         if (dormantCount > 0) console.log(`dormant transition: uid=${uid}, n=${dormantCount}`);
         const lapsedCount = await processStaleApplications(uid, today);  // 오래 방치된 말씀 적용 자동 보류
@@ -192,7 +188,7 @@ async function processUserDay(
   uid: string,
   today: string,
   yesterday: string,
-): Promise<{ success: boolean; protected: boolean }> {
+): Promise<void> {
   // 1. 오늘 DayDoc 생성
   const todayRef = db.doc(`users/${uid}/days/${today}`);
   const todaySnap = await todayRef.get();
@@ -215,8 +211,6 @@ async function processUserDay(
   }
 
   // 3. 스트릭 정산 — 어제 성공 못 했으면 globalStreak 리셋
-  let success = false;
-  let protectedDay = false;
   if (ydaySnap.exists) {
     const checks = await db
       .collection(`users/${uid}/days/${yesterday}/habitChecks`)
@@ -226,29 +220,20 @@ async function processUserDay(
     const scored   = checks.docs.filter((d) => d.data().score !== null);
     const total    = scored.length;
     const achieved = scored.filter((d) => d.data().achieved).length;
-    success  = total > 0 && achieved / total >= HEALTH_RULES.SUCCESS_THRESHOLD;
+    const success  = total > 0 && achieved / total >= SUCCESS_THRESHOLD;
 
     if (!success) {
       const progressRef = db.doc(`users/${uid}/progress/main`);
       const pSnap = await progressRef.get();
-      const data = pSnap.exists ? pSnap.data() : undefined;
-      const current = data?.globalStreak ?? 0;
+      const current = (pSnap.exists ? pSnap.data() : undefined)?.globalStreak ?? 0;
       if (current > 0) {
-        // 스트릭 보호 (휴가/아픔/그레이스/freeze 토큰) 적용 — 보호 시 리셋하지 않음
-        protectedDay = await tryConsumeStreakProtection(uid, yesterday, data);
-        if (!protectedDay) {
-          await progressRef.set({
-            globalStreak: 0,
-            updatedAt: FieldValue.serverTimestamp(),
-          }, { merge: true });
-        }
-      } else {
-        // 스트릭이 0이라 리셋할 건 없지만, 정원 보호를 위해 커버 여부만(소모 없이) 평가
-        protectedDay = isDayProtected(yesterday, data);
+        await progressRef.set({
+          globalStreak: 0,
+          updatedAt: FieldValue.serverTimestamp(),
+        }, { merge: true });
       }
     }
   }
-  return { success, protected: protectedDay };
 }
 
 /**
@@ -294,60 +279,4 @@ async function carryOverTodos(uid: string, today: string): Promise<number> {
     tx.set(dayRef, { todosCarriedOver: true, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
     return items.length;
   });
-}
-
-/** 소모 없이 해당 날짜가 휴가/freeze 토큰으로 보호되는지만 판단 (정원 보호 평가용). */
-function isDayProtected(date: string, prog: FirebaseFirestore.DocumentData | undefined): boolean {
-  if (!prog) return false;
-  if (prog.vacationUntil && prog.vacationUntil >= date) return true;
-  if (prog.freezeProtectedDate && prog.freezeProtectedDate === date) return true;
-  return false;
-}
-
-/**
- * 어제(date)가 성공일이 아닐 때 스트릭을 끊지 않고 보호할 수 있는지 판단·소모.
- *  1) vacationUntil 이 date 이상이면 보호 (소모 없음 — 휴가 기간)
- *  2) 주간 그레이스(주 1회) 미사용이면 소모 후 보호
- * 보호되면 true 반환 → 호출부에서 globalStreak 리셋 생략.
- */
-async function tryConsumeStreakProtection(
-  uid: string,
-  date: string,
-  prog: FirebaseFirestore.DocumentData | undefined,
-): Promise<boolean> {
-  if (!prog) return false;
-  const progressRef = db.doc(`users/${uid}/progress/main`);
-
-  // 0) freeze 토큰으로 이미 보호한 날 (토큰 사용 시 소모 완료 — 여기선 인정만)
-  if (prog.freezeProtectedDate && prog.freezeProtectedDate === date) {
-    return true;
-  }
-
-  // 1) 휴가/아픔 모드 — vacationUntil 이 보호 대상일 이상
-  if (prog.vacationUntil && prog.vacationUntil >= date) {
-    return true;
-  }
-
-  // 2) 주간 그레이스 (주 1회)
-  const weekStart = getWeekStart(date);
-  const grace = prog.graceUsed;
-  const usedThisWeek = grace && grace.weekStart === weekStart ? (grace.daysUsed ?? 0) : 0;
-  if (usedThisWeek < 1) {
-    await progressRef.set({
-      graceUsed: { weekStart, daysUsed: usedThisWeek + 1 },
-      updatedAt: FieldValue.serverTimestamp(),
-    }, { merge: true });
-    return true;
-  }
-
-  return false;
-}
-
-// 주의 시작(월요일) 'YYYY-MM-DD' 반환
-function getWeekStart(dateStr: string): string {
-  const d = new Date(`${dateStr}T00:00:00Z`);
-  const day = d.getUTCDay();             // 0=일 … 6=토
-  const diff = day === 0 ? -6 : 1 - day; // 월요일로 보정
-  d.setUTCDate(d.getUTCDate() + diff);
-  return d.toISOString().slice(0, 10);
 }

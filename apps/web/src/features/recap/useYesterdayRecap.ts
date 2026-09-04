@@ -24,7 +24,6 @@ export function useYesterdayRecap(habits: HabitDoc[]) {
 
   const [checks, setChecks] = useState<Record<string, HabitCheckDoc> | null>(null);
   const [dayScore, setDayScore] = useState<number | undefined>(undefined);
-  const [penalty, setPenalty] = useState<{ points: number; healthLoss: number; count: number } | null>(null);
   // 어제 회고의 '내일 딱 한 가지 더 잘하고 싶은 것(q_tomorrow)' — 오늘 실천할 다짐
   const [resolution, setResolution] = useState<string | undefined>(undefined);
 
@@ -43,11 +42,6 @@ export function useYesterdayRecap(habits: HabitDoc[]) {
       const day = daySnap.exists() ? (daySnap.data() as DayDoc) : null;
       setDayScore(day?.dayScore);
       setResolution(day?.reflection?.answers?.q_tomorrow?.trim() || undefined);
-      setPenalty(
-        day?.penaltyApplied && ((day.penaltyPoints ?? 0) > 0 || (day.penaltyHealthLoss ?? 0) > 0)
-          ? { points: day.penaltyPoints ?? 0, healthLoss: day.penaltyHealthLoss ?? 0, count: day.penaltyCount ?? 0 }
-          : null,
-      );
     })();
     return () => { cancelled = true; };
   }, [uid, yesterday]);
@@ -60,7 +54,6 @@ export function useYesterdayRecap(habits: HabitDoc[]) {
   return {
     recap,
     dayScore,
-    penalty,
     yesterday,
     resolution,
     // 보여줄 내용(어제 요약 또는 어제의 다짐)이 있을 때 노출 — 닫기 없이 항상 유지

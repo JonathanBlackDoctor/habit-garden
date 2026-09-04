@@ -117,7 +117,7 @@ export default function Planner() {
 
       {/* ───────── 오늘 할 일 ───────── */}
       <DayTodoList
-        uid={uid} date={date} variant="today" rewardable
+        uid={uid} date={date} variant="today"
         title="오늘 할 일" emptyHint="오늘의 할 일을 추가해보세요."
       />
 
@@ -499,14 +499,13 @@ async function carryOverPendingTodos(uid: string, today: string): Promise<number
 }
 
 function DayTodoList({
-  uid, date, title, emptyHint, variant = 'plain', rewardable = false,
+  uid, date, title, emptyHint, variant = 'plain',
 }: {
   uid: string | null;
   date: string;
   title?: string;
   emptyHint: string;
   variant?: 'today' | 'plain';
-  rewardable?: boolean;
 }) {
   const [todos, setTodos] = useState<TodayTodoDoc[]>([]);
   const [input, setInput] = useState('');
@@ -547,7 +546,6 @@ function DayTodoList({
     });
     if (nextDone) {
       feedback('achieve');
-      if (rewardable) toast('✦ +3P', { description: todo.title });
     } else {
       feedback('check');
     }
@@ -671,7 +669,6 @@ function UpcomingTodo({ uid, today }: { uid: string | null; today: string }) {
         uid={uid}
         date={selectedDate}
         variant="plain"
-        rewardable={false}
         emptyHint="이 날짜의 할 일을 미리 적어두세요."
       />
     </section>

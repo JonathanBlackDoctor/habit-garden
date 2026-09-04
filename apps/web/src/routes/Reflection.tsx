@@ -105,7 +105,7 @@ export default function Reflection() {
       );
       setCompleted(true);
       if (isFirst) {
-        toast('✦ +20P', { description: '회고 작성 완료!' });
+        toast('회고 작성 완료!');
       } else {
         toast('회고가 수정되었습니다.');
       }
@@ -269,7 +269,7 @@ export default function Reflection() {
         disabled={!allRequired || saving}
         className="w-full"
       >
-        {saving ? '저장 중…' : completed ? '회고 수정' : '회고 완료 (+20P)'}
+        {saving ? '저장 중…' : completed ? '회고 수정' : '회고 완료'}
       </Button>
     </div>
   );

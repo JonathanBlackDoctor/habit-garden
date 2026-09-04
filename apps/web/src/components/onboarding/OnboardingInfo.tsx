@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { CheckSquare, Flower2, Sparkles, HandHeart, Shield } from 'lucide-react';
+import { CheckSquare, Flame, Sparkles, HandHeart, Shield } from 'lucide-react';
 
 export function OnboardingInfo({ baseDelay = 0.28 }: { baseDelay?: number }) {
   return (
@@ -24,8 +24,8 @@ export function AboutSection({ delay = 0 }: { delay?: number }) {
         습관 정원이란
       </h2>
       <p className="mt-2 text-[13px] leading-relaxed text-[var(--fg-muted)]">
-        매일 작은 습관을 체크하면 포인트가 쌓이고, 그 포인트로 가상의 정원에 식물을 심어 키우는 PWA입니다.
-        게임처럼 가볍게 습관을 들이고, AI 코치가 매일의 패턴을 짧게 짚어줍니다.
+        매일 작은 습관을 가볍게 기록하고 돌아보는 PWA입니다.
+        스트릭과 히트맵으로 꾸준함을 확인하고, AI 코치가 매일의 패턴을 짧게 짚어줍니다.
       </p>
     </motion.section>
   );
@@ -48,13 +48,13 @@ export function FeaturesSection({ delay = 0 }: { delay?: number }) {
           icon={<CheckSquare size={16} />}
           tone="leaf"
           title="습관 체크"
-          desc="매일 정한 습관을 0~5점으로 기록하면 가중치에 따라 포인트가 쌓입니다."
+          desc="매일 정한 습관을 0~5점으로 기록하고, 시간대별로 하루를 정리합니다."
         />
         <FeatureRow
-          icon={<Flower2 size={16} />}
+          icon={<Flame size={16} />}
           tone="bloom"
-          title="정원 가꾸기"
-          desc="모은 포인트로 씨앗을 심어 식물을 키우고, 만개하면 수확 보상을 얻어요."
+          title="꾸준함 추적"
+          desc="스트릭·히트맵·주간 리포트로 흐름을 한눈에 확인해요."
         />
         <FeatureRow
           icon={<Sparkles size={16} />}
