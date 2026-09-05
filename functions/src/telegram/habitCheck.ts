@@ -10,7 +10,7 @@ import type {
   HabitDoc, HabitCheckDoc, DayDoc, ProgressDoc,
 } from '../../../shared/types/firestore';
 import {
-  visibleHabits, isAchieved, isValidHabitScore, buildHabitListMessage, buildScorePicker,
+  visibleHabits, isAchieved, isValidHabitScore, buildHabitListMessage, buildHabitFilterMessage, buildScorePicker,
   habitMatchesFilter, hasHabitCheck,
   type InlineKeyboard, type HabitListContext, type HabitListFilter,
 } from '../../../shared/lib/telegram';
@@ -50,6 +50,15 @@ export async function renderHabitList(
 ): Promise<{ text: string; keyboard: InlineKeyboard }> {
   const v = await loadDayView(uid, date);
   return buildHabitListMessage({ date, ...v }, context);
+}
+
+export async function renderHabitFilterPicker(
+  uid: string,
+  date: string,
+  context?: Partial<HabitListContext>,
+): Promise<{ text: string; keyboard: InlineKeyboard }> {
+  const v = await loadDayView(uid, date);
+  return buildHabitFilterMessage({ date, ...v }, context);
 }
 
 export async function renderScorePicker(

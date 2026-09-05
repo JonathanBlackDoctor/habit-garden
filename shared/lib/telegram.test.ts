@@ -5,7 +5,8 @@ import {
   encodeCallback, parseCallback, CALLBACK_MAX_BYTES,
   visibleHabits, isAchieved, isValidHabitScore, statusIcon, habitTimeOfDayKST,
   reminderFilterForHour, habitMatchesFilter,
-  buildHabitListMessage, buildScorePicker, HABIT_LIST_LIMIT,
+  buildHabitListMessage, buildHabitFilterMessage, buildHabitReminderMenu,
+  buildScorePicker, HABIT_LIST_LIMIT,
   newReflectionSession, currentStep, applyReflectionInput, parseScreenTime,
   reflectionPrompt, buildReflectionSteps,
   buildSettingsMessage, isNotifKey, NOTIF_KEYS,
@@ -80,6 +81,8 @@ describe('콜백 인코딩', () => {
   it('왕복 변환된다', () => {
     const cbs = [
       { ns: 't', action: 'list', date: '2026-09-05', filter: 'evening', pendingOnly: false, page: 2 },
+      { ns: 't', action: 'filters', date: '2026-09-05', filter: 'evening', pendingOnly: false, page: 2 },
+      { ns: 't', action: 'remind', date: '2026-09-05', filter: 'evening', pendingOnly: false, page: 2 },
       { ns: 't', action: 'pick', date: '2026-09-05', habitId: 'abcDEF123', filter: 'evening', pendingOnly: false, page: 2 },
       { ns: 't', action: 'save', date: '2026-09-05', habitId: 'abcDEF123', score: 4, filter: 'evening', pendingOnly: false, page: 2 },
       { ns: 't', action: 'save', date: '2026-09-05', habitId: 'abcDEF123', score: null, filter: 'evening', pendingOnly: false, page: 2 },
@@ -156,7 +159,7 @@ describe('습관 목록·달성 판정', () => {
 });
 
 describe('습관 목록 메시지', () => {
-  it('진행 상황과 습관별 버튼을 만든다', () => {
+  it('기본 화면은 습관당 버튼 하나만 만든다', () => {
     const habits = [
       habit({ id: 'h1', title: 'QT' }),
       habit({ id: 'h2', title: '운동', order: 1, scoreMode: 'binary' }),
@@ -164,12 +167,13 @@ describe('습관 목록 메시지', () => {
     const { text, keyboard } = buildHabitListMessage({
       date: '2026-09-05', habits, checks: { h1: check() }, streak: 12, dayScore: 58,
     });
-    expect(text).toContain('오늘 전체 1/2');
-    expect(text).toContain('🔥 12일째');
-    expect(text).toContain('dayScore 58');
-    expect(keyboard[0][0].text).toBe('✅ 운동 완료');
+    expect(text).toContain('오늘 1/2');
+    expect(text).not.toContain('dayScore');
+    expect(keyboard[0]).toHaveLength(1);
+    expect(keyboard[0][0].text).toBe('☐ 운동');
     expect(parseCallback(keyboard[0][0].callback_data)).toMatchObject({ action: 'save', score: 1 });
-    expect(keyboard.at(-1)![2].text).toBe('🔄');
+    expect(keyboard.flat().some((b) => b.text === '⋯ 수정·건너뜀')).toBe(true);
+    expect(keyboard.flat().some((b) => b.text === '다른 기록')).toBe(false);
   });
 
   it('습관 형식 밖의 점수는 거부한다', () => {
@@ -194,26 +198,31 @@ describe('습관 목록 메시지', () => {
     expect(keyboard).toEqual([]);
   });
 
-  it('다른 시간대와 완료 포함 화면으로 전환할 수 있다', () => {
+  it('시간대 버튼은 별도 선택 화면에만 둔다', () => {
     const habits = [
       habit({ id: 'am', title: '아침', timeOfDay: 'morning' }),
       habit({ id: 'pm', title: '저녁', timeOfDay: 'evening', order: 1 }),
     ];
+    const view = { date: '2026-09-05', habits, checks: { am: check({ habitId: 'am' }) }, streak: 0, dayScore: null };
     const { text, keyboard } = buildHabitListMessage(
-      { date: '2026-09-05', habits, checks: { am: check({ habitId: 'am' }) }, streak: 0, dayScore: null },
+      view,
       { filter: 'morning', pendingOnly: false },
     );
-    expect(text).toContain('☀️ 아침 · 기록 1/1');
+    expect(text).toContain('✏️ ☀️ 아침 · 기록 1/1');
     expect(keyboard[0][0].text).toContain('아침');
-    expect(keyboard.flat().some((b) => b.text.includes('저녁'))).toBe(true);
-    expect(keyboard.flat().some((b) => b.text.includes('미완료만'))).toBe(true);
+    expect(keyboard.flat().some((b) => b.text.includes('저녁'))).toBe(false);
+
+    const picker = buildHabitFilterMessage(view, { filter: 'morning', pendingOnly: true });
+    expect(picker.text).toContain('어느 시간대');
+    expect(picker.keyboard.flat().some((b) => b.text.includes('저녁 1'))).toBe(true);
+    expect(picker.keyboard.flat().some((b) => b.text.includes('전체 1'))).toBe(true);
   });
 
   it('점수형 습관은 목록에서 1~5점 선택 화면으로 들어간다', () => {
     const { keyboard } = buildHabitListMessage({
       date: '2026-09-05', habits: [habit({ title: 'QT' })], checks: {}, streak: 0, dayScore: null,
     });
-    expect(keyboard[0][0].text).toContain('1~5점 선택');
+    expect(keyboard[0][0].text).toContain('1–5');
     expect(parseCallback(keyboard[0][0].callback_data)).toMatchObject({ action: 'pick', habitId: 'h1' });
   });
 
@@ -225,6 +234,18 @@ describe('습관 목록 메시지', () => {
     );
     expect(keyboard[0][0].text).toContain('미완료');
     expect(keyboard[1][0].text).toContain('완료');
+  });
+
+  it('스누즈 동작은 별도 화면으로 접는다', () => {
+    const main = buildHabitListMessage({
+      date: '2026-09-05', habits: [habit()], checks: {}, streak: 0, dayScore: null,
+    });
+    expect(main.keyboard.flat().some((b) => b.text === '30분 뒤')).toBe(false);
+    expect(main.keyboard.flat().some((b) => b.text === '⏰ 나중에 알림')).toBe(true);
+
+    const picker = buildHabitReminderMenu('2026-09-05', { filter: 'morning' });
+    expect(picker.keyboard[0].map((b) => b.text)).toEqual(['30분 뒤', '2시간 뒤']);
+    expect(parseCallback(picker.keyboard[0][0].callback_data)).toMatchObject({ action: 'snooze', filter: 'morning' });
   });
 });
 
