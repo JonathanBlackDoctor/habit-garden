@@ -48,7 +48,13 @@ export default function HabitCard({ habit, check, streak = 0, onScore, onClear }
     streak > 0 ? `${streak}일 연속` : null,
   ].filter(Boolean).join(' · ');
   const quickCircleLabel = habit.scoreMode === 'scaled'
-    ? '점수 선택'
+    ? status === 'skipped'
+      ? '기록 취소'
+      : currentScore === null
+        ? '1점'
+        : currentScore >= 5
+          ? '기록 취소'
+          : `${currentScore + 1}점`
     : status === 'todo'
       ? '완료'
       : status === 'achieved'
@@ -107,7 +113,13 @@ export default function HabitCard({ habit, check, streak = 0, onScore, onClear }
           label={`${habit.title} ${quickCircleLabel}`}
           onClick={() => {
             if (habit.scoreMode === 'scaled') {
-              setExpanded((v) => !v);
+              if (status === 'skipped' || (currentScore !== null && currentScore >= 5)) {
+                // 건너뜀 또는 5점 다음 탭은 미입력(○)으로 되돌린다.
+                onClear();
+              } else {
+                // ○ → 1 → 2 → 3 → 4 → 5
+                onScore((currentScore ?? 0) + 1);
+              }
             } else if (status === 'todo') {
               onScore(1);
             } else if (status === 'achieved') {
