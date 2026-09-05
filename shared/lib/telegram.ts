@@ -18,6 +18,19 @@ import { isHibernating } from './hibernation';
 const KST_OFFSET_H = 9;
 const DAY_START_H = 4;    // 하루 경계 04:00 KST
 
+export type TelegramChatType = 'private' | 'group' | 'supergroup' | 'channel';
+
+/**
+ * 계정 데이터는 봇과의 1:1 대화에서만 노출한다. 그룹 chat id를 연결하면 그룹의 다른
+ * 구성원도 인라인 버튼을 누를 수 있으므로, chat과 발신자가 같은 private 대화인지 확인한다.
+ */
+export function isPrivateTelegramChat(
+  chat: { id: number | string; type: TelegramChatType },
+  fromId: number | string | undefined,
+): boolean {
+  return chat.type === 'private' && fromId !== undefined && String(chat.id) === String(fromId);
+}
+
 // ── 날짜 ────────────────────────────────────────────────────────────────────
 /**
  * 04:00 경계 기준 '플래너 날짜'. 웹앱 `lib/dayBoundary.plannerDate` 와 같은 규칙으로,

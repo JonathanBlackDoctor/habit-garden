@@ -5,7 +5,7 @@
  * 모든 메시지는 parse_mode:'HTML' 로 보낸다. 사용자 데이터(습관 제목·회고 답변)는
  * 호출부에서 shared/lib/telegram 의 escapeHtml 을 통과시켜야 한다.
  */
-import type { InlineKeyboard } from '../../../shared/lib/telegram';
+import type { InlineKeyboard, TelegramChatType } from '../../../shared/lib/telegram';
 
 // 기본값은 실제 텔레그램. 에뮬레이터 통합 테스트에서만 로컬 목 서버로 돌린다.
 const API_BASE = process.env.TELEGRAM_API_BASE || 'https://api.telegram.org';
@@ -19,7 +19,7 @@ export interface TelegramUser {
 
 export interface TelegramMessage {
   message_id: number;
-  chat: { id: number | string; type?: string };
+  chat: { id: number | string; type: TelegramChatType };
   from?: TelegramUser;
   text?: string;
 }

@@ -5,6 +5,7 @@
  */
 import * as admin from 'firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
+import { randomInt } from 'node:crypto';
 import type {
   TelegramLinkDoc, TelegramUserDoc, TelegramLinkCodeDoc, TelegramSessionDoc,
 } from '../../../shared/types/firestore';
@@ -20,7 +21,7 @@ const CODE_LENGTH = 6;
 function randomCode(): string {
   let out = '';
   for (let i = 0; i < CODE_LENGTH; i++) {
-    out += CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)];
+    out += CODE_ALPHABET[randomInt(CODE_ALPHABET.length)];
   }
   return out;
 }
@@ -66,15 +67,21 @@ export async function consumeLinkCode(rawCode: string): Promise<ConsumeResult> {
   if (!/^[A-Z0-9]{4,12}$/.test(code)) return { ok: false, reason: 'unknown' };
 
   const ref = db.doc(`telegramLinkCodes/${code}`);
-  const snap = await ref.get();
-  if (!snap.exists) return { ok: false, reason: 'unknown' };
+  // 읽기와 usedAt 기록을 한 트랜잭션으로 묶는다. 웹훅 재전송이나 서로 다른 chat의
+  // 동시 요청이 같은 1회용 코드를 둘 다 통과하는 것을 막는다.
+  return db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) return { ok: false, reason: 'unknown' } as const;
 
-  const doc = snap.data() as TelegramLinkCodeDoc;
-  if (doc.usedAt) return { ok: false, reason: 'used' };
-  if ((doc.expiresAt as any)?.toMillis?.() < Date.now()) return { ok: false, reason: 'expired' };
+    const doc = snap.data() as TelegramLinkCodeDoc;
+    if (doc.usedAt) return { ok: false, reason: 'used' } as const;
+    if ((doc.expiresAt as any)?.toMillis?.() < Date.now()) {
+      return { ok: false, reason: 'expired' } as const;
+    }
 
-  await ref.update({ usedAt: FieldValue.serverTimestamp() });
-  return { ok: true, uid: doc.uid };
+    tx.update(ref, { usedAt: FieldValue.serverTimestamp() });
+    return { ok: true, uid: doc.uid } as const;
+  });
 }
 
 // ── 연결 ────────────────────────────────────────────────────────────────────
@@ -98,48 +105,99 @@ export async function linkAccount(
   chatId: string,
   telegram: { id: number; username?: string; first_name?: string },
 ): Promise<void> {
-  const batch = db.batch();
+  const linkRef = db.doc(`telegramLinks/${chatId}`);
+  const userRef = db.doc(`telegramUsers/${uid}`);
 
-  const prevForChat = await getLinkByChatId(chatId);
-  if (prevForChat && prevForChat.uid !== uid) {
-    batch.delete(db.doc(`telegramUsers/${prevForChat.uid}`));
-  }
-  const prevChatId = await getChatIdForUid(uid);
-  if (prevChatId && prevChatId !== chatId) {
-    batch.delete(db.doc(`telegramLinks/${prevChatId}`));
-  }
+  await db.runTransaction(async (tx) => {
+    const [linkSnap, userSnap] = await Promise.all([tx.get(linkRef), tx.get(userRef)]);
+    const prevUid = linkSnap.exists ? (linkSnap.data() as TelegramLinkDoc).uid : null;
+    const prevChatId = userSnap.exists ? (userSnap.data() as TelegramUserDoc).chatId : null;
 
-  const now = FieldValue.serverTimestamp();
-  batch.set(db.doc(`telegramLinks/${chatId}`), {
-    chatId,
-    uid,
-    telegramUserId: telegram.id,
-    username: telegram.username ?? null,
-    firstName: telegram.first_name ?? null,
-    linkedAt: now,
-    lastSeenAt: now,
+    // 반대쪽 인덱스도 읽고 현재 관계와 일치할 때만 지운다. 모든 읽기를 쓰기보다 먼저
+    // 수행해 동시 재연결에서도 chatId↔uid가 정확히 한 쌍만 남게 한다.
+    const prevUserSnap = prevUid && prevUid !== uid
+      ? await tx.get(db.doc(`telegramUsers/${prevUid}`))
+      : null;
+    const prevLinkSnap = prevChatId && prevChatId !== chatId
+      ? await tx.get(db.doc(`telegramLinks/${prevChatId}`))
+      : null;
+
+    if (prevUserSnap?.exists && (prevUserSnap.data() as TelegramUserDoc).chatId === chatId) {
+      tx.delete(prevUserSnap.ref);
+    }
+    if (prevLinkSnap?.exists && (prevLinkSnap.data() as TelegramLinkDoc).uid === uid) {
+      tx.delete(prevLinkSnap.ref);
+    }
+
+    const now = FieldValue.serverTimestamp();
+    // 같은 chat을 다시 연결할 때 claimUpdate가 기록한 lastUpdateId를 보존한다.
+    tx.set(linkRef, {
+      chatId,
+      uid,
+      telegramUserId: telegram.id,
+      username: telegram.username ?? null,
+      firstName: telegram.first_name ?? null,
+      linkedAt: now,
+      lastSeenAt: now,
+    }, { merge: true });
+    tx.set(userRef, {
+      uid,
+      chatId,
+      username: telegram.username ?? null,
+      firstName: telegram.first_name ?? null,
+      linkedAt: now,
+    });
   });
-  batch.set(db.doc(`telegramUsers/${uid}`), {
-    uid,
-    chatId,
-    username: telegram.username ?? null,
-    firstName: telegram.first_name ?? null,
-    linkedAt: now,
-  });
-  await batch.commit();
 }
 
 /** uid 또는 chatId 어느 쪽으로도 해제할 수 있게 한다 (앱의 해제 버튼 / 봇의 /unlink). */
 export async function unlinkAccount(opts: { uid?: string; chatId?: string }): Promise<boolean> {
-  const chatId = opts.chatId ?? (opts.uid ? await getChatIdForUid(opts.uid) : null);
-  const uid = opts.uid ?? (chatId ? (await getLinkByChatId(chatId))?.uid ?? null : null);
-  if (!chatId && !uid) return false;
+  if (!opts.uid && !opts.chatId) return false;
 
-  const batch = db.batch();
-  if (chatId) batch.delete(db.doc(`telegramLinks/${chatId}`));
-  if (uid) batch.delete(db.doc(`telegramUsers/${uid}`));
-  await batch.commit();
-  return true;
+  return db.runTransaction(async (tx) => {
+    if (opts.uid && opts.chatId) {
+      const linkRef = db.doc(`telegramLinks/${opts.chatId}`);
+      const userRef = db.doc(`telegramUsers/${opts.uid}`);
+      const [linkSnap, userSnap] = await Promise.all([tx.get(linkRef), tx.get(userRef)]);
+      let removed = false;
+      if (linkSnap.exists && (linkSnap.data() as TelegramLinkDoc).uid === opts.uid) {
+        tx.delete(linkRef);
+        removed = true;
+      }
+      if (userSnap.exists && (userSnap.data() as TelegramUserDoc).chatId === opts.chatId) {
+        tx.delete(userRef);
+        removed = true;
+      }
+      return removed;
+    }
+
+    if (opts.uid) {
+      const userRef = db.doc(`telegramUsers/${opts.uid}`);
+      const userSnap = await tx.get(userRef);
+      if (!userSnap.exists) return false;
+      const chatId = (userSnap.data() as TelegramUserDoc).chatId;
+      const linkRef = db.doc(`telegramLinks/${chatId}`);
+      const linkSnap = await tx.get(linkRef);
+      tx.delete(userRef);
+      if (linkSnap.exists && (linkSnap.data() as TelegramLinkDoc).uid === opts.uid) {
+        tx.delete(linkRef);
+      }
+      return true;
+    }
+
+    const chatId = opts.chatId as string;
+    const linkRef = db.doc(`telegramLinks/${chatId}`);
+    const linkSnap = await tx.get(linkRef);
+    if (!linkSnap.exists) return false;
+    const uid = (linkSnap.data() as TelegramLinkDoc).uid;
+    const userRef = db.doc(`telegramUsers/${uid}`);
+    const userSnap = await tx.get(userRef);
+    tx.delete(linkRef);
+    if (userSnap.exists && (userSnap.data() as TelegramUserDoc).chatId === chatId) {
+      tx.delete(userRef);
+    }
+    return true;
+  });
 }
 
 /**

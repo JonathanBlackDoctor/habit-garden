@@ -13,6 +13,7 @@ import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { sendMessage, TelegramForbiddenError } from './api';
 import type { TelegramUpdate } from './api';
+import { isPrivateTelegramChat } from '../../../shared/lib/telegram';
 import { getLinkByChatId, consumeLinkCode, linkAccount, claimUpdate, unlinkAccount } from './store';
 import { handleMessage, handleCallback, parseCommand, type Session } from './handlers';
 
@@ -61,6 +62,13 @@ async function route(update: TelegramUpdate): Promise<void> {
   const from = msg?.from ?? query?.from;
   if (from?.is_bot) return;
 
+  // 그룹에 계정을 연결하면 다른 구성원도 버튼을 눌러 사용자의 습관·회고에 접근할 수 있다.
+  // 봇은 개인 대화만 지원하며, private chat id와 발신자 id가 같은지도 함께 확인한다.
+  if (!from || !isPrivateTelegramChat(chat, from.id)) {
+    await safeSend(chatId, '보안을 위해 텔레그램 봇과의 개인 대화에서만 사용할 수 있어요.');
+    return;
+  }
+
   // 같은 업데이트가 두 번 처리되면 회고 단계가 두 칸씩 넘어간다.
   if (!(await claimUpdate(chatId, update.update_id))) {
     console.log(`skip duplicate update ${update.update_id} chat=${chatId}`);
@@ -78,6 +86,12 @@ async function route(update: TelegramUpdate): Promise<void> {
   // 그 밖의 미연결 chat 은 안내만 하고 끝낸다.
   if (!link) {
     await safeSend(chatId, NEEDS_LINK);
+    return;
+  }
+
+  // 저장된 연결 주체와 실제 발신자가 다르면 연결 정보를 신뢰하지 않는다.
+  if (link.telegramUserId !== from.id) {
+    await safeSend(chatId, '연결 정보를 확인할 수 없어요. 앱에서 연결을 해제한 뒤 다시 연결해 주세요.');
     return;
   }
 

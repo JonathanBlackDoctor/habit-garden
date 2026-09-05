@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   plannerDateKST, formatDateLabel, escapeHtml,
+  isPrivateTelegramChat,
   encodeCallback, parseCallback, CALLBACK_MAX_BYTES,
   visibleHabits, isAchieved, statusIcon,
   buildHabitListMessage, buildScorePicker, HABIT_LIST_LIMIT,
@@ -16,6 +17,20 @@ const habit = (over: Partial<HabitDoc> = {}): HabitDoc => ({
 });
 const check = (over: Partial<HabitCheckDoc> = {}): HabitCheckDoc => ({
   habitId: 'h1', score: 4, achieved: true, checkedAt: null as any, ...over,
+});
+
+describe('텔레그램 대화 보안 경계', () => {
+  it('발신자와 chat id가 같은 개인 대화만 허용한다', () => {
+    expect(isPrivateTelegramChat({ id: 123, type: 'private' }, 123)).toBe(true);
+    expect(isPrivateTelegramChat({ id: '123', type: 'private' }, 123)).toBe(true);
+  });
+
+  it('그룹·채널과 발신자 불일치는 거부한다', () => {
+    expect(isPrivateTelegramChat({ id: -1001, type: 'group' }, 123)).toBe(false);
+    expect(isPrivateTelegramChat({ id: -1001, type: 'supergroup' }, 123)).toBe(false);
+    expect(isPrivateTelegramChat({ id: -1001, type: 'channel' }, undefined)).toBe(false);
+    expect(isPrivateTelegramChat({ id: 123, type: 'private' }, 456)).toBe(false);
+  });
 });
 
 describe('plannerDateKST — 04:00 경계', () => {
