@@ -24,6 +24,7 @@ import Prayers    from '@/routes/Prayers';
 import Admin      from '@/routes/Admin';
 import More       from '@/routes/More';
 import NotificationSettings from '@/routes/NotificationSettings';
+import TelegramSettings from '@/routes/TelegramSettings';
 import Tutorial   from '@/routes/Tutorial';
 import PastDay    from '@/routes/PastDay';
 
@@ -80,6 +81,7 @@ export default function App() {
                 <Route path="/admin" element={<Admin />} />
               </Route>
               <Route path="/settings/notifications" element={<NotificationSettings />} />
+              <Route path="/settings/telegram" element={<TelegramSettings />} />
             </Route>
           </Routes>
         </AuthInit>

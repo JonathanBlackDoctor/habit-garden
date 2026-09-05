@@ -8,6 +8,7 @@ import type { NotificationStatsDoc, NotificationType } from 'shared/types/firest
 const TYPE_LABELS: Record<NotificationType, string> = {
   habit_reminder: '습관 리마인더',
   prayer_reminder: '기도 알림',
+  reflection_reminder: '저녁 회고 알림',
   morning_brief: '모닝 브리프',
   prayer_weekly: '주간 기도 회고',
   progress_weekly: '주간 진척 요약',

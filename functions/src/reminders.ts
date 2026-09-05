@@ -2,6 +2,9 @@
  * Phase 3-2 — 시간대별 스마트 리마인더.
  * KST 기준 09:00, 13:00, 19:00, 21:00 매시간 트리거.
  * 미체크 핵심 습관이 있을 때만 발송. 하루 3회 throttle.
+ *
+ * 텔레그램이 연결된 사용자에게는 notifyUser 가 FCM 대신 텔레그램으로 보내고,
+ * 습관 리마인더에는 그 자리에서 체크할 수 있는 인라인 키보드를 붙인다.
  */
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
@@ -14,18 +17,23 @@ import type {
 } from '../../shared/types/firestore';
 import { PRAYER_ROTATION_DEFAULTS } from '../../shared/types/firestore';
 import { daysSince, type RotationInput } from '../../shared/prayerRotation';
-import { sendPush } from './notify';
+import {
+  visibleHabits, buildHabitListMessage, encodeCallback, escapeHtml,
+} from '../../shared/lib/telegram';
+import { notifyUser } from './notify';
 
 const db = admin.firestore();
 const REGION = 'asia-northeast3';
 const KST = 'Asia/Seoul';
 const MAX_PER_DAY = 3;
 const HABIT_HOURS = [9, 13, 19, 21];
+const REFLECTION_HOUR = 22;
 
 // 매시간 정각 트리거 → KST 시간에 따라 분기. 모든 사용자 순회.
-// 습관 리마인더는 고정 시간대(9/13/19/21), 기도 리마인더는 사용자 설정 시각에 발송.
+// 습관 리마인더는 고정 시간대(9/13/19/21), 기도·회고 리마인더는 각자의 시각에 발송.
 export const sendScheduledReminder = functions
   .region(REGION)
+  .runWith({ secrets: ['TELEGRAM_BOT_TOKEN'] })
   .pubsub
   .schedule('0 * * * *')
   .timeZone(KST)
@@ -39,6 +47,7 @@ export const sendScheduledReminder = functions
     await Promise.all(profilesSnap.docs.map(async (doc) => {
       try {
         if (HABIT_HOURS.includes(hour)) await processUser(doc.id, hour, today);
+        if (hour === REFLECTION_HOUR) await processReflectionReminder(doc.id, today);
         await processPrayerReminder(doc.id, hour, today);
       } catch (e) {
         console.error(`reminder failed uid=${doc.id}:`, e);
@@ -58,7 +67,8 @@ async function processUser(uid: string, hour: number, today: string): Promise<vo
     db.collection(`users/${uid}/habits`).get(),
     db.collection(`users/${uid}/days/${today}/habitChecks`).get(),
   ]);
-  const habits = habitsSnap.docs.map((d) => d.data() as HabitDoc).filter((h) => h.active);
+  // 휴면(잠재운) 습관은 앱의 오늘 목록에서 빠지므로 리마인더에서도 뺀다.
+  const habits = visibleHabits(habitsSnap.docs.map((d) => d.data() as HabitDoc));
   const checks: Record<string, HabitCheckDoc> = {};
   checksSnap.docs.forEach((d) => { checks[d.id] = d.data() as HabitCheckDoc; });
 
@@ -77,23 +87,75 @@ async function processUser(uid: string, hour: number, today: string): Promise<vo
   const settingsSnap = await db.doc(`users/${uid}/settings/main`).get();
   if ((settingsSnap.data() as UserSettingsDoc | undefined)?.notifications?.habitReminder === false) return;
 
-  const tokenSnap = await db.collection(`users/${uid}/notifications`).get();
-  if (tokenSnap.empty) return;
-
   const title = buildTitle(hour, unchecked.length);
   const body  = `${unchecked.slice(0, 2).map((h) => h.title).join(', ')}${unchecked.length > 2 ? ` 외 ${unchecked.length - 2}개` : ''}`;
 
-  await sendPush(uid, tokenSnap.docs, {
+  // 텔레그램에서는 알림 그 자체가 체크 화면이 된다 — 앱을 열 필요가 없다.
+  const list = buildHabitListMessage({
+    date: today, habits, checks, streak: prog.globalStreak ?? 0, dayScore: null,
+  });
+
+  await notifyUser(uid, {
     title,
     body,
     tod: tod ?? 'anytime',
     date: today,
     habitIds: unchecked.map((h) => h.id).join(','),
-  }, { link: '/habit-garden/#/habits', type: 'habit_reminder' });
+  }, {
+    link: '/habit-garden/#/habits',
+    type: 'habit_reminder',
+    telegram: {
+      text: `<b>${escapeHtml(title)}</b>\n${escapeHtml(body)}\n\n${list.text}`,
+      keyboard: list.keyboard,
+    },
+  });
 
   await db.doc(`users/${uid}/progress/main`).set({
     lastReminderAt: FieldValue.serverTimestamp(),
     _todayReminderCount: { date: today, count: lastReminderToday + 1 },
+    updatedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+}
+
+/**
+ * 저녁 회고 리마인더 — 22:00 KST, 하루 1회.
+ * 오늘 회고가 아직 없고 오늘 습관을 하나라도 체크한 날에만 보낸다(빈 날 스팸 방지).
+ * 텔레그램에서는 [회고 쓰기] 버튼으로 바로 대화형 작성이 시작된다.
+ */
+async function processReflectionReminder(uid: string, today: string): Promise<void> {
+  const settingsSnap = await db.doc(`users/${uid}/settings/main`).get();
+  if ((settingsSnap.data() as UserSettingsDoc | undefined)?.notifications?.reflectionReminder === false) return;
+
+  const progRef = db.doc(`users/${uid}/progress/main`);
+  const [daySnap, checksSnap, progSnap] = await Promise.all([
+    db.doc(`users/${uid}/days/${today}`).get(),
+    db.collection(`users/${uid}/days/${today}/habitChecks`).limit(1).get(),
+    progRef.get(),
+  ]);
+
+  // 하루 1회 가드 (습관 리마인더 상한과 별도)
+  if ((progSnap.data() as any)?._todayReflectionReminder?.date === today) return;
+
+  const day = daySnap.data() as DayDoc | undefined;
+  if (day?.reflection?.completedAt) return;   // 이미 썼다
+  if (checksSnap.empty) return;               // 기록이 아예 없는 날은 건드리지 않는다
+
+  await notifyUser(uid, {
+    title: '📝 오늘 하루를 정리해볼까요',
+    body: '3가지만 답하면 끝나요',
+    date: today,
+  }, {
+    link: '/habit-garden/#/reflection',
+    type: 'reflection_reminder',
+    urgency: 'normal',
+    telegram: {
+      text: '📝 <b>오늘 하루를 정리해볼까요</b>\n필수 질문 3개만 답하면 끝나요.',
+      keyboard: [[{ text: '회고 쓰기', callback_data: encodeCallback({ ns: 'r', action: 'start' }) }]],
+    },
+  });
+
+  await progRef.set({
+    _todayReflectionReminder: { date: today },
     updatedAt: FieldValue.serverTimestamp(),
   }, { merge: true });
 }
@@ -128,9 +190,6 @@ async function processPrayerReminder(uid: string, hour: number, today: string): 
   const remaining = listIds.filter((id) => !checked.has(id)).length;
   if (remaining === 0) return; // 이미 다 기도함 — 보내지 않음
 
-  const tokenSnap = await db.collection(`users/${uid}/notifications`).get();
-  if (tokenSnap.empty) return;
-
   // 곧 잠들 기도 환기 (잠듦 임계 7일 전부터)
   const nowMs = Date.now();
   const activeSnap = await db.collection(`users/${uid}/prayers`).where('status', '==', 'active').get();
@@ -152,7 +211,7 @@ async function processPrayerReminder(uid: string, hour: number, today: string): 
   let body = `남은 기도 ${remaining}개 — 조용히 머무는 시간을 가져보세요`;
   if (dormantSoon > 0) body += `\n잊혀가는 기도 ${dormantSoon}개가 곧 잠들어요`;
 
-  await sendPush(uid, tokenSnap.docs, {
+  await notifyUser(uid, {
     title: '🙏 오늘의 기도',
     body,
     date: today,

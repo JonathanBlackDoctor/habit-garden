@@ -34,6 +34,8 @@ service-account*.json
 # 일반 .env (functions 등) — 비밀이 들어갈 수 있으므로 제외
 .env
 .env.*
+# 에뮬레이터용 Functions 시크릿 값 (firebase functions:secrets 로컬 대체)
+.secret.local
 # 단, apps/web/.env 는 Firebase '클라이언트' 공개 설정값(공개 설계됨)이라
 # CI 빌드에 필요하므로 의도적으로 추적합니다. 아래 한 줄로 예외 처리.
 !apps/web/.env

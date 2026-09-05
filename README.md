@@ -10,6 +10,7 @@
 - **Backend**: Firebase (Firestore / Auth / Cloud Functions / Hosting)
 - **AI**: Gemini 2.0 Flash (Cloud Functions 내부 호출)
 - **PWA**: vite-plugin-pwa (standalone 풀스크린)
+- **텔레그램 봇**: Cloud Functions HTTPS 웹훅 (앱 접속 없이 습관 체크·회고·코치)
 
 ## 빠른 시작
 
@@ -34,6 +35,10 @@ Firebase 프로젝트: `planner-web-quick`
 ```bash
 firebase functions:secrets:set GEMINI_API_KEY
 # 프롬프트에 Gemini API 키 입력
+
+# 텔레그램 봇을 쓸 경우 (아래 '텔레그램 봇' 절 참고)
+firebase functions:secrets:set TELEGRAM_BOT_TOKEN
+firebase functions:secrets:set TELEGRAM_WEBHOOK_SECRET
 ```
 
 ### 4. 로컬 개발 (Firebase Emulator)
@@ -89,9 +94,78 @@ habit-garden/
 │  ├─ dayScore.ts     — dayScore·스트릭 정산 (Firestore onWrite)
 │  ├─ dailyReset.ts   — 04:00 KST 일일 초기화
 │  ├─ feedback.ts     — Gemini AI 피드백 생성 (callable)
-│  └─ backup.ts       — 월별 JSON 백업
+│  ├─ notify.ts       — 알림 발송 (텔레그램/FCM 채널 분기)
+│  ├─ backup.ts       — 월별 JSON 백업
+│  └─ telegram/       — 텔레그램 봇 (웹훅·계정 연결·습관 체크·회고)
 ├─ shared/types/firestore.ts       # 공통 TypeScript 타입
+├─ shared/lib/telegram.ts          # 봇 순수 로직 (콜백 인코딩·메시지·회고 단계)
 └─ docs/                           # 프로젝트 계획서·목업
+```
+
+## 텔레그램 봇
+
+앱을 열지 않고 텔레그램에서 **습관 체크 · 저녁 회고 · AI 코치**를 쓸 수 있다.
+연결하면 모든 알림(습관 리마인더·모닝 브리프·주간 요약)이 웹푸시 대신 **텔레그램으로만** 가고,
+리마인더 메시지에 붙은 버튼으로 그 자리에서 바로 체크할 수 있다.
+
+기록은 전부 앱과 같은 Firestore 문서에 같은 형태로 저장되므로, 봇에서 체크해도
+스트릭·dayScore·히트맵이 앱과 똑같이 갱신된다(기존 `dayScoreEngine` 트리거가 그대로 동작).
+
+### 명령
+
+| 명령 | 하는 일 |
+|---|---|
+| `/today` | 오늘 습관 목록 — 버튼으로 점수 기록·건너뛰기 |
+| `/reflect` | 저녁 회고를 대화로 작성 (어제 다짐 실천 여부 → 필수 3문항 → 만족도·사용시간) |
+| `/coach` | 오늘의 AI 코치 한마디 (앱의 코치 카드와 같은 캐시) |
+| `/weekly` | 이번 주 인사이트 |
+| `/settings` | 알림 종류 켜고 끄기 |
+| `/cancel` | 작성 중인 회고 취소 |
+| `/unlink` | 계정 연결 해제 |
+
+텔레그램은 명령 메뉴에 영문(`[a-z0-9_]`)만 허용하지만, **"오늘"·"회고"·"코치"·"주간"·"설정"**
+처럼 한글로 보내도 같은 명령이 실행된다.
+
+### 최초 설정 (owner, 1회)
+
+1. 텔레그램에서 [@BotFather](https://t.me/BotFather) → `/newbot` 으로 봇을 만들고 토큰을 받는다.
+2. 웹훅 시크릿으로 쓸 임의의 문자열을 하나 정한다 (예: `openssl rand -hex 32`).
+3. 시크릿 등록 후 배포:
+   ```bash
+   firebase functions:secrets:set TELEGRAM_BOT_TOKEN
+   firebase functions:secrets:set TELEGRAM_WEBHOOK_SECRET
+   firebase deploy --only functions,firestore
+   ```
+4. `apps/web/.env` 의 `VITE_TELEGRAM_BOT_USERNAME` 에 봇 username(@ 없이)을 넣고 프론트를 배포한다.
+   (딥링크 `t.me/<username>?start=<코드>` 버튼에 쓰인다)
+5. 앱 → **더보기 → 관리(`/admin`) → 텔레그램 봇 → "웹훅·명령 등록"** 을 한 번 누른다.
+   웹훅 URL(`https://asia-northeast3-planner-web-quick.cloudfunctions.net/telegramWebhook`)과
+   명령 메뉴가 등록된다. 봇 토큰을 바꾸면 다시 눌러야 한다.
+
+### 사용자 연결
+
+앱 → **더보기 → 알림 설정 → 텔레그램** → "연결 코드 받기" → 6자리 코드(10분·1회용)를 받아
+딥링크 버튼을 누르거나 봇에게 `/start <코드>` 를 보낸다.
+
+### 보안
+
+- 웹훅은 `X-Telegram-Bot-Api-Secret-Token` 헤더를 검증하고, 승인(`approved`)된 계정만 통과시킨다.
+- 연결 정보(`telegramLinks` / `telegramUsers` / `telegramLinkCodes`)는 클라이언트가 쓸 수 없다
+  (`firestore.rules`). `users/{uid}/**` 규칙이 클라이언트 쓰기를 허용하고 Firestore 규칙은 OR 로
+  평가돼 하위 경로에서 되막을 수 없기 때문에, 일부러 최상위 컬렉션에 두고 서버 전용으로 잠갔다.
+- 같은 `update_id` 는 한 번만 처리한다(텔레그램 재전송 시 회고 단계가 밀리는 것 방지).
+
+### 로컬 테스트 (에뮬레이터)
+
+`functions/.secret.local` 에 시크릿 값을, `functions/.env.local` 에
+`TELEGRAM_API_BASE=http://127.0.0.1:7788` 를 넣으면 실제 텔레그램 대신 로컬 목 서버로 보낼 수 있다
+(두 파일 모두 `.gitignore` 대상). 웹훅은 그냥 HTTP POST 라 curl 로 업데이트를 흉내낼 수 있다:
+
+```bash
+curl -X POST http://localhost:5001/planner-web-quick/asia-northeast3/telegramWebhook \
+  -H 'Content-Type: application/json' \
+  -H 'X-Telegram-Bot-Api-Secret-Token: <시크릿>' \
+  -d '{"update_id":1,"message":{"message_id":1,"chat":{"id":123},"from":{"id":123},"text":"/today"}}'
 ```
 
 ## 주요 기능 메모
