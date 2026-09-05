@@ -6,7 +6,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import type { UserSettingsDoc } from '../../../shared/types/firestore';
 import {
   plannerDateKST, habitTimeOfDayKST, parseCallback, escapeHtml, buildSettingsMessage,
-  normalizeHabitListContext,
+  normalizeHabitListContext, buildHabitReminderMenu,
   type NotifKey, type HabitListContext,
 } from '../../../shared/lib/telegram';
 import { runAICoach, type Mode } from '../aiCoach';
@@ -15,7 +15,7 @@ import {
 } from './api';
 import type { TelegramMessage, TelegramCallbackQuery } from './api';
 import {
-  renderHabitList, renderScorePicker, saveCheck, clearCheck, snoozeHabitChecks,
+  renderHabitList, renderHabitFilterPicker, renderScorePicker, saveCheck, clearCheck, snoozeHabitChecks,
 } from './habitCheck';
 import { startReflection, handleReflectionInput, cancelReflection } from './reflection';
 import { unlinkAccount } from './store';
@@ -207,6 +207,20 @@ export async function handleCallback(s: Session, q: TelegramCallbackQuery): Prom
     }
 
     const context = normalizeHabitListContext(cb);
+
+    if (cb.action === 'filters') {
+      const view = await renderHabitFilterPicker(s.uid, cb.date, context);
+      await answerCallbackQuery(q.id);
+      if (messageId) await editMessageText(s.chatId, messageId, view.text, view.keyboard);
+      return;
+    }
+
+    if (cb.action === 'remind') {
+      const view = buildHabitReminderMenu(cb.date, context);
+      await answerCallbackQuery(q.id);
+      if (messageId) await editMessageText(s.chatId, messageId, view.text, view.keyboard);
+      return;
+    }
 
     if (cb.action === 'pick') {
       const view = await renderScorePicker(s.uid, cb.date, cb.habitId, context);

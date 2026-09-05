@@ -117,6 +117,8 @@ export const CALLBACK_MAX_BYTES = 64;
 
 export type Callback =
   | ({ ns: 't'; action: 'list';   date: string } & Partial<HabitListContext>)
+  | ({ ns: 't'; action: 'filters'; date: string } & Partial<HabitListContext>)
+  | ({ ns: 't'; action: 'remind'; date: string } & Partial<HabitListContext>)
   | ({ ns: 't'; action: 'pick';   date: string; habitId: string } & Partial<HabitListContext>)
   | ({ ns: 't'; action: 'save';   date: string; habitId: string; score: number | null } & Partial<HabitListContext>)
   | ({ ns: 't'; action: 'clear';  date: string; habitId: string } & Partial<HabitListContext>)
@@ -138,6 +140,8 @@ export function encodeCallback(cb: Callback): string {
       const c = normalizeHabitListContext(cb);
       const suffix = `${FILTER_CODES[c.filter]}:${c.pendingOnly ? 'p' : 'a'}:${c.page}`;
       if (cb.action === 'list')       s = `t:l:${cb.date}:${suffix}`;
+      else if (cb.action === 'filters') s = `t:f:${cb.date}:${suffix}`;
+      else if (cb.action === 'remind')  s = `t:r:${cb.date}:${suffix}`;
       else if (cb.action === 'pick')  s = `t:h:${cb.date}:${cb.habitId}:${suffix}`;
       else if (cb.action === 'clear') s = `t:u:${cb.date}:${cb.habitId}:${suffix}`;
       else                            s = `t:s:${cb.date}:${cb.habitId}:${cb.score === null ? 'n' : cb.score}:${suffix}`;
@@ -167,6 +171,14 @@ export function parseCallback(raw: string | undefined | null): Callback | null {
     if (p[1] === 'l' && p[2]) {
       const c = parseHabitListContext(p, 3);
       return c ? { ns: 't', action: 'list', date: p[2], ...c } : null;
+    }
+    if (p[1] === 'f' && p[2]) {
+      const c = parseHabitListContext(p, 3);
+      return c ? { ns: 't', action: 'filters', date: p[2], ...c } : null;
+    }
+    if (p[1] === 'r' && p[2]) {
+      const c = parseHabitListContext(p, 3);
+      return c ? { ns: 't', action: 'remind', date: p[2], ...c } : null;
     }
     if (p[1] === 'h' && p[2] && p[3]) {
       const c = parseHabitListContext(p, 4);
@@ -260,8 +272,8 @@ export function statusIcon(check: HabitCheckDoc | undefined): string {
   return check.achieved ? '✅' : '⚠️';
 }
 
-// 인라인 키보드가 지나치게 길어지지 않도록 한 화면에 보여줄 습관 수 상한.
-export const HABIT_LIST_LIMIT = 12;
+// 휴대폰 한 화면에서 목록과 보조 동작을 함께 파악할 수 있는 상한.
+export const HABIT_LIST_LIMIT = 6;
 
 export interface HabitListView {
   date: string;
@@ -310,9 +322,10 @@ export function buildHabitListMessage(
   const scopedDone = scoped.length - pending.length;
 
   const lines = [
-    `🌱 <b>${formatDateLabel(v.date)}</b>${v.streak > 0 ? ` · 🔥 ${v.streak}일째` : ''}`,
-    `${FILTER_LABELS[context.filter]} · ${context.pendingOnly ? `남은 습관 ${pending.length}개` : `기록 ${scopedDone}/${scoped.length}`}`,
-    `오늘 전체 ${done}/${v.habits.length}${v.dayScore !== null ? ` · dayScore ${v.dayScore}` : ''}`,
+    `🌱 <b>${formatDateLabel(v.date)}</b>`,
+    context.pendingOnly
+      ? `${FILTER_LABELS[context.filter]} · ${pending.length}개 남음 · 오늘 ${done}/${v.habits.length}`
+      : `✏️ ${FILTER_LABELS[context.filter]} · 기록 ${scopedDone}/${scoped.length}`,
   ];
   if (v.habits.length === 0) {
     lines.push('', '등록된 습관이 없어요. 앱에서 습관을 먼저 추가해 주세요.');
@@ -321,6 +334,9 @@ export function buildHabitListMessage(
 
   if (scoped.length === 0) lines.push('', '이 시간대에 등록된 습관이 없어요.');
   else if (context.pendingOnly && pending.length === 0) lines.push('', '이 범위의 습관을 모두 기록했어요. 수고했어요.');
+  else lines.push('', context.pendingOnly
+    ? '습관을 누르면 기록돼요. <b>1–5</b>는 점수를 고릅니다.'
+    : '수정하거나 건너뛸 습관을 고르세요.');
   if (totalPages > 1) lines.push('', `<i>${page + 1}/${totalPages} 페이지</i>`);
 
   const keyboard: InlineKeyboard = shown.map((h) => habitRow(h, v.checks[h.id], v.date, context));
@@ -332,15 +348,18 @@ export function buildHabitListMessage(
     keyboard.push(pager);
   }
 
-  if (context.pendingOnly && pending.length > 0) {
+  if (context.pendingOnly) {
     keyboard.push([
-      { text: '⏰ 30분 뒤', callback_data: encodeCallback({ ns: 't', action: 'snooze', date: v.date, filter: context.filter, minutes: 30 }) },
-      { text: '⏰ 2시간 뒤', callback_data: encodeCallback({ ns: 't', action: 'snooze', date: v.date, filter: context.filter, minutes: 120 }) },
+      menuButton('🕓 시간대', 'filters', v.date, context),
+      listButton('⋯ 수정·건너뜀', v.date, { ...context, pendingOnly: false, page: 0 }),
     ]);
-    keyboard.push([{ text: '🌙 오늘 습관 알림 끝', callback_data: encodeCallback({ ns: 't', action: 'pause', date: v.date }) }]);
+    if (pending.length > 0) keyboard.push([menuButton('⏰ 나중에 알림', 'remind', v.date, context)]);
+  } else {
+    keyboard.push([
+      listButton('↩ 빠른 체크', v.date, { ...context, pendingOnly: true, page: 0 }),
+      menuButton('🕓 시간대', 'filters', v.date, context),
+    ]);
   }
-
-  keyboard.push(...habitFilterKeyboard(v.date, context));
 
   return { text: lines.join('\n'), keyboard };
 }
@@ -352,25 +371,23 @@ function habitRow(
   context: HabitListContext,
 ): InlineButton[] {
   const base = { date, habitId: habit.id, ...context };
-  if (habit.scoreMode === 'binary' && !check) {
-    return [
-      { text: `✅ ${habit.title} 완료`, callback_data: encodeCallback({ ns: 't', action: 'save', score: 1, ...base }) },
-      { text: '다른 기록', callback_data: encodeCallback({ ns: 't', action: 'pick', ...base }) },
-    ];
-  }
-  if (habit.scoreMode === 'binary' && check?.achieved) {
-    return [
-      { text: `↩ ${habit.title} 완료 취소`, callback_data: encodeCallback({ ns: 't', action: 'clear', ...base }) },
-      { text: '변경', callback_data: encodeCallback({ ns: 't', action: 'pick', ...base }) },
-    ];
+  if (context.pendingOnly && habit.scoreMode === 'binary' && !check) {
+    return [{
+      text: `☐ ${habit.title}`,
+      callback_data: encodeCallback({ ns: 't', action: 'save', score: 1, ...base }),
+    }];
   }
 
-  const score = !check ? (habit.scoreMode === 'scaled' ? '1~5점 선택' : '기록 선택')
-    : check.score === null ? '건너뜀'
-    : habit.scoreMode === 'scaled' ? `${check.score}점`
-    : check.achieved ? '완료' : '미달성';
+  const prefix = context.pendingOnly && habit.scoreMode === 'scaled'
+    ? '1–5'
+    : statusIcon(check);
+  const suffix = !context.pendingOnly && check
+    ? check.score === null ? ' · 건너뜀'
+    : habit.scoreMode === 'scaled' ? ` · ${check.score}점`
+    : check.achieved ? ' · 완료' : ' · 미달성'
+    : '';
   return [{
-    text: `${statusIcon(check)} ${habit.title} · ${score}`,
+    text: `${prefix}  ${habit.title}${suffix}`,
     callback_data: encodeCallback({ ns: 't', action: 'pick', ...base }),
   }];
 }
@@ -379,21 +396,66 @@ function listButton(text: string, date: string, context: HabitListContext): Inli
   return { text, callback_data: encodeCallback({ ns: 't', action: 'list', date, ...context }) };
 }
 
-function habitFilterKeyboard(date: string, context: HabitListContext): InlineKeyboard {
-  const filterButton = (filter: HabitListFilter, text: string) => listButton(
-    `${context.filter === filter || (context.filter === 'nightAnytime' && filter === 'night') ? '• ' : ''}${text}`,
-    date,
-    { ...context, filter, page: 0 },
-  );
+function menuButton(
+  text: string,
+  action: 'filters' | 'remind',
+  date: string,
+  context: HabitListContext,
+): InlineButton {
+  return { text, callback_data: encodeCallback({ ns: 't', action, date, ...context }) };
+}
+
+export function buildHabitFilterMenu(
+  v: HabitListView,
+  input?: Partial<HabitListContext>,
+): InlineKeyboard {
+  const context = normalizeHabitListContext(input);
+  const filterButton = (filter: HabitListFilter, text: string) => {
+    const scoped = v.habits.filter((h) => habitMatchesFilter(h, filter));
+    const count = context.pendingOnly
+      ? scoped.filter((h) => !hasHabitCheck(v.checks, h.id)).length
+      : scoped.length;
+    return listButton(
+      `${context.filter === filter || (context.filter === 'nightAnytime' && filter === 'night') ? '• ' : ''}${text} ${count}`,
+      v.date,
+      { ...context, filter, page: 0 },
+    );
+  };
+
   return [
-    [filterButton('morning', '아침'), filterButton('afternoon', '오후'), filterButton('evening', '저녁')],
-    [filterButton('night', '밤'), filterButton('anytime', '수시'), filterButton('all', '전체')],
-    [
-      listButton(`${context.pendingOnly ? '• ' : ''}미완료만`, date, { ...context, pendingOnly: true, page: 0 }),
-      listButton(`${!context.pendingOnly ? '• ' : ''}완료 포함`, date, { ...context, pendingOnly: false, page: 0 }),
-      listButton('🔄', date, context),
-    ],
+    [filterButton('morning', '☀️ 아침'), filterButton('afternoon', '🥗 오후')],
+    [filterButton('evening', '🌆 저녁'), filterButton('night', '🌙 밤')],
+    [filterButton('anytime', '🕰 언제든'), filterButton('all', '🌿 전체')],
+    [listButton('↩ 돌아가기', v.date, context)],
   ];
+}
+
+export function buildHabitFilterMessage(
+  v: HabitListView,
+  input?: Partial<HabitListContext>,
+): { text: string; keyboard: InlineKeyboard } {
+  return {
+    text: `<b>어느 시간대 습관을 볼까요?</b>\n숫자는 ${normalizeHabitListContext(input).pendingOnly ? '남은 습관' : '전체 습관'} 수예요.`,
+    keyboard: buildHabitFilterMenu(v, input),
+  };
+}
+
+export function buildHabitReminderMenu(
+  date: string,
+  input?: Partial<HabitListContext>,
+): { text: string; keyboard: InlineKeyboard } {
+  const context = normalizeHabitListContext(input);
+  return {
+    text: '<b>언제 다시 알려드릴까요?</b>',
+    keyboard: [
+      [
+        { text: '30분 뒤', callback_data: encodeCallback({ ns: 't', action: 'snooze', date, filter: context.filter, minutes: 30 }) },
+        { text: '2시간 뒤', callback_data: encodeCallback({ ns: 't', action: 'snooze', date, filter: context.filter, minutes: 120 }) },
+      ],
+      [{ text: '오늘 알림 끝', callback_data: encodeCallback({ ns: 't', action: 'pause', date }) }],
+      [listButton('↩ 돌아가기', date, context)],
+    ],
+  };
 }
 
 export function buildScorePicker(
