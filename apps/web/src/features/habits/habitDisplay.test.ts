@@ -49,7 +49,7 @@ describe('habit display calculations', () => {
     const grouped = groupHabitsByTime(habits);
 
     expect(grouped.morning?.map(({ id }) => id)).toEqual(['a', 'c']);
-    expect(grouped.evening?.map(({ id }) => id).toEqual(['b']);
+    expect(grouped.evening?.map(({ id }) => id)).toEqual(['b']);
   });
 
   it('opens only the current group by default and toggles either default state manually', () => {
