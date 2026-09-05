@@ -67,6 +67,7 @@ export function ProgressRail({ value, className }: { value: number; className?: 
 export function StatusCircle({
   checked = false,
   skipped = false,
+  missed = false,
   label,
   onClick,
   score,
@@ -74,22 +75,25 @@ export function StatusCircle({
 }: {
   checked?: boolean;
   skipped?: boolean;
+  missed?: boolean;
   label: string;
   onClick?: () => void;
   score?: number;
   className?: string;
 }) {
-  const content = score ?? (checked ? '✓' : skipped ? '—' : '');
+  const content = score ?? (checked ? '✓' : missed ? '×' : skipped ? '—' : '');
   const classes = cn(
     'grid h-[19px] w-[19px] shrink-0 place-items-center rounded-full border text-[11px] font-semibold leading-none transition-colors',
     checked
       ? 'border-[var(--fg-primary)] bg-[var(--fg-primary)] text-[var(--bg-base)]'
-      : 'border-[var(--border)] bg-transparent text-[var(--fg-faint)]',
+      : missed
+        ? 'border-[var(--bloom)] bg-transparent text-[var(--bloom)]'
+        : 'border-[var(--border)] bg-transparent text-[var(--fg-faint)]',
     className,
   );
   if (!onClick) return <span aria-hidden="true" className={classes}>{content}</span>;
   return (
-    <button type="button" aria-label={label} aria-pressed={checked} onClick={onClick} className="-m-3 grid h-[44px] w-[44px] shrink-0 place-items-center rounded-full">
+    <button type="button" aria-label={label} aria-pressed={checked || missed || skipped} onClick={onClick} className="-m-3 grid h-[44px] w-[44px] shrink-0 place-items-center rounded-full">
       <span aria-hidden="true" className={classes}>{content}</span>
     </button>
   );
