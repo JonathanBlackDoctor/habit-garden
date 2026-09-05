@@ -1,5 +1,8 @@
 # 03 · 현행 디자인 시스템
 
+> **개편 전(As-Is) 자료.** 이 문서는 바꾸기 전 현재 상태를 기록한 것이다 — 제안이 아니다.
+> 실제 화면은 [`screens.html`](screens.html)에서 본다.
+
 기계 판독용 사본: [`tokens.json`](tokens.json) · 원본: `apps/web/src/index.css`, `apps/web/tailwind.config.js`
 
 ## 컬러 토큰

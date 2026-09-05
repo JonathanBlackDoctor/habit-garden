@@ -1,5 +1,8 @@
 # 02 · 정보구조 & 화면 인벤토리
 
+> **개편 전(As-Is) 자료.** 이 문서는 바꾸기 전 현재 상태를 기록한 것이다 — 제안이 아니다.
+> 실제 화면은 [`screens.html`](screens.html)에서 본다.
+
 ## 앱 셸
 
 ```
@@ -106,3 +109,32 @@
 | `PastDateBanner` | 과거 날짜 편집 중 |
 | `SignupCTA` | 게스트에게 가입 유도 |
 | 토스트(`sonner`) | 하단 중앙, 탭바 위 72px, `--bloom-soft` 배경 |
+
+---
+
+## 화면 ↔ 스크린샷 대응표
+
+캡처 시각 `2026-09-05T03:05:37.692Z` · 커밋 `4588168` · 총 41장. 한 화면이 길면 스크롤을 이어서 찍었다.
+
+| 화면 | 경로 | 캡처 |
+|---|---|---|
+| 로그인 | `/login` | [`01-login`](screens/01-login.png) |
+| 온보딩 | `—` | [`02-onboarding-welcome`](screens/02-onboarding-welcome.png) · [`02b-onboarding-welcome-2`](screens/02b-onboarding-welcome-2.png) · [`02c-onboarding-welcome-3`](screens/02c-onboarding-welcome-3.png) · [`02d-onboarding-welcome-4`](screens/02d-onboarding-welcome-4.png) · [`03-onboarding-tour`](screens/03-onboarding-tour.png) · [`03b-onboarding-tour-2`](screens/03b-onboarding-tour-2.png) · [`03c-onboarding-tour-3`](screens/03c-onboarding-tour-3.png) · [`03d-onboarding-tour-4`](screens/03d-onboarding-tour-4.png) |
+| 오늘 | `/` | [`10-main`](screens/10-main.png) · [`10-main-2`](screens/10-main-2.png) |
+| 습관 | `/habits` | [`11-habits`](screens/11-habits.png) · [`11-habits-2`](screens/11-habits-2.png) · [`11b-habit-checked`](screens/11b-habit-checked.png) |
+| 정원 | `/garden` | [`12-garden`](screens/12-garden.png) · [`12-garden-2`](screens/12-garden-2.png) · [`12-garden-3`](screens/12-garden-3.png) · [`12-garden-4`](screens/12-garden-4.png) · [`12-garden-5`](screens/12-garden-5.png) · [`12c-garden-browse`](screens/12c-garden-browse.png) |
+| 더보기 | `/more` | [`13-more`](screens/13-more.png) · [`13-more-2`](screens/13-more-2.png) · [`30-more-settings`](screens/30-more-settings.png) |
+| 진척 현황 | `/progress` | [`20-progress`](screens/20-progress.png) · [`20-progress-2`](screens/20-progress-2.png) |
+| 포인트 내역 | `/points` | [`21-points`](screens/21-points.png) |
+| 컨디션 | `/condition` | [`22-condition`](screens/22-condition.png) · [`22-condition-2`](screens/22-condition-2.png) |
+| 플래너 | `/planner` | [`23-planner`](screens/23-planner.png) |
+| 사용 설명서 | `/tutorial` | [`24-tutorial`](screens/24-tutorial.png) · [`24-tutorial-2`](screens/24-tutorial-2.png) · [`24-tutorial-3`](screens/24-tutorial-3.png) |
+| 회고 | `/reflection` | [`25-reflection`](screens/25-reflection.png) |
+| 알림 설정 | `/settings/notifications` | [`26-notif`](screens/26-notif.png) |
+| 위젯 편집 | `/ (모드)` | [`27-widget-edit`](screens/27-widget-edit.png) · [`27-widget-edit-2`](screens/27-widget-edit-2.png) |
+| 신앙 ON 탭바 | `/` | [`31-tabs-five`](screens/31-tabs-five.png) |
+| 신앙 — 기도제목 | `/prayers` | [`32-prayers`](screens/32-prayers.png) · [`32-prayers-2`](screens/32-prayers-2.png) |
+| 신앙 — 말씀 적용 | `/prayers?view=application` | [`33-applications`](screens/33-applications.png) |
+| 경건 | `/devotion` | [`34-devotion`](screens/34-devotion.png) |
+
+> `/admin`(owner 전용)·`/day/:date`·`/pending`은 게스트 계정으로 진입할 수 없어 이 세트에 없다.

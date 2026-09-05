@@ -1,0 +1,253 @@
+{
+  "capturedAt": "2026-09-05T03:05:37.692Z",
+  "commit": "4588168",
+  "note": "개편 전(As-Is) 현행 디자인 스냅샷 · 게스트 계정 · 390x844 @2x · Firebase 에뮬레이터",
+  "shots": [
+    {
+      "id": "01-login",
+      "file": "01-login.png",
+      "label": "로그인",
+      "note": "구글 로그인 · 게스트 시작 · 인앱 브라우저 감지"
+    },
+    {
+      "id": "02-onboarding-welcome",
+      "file": "02-onboarding-welcome.png",
+      "label": "온보딩 — 웰컴 캐러셀 1/4",
+      "note": ""
+    },
+    {
+      "id": "02b-onboarding-welcome-2",
+      "file": "02b-onboarding-welcome-2.png",
+      "label": "온보딩 — 웰컴 캐러셀 2/4",
+      "note": ""
+    },
+    {
+      "id": "02c-onboarding-welcome-3",
+      "file": "02c-onboarding-welcome-3.png",
+      "label": "온보딩 — 웰컴 캐러셀 3/4",
+      "note": ""
+    },
+    {
+      "id": "02d-onboarding-welcome-4",
+      "file": "02d-onboarding-welcome-4.png",
+      "label": "온보딩 — 웰컴 캐러셀 4/4 · 둘러보기 시작",
+      "note": ""
+    },
+    {
+      "id": "03-onboarding-tour",
+      "file": "03-onboarding-tour.png",
+      "label": "온보딩 — 스팟라이트 투어 1/4 · 내 정원 현황",
+      "note": ""
+    },
+    {
+      "id": "03b-onboarding-tour-2",
+      "file": "03b-onboarding-tour-2.png",
+      "label": "온보딩 — 스팟라이트 투어 2/4 · 오늘의 습관",
+      "note": ""
+    },
+    {
+      "id": "03c-onboarding-tour-3",
+      "file": "03c-onboarding-tour-3.png",
+      "label": "온보딩 — 스팟라이트 투어 3/4 · 하단 탭",
+      "note": ""
+    },
+    {
+      "id": "03d-onboarding-tour-4",
+      "file": "03d-onboarding-tour-4.png",
+      "label": "온보딩 — 스팟라이트 투어 4/4 · 습관 체크하기",
+      "note": ""
+    },
+    {
+      "id": "10-main",
+      "file": "10-main.png",
+      "label": "오늘 — 게스트 첫 진입 (탭 4개)",
+      "note": ""
+    },
+    {
+      "id": "10-main-2",
+      "file": "10-main-2.png",
+      "label": "오늘 — 게스트 첫 진입 (탭 4개) — 이어서 2",
+      "note": ""
+    },
+    {
+      "id": "11-habits",
+      "file": "11-habits.png",
+      "label": "습관 — 시간대별 0~5점 체크",
+      "note": ""
+    },
+    {
+      "id": "11-habits-2",
+      "file": "11-habits-2.png",
+      "label": "습관 — 시간대별 0~5점 체크 — 이어서 2",
+      "note": ""
+    },
+    {
+      "id": "11b-habit-checked",
+      "file": "11b-habit-checked.png",
+      "label": "습관 체크 직후 — 달성 상태 · 포인트 적립",
+      "note": ""
+    },
+    {
+      "id": "12-garden",
+      "file": "12-garden.png",
+      "label": "정원 — 내 정원 · 상점 · 도감",
+      "note": ""
+    },
+    {
+      "id": "12-garden-2",
+      "file": "12-garden-2.png",
+      "label": "정원 — 내 정원 · 상점 · 도감 — 이어서 2",
+      "note": ""
+    },
+    {
+      "id": "12-garden-3",
+      "file": "12-garden-3.png",
+      "label": "정원 — 내 정원 · 상점 · 도감 — 이어서 3",
+      "note": ""
+    },
+    {
+      "id": "12-garden-4",
+      "file": "12-garden-4.png",
+      "label": "정원 — 내 정원 · 상점 · 도감 — 이어서 4",
+      "note": ""
+    },
+    {
+      "id": "12-garden-5",
+      "file": "12-garden-5.png",
+      "label": "정원 — 내 정원 · 상점 · 도감 — 이어서 5",
+      "note": ""
+    },
+    {
+      "id": "12c-garden-browse",
+      "file": "12c-garden-browse.png",
+      "label": "정원 — 둘러보기 (탭 재탭으로 토글)",
+      "note": ""
+    },
+    {
+      "id": "13-more",
+      "file": "13-more.png",
+      "label": "더보기",
+      "note": ""
+    },
+    {
+      "id": "13-more-2",
+      "file": "13-more-2.png",
+      "label": "더보기 — 이어서 2",
+      "note": ""
+    },
+    {
+      "id": "20-progress",
+      "file": "20-progress.png",
+      "label": "진척 현황 — 레벨 · 배지 · 히트맵",
+      "note": ""
+    },
+    {
+      "id": "20-progress-2",
+      "file": "20-progress-2.png",
+      "label": "진척 현황 — 레벨 · 배지 · 히트맵 — 이어서 2",
+      "note": ""
+    },
+    {
+      "id": "21-points",
+      "file": "21-points.png",
+      "label": "포인트 내역 — 획득/사용 원장",
+      "note": ""
+    },
+    {
+      "id": "22-condition",
+      "file": "22-condition.png",
+      "label": "컨디션 — 슬라이더 · 수면 시각 다이얼",
+      "note": ""
+    },
+    {
+      "id": "22-condition-2",
+      "file": "22-condition-2.png",
+      "label": "컨디션 — 슬라이더 · 수면 시각 다이얼 — 이어서 2",
+      "note": ""
+    },
+    {
+      "id": "23-planner",
+      "file": "23-planner.png",
+      "label": "플래너 — 할 일 · 우선순위 · 장기 목표",
+      "note": ""
+    },
+    {
+      "id": "24-tutorial",
+      "file": "24-tutorial.png",
+      "label": "사용 설명서 — 아코디언 규칙 설명",
+      "note": ""
+    },
+    {
+      "id": "24-tutorial-2",
+      "file": "24-tutorial-2.png",
+      "label": "사용 설명서 — 아코디언 규칙 설명 — 이어서 2",
+      "note": ""
+    },
+    {
+      "id": "24-tutorial-3",
+      "file": "24-tutorial-3.png",
+      "label": "사용 설명서 — 아코디언 규칙 설명 — 이어서 3",
+      "note": ""
+    },
+    {
+      "id": "25-reflection",
+      "file": "25-reflection.png",
+      "label": "회고 — 질문 답변 · 내일의 다짐",
+      "note": ""
+    },
+    {
+      "id": "26-notif",
+      "file": "26-notif.png",
+      "label": "알림 설정",
+      "note": ""
+    },
+    {
+      "id": "27-widget-edit",
+      "file": "27-widget-edit.png",
+      "label": "오늘 탭 위젯 편집 — 순서 변경 · 숨김",
+      "note": ""
+    },
+    {
+      "id": "27-widget-edit-2",
+      "file": "27-widget-edit-2.png",
+      "label": "오늘 탭 위젯 편집 — 순서 변경 · 숨김 — 이어서 2",
+      "note": ""
+    },
+    {
+      "id": "30-more-settings",
+      "file": "30-more-settings.png",
+      "label": "더보기 — 설정 토글 (햅틱 · 사운드 · 신앙 기능)",
+      "note": "신앙 기능은 기본 OFF"
+    },
+    {
+      "id": "31-tabs-five",
+      "file": "31-tabs-five.png",
+      "label": "신앙 ON — 하단 탭이 5개가 된 상태",
+      "note": ""
+    },
+    {
+      "id": "32-prayers",
+      "file": "32-prayers.png",
+      "label": "신앙 — 기도제목 로테이션",
+      "note": ""
+    },
+    {
+      "id": "32-prayers-2",
+      "file": "32-prayers-2.png",
+      "label": "신앙 — 기도제목 로테이션 — 이어서 2",
+      "note": ""
+    },
+    {
+      "id": "33-applications",
+      "file": "33-applications.png",
+      "label": "신앙 — 말씀 적용",
+      "note": ""
+    },
+    {
+      "id": "34-devotion",
+      "file": "34-devotion.png",
+      "label": "경건 · 감사 저널",
+      "note": ""
+    }
+  ]
+}

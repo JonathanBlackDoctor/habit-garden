@@ -179,6 +179,29 @@
   ul.locks li b { font-weight: 600; flex: none; min-width: 0; }
   ul.locks li span { color: var(--ink-2); font-size: 12.5px; }
 
+
+  /* ── 화면 갤러리 ── */
+  .gal-group { margin-bottom: 34px; }
+  .gal-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
+  .gal-head h3 { font-family: var(--sans); font-size: 14px; font-weight: 600; margin: 0; }
+  .gal-head .n { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+  .gal-sub { font-size: 12.5px; color: var(--ink-2); margin: 0 0 14px; }
+  .gal { display: grid; grid-template-columns: repeat(auto-fill, minmax(212px, 1fr)); gap: 18px 16px; }
+  figure.shot { margin: 0; }
+  figure.shot img {
+    display: block; width: 100%; height: auto;
+    border: 1px solid var(--rule); border-radius: 10px; background: var(--surface);
+  }
+  figure.shot figcaption { font-size: 11.5px; line-height: 1.45; color: var(--ink-2); margin-top: 7px; }
+  figure.shot figcaption b { display: block; color: var(--ink); font-weight: 500; }
+  figure.shot figcaption code { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); }
+  .asis {
+    border-left: 3px solid var(--flag); background: var(--flag-w);
+    padding: 11px 14px; border-radius: 0 6px 6px 0; font-size: 13px; color: var(--ink);
+    max-width: var(--measure);
+  }
+  .asis b { color: var(--flag); }
+
   footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--rule); font-size: 12.5px; color: var(--ink-3); }
   footer code { font-family: var(--mono); font-size: 12px; color: var(--ink-2); }
 
@@ -193,10 +216,10 @@
 <div class="wrap">
 
   <header class="masthead">
-    <div class="kicker">디자인 개편 핸드오프 · 시각 요약</div>
+    <div class="kicker">개편 전 As-Is 스냅샷 · 2026-09-05 03:05 UTC</div>
     <h1>습관 정원 디자인 핸드오프</h1>
     <p class="standfirst">
-      외부 디자이너·에이전트가 개편 착수 전에 훑어볼 한 장짜리 시각 요약이다.
+      개편 <b>전</b> 현행 디자인의 스냅샷이다. 실제 실행 화면 41장이 본체이고, 토큰·제약은 그 뒤에 붙는 참고 자료다.
       전체 문서는 저장소의 <code>docs/design-handoff/</code> 에 있다.
     </p>
     <div class="chips">
@@ -205,6 +228,8 @@
       <span class="chip">라이트 고정</span>
       <span class="chip">한국어 전용</span>
       <span class="chip">PWA standalone</span>
+      <span class="chip">실행 화면 41장</span>
+      <span class="chip">커밋 4588168</span>
       <span class="chip">화면 17 · 컴포넌트 60+ · 9,700줄</span>
     </div>
   </header>
@@ -212,6 +237,89 @@
   <section>
     <div class="sec-head">
       <span class="sec-num">01</span>
+      <h2>현행 화면 — 개편 전 As-Is</h2>
+      <span class="sec-note">41장 · 390×844 @2x</span>
+    </div>
+    <p class="asis"><b>이 섹션이 이 문서의 본체다.</b> 아래는 설명이나 재현이 아니라 <b>2026-09-05 03:05 UTC</b> 시점의 앱을 실제로 실행해 찍은 화면이다 (커밋 <code>4588168</code> · 게스트 계정 · Firebase 에뮬레이터). 개편 <b>후</b>가 아니라 개편 <b>전</b> 상태이며, 새 디자인은 여기서 출발한다.</p>
+    <p class="lead" style="margin-top:14px">게스트 계정이라 데이터가 적은 <b>초기 상태</b>다. 습관 3개 · 식물 1그루 · 200P가 시작값이고, 습관을 수십 개 쌓은 장기 사용자 화면은 이 세트에 없다 — 개편안은 그 밀도도 함께 고려해야 한다.</p>
+    <div class="gal-group">
+      <div class="gal-head">
+        <h3>진입 · 온보딩</h3><span class="n">9장</span>
+      </div>
+      <p class="gal-sub">셸 밖 화면과 첫 실행 흐름 — 웰컴 캐러셀 4장 뒤에 스팟라이트 투어 4스텝이 이어진다</p>
+      <div class="gal">
+        <figure class="shot"><img src="screens/01-login.png" alt="로그인" loading="lazy"><figcaption><b>로그인</b><code>01-login</code></figcaption></figure>
+        <figure class="shot"><img src="screens/02-onboarding-welcome.png" alt="온보딩 — 웰컴 캐러셀 1/4" loading="lazy"><figcaption><b>온보딩 — 웰컴 캐러셀 1/4</b><code>02-onboarding-welcome</code></figcaption></figure>
+        <figure class="shot"><img src="screens/02b-onboarding-welcome-2.png" alt="온보딩 — 웰컴 캐러셀 2/4" loading="lazy"><figcaption><b>온보딩 — 웰컴 캐러셀 2/4</b><code>02b-onboarding-welcome-2</code></figcaption></figure>
+        <figure class="shot"><img src="screens/02c-onboarding-welcome-3.png" alt="온보딩 — 웰컴 캐러셀 3/4" loading="lazy"><figcaption><b>온보딩 — 웰컴 캐러셀 3/4</b><code>02c-onboarding-welcome-3</code></figcaption></figure>
+        <figure class="shot"><img src="screens/02d-onboarding-welcome-4.png" alt="온보딩 — 웰컴 캐러셀 4/4 · 둘러보기 시작" loading="lazy"><figcaption><b>온보딩 — 웰컴 캐러셀 4/4 · 둘러보기 시작</b><code>02d-onboarding-welcome-4</code></figcaption></figure>
+        <figure class="shot"><img src="screens/03-onboarding-tour.png" alt="온보딩 — 스팟라이트 투어 1/4 · 내 정원 현황" loading="lazy"><figcaption><b>온보딩 — 스팟라이트 투어 1/4 · 내 정원 현황</b><code>03-onboarding-tour</code></figcaption></figure>
+        <figure class="shot"><img src="screens/03b-onboarding-tour-2.png" alt="온보딩 — 스팟라이트 투어 2/4 · 오늘의 습관" loading="lazy"><figcaption><b>온보딩 — 스팟라이트 투어 2/4 · 오늘의 습관</b><code>03b-onboarding-tour-2</code></figcaption></figure>
+        <figure class="shot"><img src="screens/03c-onboarding-tour-3.png" alt="온보딩 — 스팟라이트 투어 3/4 · 하단 탭" loading="lazy"><figcaption><b>온보딩 — 스팟라이트 투어 3/4 · 하단 탭</b><code>03c-onboarding-tour-3</code></figcaption></figure>
+        <figure class="shot"><img src="screens/03d-onboarding-tour-4.png" alt="온보딩 — 스팟라이트 투어 4/4 · 습관 체크하기" loading="lazy"><figcaption><b>온보딩 — 스팟라이트 투어 4/4 · 습관 체크하기</b><code>03d-onboarding-tour-4</code></figcaption></figure>
+      </div>
+    </div>
+    <div class="gal-group">
+      <div class="gal-head">
+        <h3>탭 화면 — 신앙 OFF (탭 4개)</h3><span class="n">13장</span>
+      </div>
+      <p class="gal-sub">매일 쓰는 화면. 한 화면이 길면 스크롤을 이어서 찍었다</p>
+      <div class="gal">
+        <figure class="shot"><img src="screens/10-main.png" alt="오늘 — 게스트 첫 진입 (탭 4개)" loading="lazy"><figcaption><b>오늘 — 게스트 첫 진입 (탭 4개)</b><code>10-main</code></figcaption></figure>
+        <figure class="shot"><img src="screens/10-main-2.png" alt="오늘 — 게스트 첫 진입 (탭 4개) — 이어서 2" loading="lazy"><figcaption><b>오늘 — 게스트 첫 진입 (탭 4개)</b>이어서 2<code>10-main-2</code></figcaption></figure>
+        <figure class="shot"><img src="screens/11-habits.png" alt="습관 — 시간대별 0~5점 체크" loading="lazy"><figcaption><b>습관 — 시간대별 0~5점 체크</b><code>11-habits</code></figcaption></figure>
+        <figure class="shot"><img src="screens/11-habits-2.png" alt="습관 — 시간대별 0~5점 체크 — 이어서 2" loading="lazy"><figcaption><b>습관 — 시간대별 0~5점 체크</b>이어서 2<code>11-habits-2</code></figcaption></figure>
+        <figure class="shot"><img src="screens/11b-habit-checked.png" alt="습관 체크 직후 — 달성 상태 · 포인트 적립" loading="lazy"><figcaption><b>습관 체크 직후 — 달성 상태 · 포인트 적립</b><code>11b-habit-checked</code></figcaption></figure>
+        <figure class="shot"><img src="screens/12-garden.png" alt="정원 — 내 정원 · 상점 · 도감" loading="lazy"><figcaption><b>정원 — 내 정원 · 상점 · 도감</b><code>12-garden</code></figcaption></figure>
+        <figure class="shot"><img src="screens/12-garden-2.png" alt="정원 — 내 정원 · 상점 · 도감 — 이어서 2" loading="lazy"><figcaption><b>정원 — 내 정원 · 상점 · 도감</b>이어서 2<code>12-garden-2</code></figcaption></figure>
+        <figure class="shot"><img src="screens/12-garden-3.png" alt="정원 — 내 정원 · 상점 · 도감 — 이어서 3" loading="lazy"><figcaption><b>정원 — 내 정원 · 상점 · 도감</b>이어서 3<code>12-garden-3</code></figcaption></figure>
+        <figure class="shot"><img src="screens/12-garden-4.png" alt="정원 — 내 정원 · 상점 · 도감 — 이어서 4" loading="lazy"><figcaption><b>정원 — 내 정원 · 상점 · 도감</b>이어서 4<code>12-garden-4</code></figcaption></figure>
+        <figure class="shot"><img src="screens/12-garden-5.png" alt="정원 — 내 정원 · 상점 · 도감 — 이어서 5" loading="lazy"><figcaption><b>정원 — 내 정원 · 상점 · 도감</b>이어서 5<code>12-garden-5</code></figcaption></figure>
+        <figure class="shot"><img src="screens/12c-garden-browse.png" alt="정원 — 둘러보기 (탭 재탭으로 토글)" loading="lazy"><figcaption><b>정원 — 둘러보기 (탭 재탭으로 토글)</b><code>12c-garden-browse</code></figcaption></figure>
+        <figure class="shot"><img src="screens/13-more.png" alt="더보기" loading="lazy"><figcaption><b>더보기</b><code>13-more</code></figcaption></figure>
+        <figure class="shot"><img src="screens/13-more-2.png" alt="더보기 — 이어서 2" loading="lazy"><figcaption><b>더보기</b>이어서 2<code>13-more-2</code></figcaption></figure>
+      </div>
+    </div>
+    <div class="gal-group">
+      <div class="gal-head">
+        <h3>더보기에서 들어가는 화면</h3><span class="n">13장</span>
+      </div>
+      <p class="gal-sub">가끔 보는 회고성 화면들</p>
+      <div class="gal">
+        <figure class="shot"><img src="screens/20-progress.png" alt="진척 현황 — 레벨 · 배지 · 히트맵" loading="lazy"><figcaption><b>진척 현황 — 레벨 · 배지 · 히트맵</b><code>20-progress</code></figcaption></figure>
+        <figure class="shot"><img src="screens/20-progress-2.png" alt="진척 현황 — 레벨 · 배지 · 히트맵 — 이어서 2" loading="lazy"><figcaption><b>진척 현황 — 레벨 · 배지 · 히트맵</b>이어서 2<code>20-progress-2</code></figcaption></figure>
+        <figure class="shot"><img src="screens/21-points.png" alt="포인트 내역 — 획득/사용 원장" loading="lazy"><figcaption><b>포인트 내역 — 획득/사용 원장</b><code>21-points</code></figcaption></figure>
+        <figure class="shot"><img src="screens/22-condition.png" alt="컨디션 — 슬라이더 · 수면 시각 다이얼" loading="lazy"><figcaption><b>컨디션 — 슬라이더 · 수면 시각 다이얼</b><code>22-condition</code></figcaption></figure>
+        <figure class="shot"><img src="screens/22-condition-2.png" alt="컨디션 — 슬라이더 · 수면 시각 다이얼 — 이어서 2" loading="lazy"><figcaption><b>컨디션 — 슬라이더 · 수면 시각 다이얼</b>이어서 2<code>22-condition-2</code></figcaption></figure>
+        <figure class="shot"><img src="screens/23-planner.png" alt="플래너 — 할 일 · 우선순위 · 장기 목표" loading="lazy"><figcaption><b>플래너 — 할 일 · 우선순위 · 장기 목표</b><code>23-planner</code></figcaption></figure>
+        <figure class="shot"><img src="screens/24-tutorial.png" alt="사용 설명서 — 아코디언 규칙 설명" loading="lazy"><figcaption><b>사용 설명서 — 아코디언 규칙 설명</b><code>24-tutorial</code></figcaption></figure>
+        <figure class="shot"><img src="screens/24-tutorial-2.png" alt="사용 설명서 — 아코디언 규칙 설명 — 이어서 2" loading="lazy"><figcaption><b>사용 설명서 — 아코디언 규칙 설명</b>이어서 2<code>24-tutorial-2</code></figcaption></figure>
+        <figure class="shot"><img src="screens/24-tutorial-3.png" alt="사용 설명서 — 아코디언 규칙 설명 — 이어서 3" loading="lazy"><figcaption><b>사용 설명서 — 아코디언 규칙 설명</b>이어서 3<code>24-tutorial-3</code></figcaption></figure>
+        <figure class="shot"><img src="screens/25-reflection.png" alt="회고 — 질문 답변 · 내일의 다짐" loading="lazy"><figcaption><b>회고 — 질문 답변 · 내일의 다짐</b><code>25-reflection</code></figcaption></figure>
+        <figure class="shot"><img src="screens/26-notif.png" alt="알림 설정" loading="lazy"><figcaption><b>알림 설정</b><code>26-notif</code></figcaption></figure>
+        <figure class="shot"><img src="screens/27-widget-edit.png" alt="오늘 탭 위젯 편집 — 순서 변경 · 숨김" loading="lazy"><figcaption><b>오늘 탭 위젯 편집 — 순서 변경 · 숨김</b><code>27-widget-edit</code></figcaption></figure>
+        <figure class="shot"><img src="screens/27-widget-edit-2.png" alt="오늘 탭 위젯 편집 — 순서 변경 · 숨김 — 이어서 2" loading="lazy"><figcaption><b>오늘 탭 위젯 편집 — 순서 변경 · 숨김</b>이어서 2<code>27-widget-edit-2</code></figcaption></figure>
+      </div>
+    </div>
+    <div class="gal-group">
+      <div class="gal-head">
+        <h3>신앙 기능 ON — 탭 5개</h3><span class="n">6장</span>
+      </div>
+      <p class="gal-sub">기본은 OFF. 더보기에서 켜면 탭이 하나 늘어난다</p>
+      <div class="gal">
+        <figure class="shot"><img src="screens/30-more-settings.png" alt="더보기 — 설정 토글 (햅틱 · 사운드 · 신앙 기능)" loading="lazy"><figcaption><b>더보기 — 설정 토글 (햅틱 · 사운드 · 신앙 기능)</b><code>30-more-settings</code></figcaption></figure>
+        <figure class="shot"><img src="screens/31-tabs-five.png" alt="신앙 ON — 하단 탭이 5개가 된 상태" loading="lazy"><figcaption><b>신앙 ON — 하단 탭이 5개가 된 상태</b><code>31-tabs-five</code></figcaption></figure>
+        <figure class="shot"><img src="screens/32-prayers.png" alt="신앙 — 기도제목 로테이션" loading="lazy"><figcaption><b>신앙 — 기도제목 로테이션</b><code>32-prayers</code></figcaption></figure>
+        <figure class="shot"><img src="screens/32-prayers-2.png" alt="신앙 — 기도제목 로테이션 — 이어서 2" loading="lazy"><figcaption><b>신앙 — 기도제목 로테이션</b>이어서 2<code>32-prayers-2</code></figcaption></figure>
+        <figure class="shot"><img src="screens/33-applications.png" alt="신앙 — 말씀 적용" loading="lazy"><figcaption><b>신앙 — 말씀 적용</b><code>33-applications</code></figcaption></figure>
+        <figure class="shot"><img src="screens/34-devotion.png" alt="경건 · 감사 저널" loading="lazy"><figcaption><b>경건 · 감사 저널</b><code>34-devotion</code></figcaption></figure>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">02</span>
       <h2>앱 셸 해부</h2>
       <span class="sec-note">380px 기준 · 축소 표시</span>
     </div>
@@ -246,7 +354,7 @@
 
   <section>
     <div class="sec-head">
-      <span class="sec-num">02</span>
+      <span class="sec-num">03</span>
       <h2>현행 팔레트</h2>
       <span class="sec-note">apps/web/src/index.css</span>
     </div>
@@ -288,7 +396,7 @@
 
   <section>
     <div class="sec-head">
-      <span class="sec-num">03</span>
+      <span class="sec-num">04</span>
       <h2>타이포 실태 — 개편 1순위</h2>
       <span class="sec-note">임의 px값 전수 조사 · 241곳</span>
     </div>
@@ -321,7 +429,7 @@
 
   <section>
     <div class="sec-head">
-      <span class="sec-num">04</span>
+      <span class="sec-num">05</span>
       <h2>화면 지도</h2>
       <span class="sec-note">화면 17 · 라우트 18</span>
     </div>
@@ -354,7 +462,7 @@
 
   <section>
     <div class="sec-head">
-      <span class="sec-num">05</span>
+      <span class="sec-num">06</span>
       <h2>오늘 탭 위젯 12종</h2>
       <span class="sec-note">사용자가 순서 변경 · 개별 숨김</span>
     </div>
@@ -384,7 +492,7 @@
 
   <section>
     <div class="sec-head">
-      <span class="sec-num">06</span>
+      <span class="sec-num">07</span>
       <h2>버튼 variant 실물</h2>
       <span class="sec-note">앱 색 그대로 · 라이트 기준</span>
     </div>
@@ -408,7 +516,7 @@
 
   <section>
     <div class="sec-head">
-      <span class="sec-num">07</span>
+      <span class="sec-num">08</span>
       <h2>손대지 말 것</h2>
       <span class="sec-note">05-constraints.md 요약</span>
     </div>
@@ -429,9 +537,10 @@
 
   <footer>
     전체 문서 6종 + <code>tokens.json</code>은 저장소 <code>docs/design-handoff/</code>.
-    이 페이지는 그중 <code>screens.html</code>의 사본이다. 충돌 시 <b>코드 &gt; 핸드오프 문서 &gt; 기존 계획서</b> 순으로 신뢰한다.
+    이 페이지는 그중 <code>screens.html</code>의 사본이며, 스크린샷은 2026-09-05 03:05 UTC 시점의 실행 결과다. 충돌 시 <b>코드 &gt; 핸드오프 문서 &gt; 기존 계획서</b> 순으로 신뢰한다.
   </footer>
 
 </div>
+
 </body>
 </html>
