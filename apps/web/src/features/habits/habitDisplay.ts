@@ -41,12 +41,15 @@ export function shouldExpandTimeGroup({
   editMode,
   timeOfDay,
   currentTimeOfDay,
-  manuallyOpened,
+  manuallyToggled,
 }: {
   editMode: boolean;
   timeOfDay: HabitDoc['timeOfDay'];
   currentTimeOfDay: HabitDoc['timeOfDay'];
-  manuallyOpened: readonly string[];
+  manuallyToggled: readonly string[];
 }) {
-  return editMode || timeOfDay === currentTimeOfDay || manuallyOpened.includes(timeOfDay);
+  if (editMode) return true;
+
+  const defaultExpanded = timeOfDay === currentTimeOfDay;
+  return manuallyToggled.includes(timeOfDay) ? !defaultExpanded : defaultExpanded;
 }

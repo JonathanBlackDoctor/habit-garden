@@ -42,8 +42,8 @@ export default function Habits() {
   const isPast = !!dateParam && dateParam !== today;
   const [editMode, setEditMode] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
-  // 현재 시간대가 아닌 그룹 중 사용자가 직접 펼친 것들
-  const [openTods, setOpenTods] = useState<string[]>([]);
+  // 기본 펼침 상태(현재 시간대)를 사용자가 직접 반전한 그룹들
+  const [toggledTods, setToggledTods] = useState<HabitDoc['timeOfDay'][]>([]);
   const habits = useHabits({ includeInactive: editMode, includeHibernating: true });
   const checks = useHabitChecks(date);
   const save   = useSaveHabitCheck(isPast ? date : undefined);
@@ -53,6 +53,12 @@ export default function Habits() {
   const { bulkSkip, bulkUnskip } = useBulkSkip(date);
   const bloomKey = useTabBloomKey('/habits');
   const nowSectionRef = useRef<HTMLElement>(null);
+
+  const toggleTimeGroup = (tod: HabitDoc['timeOfDay']) => {
+    setToggledTods((prev) =>
+      prev.includes(tod) ? prev.filter((value) => value !== tod) : [...prev, tod],
+    );
+  };
 
   // 탭 진입/재탭 시 현재 시간대 그룹을 화면 중앙으로 스크롤
   // scrollIntoView는 가로 트랜스폼된 트랙 내부 중첩 스크롤에서 불안정하므로
@@ -192,7 +198,7 @@ export default function Habits() {
         );
       })()}
 
-      {/* 시간대별 그룹 — 1a: 현재 시간대만 펼치고 나머지는 한 줄로 접는다.
+      {/* 시간대별 그룹 — 기본은 현재 시간대만 펼치고, 헤더를 누르면 각 그룹을 자유롭게 펼치거나 접는다.
           편집 모드에서는 전부 펼쳐야 손댈 수 있으므로 접기를 끈다. */}
       {HABIT_TIME_ORDER.map((tod) => {
         const group = groups[tod];
@@ -204,14 +210,16 @@ export default function Habits() {
           editMode,
           timeOfDay: tod,
           currentTimeOfDay: currentTOD,
-          manuallyOpened: openTods,
+          manuallyToggled: toggledTods,
         });
 
         if (!expanded) {
           return (
             <button
               key={tod}
-              onClick={() => setOpenTods((prev) => [...prev, tod])}
+              type="button"
+              onClick={() => toggleTimeGroup(tod)}
+              aria-expanded="false"
               className={cn(
                 'flex w-full items-center gap-3 border-y border-[var(--divider-soft)] py-[15px] text-left transition-opacity',
                 settled && 'opacity-[.62]',
@@ -237,10 +245,16 @@ export default function Habits() {
             ref={isNow ? nowSectionRef : undefined}
             className="flex flex-col"
           >
-            <div className="flex items-center gap-3 pb-3 pt-1">
-              <h3 className="flex-1 text-[16px] font-semibold text-[var(--fg-primary)]">
+            <button
+              type="button"
+              onClick={() => toggleTimeGroup(tod)}
+              disabled={editMode}
+              aria-expanded="true"
+              className="flex w-full items-center gap-3 pb-3 pt-1 text-left disabled:cursor-default disabled:opacity-100"
+            >
+              <span className="flex-1 text-[16px] font-semibold text-[var(--fg-primary)]">
                 {TIME_LABELS[tod]}
-              </h3>
+              </span>
               {isNow && (
                 <span className="text-[12px] leading-none text-[var(--leaf)]">
                   지금
@@ -249,7 +263,10 @@ export default function Habits() {
               <span className="text-[13px] tabular-nums text-[var(--fg-muted)]">
                 {groupAchieved} / {group.length}
               </span>
-            </div>
+              {!editMode && (
+                <ChevronRight size={13} className="shrink-0 rotate-90 text-[var(--fg-faint)]" />
+              )}
+            </button>
             <div className="row-divide flex flex-col border-y border-[var(--divider-soft)]">
               {group.map((habit) => (
                 editMode ? (
