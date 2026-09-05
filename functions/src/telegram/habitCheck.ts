@@ -10,8 +10,9 @@ import type {
   HabitDoc, HabitCheckDoc, DayDoc, ProgressDoc,
 } from '../../../shared/types/firestore';
 import {
-  visibleHabits, isAchieved, buildHabitListMessage, buildScorePicker,
-  type InlineKeyboard,
+  visibleHabits, isAchieved, isValidHabitScore, buildHabitListMessage, buildScorePicker,
+  habitMatchesFilter, hasHabitCheck,
+  type InlineKeyboard, type HabitListContext, type HabitListFilter,
 } from '../../../shared/lib/telegram';
 
 const db = admin.firestore();
@@ -45,15 +46,17 @@ export async function loadDayView(uid: string, date: string): Promise<DayView> {
 export async function renderHabitList(
   uid: string,
   date: string,
+  context?: Partial<HabitListContext>,
 ): Promise<{ text: string; keyboard: InlineKeyboard }> {
   const v = await loadDayView(uid, date);
-  return buildHabitListMessage({ date, ...v });
+  return buildHabitListMessage({ date, ...v }, context);
 }
 
 export async function renderScorePicker(
   uid: string,
   date: string,
   habitId: string,
+  context?: Partial<HabitListContext>,
 ): Promise<{ text: string; keyboard: InlineKeyboard } | null> {
   const [habitSnap, checkSnap] = await Promise.all([
     db.doc(`users/${uid}/habits/${habitId}`).get(),
@@ -62,7 +65,34 @@ export async function renderScorePicker(
   if (!habitSnap.exists) return null;
   const habit = habitSnap.data() as HabitDoc;
   const check = checkSnap.exists ? (checkSnap.data() as HabitCheckDoc) : undefined;
-  return buildScorePicker(habit, date, check);
+  return buildScorePicker(habit, date, check, context);
+}
+
+/** 현재 화면 범위의 미기록 습관을 텔레그램 안에서 바로 재알림 예약한다. */
+export async function snoozeHabitChecks(
+  uid: string,
+  date: string,
+  filter: HabitListFilter,
+  minutes: 30 | 120,
+): Promise<number> {
+  const view = await loadDayView(uid, date);
+  const targets = view.habits.filter(
+    (habit) => habitMatchesFilter(habit, filter) && !hasHabitCheck(view.checks, habit.id),
+  );
+  if (targets.length === 0) return 0;
+
+  const batch = db.batch();
+  const reSendAt = admin.firestore.Timestamp.fromMillis(Date.now() + minutes * 60_000);
+  for (const habit of targets) {
+    batch.set(db.doc(`users/${uid}/reminderQueue/${habit.id}`), {
+      habitId: habit.id,
+      date,
+      reSendAt,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  }
+  await batch.commit();
+  return targets.length;
 }
 
 /**
@@ -78,6 +108,7 @@ export async function saveCheck(
   const habitSnap = await db.doc(`users/${uid}/habits/${habitId}`).get();
   if (!habitSnap.exists) return { ok: false, toast: '없는 습관이에요' };
   const habit = habitSnap.data() as HabitDoc;
+  if (!isValidHabitScore(habit, score)) return { ok: false, toast: '쓸 수 없는 점수예요' };
 
   const achieved = isAchieved(habit, score);
   const doc: HabitCheckDoc = {

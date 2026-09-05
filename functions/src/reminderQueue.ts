@@ -44,6 +44,12 @@ async function processUser(uid: string, today: string, nowMs: number): Promise<v
   const batch = db.batch();
   due.forEach((d) => batch.delete(d.ref));
 
+  const progSnap = await db.doc(`users/${uid}/progress/main`).get();
+  if ((progSnap.data() as any)?._todayHabitReminderPause?.date === today) {
+    await batch.commit();
+    return;
+  }
+
   // 오늘자 & 아직 미체크인 습관만 재발송 대상
   const sameDay = due.filter((d) => (d.data().date ?? today) === today);
   const habitIds = sameDay.map((d) => d.id);
@@ -61,8 +67,8 @@ async function processUser(uid: string, today: string, nowMs: number): Promise<v
       const habit = h.data() as HabitDoc;
       // 예약 후 습관을 비활성화하거나 잠재웠다면 재알림에서도 제외한다.
       if (visibleHabits([habit]).length === 0) return;
-      const check = checkDocs[i].exists ? (checkDocs[i].data() as HabitCheckDoc) : null;
-      if (check && check.score !== null && check.score !== undefined) return; // 이미 체크됨
+      // score:null(건너뛰기)도 의도적으로 처리한 기록이므로 다시 알리지 않는다.
+      if (checkDocs[i].exists) return;
       pending.push(h.id);
       titles.push(habit.title);
     });
@@ -76,10 +82,9 @@ async function processUser(uid: string, today: string, nowMs: number): Promise<v
       const body = `${titles.slice(0, 2).join(', ')}${pending.length > 2 ? ` 외 ${pending.length - 2}개` : ''}`;
 
       // 텔레그램에서는 재알림에도 체크 키보드를 붙여 그 자리에서 끝낼 수 있게 한다.
-      const [allHabitsSnap, allChecksSnap, progSnap] = await Promise.all([
+      const [allHabitsSnap, allChecksSnap] = await Promise.all([
         db.collection(`users/${uid}/habits`).get(),
         db.collection(`users/${uid}/days/${today}/habitChecks`).get(),
-        db.doc(`users/${uid}/progress/main`).get(),
       ]);
       const checkMap: Record<string, HabitCheckDoc> = {};
       allChecksSnap.docs.forEach((d) => { checkMap[d.id] = d.data() as HabitCheckDoc; });
@@ -89,7 +94,7 @@ async function processUser(uid: string, today: string, nowMs: number): Promise<v
         checks: checkMap,
         streak: (progSnap.data() as ProgressDoc | undefined)?.globalStreak ?? 0,
         dayScore: null,
-      });
+      }, { filter: 'all', pendingOnly: true, page: 0 });
 
       await notifyUser(uid, {
         title,

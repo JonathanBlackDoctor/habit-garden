@@ -3,7 +3,8 @@ import {
   plannerDateKST, formatDateLabel, escapeHtml,
   isPrivateTelegramChat,
   encodeCallback, parseCallback, CALLBACK_MAX_BYTES,
-  visibleHabits, isAchieved, statusIcon,
+  visibleHabits, isAchieved, isValidHabitScore, statusIcon, habitTimeOfDayKST,
+  reminderFilterForHour, habitMatchesFilter,
   buildHabitListMessage, buildScorePicker, HABIT_LIST_LIMIT,
   newReflectionSession, currentStep, applyReflectionInput, parseScreenTime,
   reflectionPrompt, buildReflectionSteps,
@@ -45,6 +46,24 @@ describe('plannerDateKST — 04:00 경계', () => {
   });
 });
 
+describe('텔레그램 시간대', () => {
+  it('웹앱과 같은 KST 구간을 쓴다', () => {
+    expect(habitTimeOfDayKST(new Date('2026-09-05T01:59:00Z'))).toBe('morning'); // KST 10:59
+    expect(habitTimeOfDayKST(new Date('2026-09-05T02:00:00Z'))).toBe('afternoon'); // KST 11:00
+    expect(habitTimeOfDayKST(new Date('2026-09-05T08:00:00Z'))).toBe('evening'); // KST 17:00
+    expect(habitTimeOfDayKST(new Date('2026-09-05T13:00:00Z'))).toBe('night'); // KST 22:00
+  });
+
+  it('밤 최종 리마인더에 night와 anytime을 함께 넣는다', () => {
+    expect(reminderFilterForHour(9)).toBe('morning');
+    expect(reminderFilterForHour(21)).toBe('nightAnytime');
+    expect(reminderFilterForHour(10)).toBeNull();
+    expect(habitMatchesFilter(habit({ timeOfDay: 'night' }), 'nightAnytime')).toBe(true);
+    expect(habitMatchesFilter(habit({ timeOfDay: 'anytime' }), 'nightAnytime')).toBe(true);
+    expect(habitMatchesFilter(habit({ timeOfDay: 'evening' }), 'nightAnytime')).toBe(false);
+  });
+});
+
 describe('formatDateLabel', () => {
   it('요일까지 한국어로 붙인다', () => {
     expect(formatDateLabel('2026-09-05')).toBe('9월 5일(토)');
@@ -60,11 +79,13 @@ describe('escapeHtml', () => {
 describe('콜백 인코딩', () => {
   it('왕복 변환된다', () => {
     const cbs = [
-      { ns: 't', action: 'list', date: '2026-09-05' },
-      { ns: 't', action: 'pick', date: '2026-09-05', habitId: 'abcDEF123' },
-      { ns: 't', action: 'save', date: '2026-09-05', habitId: 'abcDEF123', score: 4 },
-      { ns: 't', action: 'save', date: '2026-09-05', habitId: 'abcDEF123', score: null },
-      { ns: 't', action: 'clear', date: '2026-09-05', habitId: 'abcDEF123' },
+      { ns: 't', action: 'list', date: '2026-09-05', filter: 'evening', pendingOnly: false, page: 2 },
+      { ns: 't', action: 'pick', date: '2026-09-05', habitId: 'abcDEF123', filter: 'evening', pendingOnly: false, page: 2 },
+      { ns: 't', action: 'save', date: '2026-09-05', habitId: 'abcDEF123', score: 4, filter: 'evening', pendingOnly: false, page: 2 },
+      { ns: 't', action: 'save', date: '2026-09-05', habitId: 'abcDEF123', score: null, filter: 'evening', pendingOnly: false, page: 2 },
+      { ns: 't', action: 'clear', date: '2026-09-05', habitId: 'abcDEF123', filter: 'evening', pendingOnly: false, page: 2 },
+      { ns: 't', action: 'snooze', date: '2026-09-05', filter: 'morning', minutes: 30 },
+      { ns: 't', action: 'pause', date: '2026-09-05' },
       { ns: 'r', action: 'answer', value: 'sat7' },
       { ns: 'r', action: 'cancel' },
       { ns: 'r', action: 'start' },
@@ -74,7 +95,10 @@ describe('콜백 인코딩', () => {
   });
 
   it('Firestore 자동 id(20자)를 써도 64바이트를 넘지 않는다', () => {
-    const s = encodeCallback({ ns: 't', action: 'save', date: '2026-09-05', habitId: 'a'.repeat(20), score: null });
+    const s = encodeCallback({
+      ns: 't', action: 'save', date: '2026-09-05', habitId: 'a'.repeat(20), score: null,
+      filter: 'nightAnytime', pendingOnly: false, page: 99,
+    });
     expect(Buffer.byteLength(s, 'utf8')).toBeLessThanOrEqual(CALLBACK_MAX_BYTES);
   });
 
@@ -83,8 +107,18 @@ describe('콜백 인코딩', () => {
   });
 
   it('알 수 없는 값은 예외 대신 null', () => {
-    for (const bad of [undefined, null, '', 'zzz', 't', 't:l', 't:s:2026-09-05:h1:abc', 'r:a'])
+    for (const bad of [
+      undefined, null, '', 'zzz', 't', 't:l', 't:s:2026-09-05:h1:abc',
+      't:l:2026-09-05:nope:p:0', 't:l:2026-09-05:m:x:0', 't:z:2026-09-05:m:60', 'r:a',
+    ])
       expect(parseCallback(bad as any)).toBeNull();
+  });
+
+  it('배포 전 콜백은 남은 전체 화면 문맥으로 호환한다', () => {
+    expect(parseCallback('t:h:2026-09-05:h1')).toEqual({
+      ns: 't', action: 'pick', date: '2026-09-05', habitId: 'h1',
+      filter: 'all', pendingOnly: true, page: 0,
+    });
   });
 });
 
@@ -123,23 +157,35 @@ describe('습관 목록·달성 판정', () => {
 
 describe('습관 목록 메시지', () => {
   it('진행 상황과 습관별 버튼을 만든다', () => {
-    const habits = [habit({ id: 'h1', title: 'QT' }), habit({ id: 'h2', title: '운동', order: 1 })];
+    const habits = [
+      habit({ id: 'h1', title: 'QT' }),
+      habit({ id: 'h2', title: '운동', order: 1, scoreMode: 'binary' }),
+    ];
     const { text, keyboard } = buildHabitListMessage({
       date: '2026-09-05', habits, checks: { h1: check() }, streak: 12, dayScore: 58,
     });
-    expect(text).toContain('체크 1/2');
+    expect(text).toContain('오늘 전체 1/2');
     expect(text).toContain('🔥 12일째');
     expect(text).toContain('dayScore 58');
-    expect(keyboard[0][0].text).toBe('✅ QT');
-    expect(keyboard[1][0].text).toBe('⭕ 운동');
-    expect(keyboard.at(-1)![0].text).toContain('새로고침');
+    expect(keyboard[0][0].text).toBe('✅ 운동 완료');
+    expect(parseCallback(keyboard[0][0].callback_data)).toMatchObject({ action: 'save', score: 1 });
+    expect(keyboard.at(-1)![2].text).toBe('🔄');
   });
 
-  it('습관이 많으면 상한까지만 버튼으로 만든다', () => {
+  it('습관 형식 밖의 점수는 거부한다', () => {
+    expect(isValidHabitScore(habit({ scoreMode: 'scaled' }), 5)).toBe(true);
+    expect(isValidHabitScore(habit({ scoreMode: 'scaled' }), 6)).toBe(false);
+    expect(isValidHabitScore(habit({ scoreMode: 'binary' }), 1)).toBe(true);
+    expect(isValidHabitScore(habit({ scoreMode: 'binary' }), 2)).toBe(false);
+    expect(isValidHabitScore(habit(), null)).toBe(true);
+  });
+
+  it('습관이 많으면 미완료 우선으로 페이지를 제공한다', () => {
     const habits = Array.from({ length: HABIT_LIST_LIMIT + 3 }, (_, i) => habit({ id: `h${i}`, order: i }));
     const { text, keyboard } = buildHabitListMessage({ date: '2026-09-05', habits, checks: {}, streak: 0, dayScore: null });
-    expect(keyboard).toHaveLength(HABIT_LIST_LIMIT + 1); // + 새로고침
-    expect(text).toContain('앱에서 확인');
+    expect(keyboard.slice(0, HABIT_LIST_LIMIT)).toHaveLength(HABIT_LIST_LIMIT);
+    expect(text).toContain('1/2 페이지');
+    expect(keyboard.flat().some((b) => b.text === '다음 ▶')).toBe(true);
   });
 
   it('습관이 없으면 안내만 남기고 버튼을 만들지 않는다', () => {
@@ -148,19 +194,47 @@ describe('습관 목록 메시지', () => {
     expect(keyboard).toEqual([]);
   });
 
-  it('제목의 HTML 은 이스케이프된다', () => {
-    const { text } = buildHabitListMessage({
-      date: '2026-09-05', habits: [], checks: {}, streak: 0, dayScore: null,
+  it('다른 시간대와 완료 포함 화면으로 전환할 수 있다', () => {
+    const habits = [
+      habit({ id: 'am', title: '아침', timeOfDay: 'morning' }),
+      habit({ id: 'pm', title: '저녁', timeOfDay: 'evening', order: 1 }),
+    ];
+    const { text, keyboard } = buildHabitListMessage(
+      { date: '2026-09-05', habits, checks: { am: check({ habitId: 'am' }) }, streak: 0, dayScore: null },
+      { filter: 'morning', pendingOnly: false },
+    );
+    expect(text).toContain('☀️ 아침 · 기록 1/1');
+    expect(keyboard[0][0].text).toContain('아침');
+    expect(keyboard.flat().some((b) => b.text.includes('저녁'))).toBe(true);
+    expect(keyboard.flat().some((b) => b.text.includes('미완료만'))).toBe(true);
+  });
+
+  it('점수형 습관은 목록에서 1~5점 선택 화면으로 들어간다', () => {
+    const { keyboard } = buildHabitListMessage({
+      date: '2026-09-05', habits: [habit({ title: 'QT' })], checks: {}, streak: 0, dayScore: null,
     });
-    expect(text).not.toContain('<script');
+    expect(keyboard[0][0].text).toContain('1~5점 선택');
+    expect(parseCallback(keyboard[0][0].callback_data)).toMatchObject({ action: 'pick', habitId: 'h1' });
+  });
+
+  it('완료 포함 화면에서는 미완료가 완료보다 먼저 온다', () => {
+    const habits = [habit({ id: 'done', title: '완료', order: 0 }), habit({ id: 'todo', title: '미완료', order: 1 })];
+    const { keyboard } = buildHabitListMessage(
+      { date: '2026-09-05', habits, checks: { done: check({ habitId: 'done' }) }, streak: 0, dayScore: null },
+      { filter: 'all', pendingOnly: false },
+    );
+    expect(keyboard[0][0].text).toContain('미완료');
+    expect(keyboard[1][0].text).toContain('완료');
   });
 });
 
 describe('점수 선택 키보드', () => {
   it('scaled 는 1~5', () => {
-    const { keyboard } = buildScorePicker(habit(), '2026-09-05', undefined);
+    const { keyboard, text } = buildScorePicker(habit(), '2026-09-05', undefined, { filter: 'morning', pendingOnly: true });
     expect(keyboard[0].map((b) => b.text)).toEqual(['1', '2', '3', '4', '5']);
     expect(keyboard[1].map((b) => b.text)).toEqual(['⏭ 건너뛰기']);
+    expect(text).toContain('1 매우 부족');
+    expect(parseCallback(keyboard.at(-1)![0].callback_data)).toMatchObject({ filter: 'morning', pendingOnly: true });
   });
 
   it('binary 는 달성/미달성', () => {
