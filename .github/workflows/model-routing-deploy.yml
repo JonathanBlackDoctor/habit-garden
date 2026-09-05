@@ -39,11 +39,11 @@ jobs:
       - name: Firebase 서비스 계정 자격증명 준비
         run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > "${{ github.workspace }}/firebase-sa.json"
 
-      - name: Functions 배포
+      - name: AI Functions 배포
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/firebase-sa.json
         run: |
           pnpm exec firebase deploy \
-            --only functions \
+            --only "functions:generateFeedback,functions:parsePrayerBulk,functions:findDuplicatePrayers,functions:generatePrayerWeekly,functions:parseApplication,functions:aiCoach,functions:morningBrief" \
             --project planner-web-quick \
             --non-interactive
