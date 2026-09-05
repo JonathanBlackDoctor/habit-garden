@@ -11,7 +11,7 @@
  */
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
-import { sendMessage, TelegramForbiddenError, QUICK_REPLY_KEYBOARD } from './api';
+import { sendMessage, TelegramForbiddenError, QUICK_REPLY_KEYBOARD, telegramWebhookSecret } from './api';
 import type { TelegramUpdate } from './api';
 import { isPrivateTelegramChat } from '../../../shared/lib/telegram';
 import { getLinkByChatId, consumeLinkCode, linkAccount, claimUpdate, unlinkAccount } from './store';
@@ -37,7 +37,8 @@ export const telegramWebhook = functions
   .https.onRequest(async (req, res) => {
     if (req.method !== 'POST') { res.status(405).send('Method Not Allowed'); return; }
 
-    const expected = process.env.TELEGRAM_WEBHOOK_SECRET?.trim();
+    const configuredSecret = process.env.TELEGRAM_WEBHOOK_SECRET?.trim();
+    const expected = configuredSecret ? telegramWebhookSecret(configuredSecret) : undefined;
     const received = req.get('X-Telegram-Bot-Api-Secret-Token')?.trim();
     if (!expected || received !== expected) {
       res.status(401).send('Unauthorized');

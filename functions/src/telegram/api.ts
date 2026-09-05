@@ -5,10 +5,20 @@
  * 모든 메시지는 parse_mode:'HTML' 로 보낸다. 사용자 데이터(습관 제목·회고 답변)는
  * 호출부에서 shared/lib/telegram 의 escapeHtml 을 통과시켜야 한다.
  */
+import { createHash } from 'node:crypto';
 import type { InlineKeyboard, TelegramChatType } from '../../../shared/lib/telegram';
 
 // 기본값은 실제 텔레그램. 에뮬레이터 통합 테스트에서만 로컬 목 서버로 돌린다.
 const API_BASE = process.env.TELEGRAM_API_BASE || 'https://api.telegram.org';
+
+/**
+ * Telegram의 webhook secret_token은 영문·숫자·밑줄·하이픈만 허용한다.
+ * Secret Manager 값의 형식과 무관하게 동일한 64자리 hex 토큰을 만들어
+ * 등록과 수신 검증 양쪽에서 사용한다.
+ */
+export function telegramWebhookSecret(secret: string): string {
+  return createHash('sha256').update(secret.trim(), 'utf8').digest('hex');
+}
 
 export interface TelegramUser {
   id: number;
