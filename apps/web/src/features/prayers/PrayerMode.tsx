@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Check, ChevronRight, ChevronLeft, Plus, BookOpen } from 'lucide-react';
@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 /**
  * 기도 모드 — 기도실에서도 쓸 수 있는 집중 세션.
  * setup(시간 선택) → meditate(말씀 묵상) → pray(카드 넘기기) → done(요약)
- * 앱의 편집형 팔레트를 유지해 다른 화면과 시각적으로 이어진다.
+ * 밝은 앱 화면과 분리된 차분한 다크 테마로 집중감을 만든다.
  */
 
 type Step = 'setup' | 'meditate' | 'pray' | 'done';
@@ -23,12 +23,13 @@ const DURATIONS: { label: string; min: number | null }[] = [
 ];
 
 const DARK = {
-  bg: 'bg-[var(--bg-base)]',
-  card: 'bg-[var(--bg-surface)]',
-  border: 'border-[var(--border)]',
-  fg: 'text-[var(--fg-primary)]',
-  muted: 'text-[var(--fg-faint)]',
-  accent: '#7A5F38',
+  bg: 'bg-[#11100E]',
+  card: 'bg-[#1A1916]',
+  border: 'border-white/[0.11]',
+  fg: 'text-[#F4F2ED]',
+  muted: 'text-[#AAA49B]',
+  faint: 'text-[#777168]',
+  accent: '#CDB58F',
 };
 
 function fmtClock(ms: number): string {
@@ -192,195 +193,279 @@ export default function PrayerMode({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className={cn('fixed inset-0 z-[120] flex flex-col sm:bottom-5 sm:left-1/2 sm:right-auto sm:top-5 sm:w-[430px] sm:-translate-x-1/2 sm:overflow-hidden sm:rounded-[36px] sm:border sm:border-[var(--border)] sm:shadow-[var(--shadow-md)]', DARK.bg, DARK.fg)}
-          style={{
-            paddingTop: 'env(safe-area-inset-top)',
-            paddingBottom: 'env(safe-area-inset-bottom)',
-          }}
+          className="fixed inset-0 z-[120] flex items-center justify-center bg-[#090806] sm:p-5"
         >
-          {/* 상단 바 */}
-          <div className="flex items-center justify-between px-4 py-3">
-            <button onClick={onClose} aria-label="닫기" className={cn('p-1.5', DARK.muted)}>
-              <X size={20} />
-            </button>
-            {step === 'pray' && (
-              <span className={cn('text-xs tabular-nums', DARK.muted)}>
-                {index + 1} / {ordered.length}
-                {timeLeft !== null && !timeUp && ` · ${fmtClock(timeLeft)}`}
-                {endsAt === null && startedAt > 0 && ` · ${fmtClock(elapsed)}`}
-              </span>
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="기도 모드"
+            className={cn(
+              'relative flex h-full w-full max-w-[430px] flex-col overflow-hidden sm:rounded-[36px] sm:border sm:shadow-[0_28px_80px_rgba(0,0,0,0.48)]',
+              DARK.bg,
+              DARK.border,
+              DARK.fg,
             )}
-          </div>
-
-          <div className="mx-auto flex w-full max-w-[480px] flex-1 flex-col px-6 pb-6">
-            {/* 시간 선택 */}
-            {step === 'setup' && (
-              <div className="flex flex-1 flex-col items-center justify-center gap-8">
-                <div className="text-center">
-                  <p className="text-lg font-medium">기도 시간</p>
-                  <p className={cn('mt-1 text-sm', DARK.muted)}>얼마나 머무를까요?</p>
-                </div>
-                <div className="grid w-full grid-cols-2 gap-3">
-                  {DURATIONS.map((d) => (
-                    <button
-                      key={d.label}
-                      onClick={() => { setDurationMin(d.min); setStep('meditate'); }}
-                      className={cn(
-                        'rounded-[var(--radius-lg)] border py-5 text-base font-medium transition-colors',
-                        DARK.card, DARK.border, 'active:border-[var(--leaf)]'
-                      )}
-                    >
-                      {d.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* 말씀 묵상 — 마음 가다듬기 */}
-            {step === 'meditate' && (
-              <button
-                onClick={beginPray}
-                className="flex flex-1 flex-col items-center justify-center gap-10 text-center"
-              >
-                <motion.div
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 1.2 }}
-                  className="space-y-6"
+            style={{
+              colorScheme: 'dark',
+              '--leaf': DARK.accent,
+              '--leaf-soft': '#2A241C',
+              '--fg-primary': '#F4F2ED',
+              paddingTop: 'env(safe-area-inset-top)',
+              paddingBottom: 'env(safe-area-inset-bottom)',
+            } as CSSProperties}
+          >
+            {/* 상단 바 */}
+            <div className="shrink-0 px-5 pt-4">
+              <div className="flex min-h-[44px] items-center justify-between">
+                <button
+                  onClick={onClose}
+                  aria-label="기도 모드 닫기"
+                  className={cn('flex h-[44px] w-[44px] items-center justify-center rounded-full border transition-colors hover:bg-white/[0.04]', DARK.border, DARK.muted)}
                 >
-                  <p className="text-xl leading-relaxed [text-wrap:balance]">{verse.text}</p>
-                  <p className={cn('text-sm', DARK.muted)}>— {verse.reference}</p>
-                </motion.div>
-                <motion.p
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: [0, 0.7, 0.4, 0.7] }}
-                  transition={{ delay: 2.5, duration: 4, repeat: Infinity }}
-                  className={cn('text-xs', DARK.muted)}
-                >
-                  잠잠히 묵상한 뒤, 화면을 누르면 시작합니다
-                </motion.p>
-              </button>
-            )}
-
-            {/* 카드 기도 */}
-            {step === 'pray' && current && (
-              <div className="flex min-h-0 flex-1 flex-col">
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={current.id}
-                    initial={{ opacity: 0, x: 24 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -24 }}
-                    transition={{ duration: 0.25 }}
-                    className="flex min-h-0 flex-1 flex-col justify-center py-3"
-                  >
-                    <div className={cn('min-h-0 overflow-y-auto rounded-[var(--radius-lg)] border p-6', DARK.card, DARK.border)}>
-                      <p className={cn('text-xs', DARK.muted)}>
-                        {current.target || '나 자신'} · {current.group || '개인'}
-                        {checks[current.id] && ' · 오늘 기도함 ✓'}
-                      </p>
-                      <h2 className="mt-2 text-xl font-medium leading-snug [text-wrap:balance]">{current.title}</h2>
-                      {current.body && (
-                        <p className={cn('mt-4 whitespace-pre-wrap text-sm leading-relaxed', DARK.muted)}>{current.body}</p>
-                      )}
-                      {current.verse && (
-                        <div className={cn('mt-5 rounded-[var(--radius)] border p-3', DARK.border)}>
-                          <p className="flex items-start gap-1.5 text-sm leading-relaxed">
-                            <BookOpen size={14} className="mt-0.5 shrink-0" style={{ color: DARK.accent }} />
-                            <span>{current.verse.text}</span>
-                          </p>
-                          <p className={cn('mt-1.5 pl-5 text-xs', DARK.muted)}>— {current.verse.reference}</p>
-                        </div>
-                      )}
-                    </div>
-                  </motion.div>
-                </AnimatePresence>
-
-                {timeUp && (
-                  <p className={cn('pb-3 text-center text-xs', DARK.muted)}>
-                    시간이 다 됐어요 — 천천히 마무리하세요
-                  </p>
-                )}
-
-                <div className="flex gap-2">
-                  <button
-                    onClick={goBack}
-                    disabled={index === 0}
-                    aria-label="이전 기도제목"
-                    className={cn('flex items-center justify-center gap-1 rounded-[var(--radius)] border px-3 py-3.5 text-sm disabled:opacity-30', DARK.border, DARK.muted)}
-                  >
-                    <ChevronLeft size={15} /> 이전
-                  </button>
-                  <button
-                    onClick={advance}
-                    className={cn('flex items-center justify-center gap-1 rounded-[var(--radius)] border px-3 py-3.5 text-sm', DARK.border, DARK.muted)}
-                  >
-                    건너뛰기 <ChevronRight size={15} />
-                  </button>
-                  <button
-                    onClick={prayAndAdvance}
-                    className="flex flex-1 items-center justify-center gap-1.5 rounded-[var(--radius)] py-3.5 text-sm font-medium text-white"
-                    style={{ backgroundColor: DARK.accent }}
-                  >
-                    <Check size={16} /> 기도했어요
-                  </button>
-                </div>
-
-                {hasMore && (
-                  <button
-                    onClick={() => loadMoreInto(false)}
-                    className={cn('mt-3 flex w-full items-center justify-center gap-1.5 rounded-[var(--radius)] border border-dashed py-2.5 text-xs', DARK.border, DARK.muted)}
-                  >
-                    <Plus size={14} /> 기도제목 더 받기
-                  </button>
-                )}
-              </div>
-            )}
-
-            {/* 빈 목록 방어 */}
-            {step === 'pray' && !current && (
-              <div className="flex flex-1 flex-col items-center justify-center gap-4">
-                <p className={cn('text-sm', DARK.muted)}>오늘 기도할 목록이 없습니다.</p>
-                <button onClick={onClose} className={cn('rounded-[var(--radius)] border px-5 py-2.5 text-sm', DARK.border)}>
-                  돌아가기
+                  <X size={18} />
                 </button>
+                <span className={cn('text-[10px] font-medium uppercase tracking-[0.24em]', DARK.faint)}>
+                  Prayer session
+                </span>
+                {step === 'pray' ? (
+                  <span className={cn('flex h-[44px] min-w-[44px] items-center justify-end text-[11px] tabular-nums', DARK.muted)} aria-live="polite">
+                    {timeLeft !== null && !timeUp && fmtClock(timeLeft)}
+                    {endsAt === null && startedAt > 0 && fmtClock(elapsed)}
+                    {timeUp && '마무리'}
+                  </span>
+                ) : (
+                  <span className="h-[44px] w-[44px]" aria-hidden="true" />
+                )}
               </div>
-            )}
 
-            {/* 마침 */}
-            {step === 'done' && (
-              <div className="flex flex-1 flex-col items-center justify-center gap-8 text-center">
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="space-y-3"
-                >
-                                    <p className="text-lg font-medium">기도를 마쳤습니다</p>
-                  <p className={cn('text-sm', DARK.muted)}>
-                    {checkedInSession.size > 0 && `${checkedInSession.size}개 기도 · `}
-                    {fmtClock(elapsed)} 머물렀어요
-                  </p>
-                </motion.div>
-                <div className="flex flex-col items-center gap-3">
-                  {hasMore && (
-                    <button
-                      onClick={() => loadMoreInto(true)}
-                      className={cn('flex items-center justify-center gap-1.5 rounded-[var(--radius)] border border-dashed px-6 py-2.5 text-sm', DARK.border, DARK.muted)}
+              {step === 'pray' && (
+                <div className="mt-3 flex items-center gap-3">
+                  <div className="h-px flex-1 overflow-hidden bg-white/[0.09]">
+                    <motion.div
+                      className="h-full"
+                      style={{ backgroundColor: DARK.accent }}
+                      animate={{ width: `${((index + 1) / Math.max(ordered.length, 1)) * 100}%` }}
+                    />
+                  </div>
+                  <span className={cn('text-[10px] tabular-nums', DARK.faint)}>{index + 1} / {ordered.length}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="mx-auto flex min-h-0 w-full max-w-[480px] flex-1 flex-col px-6 pb-5">
+              {/* 시간 선택 */}
+              {step === 'setup' && (
+                <div className="flex flex-1 flex-col justify-center py-8">
+                  <div>
+                    <p className="text-[11px] font-medium uppercase tracking-[0.22em]" style={{ color: DARK.accent }}>기도 시작</p>
+                    <h1 className="mt-4 text-[30px] font-medium leading-[1.25] tracking-[-0.035em] [text-wrap:balance]">
+                      조용히 머무를<br />시간을 정해요
+                    </h1>
+                    <p className={cn('mt-3 text-sm leading-relaxed', DARK.muted)}>
+                      오늘의 기도 {ordered.length}개를 천천히 돌아봅니다.
+                    </p>
+                  </div>
+
+                  <div className="mt-12 grid grid-cols-2 gap-3">
+                    {DURATIONS.map((d) => (
+                      <button
+                        key={d.label}
+                        onClick={() => { setDurationMin(d.min); setStep('meditate'); }}
+                        className={cn(
+                          'group flex min-h-[82px] flex-col items-start justify-between rounded-[20px] border p-4 text-left transition-colors hover:bg-white/[0.055] active:scale-[0.99]',
+                          DARK.card,
+                          DARK.border,
+                        )}
+                      >
+                        <span className={cn('text-[10px] uppercase tracking-[0.16em]', DARK.faint)}>
+                          {d.min === null ? 'Open' : 'Timer'}
+                        </span>
+                        <span className="text-lg font-medium tracking-[-0.02em]">{d.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 말씀 묵상 — 마음 가다듬기 */}
+              {step === 'meditate' && (
+                <div className="flex min-h-0 flex-1 flex-col py-5 text-center">
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 1.2 }}
+                    className="flex flex-1 flex-col items-center justify-center"
+                  >
+                    <div className={cn('flex h-10 w-10 items-center justify-center rounded-full border', DARK.border)}>
+                      <BookOpen size={15} style={{ color: DARK.accent }} />
+                    </div>
+                    <p className="mt-8 text-[22px] leading-[1.7] tracking-[-0.025em] [text-wrap:balance]">{verse.text}</p>
+                    <p className={cn('mt-5 text-xs', DARK.muted)}>— {verse.reference}</p>
+                  </motion.div>
+
+                  <div className="shrink-0 pt-5">
+                    <motion.p
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: [0, 0.75, 0.45, 0.75] }}
+                      transition={{ delay: 1.8, duration: 4, repeat: Infinity }}
+                      className={cn('mb-4 text-[11px]', DARK.faint)}
                     >
-                      <Plus size={15} /> 기도제목 더 받기
+                      잠시 숨을 고르고 마음을 가다듬어 보세요
+                    </motion.p>
+                    <button
+                      onClick={beginPray}
+                      className="flex min-h-14 w-full items-center justify-center rounded-[18px] text-sm font-semibold text-[#17130D] transition-transform active:scale-[0.99]"
+                      style={{ backgroundColor: DARK.accent }}
+                    >
+                      기도 시작
                     </button>
-                  )}
+                  </div>
+                </div>
+              )}
+
+              {/* 카드 기도 */}
+              {step === 'pray' && current && (
+                <div className="flex min-h-0 flex-1 flex-col">
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={current.id}
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                      transition={{ duration: 0.22 }}
+                      className="flex min-h-0 flex-1 py-4"
+                    >
+                      <article className={cn('flex h-full min-h-0 w-full flex-col overflow-y-auto rounded-[24px] border p-6', DARK.card, DARK.border)}>
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <span className={cn('text-[10px] font-medium uppercase tracking-[0.17em]', DARK.faint)}>{current.group || '개인'}</span>
+                          <span className="h-0.5 w-0.5 rounded-full bg-white/25" aria-hidden="true" />
+                          <span className={cn('text-[11px]', DARK.muted)}>{current.target || '나 자신'}</span>
+                          {checks[current.id] && (
+                            <span className="ml-auto text-[10px]" style={{ color: DARK.accent }}>오늘 기도함</span>
+                          )}
+                        </div>
+
+                        <div className="flex flex-1 flex-col justify-center py-8">
+                          <h2 className="text-[27px] font-medium leading-[1.38] tracking-[-0.035em] [text-wrap:balance]">{current.title}</h2>
+                          {current.body && (
+                            <p className={cn('mt-5 whitespace-pre-wrap text-[14px] leading-[1.75]', DARK.muted)}>{current.body}</p>
+                          )}
+                        </div>
+
+                        {current.verse && (
+                          <aside className="mt-auto border-t border-white/[0.09] pt-4">
+                            <div className="flex items-start gap-2.5">
+                              <BookOpen size={12} className="mt-0.5 shrink-0" style={{ color: DARK.accent }} />
+                              <div className="min-w-0">
+                                <p className={cn('text-[11px] leading-[1.65]', DARK.muted)}>{current.verse.text}</p>
+                                <p className={cn('mt-1 text-[10px]', DARK.faint)}>— {current.verse.reference}</p>
+                              </div>
+                            </div>
+                          </aside>
+                        )}
+                      </article>
+                    </motion.div>
+                  </AnimatePresence>
+
+                  <div className="shrink-0 border-t border-white/[0.08] pt-3">
+                    {timeUp && (
+                      <p className="pb-2 text-center text-[10px]" style={{ color: DARK.accent }}>
+                        시간이 다 됐어요 · 천천히 마무리하세요
+                      </p>
+                    )}
+
+                    <div className="flex min-h-[44px] items-center justify-between gap-2">
+                      <button
+                        onClick={goBack}
+                        disabled={index === 0}
+                        aria-label="이전 기도제목"
+                        className={cn('flex min-h-[44px] items-center gap-1 px-1 text-xs transition-colors disabled:opacity-25', DARK.muted)}
+                      >
+                        <ChevronLeft size={14} /> 이전
+                      </button>
+                      {hasMore && (
+                        <button
+                          onClick={() => loadMoreInto(false)}
+                          className={cn('flex min-h-[44px] items-center gap-1 rounded-full border px-3 text-[11px] transition-colors hover:bg-white/[0.04]', DARK.border, DARK.muted)}
+                        >
+                          <Plus size={12} /> 더 받기
+                        </button>
+                      )}
+                      <button
+                        onClick={advance}
+                        className={cn('flex min-h-[44px] items-center gap-1 px-1 text-xs transition-colors', DARK.muted)}
+                      >
+                        건너뛰기 <ChevronRight size={14} />
+                      </button>
+                    </div>
+
+                    <button
+                      onClick={prayAndAdvance}
+                      className="mt-2 flex min-h-14 w-full items-center justify-center gap-2 rounded-[18px] text-sm font-semibold text-[#17130D] transition-transform active:scale-[0.99]"
+                      style={{ backgroundColor: DARK.accent }}
+                    >
+                      <Check size={16} strokeWidth={2.25} /> 기도했어요
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* 빈 목록 방어 */}
+              {step === 'pray' && !current && (
+                <div className="flex flex-1 flex-col items-center justify-center gap-5 text-center">
+                  <div className={cn('flex h-12 w-12 items-center justify-center rounded-full border', DARK.border)}>
+                    <Check size={18} style={{ color: DARK.accent }} />
+                  </div>
+                  <div>
+                    <p className="text-base font-medium">오늘 기도할 목록이 없습니다</p>
+                    <p className={cn('mt-1 text-xs', DARK.muted)}>기도제목을 추가한 뒤 다시 시작해 주세요.</p>
+                  </div>
                   <button
                     onClick={onClose}
-                    className="rounded-[var(--radius)] px-8 py-3 text-sm font-medium text-white"
-                    style={{ backgroundColor: DARK.accent }}
+                    className={cn('min-h-12 rounded-[16px] border px-6 text-sm', DARK.border, DARK.muted)}
                   >
-                    마치기
+                    돌아가기
                   </button>
                 </div>
-              </div>
-            )}
+              )}
+
+              {/* 마침 */}
+              {step === 'done' && (
+                <div className="flex flex-1 flex-col justify-center py-8 text-center">
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.92 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                  >
+                    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full" style={{ backgroundColor: DARK.accent }}>
+                      <Check size={22} className="text-[#17130D]" strokeWidth={2.25} />
+                    </div>
+                    <p className="mt-7 text-[25px] font-medium tracking-[-0.03em]">기도를 마쳤습니다</p>
+                    <p className={cn('mt-2 text-sm', DARK.muted)}>
+                      {checkedInSession.size > 0 && `${checkedInSession.size}개 기도 · `}
+                      {fmtClock(elapsed)} 머물렀어요
+                    </p>
+                  </motion.div>
+
+                  <div className="mt-12 w-full space-y-3">
+                    {hasMore && (
+                      <button
+                        onClick={() => loadMoreInto(true)}
+                        className={cn('flex min-h-12 w-full items-center justify-center gap-1.5 rounded-[16px] border text-sm', DARK.border, DARK.muted)}
+                      >
+                        <Plus size={14} /> 기도제목 더 받기
+                      </button>
+                    )}
+                    <button
+                      onClick={onClose}
+                      className="flex min-h-14 w-full items-center justify-center rounded-[18px] text-sm font-semibold text-[#17130D]"
+                      style={{ backgroundColor: DARK.accent }}
+                    >
+                      마치기
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </motion.div>
       )}
