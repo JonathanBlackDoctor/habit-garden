@@ -3,7 +3,7 @@
  * 로컬 스크립트로 하면 봇 토큰을 개발 PC 로 꺼내야 하므로, 서버에서 시크릿을 쥔 채 실행한다.
  */
 import * as functions from 'firebase-functions/v1';
-import { setWebhook, setMyCommands, getWebhookInfo, getMe } from './api';
+import { setWebhook, setMyCommands, getWebhookInfo, getMe, telegramWebhookSecret } from './api';
 
 const REGION = 'asia-northeast3';
 const OWNER_UID = 'XMgQWlM1wtM62hIheTH4sKGDNuC2';
@@ -24,7 +24,7 @@ export const setupTelegramBot = functions
     }
 
     const me = await getMe();
-    await setWebhook(WEBHOOK_URL, secret);
+    await setWebhook(WEBHOOK_URL, telegramWebhookSecret(secret));
     await setMyCommands();
     const info = await getWebhookInfo();
 
