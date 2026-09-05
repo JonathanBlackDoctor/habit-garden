@@ -37,8 +37,9 @@ export const telegramWebhook = functions
   .https.onRequest(async (req, res) => {
     if (req.method !== 'POST') { res.status(405).send('Method Not Allowed'); return; }
 
-    const expected = process.env.TELEGRAM_WEBHOOK_SECRET;
-    if (!expected || req.get('X-Telegram-Bot-Api-Secret-Token') !== expected) {
+    const expected = process.env.TELEGRAM_WEBHOOK_SECRET?.trim();
+    const received = req.get('X-Telegram-Bot-Api-Secret-Token')?.trim();
+    if (!expected || received !== expected) {
       res.status(401).send('Unauthorized');
       return;
     }
