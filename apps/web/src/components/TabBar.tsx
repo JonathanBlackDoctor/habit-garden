@@ -26,9 +26,9 @@ export default function TabBar() {
     scrollToTop();
   };
   return (
-    <nav className="tab-bar-safe fixed bottom-0 left-0 right-0 z-40 flex border-t border-[var(--divider)] bg-[var(--bg-surface)]">
-      <div data-tour="tabbar" className="mx-auto flex w-full max-w-[480px] items-center justify-around">
-        {tabs.map(({ to, icon: Icon, label }) => {
+    <nav className="tab-bar-safe absolute bottom-0 left-0 right-0 z-40 border-t border-[var(--divider-soft)] bg-[var(--bg-base)] px-[18px] pt-[10px]">
+      <div data-tour="tabbar" className="mx-auto flex w-full items-center justify-around">
+        {tabs.map(({ to, label }) => {
           const badge = badges[to] ?? 0;
           return (
           <NavLink
@@ -39,31 +39,23 @@ export default function TabBar() {
             onClick={(e) => handleReTap(e, to)}
             className={({ isActive }) =>
               cn(
-                'flex flex-1 flex-col items-center gap-[5px] pb-3.5 pt-3 text-[11px] transition-colors',
+                'flex min-h-[43px] flex-1 flex-col items-center gap-[6px] pb-2 pt-1 text-[13.5px] tracking-[-0.01em] transition-colors',
                 isActive
-                  ? 'font-semibold text-[var(--leaf)]'
+                  ? 'font-semibold text-[var(--fg-primary)]'
                   : 'text-[var(--fg-faint)]'
               )
             }
           >
             {({ isActive }) => (
               <>
-                <span className="relative">
-                  <Icon
-                    size={20}
-                    strokeWidth={1.7}
-                    className={isActive ? 'text-[var(--leaf)]' : 'text-[var(--fg-faint)]'}
-                  />
-                  {badge > 0 && (
-                    <span
-                      aria-label={`${badge}개 할 일`}
-                      className="absolute -right-2.5 -top-1.5 flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-[var(--bloom)] px-1 text-[10px] font-semibold leading-none text-white ring-2 ring-[var(--bg-surface)]"
-                    >
-                      {badge > 99 ? '99+' : badge}
-                    </span>
-                  )}
+                <span
+                  aria-hidden="true"
+                  className={cn('h-1 w-1 rounded-full', isActive ? 'bg-[var(--leaf)]' : 'bg-transparent')}
+                />
+                <span className="flex items-baseline gap-[5px]">
+                  <span>{label}</span>
+                  {badge > 0 && <span aria-label={`${badge}개 할 일`} className="tabular-nums text-[12.5px] font-normal text-[var(--fg-faint)]">{badge > 99 ? '99+' : badge}</span>}
                 </span>
-                <span>{label}</span>
               </>
             )}
           </NavLink>

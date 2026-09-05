@@ -87,12 +87,12 @@ export default function Planner() {
   const archivedLong = longTodos.filter((t) => t.done);
 
   return (
-    <div className="min-h-screen p-4 space-y-6">
+    <div className="page-pad min-h-full space-y-6">
       <div className="flex items-center gap-2 py-1">
         <button onClick={() => navigate(-1)} className="text-[var(--fg-muted)]">
           <ChevronLeft size={22} />
         </button>
-        <h2 className="text-[24px] font-semibold tracking-[-0.01em] text-[var(--fg-primary)]">플래너</h2>
+        <h2 className="page-title">플래너</h2>
       </div>
 
       {/* ───────── 장기 목표 요약 ───────── */}
@@ -609,7 +609,7 @@ function DayTodoList({
         <div className="flex items-center gap-3">
           <TodayProgressRing done={doneCount} total={todos.length} />
           <div className="min-w-0">
-            <h3 className="text-[24px] font-semibold tracking-[-0.01em] text-[var(--fg-primary)]">{title}</h3>
+            <h3 className="text-[22px] font-semibold tracking-[-0.02em] text-[var(--fg-primary)]">{title}</h3>
             <p className="text-sm text-[var(--leaf)]">{encourageCopy(todos.length, doneCount)}</p>
           </div>
         </div>

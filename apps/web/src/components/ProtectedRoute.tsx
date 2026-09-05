@@ -17,7 +17,7 @@ export default function ProtectedRoute() {
 
   if (authLoading) {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-[var(--bg-base)]">
+      <div className="standalone-shell flex items-center justify-center">
         <div className="flex flex-col items-center gap-3 text-[var(--fg-muted)]">
           <div className="h-2 w-2 rounded-full bg-[var(--leaf)]" />
           <p className="text-sm">로딩 중…</p>
@@ -36,7 +36,7 @@ export default function ProtectedRoute() {
   if (!profile) {
     if (!stuckTooLong) {
       return (
-        <div className="flex min-h-dvh items-center justify-center bg-[var(--bg-base)]">
+        <div className="standalone-shell flex items-center justify-center">
           <div className="flex flex-col items-center gap-3 text-[var(--fg-muted)]">
             <div className="h-2 w-2 rounded-full bg-[var(--leaf)]" />
             <p className="text-sm">계정 초기화 중…</p>
@@ -45,7 +45,7 @@ export default function ProtectedRoute() {
       );
     }
     return (
-      <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-[var(--bg-base)] px-6 text-center">
+      <div className="standalone-shell flex flex-col items-center justify-center gap-4 px-6 text-center">
                 <p className="text-sm text-[var(--fg-primary)]">계정 정보를 가져오지 못했어요.</p>
         <p className="max-w-xs text-xs leading-relaxed text-[var(--fg-muted)]">
           네트워크 상태를 확인하거나 잠시 후 다시 시도해주세요. 문제가 계속되면<br />
@@ -73,7 +73,7 @@ export default function ProtectedRoute() {
   // AI·서버 프리미엄 기능은 화면 내부에서 useIsPremium() 으로 게이트한다.
   if (profile.status === 'rejected') {
     return (
-      <div className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-[var(--bg-base)] px-6">
+      <div className="standalone-shell flex flex-col items-center justify-center gap-3 px-6">
                 <p className="text-sm text-[var(--fg-primary)]">접근이 거부되었습니다.</p>
         <p className="text-xs text-[var(--fg-faint)] text-center">
           이 계정은 이용이 허용되지 않았습니다. 관리자에게 문의하세요.

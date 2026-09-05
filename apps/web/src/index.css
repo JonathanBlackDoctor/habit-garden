@@ -6,45 +6,42 @@
 
 @layer base {
   :root {
-    /* ── 습관 정원 디자인 토큰 (계획서 §12 확정) ── */
-    --bg-base:     #F4F6EE;
-    --bg-surface:  #FFFFFF;
-    --fg-primary:  #2A2E27;
-    --fg-muted:    #6B7164;
-    --fg-faint:    #9AA08F;
+    --bg-canvas:   #DEDAD2;
+    --bg-base:     #F4F2ED;
+    --bg-surface:  #FCFBF9;
+    --fg-primary:  #171614;
+    --fg-body:     #3B3833;
+    --fg-muted:    #55514B;
+    --fg-faint:    #6E6960;
 
-    --leaf:        #4F7A37;
-    --leaf-soft:   #E7F0DD;
-    --soil:        #8A6E4B;
-    --bloom:       #A85D0B;
-    --bloom-soft:  #FAEEDA;
-    --sky:         #1F5FA5;
-    --sky-soft:    #E6F1FB;
-    --wither:      #C7B68A;
+    --leaf:        #7A5F38;
+    --leaf-mid:    #A48C68;
+    --leaf-soft:   #EAE3D8;
+    --soil:        #7A5F38;
+    --bloom:       #6B4A4A;
+    --bloom-soft:  #EFE3E1;
+    --sky:         #35384D;
+    --sky-soft:    #E7E7EC;
+    --wither:      #B7AFA2;
 
-    --border:      #DDE5D0;
-    --border-soft: #EAF0E0;
-
-    /* ── Habit Garden Mobile 리스킨 토큰 ──
-       카드·이모지·뱃지를 걷어낸 담백한 톤. 위 팔레트는 그대로 두고 네 값만 추가한다. */
-    --leaf-mid:     #96B67C;   /* 7일 리듬 그래프의 지난 일자 막대 */
-    --divider:      #E3E8D8;   /* 탭바·섹션 상단 구분선 (border 보다 밝음) */
-    --divider-soft: #F1F4EA;   /* 카드 '내부' 행 구분선 */
+    --border:      #D6D1C8;
+    --border-soft: #E4E0D8;
+    --divider:     #D6D1C8;
+    --divider-soft:#E4E0D8;
 
     --radius:      12px;
-    --radius-sm:   8px;
+    --radius-sm:   9px;
     --radius-md:   14px;
-    --radius-lg:   16px;
+    --radius-lg:   18px;
     --radius-full: 999px;
 
-    /* 2단 부드러운 그림자 — 카드에 은은한 입체감 */
-    --shadow-sm:   0 1px 2px rgba(42, 46, 39, 0.04), 0 2px 5px rgba(42, 46, 39, 0.06);
-    --shadow-md:   0 6px 16px -4px rgba(42, 46, 39, 0.12), 0 2px 6px -2px rgba(42, 46, 39, 0.06);
+    --shadow-sm: 0 1px 2px rgba(23, 22, 20, 0.04);
+    --shadow-md: 0 18px 50px -24px rgba(23, 22, 20, 0.34);
 
-    --ease-out:    cubic-bezier(0.22, 1, 0.36, 1);
-    --dur-fast:    140ms;
-    --dur-base:    220ms;
-    --dur-slow:    380ms;
+    --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+    --dur-fast: 140ms;
+    --dur-base: 220ms;
+    --dur-slow: 380ms;
   }
 
   * {
@@ -53,11 +50,12 @@
   }
 
   html, body, #root {
+    width: 100%;
     height: 100%;
     height: 100dvh;
     margin: 0;
     padding: 0;
-    background: var(--bg-base);
+    background: var(--bg-canvas);
     color: var(--fg-primary);
     font-family: 'Pretendard Variable', Pretendard, system-ui, sans-serif;
     font-size: 15px;
@@ -65,78 +63,166 @@
     overscroll-behavior: none;
   }
 
-  /* safe-area 패딩 (S24 Ultra 펀치홀·제스처바 대응) */
-  body {
-    padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
+  button, input, textarea, select {
+    font: inherit;
+  }
+
+  button, a {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible,
+  [tabindex]:focus-visible {
+    outline: 2px solid var(--leaf);
+    outline-offset: 3px;
+  }
+
+  ::selection {
+    background: var(--leaf-soft);
+    color: var(--fg-primary);
   }
 
   .tabular-nums { font-variant-numeric: tabular-nums; }
-
-  /* 스크롤은 되되 스크롤바는 숨김(탭 패널 등) */
   .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
   .no-scrollbar::-webkit-scrollbar { display: none; }
 }
 
 @layer components {
-  /* ── 공통 카드 ── */
-  .card {
-    @apply rounded-[var(--radius)] border border-[var(--border-soft)] bg-[var(--bg-surface)] shadow-[var(--shadow-sm)];
+  .app-shell {
+    isolation: isolate;
   }
 
-  /* ── 리스킨 카드 — 그림자 없이 테두리만. 디자인의 기본 면(面) ── */
-  .card-flat {
-    @apply rounded-[var(--radius-lg)] border border-[var(--border-soft)] bg-[var(--bg-surface)];
+  .standalone-shell {
+    @apply mx-auto min-h-dvh w-full overflow-y-auto bg-[var(--bg-base)];
+    isolation: isolate;
   }
 
-  /* 현재 시간대처럼 '지금 할 것'만 살짝 떠 보이게 한다 */
+  .page-pad {
+    @apply px-[26px] pb-10 pt-5;
+  }
+
+  .page-kicker {
+    @apply text-[12.5px] font-medium text-[var(--fg-faint)];
+    letter-spacing: 0.07em;
+  }
+
+  .page-title {
+    @apply text-[27px] font-semibold leading-[1.34] text-[var(--fg-primary)];
+    letter-spacing: -0.022em;
+    text-wrap: pretty;
+  }
+
+  .section-title {
+    @apply text-[15.5px] font-semibold text-[var(--fg-primary)];
+    letter-spacing: -0.025em;
+  }
+
+  .meta-copy {
+    @apply text-[12.5px] text-[var(--fg-faint)];
+    letter-spacing: -0.005em;
+  }
+
+  .editorial-list {
+    @apply border-y border-[var(--divider-soft)];
+  }
+
+  .editorial-list > * + * {
+    border-top: 1px solid var(--divider-soft);
+  }
+
+  .editorial-row {
+    @apply flex min-h-[47px] w-full items-center gap-[13px] py-[12.5px] text-left;
+  }
+
+  .editorial-panel {
+    @apply rounded-[14px] border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-[14px];
+  }
+
+  .card,
+  .card-flat,
   .card-raised {
-    @apply rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--bg-surface)];
-    box-shadow: 0 6px 16px -8px rgba(42, 46, 39, 0.14);
+    @apply rounded-[14px] border border-[var(--border)] bg-[var(--bg-surface)];
+    box-shadow: none;
   }
 
-  /* 카드 내부 행 구분선 — 행을 카드로 쪼개지 않고 선으로만 나눈다 */
   .row-divide > * + * {
     border-top: 1px solid var(--divider-soft);
   }
 
-  /* 섹션 kicker — 12px / 600 / 넓은 자간 */
   .kicker {
     @apply text-[12px] font-semibold text-[var(--fg-faint)];
-    letter-spacing: 0.12em;
+    letter-spacing: 0.11em;
   }
 
-  /* ── 탭바 안전 영역 ── */
   .tab-bar-safe {
     padding-bottom: max(env(safe-area-inset-bottom), 8px);
   }
-}
 
-/* 오늘의 습관 — 현재 시간대 미기록 dot 강조 글로우 */
-@keyframes habit-glow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(168, 93, 11, 0); }
-  50%      { box-shadow: 0 0 0 4px rgba(168, 93, 11, 0.18); }
-}
-.habit-glow { animation: habit-glow 1.8s var(--ease-out) infinite; }
+  .editorial-input {
+    @apply w-full rounded-[10px] border border-[var(--border)] bg-[var(--bg-surface)] px-3.5 py-3 text-[14px] text-[var(--fg-primary)] placeholder:text-[var(--fg-faint)];
+  }
 
-@media (prefers-reduced-motion: reduce) {
-  .habit-glow {
-    animation: none !important;
+  .more-editorial > button {
+    @apply min-h-[50px] w-full rounded-none border-b border-[var(--divider-soft)] bg-transparent px-0 py-[12.5px] text-left text-[15.5px] text-[var(--fg-primary)];
+  }
+
+  .more-editorial > button > svg:first-child,
+  .more-editorial .settings-list > button > svg:first-child {
+    display: none;
+  }
+
+  .more-editorial .settings-list {
+    @apply divide-y divide-[var(--divider-soft)] rounded-none border-y border-[var(--divider-soft)] bg-transparent;
+  }
+
+  .more-editorial .settings-list > button {
+    @apply px-0 py-[12.5px];
   }
 }
 
-/* ── 토스트 custom ── */
-[data-sonner-toaster] {
-  --normal-bg: var(--bloom-soft) !important;
-  --normal-border: var(--bloom) !important;
-  --normal-text: var(--bloom) !important;
+@media (min-width: 640px) {
+  .app-shell,
+  .standalone-shell {
+    height: min(900px, calc(100dvh - 40px));
+    border: 1px solid rgba(23, 22, 20, 0.06);
+    border-radius: 36px;
+    box-shadow: 0 1px 2px rgba(23, 22, 20, 0.12), 0 30px 70px -26px rgba(23, 22, 20, 0.42);
+  }
+
+  .standalone-shell {
+    min-height: 0;
+    max-width: 430px;
+    margin-block: 20px;
+  }
 }
 
-/* 알림 안쪽 우측의 '닫기' 알약 버튼 (좌우 스와이프로도 닫힘)
-   sonner 기본 스타일/richColors 규칙을 확실히 덮기 위해 !important 사용 */
-[data-sonner-toast][data-styled='true'] {
-  padding-right: 80px !important;
+@keyframes habit-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(122, 95, 56, 0); }
+  50% { box-shadow: 0 0 0 4px rgba(122, 95, 56, 0.14); }
 }
+
+.habit-glow { animation: habit-glow 1.8s var(--ease-out) infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+[data-sonner-toaster] {
+  --normal-bg: var(--bg-surface) !important;
+  --normal-border: var(--border) !important;
+  --normal-text: var(--fg-primary) !important;
+}
+
+[data-sonner-toast][data-styled='true'] { padding-right: 78px !important; }
 [data-sonner-toast][data-styled='true'] [data-close-button] {
   left: auto !important;
   right: 12px !important;
@@ -146,24 +232,29 @@
   width: auto !important;
   height: auto !important;
   min-height: 0 !important;
-  padding: 7px 14px !important;
+  padding: 7px 13px !important;
   border-radius: 9999px !important;
-  background: color-mix(in srgb, currentColor 10%, transparent) !important;
-  border: 1.5px solid currentColor !important;
-  color: inherit !important;
+  background: var(--leaf-soft) !important;
+  border: 1px solid var(--leaf) !important;
+  color: var(--leaf) !important;
   opacity: 1 !important;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1;
-  cursor: pointer;
-  transition: background 150ms ease;
 }
-[data-sonner-toast][data-styled='true'] [data-close-button] svg {
-  display: none !important;
+[data-sonner-toast][data-styled='true'] [data-close-button] svg { display: none !important; }
+[data-sonner-toast][data-styled='true'] [data-close-button]::after { content: '닫기'; }
+
+.more-editorial > button {
+  min-height: 50px !important;
+  border-radius: 0 !important;
+  border-bottom: 1px solid var(--divider-soft) !important;
+  background: transparent !important;
+  padding: 12.5px 0 !important;
+  font-size: 15.5px !important;
 }
-[data-sonner-toast][data-styled='true'] [data-close-button]::after {
-  content: '닫기';
-}
-[data-sonner-toast][data-styled='true'] [data-close-button]:hover {
-  background: color-mix(in srgb, currentColor 22%, transparent) !important;
+
+.more-editorial .settings-list {
+  border-radius: 0 !important;
+  background: transparent !important;
 }

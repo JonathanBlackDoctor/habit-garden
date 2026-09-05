@@ -64,14 +64,14 @@ export default function TelegramSettings() {
 
   return (
     <div
-      className="min-h-dvh bg-[var(--bg-base)] p-4 space-y-4 pb-8"
+      className="standalone-shell page-pad space-y-6 pb-8"
       style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)' }}
     >
       <div className="flex items-center gap-2">
         <button onClick={() => navigate(-1)} className="text-[var(--fg-muted)]" aria-label="뒤로">
           <ChevronLeft size={22} />
         </button>
-        <h2 className="text-[24px] font-semibold tracking-[-0.01em] text-[var(--fg-primary)]">텔레그램 연결</h2>
+        <h2 className="page-title">텔레그램 연결</h2>
       </div>
 
       {!isPremium ? (

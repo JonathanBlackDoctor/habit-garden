@@ -26,6 +26,8 @@ import { Navigate, useSearchParams } from 'react-router-dom';
 import { useFaithEnabled, useIsPremium } from '@/lib/features';
 import { useTabBloomKey } from '@/lib/tabActive';
 import { ApplicationsPanel } from '@/routes/Applications';
+import { PageHeader, SegmentTabs } from '@/components/Editorial';
+import { formatLongKoreanDate } from '@/lib/dayBoundary';
 
 type Segment = 'today' | 'all' | 'answered' | 'dormant';
 const SEGMENTS: { id: Segment; label: string }[] = [
@@ -87,17 +89,14 @@ function PrayersInner() {
   );
 
   return (
-    <div className="flex flex-col gap-3 p-4 pb-6">
-      {/* 신앙 탭 상단 — 제목 + 기도/말씀 알약 세그먼트 */}
-      <div className="flex flex-col gap-3.5">
-        <h1 className="text-[24px] font-semibold tracking-[-0.01em] text-[var(--fg-primary)]">
-          {view === 'application' ? '말씀 적용' : '기도'}
-        </h1>
-        <div className="flex rounded-full bg-[#E7EBE0] p-[3px]">
-          <FaithViewTab active={view === 'prayer'} onClick={() => setView('prayer')} label="기도제목" />
-          <FaithViewTab active={view === 'application'} onClick={() => setView('application')} label="말씀 적용" />
-        </div>
-      </div>
+    <div className="page-pad flex flex-col gap-5">
+      <PageHeader kicker={formatLongKoreanDate(date)} title="신앙" />
+      <SegmentTabs
+        ariaLabel="신앙 보기"
+        items={[{ value: 'prayer', label: '기도' }, { value: 'application', label: '말씀 적용' }]}
+        value={view}
+        onChange={setView}
+      />
 
       {view === 'application' ? (
         <ApplicationsPanel />
@@ -113,22 +112,6 @@ function PrayersInner() {
         />
       )}
     </div>
-  );
-}
-
-function FaithViewTab({ active, onClick, label }: {
-  active: boolean; onClick: () => void; label: string;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        'flex-1 rounded-full py-2 text-[13px] transition-colors',
-        active ? 'bg-[var(--bg-surface)] font-semibold text-[var(--fg-primary)]' : 'text-[var(--fg-muted)]',
-      )}
-    >
-      {label}
-    </button>
   );
 }
 
@@ -151,38 +134,32 @@ function PrayerSection({
   openDetail: (p: PrayerDoc) => void;
 }) {
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-4">
       {/* 세그먼트 + 추가·무더기 */}
-      <div data-tour="prayer-segments" className="flex items-center gap-2">
-        <div className="flex flex-1 rounded-full bg-[#E7EBE0] p-[3px]">
-          {SEGMENTS.map((s) => (
-            <button
-              key={s.id}
-              onClick={() => setSeg(s.id)}
-              className={cn(
-                'flex-1 rounded-full py-1.5 text-[12px] transition-colors',
-                seg === s.id ? 'bg-[var(--bg-surface)] font-semibold text-[var(--fg-primary)]' : 'text-[var(--fg-muted)]'
-              )}
-            >
-              {s.label}
-            </button>
-          ))}
-        </div>
-        <button
-          onClick={() => setAddOpen(true)}
-          className="flex items-center gap-1 rounded-full bg-[var(--leaf)] px-3.5 py-2 text-[12px] font-medium text-white"
-        >
-          <Plus size={14} /> 추가
-        </button>
-        {isPremium && (
+      <div data-tour="prayer-segments" className="space-y-3">
+        <SegmentTabs
+          ariaLabel="기도 필터"
+          items={SEGMENTS.map((s) => ({ value: s.id, label: s.label }))}
+          value={seg}
+          onChange={setSeg}
+        />
+        <div className="flex justify-end gap-2">
           <button
-            onClick={() => setBulkOpen(true)}
-            data-tour="prayer-bulk"
-            className="flex items-center gap-1 rounded-[var(--radius)] border border-[var(--border)] bg-white px-2.5 py-1.5 text-xs text-[var(--fg-muted)]"
+            onClick={() => setAddOpen(true)}
+            className="flex min-h-10 items-center gap-1 rounded-full border border-[var(--border)] px-3.5 py-2 text-[12px] font-medium text-[var(--fg-primary)]"
           >
-            <ClipboardList size={14} /> 무더기
+            <Plus size={14} /> 추가
           </button>
-        )}
+          {isPremium && (
+            <button
+              onClick={() => setBulkOpen(true)}
+              data-tour="prayer-bulk"
+              className="flex min-h-10 items-center gap-1 rounded-full border border-[var(--border)] px-3 py-2 text-xs text-[var(--fg-muted)]"
+            >
+              <ClipboardList size={14} /> 무더기
+            </button>
+          )}
+        </div>
       </div>
 
       {/* 본문 */}
@@ -271,7 +248,7 @@ function TodayView({
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-5">
       <WeeklyDigestCard
         digest={digest}
         dormantSoon={dormantSoon}
@@ -284,26 +261,26 @@ function TodayView({
       {total > 0 && (
         <button
           onClick={() => setPrayerModeOpen(true)}
-          className="flex w-full items-center justify-between rounded-[var(--radius-lg)] bg-gradient-to-br from-[#1B222C] to-[#10141A] px-5 py-4 text-left shadow-[var(--shadow-md)]"
+          className="editorial-panel flex w-full items-center justify-between text-left"
         >
           <div>
-            <p className="text-sm font-medium text-[#E7E5DF]">기도 시작</p>
-            <p className="mt-0.5 text-xs text-[#9AA0A6]">
+            <p className="text-[15.5px] font-semibold tracking-[-0.02em] text-[var(--fg-primary)]">기도 시작</p>
+            <p className="mt-1 text-[13px] text-[var(--fg-muted)]">
               {total - done > 0 ? `남은 기도 ${total - done}개 · ` : ''}조용히 머무는 시간
             </p>
           </div>
-          <span className="text-[#8FBF6F]">→</span>
+          <span className="text-[var(--leaf)]">→</span>
         </button>
       )}
 
       {/* 진행 표시 (목록이 있을 때만) */}
       {total > 0 ? (
-        <div className="card-flat p-3">
+        <div>
           <div className="mb-1.5 flex items-center justify-between text-xs">
             <span className="font-medium text-[var(--fg-primary)]">오늘 {done} / {total} 기도</span>
             <span className="tabular-nums text-[var(--fg-muted)]">{pct}%</span>
           </div>
-          <div className="h-2 overflow-hidden rounded-full bg-[var(--bg-base)]">
+          <div className="h-1 overflow-hidden rounded-full bg-[var(--divider-soft)]">
             <motion.div
               key={prayerBloomKey}
               className="h-full rounded-full bg-[var(--leaf)]"
@@ -324,47 +301,47 @@ function TodayView({
 
       {pinned.length > 0 && (
         <section>
-          <h3 className="kicker pb-2">고정</h3>
-          {pinned.map((p) => (
+          <h3 className="kicker pb-1">고정</h3>
+          <div className="border-y border-[var(--divider-soft)]">{pinned.map((p) => (
             <PrayerCheckCard
               key={p.id} prayer={p} checked={!!checks[p.id]}
               onCheck={() => checkPrayer(p)} onUncheck={() => uncheckPrayer(p)}
               onOpen={() => onOpen(p)}
             />
-          ))}
+          ))}</div>
         </section>
       )}
 
       {rotation.length > 0 && (
         <section>
-          <h3 className="kicker pb-2">오늘의 로테이션</h3>
-          {rotation.map((p) => (
+          <h3 className="kicker pb-1">오늘 로테이션</h3>
+          <div className="border-y border-[var(--divider-soft)]">{rotation.map((p) => (
             <PrayerCheckCard
               key={p.id} prayer={p} checked={!!checks[p.id]}
               onCheck={() => checkPrayer(p)} onUncheck={() => uncheckPrayer(p)}
               onOpen={() => onOpen(p)}
             />
-          ))}
+          ))}</div>
         </section>
       )}
 
       {extra.length > 0 && (
         <section>
-          <h3 className="kicker pb-2">더 받은 기도</h3>
-          {extra.map((p) => (
+          <h3 className="kicker pb-1">더 받은 기도</h3>
+          <div className="border-y border-[var(--divider-soft)]">{extra.map((p) => (
             <PrayerCheckCard
               key={p.id} prayer={p} checked={!!checks[p.id]}
               onCheck={() => checkPrayer(p)} onUncheck={() => uncheckPrayer(p)}
               onOpen={() => onOpen(p)}
             />
-          ))}
+          ))}</div>
         </section>
       )}
 
       {hasMore && (
         <button
           onClick={loadMore}
-          className="flex w-full items-center justify-center gap-1.5 rounded-[var(--radius)] border border-dashed border-[var(--border)] bg-white py-2.5 text-xs font-medium text-[var(--fg-muted)]"
+          className="flex w-full items-center justify-center gap-1.5 border-y border-[var(--divider-soft)] py-3 text-[13px] font-medium text-[var(--fg-muted)]"
         >
           <Plus size={14} /> 오늘 기도 더 받기 (+{MORE_BATCH})
         </button>

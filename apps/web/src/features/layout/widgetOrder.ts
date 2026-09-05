@@ -20,7 +20,15 @@ export const MAIN_WIDGET_IDS = [
 
 export type MainWidgetId = (typeof MAIN_WIDGET_IDS)[number];
 
-export const DEFAULT_ORDER: MainWidgetId[] = [...MAIN_WIDGET_IDS];
+export const DEFAULT_ORDER: MainWidgetId[] = [
+  'recap',
+  'habits',
+  'faith',
+  'todos',
+  'condition',
+  'coach',
+  'oneYearAgo',
+];
 
 /**
  * 초보자 코어 — 신규 사용자 첫 화면에 보여줄 위젯(핵심 루프: 습관 체크, 할 일).

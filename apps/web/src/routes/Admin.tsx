@@ -246,14 +246,14 @@ export default function Admin() {
 
   return (
     <div
-      className="min-h-dvh bg-[var(--bg-base)] p-4 space-y-4 pb-8"
+      className="page-pad min-h-full space-y-6 pb-8"
       style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)' }}
     >
       <div className="flex items-center gap-2">
         <button onClick={() => navigate(-1)} className="text-[var(--fg-muted)]">
           <ChevronLeft size={22} />
         </button>
-        <h2 className="text-[24px] font-semibold tracking-[-0.01em] text-[var(--fg-primary)]">관리</h2>
+        <h2 className="page-title">관리</h2>
       </div>
 
       {/* 알림 통계 (전달/오픈 트래킹) — 본인 데이터 */}

@@ -59,12 +59,12 @@ export default defineConfig(({ mode }) => {
       manifest: {
         name: '습관 정원 (Habit Garden)',
         short_name: '습관정원',
-        description: '매일의 습관 체크와 회고',
+        description: '매일의 작은 습관을 기록하고 돌아보는 공간',
         start_url: '/habit-garden/',
         scope: '/habit-garden/',
         display: 'standalone',
-        theme_color: '#F4F6EE',
-        background_color: '#F4F6EE',
+        theme_color: '#F4F2ED',
+        background_color: '#F4F2ED',
         lang: 'ko',
         icons: [
           {

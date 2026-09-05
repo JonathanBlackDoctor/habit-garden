@@ -3,24 +3,25 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { collection, doc, onSnapshot, query } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
-import { useHabits, useHabitChecks } from '@/features/habits/useHabits';
+import { useHabits, useHabitChecks, useSaveHabitCheck, useClearHabitCheck } from '@/features/habits/useHabits';
 import { useProgress } from '@/features/progress/useProgress';
 import { formatLongKoreanDate, timeOfDay } from '@/lib/dayBoundary';
 import { cn } from '@/lib/utils';
 import WeeklyRhythm from '@/features/stats/WeeklyRhythm';
 import type { DayDoc, TodayTodoDoc } from 'shared/types/firestore';
 import { motion, Reorder, useDragControls } from 'framer-motion';
-import { ArrowRight, CheckCircle2, RefreshCw, PenLine, GripVertical, Pencil, Check, RotateCcw, Eye, EyeOff } from 'lucide-react';
+import { CheckCircle2, RefreshCw, GripVertical, Pencil, Check, RotateCcw, Eye, EyeOff } from 'lucide-react';
 import OneYearAgoCard from '@/features/stats/OneYearAgoCard';
 import CoachCard from '@/features/coach/CoachCard';
 import SignupCTA from '@/components/SignupCTA';
 import { useCrisisWatcher } from '@/features/coach/useCrisisWatcher';
 import { useFaithEnabled, useIsPremium } from '@/lib/features';
-import HabitStatusDot from '@/features/habits/HabitStatusDot';
 import SeedHabitsButton from '@/features/habits/SeedHabitsButton';
 import { statusOf } from '@/features/habits/habitStatus';
 import MorningBriefingCard from '@/features/recap/MorningBriefingCard';
 import TodayApplicationCard from '@/features/applications/TodayApplicationCard';
+import TodayPrayerCard from '@/features/prayers/TodayPrayerCard';
+import { SectionHeading, StatusCircle } from '@/components/Editorial';
 import {
   useMainWidgetOrder,
   useHiddenWidgets,
@@ -38,7 +39,7 @@ const NUM_WORDS = ['', '한', '두', '세', '네', '다섯', '여섯', '일곱',
 const WIDGET_LABELS: Record<MainWidgetId, string> = {
   recap: '아침 브리핑',
   habits: '오늘의 습관',
-  todos: '할 일 · 회고',
+  todos: '할 일',
   condition: '컨디션',
   coach: 'AI 코치',
   oneYearAgo: '1년 전 오늘',
@@ -102,9 +103,12 @@ export default function Main() {
   const isPremium = useIsPremium();
   const habits   = useHabits();
   const checks   = useHabitChecks(date);
+  const saveHabit = useSaveHabitCheck();
+  const clearHabit = useClearHabitCheck();
   const progress = useProgress();
   const [dayDoc, setDayDoc]   = useState<DayDoc | null>(null);
   const [todos, setTodos]     = useState<TodayTodoDoc[]>([]);
+  const [quickScoreId, setQuickScoreId] = useState<string | null>(null);
   const currentTOD = timeOfDay();
 
   // ── 위젯 순서·숨김 편집 ──
@@ -154,8 +158,8 @@ export default function Main() {
   }, [uid, date]);
 
   useCrisisWatcher();
-  const totalAchieved = Object.values(checks).filter((c) => c.achieved).length;
   const totalHabits   = habits.length;
+  const totalRecorded = habits.filter((habit) => checks[habit.id] !== undefined).length;
   const streak     = progress?.globalStreak ?? 0;
   const hasReflection = !!dayDoc?.reflection;
 
@@ -194,7 +198,7 @@ export default function Main() {
 
   // 오늘 요약 — 습관 진행 + (신앙 사용 시) 남은 기도 수
   const summaryLine = [
-    totalHabits > 0 ? `오늘 ${totalHabits}개 중 ${totalAchieved}개 기록` : '아직 습관이 없어요',
+    totalHabits > 0 ? `오늘 ${totalHabits}개 중 ${totalRecorded}개 기록` : '아직 습관이 없어요',
     streak > 0 ? `${streak}일 연속` : null,
   ].filter(Boolean).join(' · ');
 
@@ -236,36 +240,59 @@ export default function Main() {
           initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
           className="flex flex-col gap-3.5"
         >
-          <div className="flex items-baseline justify-between">
-            <span className="text-[15px] font-semibold text-[var(--fg-primary)]">{TIME_LABELS[now.tod]}</span>
-            <span className="text-[12px] tabular-nums text-[var(--fg-faint)]">
-              {now.achieved} / {now.group.length}
-            </span>
-          </div>
+          <SectionHeading title={TIME_LABELS[now.tod]} meta={`${now.achieved} / ${now.group.length}`} />
 
-          <div className="card-flat row-divide flex flex-col">
+          <div className="editorial-list flex flex-col">
             {now.group.map((h) => {
               const st = statusOf(checks[h.id]);
               const settled = st === 'achieved' || st === 'skipped';
+              const check = checks[h.id];
+              const score = h.scoreMode === 'scaled' && check?.score != null ? check.score : undefined;
+              const toggleQuick = () => {
+                if (h.scoreMode === 'scaled') {
+                  setQuickScoreId((id) => id === h.id ? null : h.id);
+                  return;
+                }
+                if (check) void clearHabit(h, check);
+                else void saveHabit(h, 1);
+              };
               return (
-                <button
-                  key={h.id}
-                  onClick={() => navigate('/habits')}
-                  className={cn(
-                    'flex items-center gap-3.5 px-[18px] py-4 text-left transition-opacity',
-                    settled && 'opacity-45',
+                <div key={h.id}>
+                  <div className="editorial-row">
+                    <StatusCircle
+                      checked={st === 'achieved'}
+                      skipped={st === 'skipped'}
+                      score={score}
+                      label={`${h.title} ${check ? '기록 취소' : '기록'}`}
+                      onClick={toggleQuick}
+                    />
+                    <button type="button" onClick={toggleQuick} className="min-w-0 flex-1 text-left">
+                      <span className={cn('block text-[15.5px] tracking-[-0.018em] text-[var(--fg-primary)]', settled && 'text-[var(--fg-faint)]')}>{h.title}</span>
+                      {check?.score === null && <span className="meta-copy mt-0.5 block">건너뜀</span>}
+                    </button>
+                    {h.scoreMode === 'scaled' && check?.score == null && <span className="meta-copy tabular-nums">1–5</span>}
+                  </div>
+                  {quickScoreId === h.id && h.scoreMode === 'scaled' && (
+                    <div className="flex gap-[7px] pb-[13px] pl-8">
+                      {[1, 2, 3, 4, 5].map((value) => {
+                        const active = check?.score === value;
+                        return (
+                          <button
+                            key={value}
+                            type="button"
+                            onClick={() => { void saveHabit(h, value, check); setQuickScoreId(null); }}
+                            className={cn(
+                              'grid h-9 flex-1 place-items-center rounded-[9px] border text-[13.5px] tabular-nums',
+                              active ? 'border-[var(--fg-primary)] bg-[var(--fg-primary)] text-[var(--bg-base)]' : 'border-[var(--divider-soft)] bg-[var(--bg-surface)] text-[var(--fg-muted)]',
+                            )}
+                          >
+                            {value}
+                          </button>
+                        );
+                      })}
+                    </div>
                   )}
-                >
-                  <span
-                    className={cn(
-                      'min-w-0 flex-1 truncate text-[16px] text-[var(--fg-primary)]',
-                      settled && 'line-through decoration-[var(--fg-faint)]',
-                    )}
-                  >
-                    {h.title}
-                  </span>
-                  <HabitStatusDot status={st} size={14} isNow title={h.title} />
-                </button>
+                </div>
               );
             })}
           </div>
@@ -273,7 +300,7 @@ export default function Main() {
           {restCount > 0 && (
             <button
               onClick={() => navigate('/habits')}
-              className="self-center text-[13px] text-[var(--leaf)]"
+              className="border-t border-[var(--divider-soft)] py-[13px] text-left text-[13.5px] tracking-[-0.01em] text-[var(--fg-muted)]"
             >
               {restLabels.join('·')} 습관 {restCount}개 보기
             </button>
@@ -282,7 +309,7 @@ export default function Main() {
           {nudge && (
             <p
               className={cn(
-                'text-center text-[13px]',
+                'pt-1 text-[13.5px] tracking-[-0.01em]',
                 remaining === 0 ? 'text-[var(--leaf)]' : 'text-[var(--bloom)]',
               )}
             >
@@ -303,17 +330,13 @@ export default function Main() {
       return (
         <motion.section
           initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}
-          className="card-flat p-4 space-y-3"
+          className="space-y-2"
         >
-          <div className="flex items-center justify-between">
-            <div className="flex items-baseline gap-2">
-              <h3 className="text-sm font-semibold text-[var(--fg-primary)]">할 일</h3>
-              {total > 0 && <span className="text-xs tabular-nums text-[var(--fg-faint)]">{doneCount}/{total}</span>}
-            </div>
-            <button onClick={() => navigate('/planner')} className="flex items-center gap-1 text-xs text-[var(--leaf)]">
-              {total === 0 ? '추가하기' : '전체 보기'} <ArrowRight size={13} />
-            </button>
-          </div>
+          <SectionHeading
+            title="할 일"
+            meta={total > 0 ? `${doneCount} / ${total}` : undefined}
+            action={<button onClick={() => navigate('/planner')}>{total === 0 ? '추가하기' : '전체 보기'}</button>}
+          />
 
           {total === 0 ? (
             <p className="py-1 text-center text-xs text-[var(--fg-faint)]">할 일을 추가해 오늘을 계획해 보세요.</p>
@@ -322,11 +345,12 @@ export default function Main() {
               <CheckCircle2 size={16} /><span className="text-sm font-medium">오늘 할 일 완수</span>
             </div>
           ) : (
-            <div className="space-y-1.5">
+            <div className="editorial-list">
               {remainingTodos.slice(0, 4).map((t) => (
-                <button key={t.id} onClick={() => navigate('/planner')} className="flex w-full items-center gap-2 text-left">
-                  <span className="h-3.5 w-3.5 shrink-0 rounded-[5px] border-[1.5px] border-[var(--bloom)]/50" />
-                  <span className="flex-1 truncate text-sm text-[var(--fg-primary)]">{t.title}</span>
+                <button key={t.id} onClick={() => navigate('/planner')} className="editorial-row">
+                  <StatusCircle label="" />
+                  <span className="flex-1 truncate text-[15.5px] tracking-[-0.018em] text-[var(--fg-primary)]">{t.title}</span>
+                  <span className="meta-copy">오늘</span>
                 </button>
               ))}
               {remainingTodos.length > 4 && (
@@ -342,16 +366,13 @@ export default function Main() {
       <motion.button
         initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
         onClick={() => navigate('/condition')}
-        className="card-flat px-4 py-3 text-left flex items-center justify-between w-full"
+        className="w-full border-y border-[var(--divider-soft)] py-[13px] text-left"
       >
-        <div className="flex items-center gap-2">
-          {dayDoc?.condition?.sleepScore !== undefined ? (
-            <span className="text-sm text-[var(--fg-primary)]">수면 {dayDoc.condition.sleepScore} · 에너지 {dayDoc.condition.energyScore ?? '-'} · 기분 {dayDoc.condition.moodScore ?? '-'}</span>
-          ) : (
-            <span className="text-sm text-[var(--fg-faint)]">컨디션 입력 전 — 탭해서 기록</span>
-          )}
-        </div>
-        <ArrowRight size={14} className="text-[var(--fg-faint)]" />
+        {dayDoc?.condition?.sleepScore !== undefined ? (
+          <span className="text-[13.5px] tracking-[-0.01em] text-[var(--fg-muted)]">컨디션 — 수면 {dayDoc.condition.sleepScore} · 에너지 {dayDoc.condition.energyScore ?? '-'} · 기분 {dayDoc.condition.moodScore ?? '-'}</span>
+        ) : (
+          <span className="text-[13.5px] tracking-[-0.01em] text-[var(--fg-faint)]">컨디션 입력 전 — 탭해서 기록</span>
+        )}
       </motion.button>
     ),
 
@@ -366,6 +387,7 @@ export default function Main() {
     faith: faithEnabled ? (
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="space-y-3">
         <TodayApplicationCard />
+        <TodayPrayerCard />
       </motion.div>
     ) : null,
   };
@@ -382,27 +404,27 @@ export default function Main() {
   };
 
   return (
-    <div className="flex min-h-full flex-col gap-3 p-4 pb-6">
+    <div className="page-pad flex min-h-full flex-col gap-5">
       {/* ── 상단 (항상 고정 — 정렬 대상 아님) ──
           날짜 kicker → 지금 무엇이 남았는지 한 문장 → 오늘 요약 한 줄 */}
       <motion.div
         data-tour="hero"
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col gap-3 pt-1"
+        className="flex flex-col gap-2 pt-1"
       >
         <div className="flex items-start justify-between gap-3">
-          <span className="kicker pt-0.5">{formatLongKoreanDate(date)}</span>
+          <span className="page-kicker pt-0.5">{formatLongKoreanDate(date)}</span>
           <button
             onClick={() => window.location.reload()}
             aria-label="새로고침"
-            className="-mr-1.5 -mt-1.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--fg-faint)] transition-colors hover:bg-[var(--bg-surface)] active:scale-95"
+            className="-mr-2 -mt-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[var(--fg-faint)] transition-colors hover:bg-[var(--bg-surface)] active:scale-95"
           >
             <RefreshCw size={15} />
           </button>
         </div>
         <h1
-          className="whitespace-pre-line text-[27px] font-semibold leading-[1.34] tracking-[-0.01em] text-[var(--fg-primary)]"
+          className="page-title whitespace-pre-line"
           style={{ textWrap: 'pretty' } as React.CSSProperties}
         >
           {headline}
@@ -412,23 +434,6 @@ export default function Main() {
 
       {/* ── 지난 7일 리듬 — 게임 요소를 걷어낸 뒤 남은 유일한 피드백 ── */}
       <WeeklyRhythm className="pt-1" />
-
-      {/* ── 오늘 회고 강조 배너 (저녁·밤 미작성 시 — 고정) ── */}
-      {!editMode && reflectionDue && (
-        <motion.button
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          onClick={() => navigate('/reflection')}
-          className="flex w-full items-center gap-3 rounded-[var(--radius-lg)] border border-[var(--bloom)]/25 bg-[var(--bloom-soft)] px-4 py-3.5 text-left"
-        >
-          <PenLine size={17} className="shrink-0 text-[var(--bloom)]" />
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-[var(--bloom)]">오늘 회고를 작성해 주세요</p>
-            <p className="mt-0.5 text-xs text-[var(--fg-muted)]">‘내일의 다짐’이 내일 아침 실천 카드로 이어져요</p>
-          </div>
-          <ArrowRight size={16} className="shrink-0 text-[var(--bloom)]" />
-        </motion.button>
-      )}
 
       {/* ── 위젯 목록 ── */}
       {editMode ? (
@@ -471,6 +476,19 @@ export default function Main() {
             return (
               <div key={id} className="flex flex-col">
                 {node}
+                {id === 'habits' && reflectionDue && (
+                  <motion.button
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    onClick={() => navigate('/reflection')}
+                    className="editorial-panel mt-5 w-full text-left"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[15.5px] font-semibold tracking-[-0.02em] text-[var(--fg-primary)]">오늘 회고를 써 두세요</p>
+                      <p className="mt-1 text-[13.5px] tracking-[-0.01em] text-[var(--fg-muted)]">‘내일의 다짐’이 내일 아침 브리핑으로 이어져요</p>
+                    </div>
+                  </motion.button>
+                )}
               </div>
             );
           })}

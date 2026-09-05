@@ -43,20 +43,21 @@ export default function AppLayout() {
   return (
     <ScrollTopContext.Provider value={onReTap}>
       <TabActiveContext.Provider value={{ path: activePath, nonce: retapNonce }}>
-        <div
-          className="fixed inset-0 mx-auto flex max-w-[480px] flex-col bg-[var(--bg-base)]"
-          style={{
-            paddingTop: 'env(safe-area-inset-top)',
-            // 탭바 실측 높이와 맞춘다: 콘텐츠 67px + .tab-bar-safe 의 max(safe-area, 8px)
-            paddingBottom: 'calc(67px + max(env(safe-area-inset-bottom), 8px))',
-          }}
-        >
-          <div ref={hostRef} className="flex-1 min-h-0 overflow-hidden">
-            <SwipeTabs />
+        <div className="fixed inset-0 flex items-center justify-center bg-[var(--bg-canvas)] sm:p-5">
+          <div
+            className="app-shell relative flex h-full w-full max-w-[430px] flex-col overflow-hidden bg-[var(--bg-base)]"
+            style={{
+              paddingTop: 'env(safe-area-inset-top)',
+              paddingBottom: 'calc(61px + max(env(safe-area-inset-bottom), 8px))',
+            }}
+          >
+            <div ref={hostRef} className="min-h-0 flex-1 overflow-hidden">
+              <SwipeTabs />
+            </div>
+            <TabBar />
+            <OnboardingFlow />
+            <PrayerTour />
           </div>
-          <TabBar />
-          <OnboardingFlow />
-          <PrayerTour />
         </div>
       </TabActiveContext.Provider>
     </ScrollTopContext.Provider>

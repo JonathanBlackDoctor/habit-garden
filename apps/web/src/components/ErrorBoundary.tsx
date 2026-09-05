@@ -28,30 +28,30 @@ export default class ErrorBoundary extends React.Component<
     if (this.state.err) {
       return (
         <div
+          className="standalone-shell"
           style={{
-            minHeight: '100dvh',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
             padding: '24px',
-            background: 'var(--bg-base, #F4F6EE)',
-            color: '#333',
-            fontFamily: 'system-ui, -apple-system, sans-serif',
+            background: 'var(--bg-base, #F4F2ED)',
+            color: 'var(--fg-primary, #171614)',
+            fontFamily: "'Pretendard Variable', Pretendard, system-ui, sans-serif",
           }}
         >
-                    <p style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+          <p style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
             화면을 표시하지 못했습니다.
           </p>
-          <p style={{ fontSize: 12, color: '#666', textAlign: 'center', marginBottom: 16 }}>
+          <p style={{ fontSize: 12, color: 'var(--fg-muted, #55514B)', textAlign: 'center', marginBottom: 16 }}>
             아래 메시지를 캡쳐해서 알려주시면 빠르게 고칠 수 있어요.
           </p>
           <pre
             style={{
               fontSize: 11,
-              background: '#fff',
-              border: '1px solid #ddd',
-              borderRadius: 8,
+              background: 'var(--bg-surface, #FCFBF9)',
+              border: '1px solid var(--border, #D6D1C8)',
+              borderRadius: 12,
               padding: 12,
               maxWidth: '90vw',
               overflowX: 'auto',
@@ -83,8 +83,8 @@ export default class ErrorBoundary extends React.Component<
             style={{
               marginTop: 16,
               padding: '10px 18px',
-              borderRadius: 8,
-              background: '#4F7A37',
+              borderRadius: 10,
+              background: 'var(--leaf, #7A5F38)',
               color: '#fff',
               border: 'none',
               fontSize: 14,

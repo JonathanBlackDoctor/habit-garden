@@ -16,8 +16,15 @@ import HabitEditRow from '@/features/habits/HabitEditRow';
 import PastDateBanner from '@/components/PastDateBanner';
 import type { HabitDoc } from 'shared/types/firestore';
 import { isHibernating } from 'shared/lib/hibernation';
-import { timeOfDay } from '@/lib/dayBoundary';
+import { formatLongKoreanDate, timeOfDay } from '@/lib/dayBoundary';
 import { useTabBloomKey } from '@/lib/tabActive';
+import { PageHeader, ProgressRail } from '@/components/Editorial';
+import {
+  HABIT_TIME_ORDER,
+  getHabitOverview,
+  groupHabitsByTime,
+  shouldExpandTimeGroup,
+} from '@/features/habits/habitDisplay';
 
 const TIME_LABELS: Record<string, string> = {
   morning:   '아침',
@@ -26,17 +33,6 @@ const TIME_LABELS: Record<string, string> = {
   night:     '밤',
   anytime:   '언제든',
 };
-const TIME_ORDER = ['morning', 'afternoon', 'evening', 'night', 'anytime'];
-
-function groupByTime(habits: HabitDoc[]) {
-  const groups: Record<string, HabitDoc[]> = {};
-  for (const h of habits) {
-    if (!groups[h.timeOfDay]) groups[h.timeOfDay] = [];
-    groups[h.timeOfDay].push(h);
-  }
-  return groups;
-}
-
 export default function Habits() {
   const [searchParams] = useSearchParams();
   const uid    = useAppStore((s) => s.uid);
@@ -89,16 +85,16 @@ export default function Habits() {
   // 휴면 중인 습관은 일일 목록·집계에서 빠지고, 편집 모드 전용 휴면 섹션에만 모인다.
   const liveHabits        = habits.filter((h) => !isHibernating(h));
   const hibernatingHabits = habits.filter((h) => isHibernating(h));
-  const groups = groupByTime(liveHabits);
+  const groups = groupHabitsByTime(liveHabits);
   // 온보딩 스포트라이트가 가리킬 첫 습관 카드 (TIME_ORDER 기준 최상단)
-  const firstTourHabitId = TIME_ORDER.map((t) => groups[t]?.[0]).find(Boolean)?.id;
-  const activeHabits   = liveHabits.filter((h) => h.active);
-  const totalActive    = activeHabits.length;
-  const totalAchieved  = activeHabits.filter((h) => checks[h.id]?.achieved).length;
-  const totalChecked   = activeHabits.filter((h) => checks[h.id]?.score !== undefined && checks[h.id]?.score !== null).length;
+  const firstTourHabitId = HABIT_TIME_ORDER.map((t) => groups[t]?.[0]).find(Boolean)?.id;
+  const overview = getHabitOverview(liveHabits, checks);
+  const totalActive = overview.total;
+  const totalAchieved = overview.achieved;
+  const totalChecked = overview.recorded;
   const currentTOD     = timeOfDay();
   // 미기록(체크 문서 없음) 습관 수 — 격려 넛지용
-  const remaining      = activeHabits.filter((h) => checks[h.id] === undefined).length;
+  const remaining = overview.remaining;
   const nudge =
     totalActive === 0 ? null
     : remaining === 0 ? '오늘 다 했어요'
@@ -109,17 +105,39 @@ export default function Habits() {
   const nextOrder = habits.length > 0 ? Math.max(...habits.map((h) => h.order)) + 1 : 0;
 
   return (
-    <div className="min-h-screen p-4 space-y-4 pb-8">
+    <div className="page-pad min-h-full space-y-5">
       {isPast && <PastDateBanner date={date} />}
       {/* 헤더 */}
-      <div className="pt-2 flex items-start justify-between gap-2">
+      <div className="space-y-4 pt-1">
+        <PageHeader
+          kicker={formatLongKoreanDate(date)}
+          title="습관"
+          summary={`${totalAchieved} / ${totalActive} 달성 · ${totalChecked} / ${totalActive} 기록`}
+          action={(
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setAddOpen(true)}
+                className="grid h-11 w-11 place-items-center rounded-full text-[var(--fg-muted)] hover:bg-[var(--leaf-soft)] hover:text-[var(--leaf)]"
+                aria-label="습관 추가"
+                title="습관 추가"
+              >
+                <Plus size={18} />
+              </button>
+              <button
+                onClick={() => setEditMode((v) => !v)}
+                className={`grid h-11 w-11 place-items-center rounded-full ${editMode ? 'bg-[var(--leaf-soft)] text-[var(--leaf)]' : 'text-[var(--fg-muted)] hover:bg-[var(--leaf-soft)] hover:text-[var(--leaf)]'}`}
+                aria-label={editMode ? '편집 완료' : '편집'}
+                title={editMode ? '편집 완료' : '편집'}
+              >
+                {editMode ? <Check size={18} /> : <Pencil size={18} />}
+              </button>
+            </div>
+          )}
+        />
         <div>
-          <h2 className="text-[24px] font-semibold tracking-[-0.01em] text-[var(--fg-primary)]">습관</h2>
-          <p className="mt-1 text-[13px] tabular-nums text-[var(--fg-muted)]">
-            {totalAchieved} / {totalActive} 달성 · {totalChecked} / {totalActive} 기록
-          </p>
+          <ProgressRail value={totalActive > 0 ? (totalChecked / totalActive) * 100 : 0} />
           {nudge && (
-            <p className={`mt-0.5 text-xs font-medium ${remaining === 0 ? 'text-[var(--leaf)]' : 'text-[var(--bloom)]'}`}>
+            <p className={`mt-2 text-[13.5px] tracking-[-0.01em] ${remaining === 0 ? 'text-[var(--leaf)]' : 'text-[var(--fg-muted)]'}`}>
               {nudge}
             </p>
           )}
@@ -128,24 +146,6 @@ export default function Habits() {
               모든 습관이 휴면 중이에요 · 편집에서 깨울 수 있어요
             </p>
           )}
-        </div>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => setAddOpen(true)}
-            className="rounded-full p-1.5 text-[var(--fg-muted)] hover:bg-[var(--leaf-soft)] hover:text-[var(--leaf)]"
-            aria-label="습관 추가"
-            title="습관 추가"
-          >
-            <Plus size={18} />
-          </button>
-          <button
-            onClick={() => setEditMode((v) => !v)}
-            className={`rounded-full p-1.5 ${editMode ? 'bg-[var(--leaf-soft)] text-[var(--leaf)]' : 'text-[var(--fg-muted)] hover:bg-[var(--leaf-soft)] hover:text-[var(--leaf)]'}`}
-            aria-label={editMode ? '편집 완료' : '편집'}
-            title={editMode ? '편집 완료' : '편집'}
-          >
-            {editMode ? <Check size={18} /> : <Pencil size={18} />}
-          </button>
         </div>
       </div>
 
@@ -163,7 +163,7 @@ export default function Habits() {
               return (
                 <div
                   key={group.id}
-                  className="flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-soft)] bg-[var(--bg-surface)] px-3.5 py-2.5"
+                  className="flex items-center gap-2 border-y border-[var(--divider-soft)] py-2.5"
                 >
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-[var(--fg-primary)]">{group.name}</p>
@@ -194,13 +194,18 @@ export default function Habits() {
 
       {/* 시간대별 그룹 — 1a: 현재 시간대만 펼치고 나머지는 한 줄로 접는다.
           편집 모드에서는 전부 펼쳐야 손댈 수 있으므로 접기를 끈다. */}
-      {TIME_ORDER.map((tod) => {
+      {HABIT_TIME_ORDER.map((tod) => {
         const group = groups[tod];
         if (!group || group.length === 0) return null;
         const groupAchieved = group.filter((h) => checks[h.id]?.achieved).length;
         const isNow = tod === currentTOD;
         const settled = group.every((h) => checks[h.id] !== undefined);
-        const expanded = editMode || isNow || openTods.includes(tod);
+        const expanded = shouldExpandTimeGroup({
+          editMode,
+          timeOfDay: tod,
+          currentTimeOfDay: currentTOD,
+          manuallyOpened: openTods,
+        });
 
         if (!expanded) {
           return (
@@ -208,7 +213,7 @@ export default function Habits() {
               key={tod}
               onClick={() => setOpenTods((prev) => [...prev, tod])}
               className={cn(
-                'flex w-full items-center gap-3 rounded-[var(--radius-md)] border border-[var(--border-soft)] bg-[var(--bg-surface)] px-[18px] py-[15px] text-left transition-opacity',
+                'flex w-full items-center gap-3 border-y border-[var(--divider-soft)] py-[15px] text-left transition-opacity',
                 settled && 'opacity-[.62]',
               )}
             >
@@ -230,17 +235,14 @@ export default function Habits() {
           <section
             key={tod}
             ref={isNow ? nowSectionRef : undefined}
-            className={cn(
-              'flex flex-col',
-              isNow && !editMode ? 'card-raised' : 'card-flat',
-            )}
+            className="flex flex-col"
           >
-            <div className="flex items-center gap-3 px-[18px] pb-3.5 pt-[17px]">
+            <div className="flex items-center gap-3 pb-3 pt-1">
               <h3 className="flex-1 text-[16px] font-semibold text-[var(--fg-primary)]">
                 {TIME_LABELS[tod]}
               </h3>
               {isNow && (
-                <span className="rounded-full bg-[var(--bloom-soft)] px-2.5 py-1 text-[12px] leading-none text-[var(--bloom)]">
+                <span className="text-[12px] leading-none text-[var(--leaf)]">
                   지금
                 </span>
               )}
@@ -248,7 +250,7 @@ export default function Habits() {
                 {groupAchieved} / {group.length}
               </span>
             </div>
-            <div className="row-divide flex flex-col border-t border-[var(--divider-soft)] px-[18px]">
+            <div className="row-divide flex flex-col border-y border-[var(--divider-soft)]">
               {group.map((habit) => (
                 editMode ? (
                   <div key={habit.id} className="py-2">

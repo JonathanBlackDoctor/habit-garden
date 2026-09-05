@@ -1,12 +1,13 @@
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Check, CheckCircle2, Flame, ArrowRight, BookOpen } from 'lucide-react';
+import { Flame } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import {
   useApplications, useApplicationChecks, useApplicationActions,
 } from '@/features/applications/useApplications';
 import type { ApplicationDoc } from 'shared/types/firestore';
+import { ProgressRail, SectionHeading, StatusCircle } from '@/components/Editorial';
 
 /** 메인(오늘 탭)에 노출되는 '오늘의 말씀 적용' 카드 — 진행 중 적용을 바로 보고 원탭 체크. */
 export default function TodayApplicationCard() {
@@ -22,13 +23,10 @@ export default function TodayApplicationCard() {
     return (
       <button
         onClick={goApplications}
-        className="card-flat flex w-full items-center gap-3 px-4 py-3 text-left"
+      className="w-full border-y border-[var(--divider-soft)] py-[13px] text-left"
       >
-                <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-[var(--fg-primary)]">말씀 적용</p>
-          <p className="truncate text-xs text-[var(--fg-faint)]">오늘 받은 말씀을 어떻게 살지 한 줄로 적어보세요</p>
-        </div>
-        <ArrowRight size={14} className="shrink-0 text-[var(--fg-faint)]" />
+        <p className="text-[15.5px] font-semibold tracking-[-0.02em] text-[var(--fg-primary)]">오늘의 적용</p>
+        <p className="mt-1 truncate text-[13.5px] text-[var(--fg-faint)]">오늘 받은 말씀을 어떻게 살지 한 줄로 적어보세요</p>
       </button>
     );
   }
@@ -45,26 +43,25 @@ export default function TodayApplicationCard() {
   const doneCount = active.filter((a) => checks[a.id]).length;
 
   return (
-    <div className="card-flat space-y-2.5 p-3.5">
-      <button onClick={goApplications} className="flex w-full items-center gap-2 text-left">
-        <BookOpen size={15} className="shrink-0 text-[var(--leaf)]" />
-        <span className="text-sm font-semibold text-[var(--fg-primary)]">오늘의 말씀 적용</span>
-        <span className="text-[11px] tabular-nums text-[var(--fg-faint)]">{doneCount}/{active.length}</span>
-        <ArrowRight size={13} className="ml-auto shrink-0 text-[var(--fg-faint)]" />
-      </button>
+    <section className="space-y-2">
+      <SectionHeading
+        title="오늘의 적용"
+        meta={`${doneCount} / ${active.length}`}
+        action={<button type="button" onClick={goApplications}>전체 보기</button>}
+      />
 
-      <div className="space-y-1.5">
+      <div className="editorial-list">
         {shown.map((app) => (
           <ApplicationRow key={app.id} app={app} practicedToday={!!checks[app.id]} />
         ))}
       </div>
 
       {remaining > 0 && (
-        <button onClick={goApplications} className="w-full text-center text-[11px] text-[var(--fg-faint)]">
+        <button onClick={goApplications} className="w-full py-1 text-left text-[13px] text-[var(--fg-faint)]">
           +{remaining}개 더 보기
         </button>
       )}
-    </div>
+    </section>
   );
 }
 
@@ -74,7 +71,12 @@ function ApplicationRow({ app, practicedToday }: { app: ApplicationDoc; practice
   const progress = Math.min(app.practiceCount / Math.max(app.targetDays, 1), 1);
 
   return (
-    <motion.div layout className="flex items-center gap-2.5 rounded-[var(--radius-sm)] bg-[var(--bg-base)] p-2">
+    <motion.div layout className="editorial-row">
+      <StatusCircle
+        checked={practicedToday}
+        label={`${app.application} ${practicedToday ? '실천 취소' : '실천 완료'}`}
+        onClick={() => void (practicedToday ? uncheckPractice(app) : checkPractice(app))}
+      />
       <div className="min-w-0 flex-1">
         <p className={cn(
           'truncate text-sm leading-snug',
@@ -82,13 +84,8 @@ function ApplicationRow({ app, practicedToday }: { app: ApplicationDoc; practice
         )}>
           {app.application}
         </p>
-        <div className="mt-1 flex items-center gap-1.5">
-          <div className="h-1 flex-1 overflow-hidden rounded-full bg-[var(--bg-surface)]">
-            <div
-              className={cn('h-full rounded-full transition-all', goalMet ? 'bg-[var(--bloom)]' : 'bg-[var(--leaf)]')}
-              style={{ width: `${progress * 100}%` }}
-            />
-          </div>
+        <div className="mt-1.5 flex items-center gap-1.5">
+          <ProgressRail value={progress * 100} className="flex-1" />
           <span className="shrink-0 text-[10px] tabular-nums text-[var(--fg-faint)]">{app.practiceCount}/{app.targetDays}</span>
           {app.streak > 1 && (
             <span className="flex shrink-0 items-center gap-0.5 text-[10px] tabular-nums text-[var(--bloom)]">
@@ -97,16 +94,7 @@ function ApplicationRow({ app, practicedToday }: { app: ApplicationDoc; practice
           )}
         </div>
       </div>
-      <button
-        onClick={() => (practicedToday ? uncheckPractice(app) : checkPractice(app))}
-        aria-label={practicedToday ? '실천 취소' : '오늘 실천했어요'}
-        className={cn(
-          'flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors',
-          practicedToday ? 'bg-[var(--leaf-soft)] text-[var(--leaf)]' : 'bg-[var(--leaf)] text-white',
-        )}
-      >
-        {practicedToday ? <CheckCircle2 size={17} /> : <Check size={17} />}
-      </button>
+      <span className="meta-copy tabular-nums">{goalMet ? '정착' : app.streak > 1 ? `${app.streak}일` : ''}</span>
     </motion.div>
   );
 }

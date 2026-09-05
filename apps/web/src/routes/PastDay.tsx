@@ -28,7 +28,7 @@ export default function PastDay() {
 
   if (!valid) {
     return (
-      <div className="min-h-screen p-4 space-y-3">
+      <div className="page-pad min-h-full space-y-3">
         <button onClick={() => navigate(-1)} className="text-[var(--fg-muted)]">
           <ChevronLeft size={22} />
         </button>
@@ -43,12 +43,12 @@ export default function PastDay() {
   const hasReflection = !!day?.reflection;
 
   return (
-    <div className="min-h-screen p-4 space-y-4 pb-8">
+    <div className="page-pad min-h-full space-y-6 pb-8">
       <div className="flex items-center gap-2 py-1">
         <button onClick={() => navigate(-1)} className="text-[var(--fg-muted)]">
           <ChevronLeft size={22} />
         </button>
-        <h2 className="text-[24px] font-semibold tracking-[-0.01em] text-[var(--fg-primary)]">
+        <h2 className="page-title">
           {formatKoreanDate(date)} {isToday && <span className="text-xs text-[var(--leaf)]">· 오늘</span>}
         </h2>
       </div>
