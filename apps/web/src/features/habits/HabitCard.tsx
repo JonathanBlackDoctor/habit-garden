@@ -47,6 +47,13 @@ export default function HabitCard({ habit, check, streak = 0, onScore, onClear }
     habit.scoreMode === 'scaled' ? '5단계' : '완료 여부',
     streak > 0 ? `${streak}일 연속` : null,
   ].filter(Boolean).join(' · ');
+  const quickCircleLabel = habit.scoreMode === 'scaled'
+    ? '점수 선택'
+    : status === 'todo'
+      ? '완료'
+      : status === 'achieved'
+        ? '미완료'
+        : '기록 취소';
 
   // 점수가 새로 변경되면 폼 초기화 (자동 오픈 없음)
   useEffect(() => {
@@ -95,12 +102,20 @@ export default function HabitCard({ habit, check, streak = 0, onScore, onClear }
         <StatusCircle
           checked={status === 'achieved'}
           skipped={status === 'skipped'}
+          missed={habit.scoreMode === 'binary' && status === 'missed'}
           score={habit.scoreMode === 'scaled' && currentScore !== null ? currentScore : undefined}
-          label={`${habit.title} ${status === 'achieved' ? '기록 취소' : habit.scoreMode === 'scaled' ? '점수 선택' : '완료'}`}
+          label={`${habit.title} ${quickCircleLabel}`}
           onClick={() => {
-            if (habit.scoreMode === 'scaled') setExpanded((v) => !v);
-            else if (status === 'achieved') onClear();
-            else onScore(1);
+            if (habit.scoreMode === 'scaled') {
+              setExpanded((v) => !v);
+            } else if (status === 'todo') {
+              onScore(1);
+            } else if (status === 'achieved') {
+              onScore(0);
+            } else {
+              // 미완료(×) 또는 기존 건너뜀 기록은 미입력(○)으로 되돌린다.
+              onClear();
+            }
           }}
         />
         <button
