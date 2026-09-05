@@ -102,13 +102,13 @@ export default function Condition() {
   if (!loaded) return null;
 
   return (
-    <div className="min-h-screen p-4 space-y-4">
+    <div className="page-pad min-h-full space-y-6">
       {/* 헤더 */}
       <div className="flex items-center gap-2 py-1">
         <button onClick={() => navigate(-1)} className="text-[var(--fg-muted)]">
           <ChevronLeft size={22} />
         </button>
-        <h2 className="text-[24px] font-semibold tracking-[-0.01em] text-[var(--fg-primary)]">컨디션</h2>
+        <h2 className="page-title">컨디션</h2>
       </div>
       {isPast && <PastDateBanner date={date} />}
 

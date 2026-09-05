@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { HabitDoc, HabitCheckDoc } from 'shared/types/firestore';
-import { SkipForward, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSaveReflection, useSaveMissReason } from '@/features/habits/useReflections';
 import { useHabitHistory } from '@/features/habits/useHabitHistory';
 import { statusOf } from '@/features/habits/habitStatus';
 import { SCALED_ACHIEVE_THRESHOLD } from 'shared/lib/habitPoints';
+import { StatusCircle } from '@/components/Editorial';
 
 const QUICK_TAGS = ['피곤', '스트레스', '바쁨', '약속', '여행', '회복'] as const;
 
@@ -86,46 +86,37 @@ export default function HabitCard({ habit, check, streak = 0, onScore, onClear }
   return (
     <div
       className={cn(
-        'relative py-3.5 transition-opacity',
-        // 처리된 행은 뒤로 물러나고, 미달성은 원인 입력 가독성을 위해 덜 흐리게 둔다
-        status === 'missed' && 'opacity-70',
-        (status === 'achieved' || status === 'skipped') && 'opacity-45',
+        'relative py-[12.5px] transition-opacity',
+        status === 'missed' && 'opacity-80',
       )}
     >
       {/* 상단 행 — 제목 + 부제(입력 방식 · 연속 일수) */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-[13px]">
+        <StatusCircle
+          checked={status === 'achieved'}
+          skipped={status === 'skipped'}
+          score={habit.scoreMode === 'scaled' && currentScore !== null ? currentScore : undefined}
+          label={`${habit.title} ${status === 'achieved' ? '기록 취소' : habit.scoreMode === 'scaled' ? '점수 선택' : '완료'}`}
+          onClick={() => {
+            if (habit.scoreMode === 'scaled') setExpanded((v) => !v);
+            else if (status === 'achieved') onClear();
+            else onScore(1);
+          }}
+        />
         <button
           onClick={() => setExpanded(!expanded)}
           className="flex min-w-0 flex-1 flex-col gap-[3px] text-left"
         >
           <span className={cn(
-            'min-w-0 truncate text-[16px] text-[var(--fg-primary)]',
-            (status === 'achieved' || status === 'skipped') && 'line-through decoration-[var(--fg-faint)]'
+            'min-w-0 truncate text-[15.5px] tracking-[-0.018em] text-[var(--fg-primary)]',
+            status === 'achieved' && 'text-[var(--fg-faint)]',
+            status === 'skipped' && 'text-[var(--fg-faint)] line-through decoration-[var(--fg-faint)]'
           )}>{habit.title}</span>
           <span className="truncate text-[12px] text-[var(--fg-faint)]">{subtitle}</span>
         </button>
-
-        {/* 건너뜀 표시 — 클릭 시 취소 */}
-        {skipped && (
-          <button
-            onClick={onClear}
-            className="flex shrink-0 items-center gap-0.5 rounded-full border border-[var(--border)] px-2.5 py-1 text-[12px] text-[var(--fg-muted)] hover:text-[var(--fg-primary)]"
-            title="건너뜀 취소"
-          >
-            건너뜀
-            <X size={11} />
-          </button>
-        )}
-
-        {/* Pass / 건너뜀 취소 토글 */}
-        <button
-          onClick={() => (skipped ? onClear() : onScore(null))}
-          className="shrink-0 rounded-full p-1 text-[var(--fg-faint)] transition-colors hover:text-[var(--fg-muted)]"
-          aria-label={skipped ? '건너뜀 취소' : '건너뜀'}
-          title={skipped ? '건너뜀 취소' : '건너뜀'}
-        >
-          <SkipForward size={14} />
-        </button>
+        <span className="meta-copy tabular-nums">
+          {skipped ? '건너뜀' : habit.scoreMode === 'scaled' && currentScore === null ? '1–5' : ''}
+        </span>
       </div>
 
       {/* 스트릭 위험 경고 — 미기록 + 진행 중 스트릭 */}
@@ -136,40 +127,33 @@ export default function HabitCard({ habit, check, streak = 0, onScore, onClear }
       )}
 
       {/* 점수 입력 — 5단계는 원형 숫자, 완료 여부는 알약 버튼 */}
-      <div className="mt-2.5">
+      {expanded && <div className="mt-2.5 pl-8">
         {habit.scoreMode === 'scaled' ? (
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-[7px]">
             {[1, 2, 3, 4, 5].map((s) => (
               <button
                 key={s}
                 onClick={() => onScore(s)}
                 aria-label={`${s}점 · ${SCORE_LABELS[s]}`}
                 className={cn(
-                  'flex h-7 w-7 items-center justify-center rounded-full text-[13px] transition-colors',
+                  'grid h-9 flex-1 place-items-center rounded-[9px] border text-[13.5px] transition-colors',
                   currentScore === s
-                    ? 'bg-[var(--leaf)] font-semibold text-white'
-                    : currentScore !== null && currentScore > s
-                    ? 'bg-[var(--leaf-soft)] text-[var(--leaf)]'
-                    : 'bg-[var(--bg-base)] text-[var(--fg-faint)] hover:bg-[var(--leaf-soft)]'
+                    ? 'border-[var(--fg-primary)] bg-[var(--fg-primary)] font-semibold text-[var(--bg-base)]'
+                    : 'border-[var(--divider-soft)] bg-[var(--bg-surface)] text-[var(--fg-muted)] hover:border-[var(--border)]'
                 )}
               >
                 {s}
               </button>
             ))}
-            {currentScore !== null && (
-              <span className="ml-1 text-[12px] text-[var(--fg-faint)]">
-                {SCORE_LABELS[currentScore]}
-              </span>
-            )}
           </div>
         ) : (
-          <div className="flex gap-2">
+          <div className="grid grid-cols-3 gap-2">
             {[1, 0].map((s) => (
               <button
                 key={s}
                 onClick={() => onScore(s)}
                 className={cn(
-                  'rounded-full border px-4 py-2 text-[13px] transition-colors',
+                  'rounded-[9px] border px-3 py-2 text-[13px] transition-colors',
                   currentScore === s
                     ? s === 1
                       ? 'border-[var(--leaf)] bg-[var(--leaf)] text-white'
@@ -180,9 +164,16 @@ export default function HabitCard({ habit, check, streak = 0, onScore, onClear }
                 {BINARY_LABELS[s]}
               </button>
             ))}
+            <button
+              type="button"
+              onClick={() => (skipped ? onClear() : onScore(null))}
+              className={cn('rounded-[9px] border px-3 py-2 text-[13px]', skipped ? 'border-[var(--fg-primary)] bg-[var(--fg-primary)] text-[var(--bg-base)]' : 'border-[var(--border)] text-[var(--fg-muted)]')}
+            >
+              건너뜀
+            </button>
           </div>
         )}
-      </div>
+      </div>}
 
       {/* 설명 + 30일 캘린더 (접기/펼치기) */}
       <AnimatePresence>

@@ -8,9 +8,9 @@ import { usePrayerActions } from './usePrayers';
 import { cn } from '@/lib/utils';
 
 /**
- * 기도 모드 — 기도실에서도 쓸 수 있는 전체화면 다크 세션.
+ * 기도 모드 — 기도실에서도 쓸 수 있는 집중 세션.
  * setup(시간 선택) → meditate(말씀 묵상) → pray(카드 넘기기) → done(요약)
- * 다크 팔레트는 이 오버레이 안에서만 사용한다(전역 테마 없음).
+ * 앱의 편집형 팔레트를 유지해 다른 화면과 시각적으로 이어진다.
  */
 
 type Step = 'setup' | 'meditate' | 'pray' | 'done';
@@ -23,12 +23,12 @@ const DURATIONS: { label: string; min: number | null }[] = [
 ];
 
 const DARK = {
-  bg: 'bg-[#10141A]',
-  card: 'bg-[#1B222C]',
-  border: 'border-[#2A323E]',
-  fg: 'text-[#E7E5DF]',
-  muted: 'text-[#9AA0A6]',
-  accent: '#8FBF6F',
+  bg: 'bg-[var(--bg-base)]',
+  card: 'bg-[var(--bg-surface)]',
+  border: 'border-[var(--border)]',
+  fg: 'text-[var(--fg-primary)]',
+  muted: 'text-[var(--fg-faint)]',
+  accent: '#7A5F38',
 };
 
 function fmtClock(ms: number): string {
@@ -192,7 +192,7 @@ export default function PrayerMode({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className={cn('fixed inset-0 z-[120] flex flex-col', DARK.bg, DARK.fg)}
+          className={cn('fixed inset-0 z-[120] flex flex-col sm:bottom-5 sm:left-1/2 sm:right-auto sm:top-5 sm:w-[430px] sm:-translate-x-1/2 sm:overflow-hidden sm:rounded-[36px] sm:border sm:border-[var(--border)] sm:shadow-[var(--shadow-md)]', DARK.bg, DARK.fg)}
           style={{
             paddingTop: 'env(safe-area-inset-top)',
             paddingBottom: 'env(safe-area-inset-bottom)',
@@ -227,7 +227,7 @@ export default function PrayerMode({
                       onClick={() => { setDurationMin(d.min); setStep('meditate'); }}
                       className={cn(
                         'rounded-[var(--radius-lg)] border py-5 text-base font-medium transition-colors',
-                        DARK.card, DARK.border, 'active:border-[#8FBF6F]'
+                        DARK.card, DARK.border, 'active:border-[var(--leaf)]'
                       )}
                     >
                       {d.label}
@@ -320,7 +320,7 @@ export default function PrayerMode({
                   </button>
                   <button
                     onClick={prayAndAdvance}
-                    className="flex flex-1 items-center justify-center gap-1.5 rounded-[var(--radius)] py-3.5 text-sm font-medium text-[#10141A]"
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-[var(--radius)] py-3.5 text-sm font-medium text-white"
                     style={{ backgroundColor: DARK.accent }}
                   >
                     <Check size={16} /> 기도했어요
@@ -373,7 +373,7 @@ export default function PrayerMode({
                   )}
                   <button
                     onClick={onClose}
-                    className="rounded-[var(--radius)] px-8 py-3 text-sm font-medium text-[#10141A]"
+                    className="rounded-[var(--radius)] px-8 py-3 text-sm font-medium text-white"
                     style={{ backgroundColor: DARK.accent }}
                   >
                     마치기

@@ -3,8 +3,8 @@ import { collection, limit, onSnapshot, orderBy, query } from 'firebase/firestor
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import { lastNDates, weekdayLabel } from '@/lib/dayBoundary';
-import SectionHeader from '@/components/SectionHeader';
 import type { DayDoc } from 'shared/types/firestore';
+import { SectionHeading } from '@/components/Editorial';
 
 /**
  * 지난 7일 리듬 — 정원·포인트·레벨을 걷어낸 뒤 남은 유일한 피드백.
@@ -40,12 +40,9 @@ export default function WeeklyRhythm({ className }: { className?: string }) {
     ? Math.round(scored.reduce((s, b) => s + (b.score ?? 0), 0) / scored.length)
     : null;
 
-  // 기록이 하나도 없으면 빈 그래프를 띄우는 대신 조용히 사라진다.
-  if (scored.length === 0) return null;
-
   return (
     <section className={className} aria-label="지난 7일 리듬">
-      <SectionHeader label="지난 7일" value={avg !== null ? `평균 ${avg}점` : undefined} />
+      <SectionHeading title="주간 리듬" meta={avg !== null ? `평균 ${avg}점` : '기록 전'} />
       <div className="mt-3 flex h-[54px] items-end gap-2.5">
         {bars.map(({ date, score, isToday }) => (
           <div key={date} className="flex flex-1 flex-col items-center gap-[7px]">

@@ -11,26 +11,12 @@ import { functions } from '@/lib/firebase';
 import { useIsPremium } from '@/lib/features';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-
-const GROUP_COLORS = [
-  'bg-sky-100 text-sky-700',
-  'bg-amber-100 text-amber-700',
-  'bg-violet-100 text-violet-700',
-  'bg-rose-100 text-rose-700',
-  'bg-[var(--leaf-soft)] text-[var(--leaf)]',
-  'bg-stone-100 text-stone-600',
-];
-
-function groupColor(group: string): string {
-  let h = 0;
-  for (let i = 0; i < group.length; i++) h = (h * 31 + group.charCodeAt(i)) >>> 0;
-  return GROUP_COLORS[h % GROUP_COLORS.length];
-}
+import { StatusCircle } from '@/components/Editorial';
 
 export function GroupBadge({ group }: { group: string }) {
   const g = group || '개인';
   return (
-    <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-medium', groupColor(g))}>
+    <span className="text-[11px] text-[var(--fg-faint)]">
       {g}
     </span>
   );
@@ -62,28 +48,17 @@ export function PrayerCheckCard({
   onOpen: () => void;
 }) {
   return (
-    <div className="flex items-start gap-3 border-t border-[var(--divider)] py-3">
-      <button
-        onClick={() => (checked ? onUncheck() : onCheck())}
-        className={cn(
-          'order-last mt-0.5 flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border-[1.6px] transition-colors',
-          checked
-            ? 'border-[var(--leaf)] bg-[var(--leaf)] text-white'
-            : 'border-[var(--border)] bg-transparent text-transparent'
-        )}
-        aria-label={checked ? '기도 취소' : '기도 완료'}
-      >
-        <Check size={12} strokeWidth={2.6} />
-      </button>
+    <div className="flex items-start gap-[13px] border-t border-[var(--divider-soft)] py-[12.5px] first:border-t-0">
+      <StatusCircle checked={checked} label={checked ? '기도 취소' : '기도 완료'} onClick={() => (checked ? onUncheck() : onCheck())} className="mt-0.5" />
       <button onClick={onOpen} className="min-w-0 flex-1 text-left">
         <div className="flex items-center gap-1.5">
           {prayer.pinned && <Pin size={11} className="shrink-0 text-[var(--bloom)]" />}
-          <p className={cn('truncate text-sm', checked ? 'text-[var(--fg-faint)] line-through' : 'text-[var(--fg-primary)]')}>
+          <p className={cn('truncate text-[15.5px] tracking-[-0.018em]', checked ? 'text-[var(--fg-faint)]' : 'text-[var(--fg-primary)]')}>
             {prayer.title}
           </p>
         </div>
         <div className="mt-0.5 flex items-center gap-1.5">
-          <GroupBadge group={prayer.group} />
+          <GroupBadge group={prayer.group} /><span className="text-[11px] text-[var(--fg-faint)]">·</span>
           {prayer.target && (
             <span className="truncate text-[11px] text-[var(--fg-muted)]">{prayer.target}</span>
           )}

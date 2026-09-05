@@ -158,7 +158,7 @@ export default function WelcomeCarousel({
                 <p className="mt-7 text-[11px] uppercase tracking-[0.32em] text-[var(--fg-faint)]">
                   {slide.eyebrow}
                 </p>
-                <h1 className="mt-2 whitespace-pre-line text-[28px] font-bold leading-tight tracking-tight text-[var(--fg-primary)]">
+                <h1 className="mt-2 whitespace-pre-line text-[28px] font-semibold leading-[1.28] tracking-[-0.025em] text-[var(--fg-primary)]">
                   {slide.title}
                 </h1>
                 <p className="mt-4 max-w-[300px] text-[14px] leading-relaxed text-[var(--fg-muted)]">

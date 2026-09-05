@@ -29,7 +29,7 @@ export default function Tutorial() {
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
   return (
-    <div className="min-h-screen p-4 pb-8 space-y-4">
+    <div className="page-pad min-h-full space-y-6 pb-8">
       {/* 헤더 */}
       <div className="flex items-center gap-2 py-1">
         <button
@@ -39,7 +39,7 @@ export default function Tutorial() {
         >
           <ChevronLeft size={22} />
         </button>
-        <h2 className="text-[24px] font-semibold tracking-[-0.01em] text-[var(--fg-primary)]">사용 설명서</h2>
+        <h2 className="page-title">사용 설명서</h2>
       </div>
 
       {/* Intro */}

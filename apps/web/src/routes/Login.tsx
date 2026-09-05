@@ -61,7 +61,7 @@ export default function Login() {
   };
 
   return (
-    <div className="relative min-h-dvh overflow-hidden bg-[var(--bg-base)]">
+    <div className="standalone-shell relative overflow-x-hidden">
       {/* 배경 그라데이션 블롭 */}
       <div
         aria-hidden
@@ -82,7 +82,7 @@ export default function Login() {
       <FloatingLeaf className="absolute right-10 top-40 text-[var(--leaf)]/20" delay={0.6} size={22} rotate={-20} />
       <FloatingLeaf className="absolute left-10 bottom-32 text-[var(--bloom)]/25" delay={1.2} size={20} rotate={35} />
 
-      <div className="relative mx-auto max-w-md px-7 pb-12 pt-16">
+      <div className="relative mx-auto max-w-md px-[26px] pb-12 pt-16">
         {/* 히어로 */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
@@ -106,7 +106,7 @@ export default function Login() {
 
           <div className="flex flex-col items-center gap-1.5">
             <p className="text-[11px] uppercase tracking-[0.32em] text-[var(--fg-faint)]">Habit Garden</p>
-            <h1 className="text-[34px] font-bold tracking-tight text-[var(--fg-primary)]">습관 정원</h1>
+            <h1 className="text-[34px] font-semibold tracking-[-0.025em] text-[var(--fg-primary)]">습관 정원</h1>
             <p className="mt-1 text-center text-[13px] leading-relaxed text-[var(--fg-muted)]">
               매일의 작은 습관이<br />당신의 정원을 자라게 합니다
             </p>
@@ -124,7 +124,7 @@ export default function Login() {
           <button
             onClick={handleGuest}
             disabled={guestLoading}
-            className="relative flex w-full items-center justify-center gap-2.5 rounded-[var(--radius-lg)] bg-[var(--leaf)] px-6 py-4 text-[16px] font-semibold text-white shadow-[var(--shadow-md)] transition-all duration-200 active:scale-[0.985] active:opacity-90 disabled:opacity-60"
+            className="relative flex min-h-12 w-full items-center justify-center gap-2.5 rounded-[10px] bg-[var(--leaf)] px-6 py-3.5 text-[15px] font-semibold text-white transition-all duration-200 active:scale-[0.985] active:opacity-90 disabled:opacity-60"
           >
             <Sprout size={20} className="relative" />
             <span className="relative">{guestLoading ? '준비 중…' : '가입 없이 바로 시작하기'}</span>
@@ -173,7 +173,7 @@ export default function Login() {
 
           <button
             onClick={handleLogin}
-            className="group relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-white px-6 py-3.5 text-[15px] font-medium text-[var(--fg-primary)] transition-all duration-200 active:scale-[0.985] active:opacity-90"
+            className="group relative flex min-h-12 w-full items-center justify-center gap-3 overflow-hidden rounded-[10px] border border-[var(--border)] bg-[var(--bg-surface)] px-6 py-3.5 text-[15px] font-medium text-[var(--fg-primary)] transition-all duration-200 active:scale-[0.985] active:opacity-90"
           >
             <span
               aria-hidden

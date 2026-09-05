@@ -39,10 +39,16 @@ export default function SwipeTabs() {
   // 뷰포트 폭 측정
   useLayoutEffect(() => {
     if (!isTabRoute) return;
-    const measure = () => setW(containerRef.current?.clientWidth || window.innerWidth);
+    const container = containerRef.current;
+    const measure = () => setW(container?.clientWidth || window.innerWidth);
     measure();
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
+    if (container) observer?.observe(container);
     window.addEventListener('resize', measure);
-    return () => window.removeEventListener('resize', measure);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', measure);
+    };
   }, [isTabRoute]);
 
   // 활성 탭/폭 변화 시 트랙 위치 — 탭 변경은 스프링 애니메이션, 그 외(초기·리사이즈)는 즉시

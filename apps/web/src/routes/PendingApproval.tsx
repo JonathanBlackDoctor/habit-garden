@@ -25,7 +25,7 @@ export default function PendingApproval() {
 
   if (profile?.status === 'rejected') {
     return (
-      <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-[var(--bg-base)] px-6">
+      <div className="standalone-shell flex flex-col items-center justify-center gap-4 px-6">
                 <p className="text-base text-[var(--fg-primary)]">접근이 거부되었습니다.</p>
         <button
           onClick={() => signOutUser()}
@@ -38,7 +38,7 @@ export default function PendingApproval() {
   }
 
   return (
-    <div className="relative min-h-dvh overflow-hidden bg-[var(--bg-base)]">
+    <div className="standalone-shell relative overflow-x-hidden">
       {/* 배경 그라데이션 */}
       <div
         aria-hidden
@@ -60,7 +60,7 @@ export default function PendingApproval() {
           <PulseRing />
           <div className="flex flex-col items-center gap-1.5">
             <p className="text-[11px] uppercase tracking-[0.32em] text-[var(--fg-faint)]">Pending Approval</p>
-            <h1 className="text-[26px] font-bold tracking-tight text-[var(--fg-primary)]">승인 대기 중입니다</h1>
+            <h1 className="page-title">승인 대기 중입니다</h1>
             <p className="mt-1 max-w-[300px] text-[13px] leading-relaxed text-[var(--fg-muted)]">
               가입 신청이 접수되었어요. 관리자가 승인하면 이 화면이 자동으로 메인으로 바뀝니다.
             </p>

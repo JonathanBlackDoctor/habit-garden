@@ -19,6 +19,7 @@ import PrayerTaxonomyManager from '@/features/prayers/PrayerTaxonomyManager';
 import LifeContextEditor from '@/features/applications/LifeContextEditor';
 import { hasLifeContext } from 'shared/lib/lifeContext';
 import SignupCTA from '@/components/SignupCTA';
+import { PageHeader } from '@/components/Editorial';
 
 const items = [
   { icon: BarChart2,     label: '진척 현황', to: '/progress' },
@@ -103,8 +104,13 @@ export default function More() {
   };
 
   return (
-    <div className="min-h-screen p-4 space-y-2">
-      <h2 className="py-2 text-[24px] font-semibold tracking-[-0.01em] text-[var(--fg-primary)]">더보기</h2>
+    <div className="more-editorial page-pad min-h-full space-y-2">
+      <PageHeader
+        kicker="더보기"
+        title="기록과 설정"
+        summary="매일 쓰지 않는 화면은 여기 모았어요."
+        className="pb-3"
+      />
 
       {/* 가입 유도 — 게스트/미승인 사용자 */}
       {!isPremium && (
@@ -114,16 +120,15 @@ export default function More() {
         />
       )}
 
-      <p className="px-1 pt-2 text-[11px] font-medium text-[var(--fg-faint)]">바로가기</p>
+      <p className="kicker px-0 pt-4">기록과 돌아보기</p>
       {items
         .filter((it) => !(it.to === '/admin' && !isOwner(realUid)))
-        .map(({ icon: Icon, label, to }) => (
+        .map(({ label, to }) => (
         <button
           key={to}
           onClick={() => navigate(to)}
           className="flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3.5 text-sm text-[var(--fg-primary)] active:opacity-70"
         >
-          <Icon size={18} className="text-[var(--leaf)]" />
           {label}
         </button>
       ))}
@@ -138,7 +143,7 @@ export default function More() {
       </button>
 
       {/* 공유 · 문의 */}
-      <p className="px-1 pt-3 text-[11px] font-medium text-[var(--fg-faint)]">함께하기</p>
+      <p className="kicker px-0 pt-5">함께하기</p>
       <button
         onClick={onShare}
         className="flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3.5 text-sm text-[var(--fg-primary)] active:opacity-70 text-left"
@@ -163,7 +168,7 @@ export default function More() {
       <ContactDialog open={contactOpen} onOpenChange={setContactOpen} />
 
       {/* 피드백 / 알림 설정 (Phase 1-2, 3-1) */}
-      <p className="px-1 pt-3 text-[11px] font-medium text-[var(--fg-faint)]">설정</p>
+      <p className="kicker px-0 pt-5">설정</p>
       {isPremium && (
         <button
           onClick={() => navigate('/settings/notifications')}
@@ -179,7 +184,7 @@ export default function More() {
           <ChevronRight size={16} className="text-[var(--fg-faint)]" />
         </button>
       )}
-      <div className="rounded-[var(--radius)] bg-[var(--bg-surface)] divide-y divide-[var(--leaf-soft)]">
+      <div className="settings-list">
         <ToggleRow
           icon={<Vibrate size={18} className="text-[var(--leaf)]" />}
           label="햅틱"
@@ -256,7 +261,7 @@ export default function More() {
       )}
       {faithEnabled && isPremium && <LifeContextEditor open={lifeCtxOpen} onOpenChange={setLifeCtxOpen} />}
 
-      <p className="px-1 pt-3 text-[11px] font-medium text-[var(--fg-faint)]">계정</p>
+      <p className="kicker px-0 pt-5">계정</p>
       {!isStandalone && (
         <button
           onClick={onInstallClick}

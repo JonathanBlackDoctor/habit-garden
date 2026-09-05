@@ -18,7 +18,7 @@ export default function CoachCard() {
 
   const toneStyle =
     data.tone === 'celebrate' ? 'border-[var(--bloom)]/40 bg-[var(--bloom-soft)]/40'
-    : data.tone === 'nudge'    ? 'border-[var(--sky)]/30 bg-[#E8F0F8]'
+    : data.tone === 'nudge'    ? 'border-[var(--sky)]/30 bg-[var(--sky-soft)]'
     : 'border-[var(--leaf)]/30 bg-[var(--leaf-soft)]/40';
 
   return (

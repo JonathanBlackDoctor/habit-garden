@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Flame, Check, CheckCircle2, Archive, Trash2, BookOpen, RotateCcw, Wand2, Loader2, PenLine, ChevronLeft, Sparkles } from 'lucide-react';
+import { Plus, Flame, CheckCircle2, Archive, Trash2, BookOpen, RotateCcw, Wand2, Loader2, PenLine, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { deleteField } from 'firebase/firestore';
@@ -14,9 +14,11 @@ import {
   type NewApplicationInput,
 } from '@/features/applications/useApplications';
 import type { ApplicationDoc, ApplicationType } from 'shared/types/firestore';
+import { ProgressRail, SectionHeading, StatusCircle } from '@/components/Editorial';
 import {
   APPLICATION_TYPE_LABELS, APPLICATION_DEFAULT_TARGET_DAYS,
 } from 'shared/types/firestore';
+import { groupApplicationsByStatus } from '@/features/applications/applicationDisplay';
 
 export const TYPE_ORDER: ApplicationType[] = ['qt', 'sermon', 'meditation', 'lgm', 'etc'];
 
@@ -26,20 +28,22 @@ export function ApplicationsPanel() {
   const apps = useApplications();
   const checks = useApplicationChecks(date);
   const [showForm, setShowForm] = useState(false);
-  const [showDone, setShowDone] = useState(false);
 
-  const active = apps.filter((a) => a.status === 'active');
-  const finished = apps.filter((a) => a.status !== 'active');
+  const { active, settled, paused, archived } = groupApplicationsByStatus(apps);
+  const practiced = active.filter((a) => checks[a.id]).length;
 
   return (
     <div className="space-y-4">
       {/* 안내 + 추가 버튼 */}
-      <div className="flex items-center gap-2">
-        <p className="flex-1 text-[11px] text-[var(--fg-faint)]">큐티·설교·LGM·묵상에서 받은 적용을 매일 실천으로</p>
+      <div className="flex items-start gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="text-[13.5px] leading-relaxed text-[var(--fg-muted)]">큐티·설교·LGM·묵상에서 받은 적용을 매일 실천으로</p>
+          {active.length > 0 && <p className="meta-copy mt-1 tabular-nums">오늘 {practiced} / {active.length} 실천</p>}
+        </div>
         <button
           data-tour="application-add"
           onClick={() => setShowForm((v) => !v)}
-          className="flex items-center gap-1 rounded-[var(--radius)] bg-[var(--leaf)] px-3 py-1.5 text-xs font-medium text-white active:opacity-80"
+          className="flex min-h-10 items-center gap-1 rounded-full border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--fg-primary)] active:opacity-80"
           aria-label="적용 추가"
         >
           <Plus size={14} className={cn('transition-transform', showForm && 'rotate-45')} /> 추가
@@ -73,32 +77,28 @@ export function ApplicationsPanel() {
           </button>
         </div>
       ) : (
-        <div className="space-y-2">
+        <section>
+          <SectionHeading title="진행 중" meta={String(active.length)} className="mb-1" />
+          <div className="border-y border-[var(--divider-soft)]">
           {active.map((app) => (
             <ApplicationCard key={app.id} app={app} practicedToday={!!checks[app.id]} />
           ))}
-        </div>
+          </div>
+        </section>
       )}
 
-      {/* 완료·보관함 */}
-      {finished.length > 0 && (
-        <div className="pt-2">
-          <button
-            onClick={() => setShowDone((v) => !v)}
-            className="flex w-full items-center justify-between rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--fg-muted)]"
-          >
-            <span>완료·보관 ({finished.length})</span>
-            <ChevronLeft size={16} className={cn('transition-transform', showDone ? '-rotate-90' : 'rotate-0')} />
-          </button>
-          {showDone && (
-            <div className="mt-2 space-y-2">
-              {finished.map((app) => (
-                <ApplicationCard key={app.id} app={app} practicedToday={!!checks[app.id]} />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+      {[
+        { label: '정착', items: settled },
+        { label: '보류', items: paused },
+        { label: '보관', items: archived },
+      ].filter((group) => group.items.length > 0).map((group) => (
+        <section key={group.label}>
+          <SectionHeading title={group.label} meta={String(group.items.length)} className="mb-1" />
+          <div className="border-y border-[var(--divider-soft)]">
+            {group.items.map((app) => <ApplicationCard key={app.id} app={app} practicedToday={!!checks[app.id]} />)}
+          </div>
+        </section>
+      ))}
     </div>
   );
 }
@@ -410,23 +410,25 @@ function ApplicationCard({ app, practicedToday }: { app: ApplicationDoc; practic
 
   if (editing) {
     return (
-      <motion.div layout className="card-flat p-3.5">
+      <motion.div layout className="editorial-panel my-2">
         <EditForm app={app} onDone={() => setEditing(false)} />
       </motion.div>
     );
   }
 
   return (
-    <motion.div layout className="card-flat space-y-2 p-3.5">
-      <div className="flex items-start gap-2">
-        <span className="mt-0.5 shrink-0 rounded-full bg-[var(--leaf-soft)] px-2 py-0.5 text-[10px] font-medium text-[var(--leaf)]">
-          {APPLICATION_TYPE_LABELS[app.type]}
-        </span>
+    <motion.div layout className="space-y-2 border-t border-[var(--divider-soft)] py-[12.5px] first:border-t-0">
+      <div className="flex items-start gap-[13px]">
+        <StatusCircle
+          checked={practicedToday || app.status === 'completed'}
+          label={practicedToday ? '오늘 실천 취소' : '오늘 실천 완료'}
+          onClick={isActive ? () => void (practicedToday ? uncheckPractice(app) : checkPractice(app)) : undefined}
+        />
         <div className="min-w-0 flex-1">
           {app.reference && (
-            <p className="text-xs font-medium text-[var(--bloom)]">{app.reference}</p>
+            <p className="meta-copy">{APPLICATION_TYPE_LABELS[app.type]} · {app.reference} · {formatKoreanDate(app.date)}</p>
           )}
-          <p className="text-sm font-medium leading-snug text-[var(--fg-primary)]">{app.application}</p>
+          <p className="text-[15.5px] leading-[1.5] tracking-[-0.018em] text-[var(--fg-primary)]">{app.application}</p>
           {app.insight && (
             <p className="mt-0.5 text-xs leading-snug text-[var(--fg-muted)]">{app.insight}</p>
           )}
@@ -442,12 +444,7 @@ function ApplicationCard({ app, practicedToday }: { app: ApplicationDoc; practic
 
       {/* 실천 진행 */}
       <div className="flex items-center gap-2">
-        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--bg-base)]">
-          <div
-            className={cn('h-full rounded-full transition-all', goalMet ? 'bg-[var(--bloom)]' : 'bg-[var(--leaf)]')}
-            style={{ width: `${progress * 100}%` }}
-          />
-        </div>
+        <ProgressRail value={progress * 100} className="flex-1" />
         <span className="shrink-0 text-[11px] tabular-nums text-[var(--fg-muted)]">
           {app.practiceCount}/{app.targetDays}일
         </span>
@@ -462,20 +459,7 @@ function ApplicationCard({ app, practicedToday }: { app: ApplicationDoc; practic
         <p className="text-[11px] font-medium text-[var(--bloom)]">목표 달성 — 삶에 정착됐다면 완료로 마무리하세요.</p>
       )}
 
-      {/* 액션 */}
-      {isActive ? (
-        <button
-          onClick={() => (practicedToday ? uncheckPractice(app) : checkPractice(app))}
-          className={cn(
-            'flex w-full items-center justify-center gap-1.5 rounded-[var(--radius-sm)] py-2 text-sm font-medium transition-colors',
-            practicedToday
-              ? 'bg-[var(--leaf-soft)] text-[var(--leaf)]'
-              : 'bg-[var(--leaf)] text-white',
-          )}
-        >
-          {practicedToday ? <><CheckCircle2 size={16} /> 오늘 실천함 (취소)</> : <><Check size={16} /> 오늘 실천했어요</>}
-        </button>
-      ) : (
+      {!isActive && (
         <p className="text-[11px] text-[var(--fg-faint)]">
           {app.status === 'completed'
             ? '✓ 완료 — 삶에 정착됨'

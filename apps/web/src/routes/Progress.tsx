@@ -46,8 +46,8 @@ export default function Progress() {
   });
 
   return (
-    <div className="min-h-screen p-4 space-y-4 pb-8">
-      <h2 className="text-[24px] font-semibold tracking-[-0.01em] text-[var(--fg-primary)] pt-2">진척 현황</h2>
+    <div className="page-pad min-h-full space-y-6 pb-8">
+      <h2 className="page-title pt-2">진척 현황</h2>
 
       {/* 스트릭 */}
       <div className="grid grid-cols-2 gap-3">
@@ -103,7 +103,7 @@ export default function Progress() {
         </div>
         <div className="flex items-center gap-2 text-xs text-[var(--fg-faint)]">
           <div className="flex gap-1">
-            {['var(--leaf-soft)', '#B8D89A', '#7CB95B', '#4F7A37'].map((c, i) => (
+            {['var(--leaf-soft)', '#D5C7B4', '#A48C68', '#7A5F38'].map((c, i) => (
               <div key={i} className="h-3 w-3 rounded-sm" style={{ background: c }} />
             ))}
           </div>

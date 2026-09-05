@@ -13,7 +13,7 @@ export default function ToggleRow({
   return (
     <button
       onClick={onToggle}
-      className="flex w-full items-center gap-3 px-4 py-3.5 text-left active:opacity-70"
+      className="flex min-h-12 w-full items-center gap-3 px-4 py-3.5 text-left active:opacity-70"
     >
       {icon}
       <div className="flex-1">
@@ -22,7 +22,7 @@ export default function ToggleRow({
       </div>
       <span
         className={`relative h-5 w-9 rounded-full transition-colors ${
-          value ? 'bg-[var(--leaf)]' : 'bg-[var(--leaf-soft)]'
+          value ? 'bg-[var(--leaf)]' : 'bg-[var(--border)]'
         }`}
       >
         <span

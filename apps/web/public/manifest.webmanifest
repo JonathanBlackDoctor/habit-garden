@@ -1,13 +1,13 @@
 {
   "name": "습관 정원",
   "short_name": "습관 정원",
-  "description": "매일의 작은 습관을 기록하고 돌아보는 앱",
+  "description": "매일의 작은 습관을 기록하고 돌아보는 공간",
   "start_url": "/habit-garden/",
   "scope": "/habit-garden/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#F4F6EE",
-  "theme_color": "#F4F6EE",
+  "background_color": "#F4F2ED",
+  "theme_color": "#F4F2ED",
   "lang": "ko",
   "icons": [
     {
