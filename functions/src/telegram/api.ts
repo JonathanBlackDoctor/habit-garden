@@ -139,7 +139,7 @@ export function setWebhook(url: string, secret: string): Promise<unknown> {
     url,
     secret_token: secret,
     allowed_updates: ['message', 'callback_query'],
-    drop_pending_updates: true,
+    drop_pending_updates: false,
   });
 }
 
