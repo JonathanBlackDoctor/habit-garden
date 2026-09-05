@@ -11,7 +11,7 @@
  */
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
-import { sendMessage, TelegramForbiddenError } from './api';
+import { sendMessage, TelegramForbiddenError, QUICK_REPLY_KEYBOARD } from './api';
 import type { TelegramUpdate } from './api';
 import { isPrivateTelegramChat } from '../../../shared/lib/telegram';
 import { getLinkByChatId, consumeLinkCode, linkAccount, claimUpdate, unlinkAccount } from './store';
@@ -147,14 +147,16 @@ async function handleStart(
     '이제 앱을 열지 않고도 여기서 습관을 체크할 수 있어요.',
     '리마인더·모닝 브리프도 이 대화로 옵니다.',
     '',
-    '/today — 오늘 습관 체크',
+    '/now — 지금 시간대 습관 체크',
+    '/today — 오늘 남은 습관 모두 보기',
     '/reflect — 저녁 회고',
     '/coach — AI 코치',
     '/settings — 알림 설정',
-  ].join('\n'));
+  ].join('\n'), true);
 }
 
 /** 미연결·오류 안내는 실패해도 웹훅 전체를 망치지 않게 삼킨다. */
-async function safeSend(chatId: string, text: string): Promise<void> {
-  await sendMessage(chatId, text).catch((e) => console.error(`sendMessage failed chat=${chatId}:`, e));
+async function safeSend(chatId: string, text: string, quickMenu = false): Promise<void> {
+  await sendMessage(chatId, text, undefined, quickMenu ? QUICK_REPLY_KEYBOARD : undefined)
+    .catch((e) => console.error(`sendMessage failed chat=${chatId}:`, e));
 }

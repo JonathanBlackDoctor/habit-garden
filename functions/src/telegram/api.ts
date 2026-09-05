@@ -38,6 +38,24 @@ export interface TelegramUpdate {
   callback_query?: TelegramCallbackQuery;
 }
 
+export interface ReplyKeyboardMarkup {
+  keyboard: Array<Array<{ text: string }>>;
+  resize_keyboard?: boolean;
+  is_persistent?: boolean;
+  input_field_placeholder?: string;
+}
+
+/** 한 번 표시하면 대화 하단에 남는 일상 동작 메뉴. */
+export const QUICK_REPLY_KEYBOARD: ReplyKeyboardMarkup = {
+  keyboard: [
+    [{ text: '✅ 지금 체크' }, { text: '⏳ 남은 습관' }],
+    [{ text: '📝 회고' }, { text: '⚙️ 설정' }],
+  ],
+  resize_keyboard: true,
+  is_persistent: true,
+  input_field_placeholder: '습관을 바로 기록해 보세요',
+};
+
 /** 사용자가 봇을 차단했거나 대화를 지운 경우 — 연결 정보를 정리해야 한다. */
 export class TelegramForbiddenError extends Error {}
 
@@ -61,20 +79,23 @@ async function call<T = any>(method: string, body: Record<string, unknown>): Pro
   return json.result as T;
 }
 
-const markup = (keyboard?: InlineKeyboard) =>
-  keyboard && keyboard.length > 0 ? { reply_markup: { inline_keyboard: keyboard } } : {};
+const markup = (keyboard?: InlineKeyboard, replyKeyboard?: ReplyKeyboardMarkup) => {
+  if (replyKeyboard) return { reply_markup: replyKeyboard };
+  return keyboard && keyboard.length > 0 ? { reply_markup: { inline_keyboard: keyboard } } : {};
+};
 
 export function sendMessage(
   chatId: string | number,
   text: string,
   keyboard?: InlineKeyboard,
+  replyKeyboard?: ReplyKeyboardMarkup,
 ): Promise<TelegramMessage> {
   return call<TelegramMessage>('sendMessage', {
     chat_id: chatId,
     text,
     parse_mode: 'HTML',
     disable_web_page_preview: true,
-    ...markup(keyboard),
+    ...markup(keyboard, replyKeyboard),
   });
 }
 
@@ -120,7 +141,9 @@ export async function answerCallbackQuery(
 
 /** 텔레그램 명령 이름은 [a-z0-9_]{1,32} 만 허용 — 한글 명령은 메뉴에 등록할 수 없다. */
 export const BOT_COMMANDS: Array<{ command: string; description: string }> = [
-  { command: 'today',    description: '오늘 습관 체크하기' },
+  { command: 'now',      description: '지금 시간대 습관 체크' },
+  { command: 'today',    description: '오늘 남은 습관 모두 보기' },
+  { command: 'menu',     description: '빠른 메뉴 표시' },
   { command: 'reflect',  description: '저녁 회고 쓰기' },
   { command: 'coach',    description: 'AI 코치 한마디' },
   { command: 'weekly',   description: '이번 주 인사이트' },

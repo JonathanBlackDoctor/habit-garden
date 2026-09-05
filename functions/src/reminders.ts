@@ -19,6 +19,7 @@ import { PRAYER_ROTATION_DEFAULTS } from '../../shared/types/firestore';
 import { daysSince, type RotationInput } from '../../shared/prayerRotation';
 import {
   visibleHabits, buildHabitListMessage, encodeCallback, escapeHtml,
+  reminderFilterForHour, habitMatchesFilter,
 } from '../../shared/lib/telegram';
 import { notifyUser } from './notify';
 
@@ -60,6 +61,7 @@ async function processUser(uid: string, hour: number, today: string): Promise<vo
   const progSnap = await db.doc(`users/${uid}/progress/main`).get();
   if (!progSnap.exists) return;
   const prog = progSnap.data() as ProgressDoc;
+  if ((prog as any)?._todayHabitReminderPause?.date === today) return;
   const lastReminderToday = countTodayReminders(prog, today);
   if (lastReminderToday >= MAX_PER_DAY) return;
 
@@ -72,14 +74,10 @@ async function processUser(uid: string, hour: number, today: string): Promise<vo
   const checks: Record<string, HabitCheckDoc> = {};
   checksSnap.docs.forEach((d) => { checks[d.id] = d.data() as HabitCheckDoc; });
 
-  const todForHour: Record<number, HabitDoc['timeOfDay']> = {
-    9: 'morning',
-    13: 'afternoon',
-    19: 'evening',
-    21: 'night',
-  };
-  const tod = todForHour[hour];
-  const target = habits.filter((h) => h.timeOfDay === tod);
+  const filter = reminderFilterForHour(hour);
+  if (!filter) return;
+  // 밤 최종 점검에는 특정 시간대가 없는 anytime 습관도 함께 포함한다.
+  const target = habits.filter((h) => habitMatchesFilter(h, filter));
   const unchecked = target.filter((h) => !checks[h.id]);
   if (unchecked.length === 0) return;
 
@@ -93,12 +91,12 @@ async function processUser(uid: string, hour: number, today: string): Promise<vo
   // 텔레그램에서는 알림 그 자체가 체크 화면이 된다 — 앱을 열 필요가 없다.
   const list = buildHabitListMessage({
     date: today, habits, checks, streak: prog.globalStreak ?? 0, dayScore: null,
-  });
+  }, { filter, pendingOnly: true, page: 0 });
 
   await notifyUser(uid, {
     title,
     body,
-    tod: tod ?? 'anytime',
+    tod: filter === 'nightAnytime' ? 'night' : filter,
     date: today,
     habitIds: unchecked.map((h) => h.id).join(','),
   }, {

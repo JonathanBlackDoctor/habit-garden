@@ -5,13 +5,18 @@ import * as admin from 'firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import type { UserSettingsDoc } from '../../../shared/types/firestore';
 import {
-  plannerDateKST, parseCallback, escapeHtml, buildSettingsMessage,
-  type NotifKey,
+  plannerDateKST, habitTimeOfDayKST, parseCallback, escapeHtml, buildSettingsMessage,
+  normalizeHabitListContext,
+  type NotifKey, type HabitListContext,
 } from '../../../shared/lib/telegram';
 import { runAICoach, type Mode } from '../aiCoach';
-import { sendMessage, editMessageText, answerCallbackQuery, BOT_COMMANDS } from './api';
+import {
+  sendMessage, editMessageText, answerCallbackQuery, BOT_COMMANDS, QUICK_REPLY_KEYBOARD,
+} from './api';
 import type { TelegramMessage, TelegramCallbackQuery } from './api';
-import { renderHabitList, renderScorePicker, saveCheck, clearCheck } from './habitCheck';
+import {
+  renderHabitList, renderScorePicker, saveCheck, clearCheck, snoozeHabitChecks,
+} from './habitCheck';
 import { startReflection, handleReflectionInput, cancelReflection } from './reflection';
 import { unlinkAccount } from './store';
 
@@ -27,10 +32,15 @@ export interface Session {
 // 평문 한글 키워드도 같은 명령으로 받아준다.
 const KOREAN_ALIASES: Record<string, string> = {
   '오늘': 'today', '습관': 'today', '체크': 'today',
+  '지금': 'now', '지금 체크': 'now', '✅ 지금 체크': 'now',
+  '남은 습관': 'today', '⏳ 남은 습관': 'today',
   '회고': 'reflect',
+  '📝 회고': 'reflect',
   '코치': 'coach',
   '주간': 'weekly',
   '설정': 'settings',
+  '⚙️ 설정': 'settings',
+  '메뉴': 'menu',
   '취소': 'cancel',
   '도움말': 'help',
 };
@@ -41,7 +51,7 @@ const HELP = [
   '',
   ...BOT_COMMANDS.map((c) => `/${c.command} — ${c.description}`),
   '',
-  '<i>“오늘”, “회고”처럼 한글로 보내도 같은 명령이 실행돼요.</i>',
+  '<i>아래 빠른 메뉴와 시간대 버튼으로 입력 없이 사용할 수 있어요.</i>',
 ].join('\n');
 
 /** '/today@botname arg' → { command: 'today', arg: 'arg' } */
@@ -72,11 +82,16 @@ export async function handleMessage(s: Session, msg: TelegramMessage): Promise<v
   switch (parsed.command) {
     case 'start':
     case 'help':
-      await sendMessage(s.chatId, HELP);
+    case 'menu':
+      await sendMessage(s.chatId, HELP, undefined, QUICK_REPLY_KEYBOARD);
+      return;
+
+    case 'now':
+      await sendToday(s, { filter: habitTimeOfDayKST(), pendingOnly: true, page: 0 });
       return;
 
     case 'today':
-      await sendToday(s);
+      await sendToday(s, { filter: 'all', pendingOnly: true, page: 0 });
       return;
 
     case 'reflect':
@@ -113,9 +128,9 @@ export async function handleMessage(s: Session, msg: TelegramMessage): Promise<v
   }
 }
 
-async function sendToday(s: Session): Promise<void> {
+async function sendToday(s: Session, context: HabitListContext): Promise<void> {
   const date = plannerDateKST();
-  const { text, keyboard } = await renderHabitList(s.uid, date);
+  const { text, keyboard } = await renderHabitList(s.uid, date, context);
   await sendMessage(s.chatId, text, keyboard);
 }
 
@@ -173,8 +188,28 @@ export async function handleCallback(s: Session, q: TelegramCallbackQuery): Prom
       return;
     }
 
+    if (cb.action === 'snooze') {
+      const count = await snoozeHabitChecks(s.uid, cb.date, cb.filter, cb.minutes);
+      await answerCallbackQuery(
+        q.id,
+        count > 0 ? `${count}개를 ${cb.minutes === 30 ? '30분' : '2시간'} 뒤 다시 알려드릴게요.` : '남은 습관이 없어요.',
+      );
+      return;
+    }
+
+    if (cb.action === 'pause') {
+      await db.doc(`users/${s.uid}/progress/main`).set({
+        _todayHabitReminderPause: { date: cb.date },
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+      await answerCallbackQuery(q.id, '오늘 습관 알림을 멈췄어요.');
+      return;
+    }
+
+    const context = normalizeHabitListContext(cb);
+
     if (cb.action === 'pick') {
-      const view = await renderScorePicker(s.uid, cb.date, cb.habitId);
+      const view = await renderScorePicker(s.uid, cb.date, cb.habitId, context);
       await answerCallbackQuery(q.id);
       if (!view) { await sendMessage(s.chatId, '없는 습관이에요.'); return; }
       if (messageId) await editMessageText(s.chatId, messageId, view.text, view.keyboard);
@@ -190,14 +225,14 @@ export async function handleCallback(s: Session, q: TelegramCallbackQuery): Prom
         await clearCheck(s.uid, cb.date, cb.habitId);
       }
       await answerCallbackQuery(q.id, toast);
-      const list = await renderHabitList(s.uid, cb.date);
+      const list = await renderHabitList(s.uid, cb.date, context);
       if (messageId) await editMessageText(s.chatId, messageId, list.text, list.keyboard);
       return;
     }
 
     // list — 새로고침
     await answerCallbackQuery(q.id);
-    const list = await renderHabitList(s.uid, cb.date);
+    const list = await renderHabitList(s.uid, cb.date, context);
     if (messageId) await editMessageText(s.chatId, messageId, list.text, list.keyboard);
     return;
   }

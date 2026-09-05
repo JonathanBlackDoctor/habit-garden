@@ -96,7 +96,9 @@ export default function TelegramSettings() {
           <div className="card-flat space-y-2 p-4">
             <p className="text-xs font-medium text-[var(--fg-muted)]">봇에서 쓸 수 있는 명령</p>
             <ul className="space-y-1 text-xs text-[var(--fg-muted)]">
-              <li><code className="text-[var(--fg-primary)]">/today</code> — 오늘 습관 체크</li>
+              <li><code className="text-[var(--fg-primary)]">/now</code> — 지금 시간대 습관 체크</li>
+              <li><code className="text-[var(--fg-primary)]">/today</code> — 오늘 남은 습관 모두 보기</li>
+              <li><code className="text-[var(--fg-primary)]">/menu</code> — 빠른 메뉴 표시</li>
               <li><code className="text-[var(--fg-primary)]">/reflect</code> — 저녁 회고 쓰기</li>
               <li><code className="text-[var(--fg-primary)]">/coach</code> — AI 코치 한마디</li>
               <li><code className="text-[var(--fg-primary)]">/weekly</code> — 이번 주 인사이트</li>
