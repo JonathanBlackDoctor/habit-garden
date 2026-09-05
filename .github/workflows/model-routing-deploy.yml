@@ -1,0 +1,49 @@
+name: Temporary AI Model Routing Deploy
+
+on:
+  push:
+    branches:
+      - chore/ai-model-routing-20260906
+    paths:
+      - 'functions/**'
+      - '.github/workflows/model-routing-deploy.yml'
+
+concurrency:
+  group: temporary-ai-model-routing-deploy
+  cancel-in-progress: false
+
+jobs:
+  validate-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: pnpm 설치
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Node.js 20 설정
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 의존성 설치
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Cloud Functions 빌드
+        run: pnpm --filter functions build
+
+      - name: Firebase 서비스 계정 자격증명 준비
+        run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > "${{ github.workspace }}/firebase-sa.json"
+
+      - name: Functions 배포
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/firebase-sa.json
+        run: |
+          pnpm exec firebase deploy \
+            --only functions \
+            --project planner-web-quick \
+            --non-interactive
