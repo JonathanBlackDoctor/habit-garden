@@ -10,7 +10,8 @@ import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { format, subDays } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
-import { sendPush } from './notify';
+import { escapeHtml } from '../../shared/lib/telegram';
+import { notifyUser } from './notify';
 import type { DayDoc, ProgressDoc, UserSettingsDoc } from '../../shared/types/firestore';
 
 const db = admin.firestore();
@@ -19,6 +20,7 @@ const KST = 'Asia/Seoul';
 
 export const progressWeekly = functions
   .region(REGION)
+  .runWith({ secrets: ['TELEGRAM_BOT_TOKEN'] })
   .pubsub
   .schedule('0 20 * * 0')          // 일요일 20:00 KST
   .timeZone(KST)
@@ -57,13 +59,17 @@ async function processUser(uid: string, recentDates: string[]): Promise<void> {
     const avg = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
     const body = buildBody({ avg, achievedDays, streak });
 
-    const tokenSnap = await db.collection(`users/${uid}/notifications`).get();
-    if (tokenSnap.empty) return;
-
-    await sendPush(uid, tokenSnap.docs, {
+    await notifyUser(uid, {
       title: '📊 이번 주 진척 돌아보기',
       body,
-    }, { link: '/habit-garden/#/progress', type: 'progress_weekly', urgency: 'normal' });
+    }, {
+      link: '/habit-garden/#/progress',
+      type: 'progress_weekly',
+      urgency: 'normal',
+      telegram: {
+        text: `📊 <b>이번 주 진척</b>\n${escapeHtml(body)}\n\n자세히 보려면 /weekly`,
+      },
+    });
   } catch (e) {
     console.error(`progressWeekly failed for uid=${uid}:`, e);
   }

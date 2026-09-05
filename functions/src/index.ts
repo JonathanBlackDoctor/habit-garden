@@ -23,3 +23,6 @@ export { flushReminderQueue } from './reminderQueue';
 export { morningBrief } from './morningBrief';
 export { progressWeekly } from './progressWeekly';
 export { ensureUserProfile, approveUser, listPendingUsers } from './userProfile';
+export { telegramWebhook } from './telegram/webhook';
+export { createTelegramLinkCode, unlinkTelegram } from './telegram/link';
+export { setupTelegramBot } from './telegram/setup';

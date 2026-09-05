@@ -11,7 +11,8 @@ import { toZonedTime } from 'date-fns-tz';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { callGeminiWithRetry, GEMINI_MODEL } from './geminiUtil';
 import type { PrayerDoc, UserSettingsDoc } from '../../shared/types/firestore';
-import { sendPush } from './notify';
+import { escapeHtml } from '../../shared/lib/telegram';
+import { notifyUser } from './notify';
 
 const db = admin.firestore();
 const KST = 'Asia/Seoul';
@@ -19,7 +20,7 @@ const REGION = 'asia-northeast3';
 
 export const generatePrayerWeekly = functions
   .region(REGION)
-  .runWith({ secrets: ['GEMINI_API_KEY'], timeoutSeconds: 540 })
+  .runWith({ secrets: ['GEMINI_API_KEY', 'TELEGRAM_BOT_TOKEN'], timeoutSeconds: 540 })
   .pubsub
   .schedule('0 21 * * 0')          // 일요일 21:00 KST
   .timeZone(KST)
@@ -156,11 +157,15 @@ async function processUserWeekly(uid: string, nowKst: Date): Promise<void> {
   const settingsSnap = await db.doc(`users/${uid}/settings/main`).get();
   if ((settingsSnap.data() as UserSettingsDoc | undefined)?.notifications?.prayerWeekly === false) return;
 
-  const tokenSnap = await db.collection(`users/${uid}/notifications`).get();
-  if (!tokenSnap.empty) {
-    await sendPush(uid, tokenSnap.docs, {
-      title: '🙏 주간 기도 돌아보기가 도착했어요',
-      body: encouragement.slice(0, 80),
-    }, { link: '/habit-garden/#/prayers', type: 'prayer_weekly', urgency: 'normal' });
-  }
+  await notifyUser(uid, {
+    title: '🙏 주간 기도 돌아보기가 도착했어요',
+    body: encouragement.slice(0, 80),
+  }, {
+    link: '/habit-garden/#/prayers',
+    type: 'prayer_weekly',
+    urgency: 'normal',
+    telegram: {
+      text: `🙏 <b>주간 기도 돌아보기가 도착했어요</b>\n${escapeHtml(encouragement.slice(0, 200))}\n\n전체 내용은 앱 신앙 탭에서 볼 수 있어요.`,
+    },
+  });
 }

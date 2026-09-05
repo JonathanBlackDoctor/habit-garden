@@ -26,6 +26,21 @@ service cloud.firestore {
       allow read, write: if (request.auth != null && request.auth.uid == uid) || isOwner();
     }
 
+    // ── 텔레그램 연동 ────────────────────────────────────────────────
+    // 연결 정보를 users/{uid} 밑에 두지 않은 이유: 위 users 규칙이 클라이언트 쓰기를
+    // 허용하고 Firestore 규칙은 OR 로 평가돼, 하위 경로에서 다시 막을 수 없다.
+    // 클라이언트가 이 문서를 쓸 수 있으면 남의 chatId 를 가로채 알림을 빼돌릴 수 있다.
+    // 쓰기는 Cloud Functions(Admin SDK, 규칙 우회) 전용.
+
+    // 앱이 연결 상태를 보여주려고 자기 문서만 읽는다.
+    match /telegramUsers/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
+    // chatId → uid 역인덱스, 1회용 연결 코드 — 클라이언트는 읽지도 쓰지도 않는다.
+    match /telegramLinks/{chatId}   { allow read, write: if false; }
+    match /telegramLinkCodes/{code} { allow read, write: if false; }
+
     // 관리자 문의(버그·문의). 작성자 본인과 owner만 읽고, 생성은 본인,
     // 답변(수정)·삭제는 owner만 가능. 게스트(익명) 포함 인증 사용자면 작성할 수 있다.
     match /inquiries/{id} {

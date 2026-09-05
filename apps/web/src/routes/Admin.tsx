@@ -3,7 +3,8 @@ import {
   collection, onSnapshot, updateDoc, deleteDoc, doc, setDoc, getDocs,
   serverTimestamp, query, orderBy, where,
 } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { httpsCallable } from 'firebase/functions';
+import { db, functions } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import { SEED_PRAYERS, INQUIRY_CATEGORY_LABELS } from 'shared/types/firestore';
 import type { HabitDoc, UserProfileDoc, InquiryDoc } from 'shared/types/firestore';
@@ -34,6 +35,8 @@ export default function Admin() {
   const [inquiries, setInquiries] = useState<InquiryDoc[]>([]);
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
   const [replyingId, setReplyingId] = useState<string | null>(null);
+  const [botSetup, setBotSetup] = useState(false);
+  const [botInfo, setBotInfo] = useState<{ botUsername: string | null; webhookUrl: string; lastErrorMessage: string | null } | null>(null);
   const showAdminControls = isOwner(realUid);
   const isPremium = useIsPremium();
 
@@ -53,6 +56,27 @@ export default function Admin() {
     );
     return () => { unsubPending(); unsubApproved(); unsubInquiries(); };
   }, [showAdminControls]);
+
+  /**
+   * 텔레그램 웹훅·명령 메뉴 등록. 봇 토큰이 서버 시크릿에만 있으므로
+   * 로컬 스크립트 대신 owner 가 여기서 한 번 눌러 실행한다.
+   */
+  const runBotSetup = async () => {
+    if (botSetup) return;
+    setBotSetup(true);
+    try {
+      const fn = httpsCallable<unknown, {
+        botUsername: string | null; webhookUrl: string; lastErrorMessage: string | null;
+      }>(functions, 'setupTelegramBot');
+      const { data } = await fn({});
+      setBotInfo(data);
+      toast.success(data.botUsername ? `@${data.botUsername} 웹훅을 등록했어요` : '웹훅을 등록했어요');
+    } catch (e: any) {
+      toast.error(e?.message ?? '봇 설정에 실패했어요');
+    } finally {
+      setBotSetup(false);
+    }
+  };
 
   const sendReply = async (id: string) => {
     if (replyingId) return;
@@ -366,6 +390,33 @@ export default function Admin() {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* 텔레그램 봇 (owner 전용) */}
+      {showAdminControls && (
+        <section className="card-flat p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <Send size={16} className="text-[var(--leaf)]" />
+            <h3 className="text-sm font-medium text-[var(--fg-primary)]">텔레그램 봇</h3>
+          </div>
+          <p className="text-xs leading-relaxed text-[var(--fg-muted)]">
+            봇 웹훅과 명령 메뉴를 등록합니다. <code>TELEGRAM_BOT_TOKEN</code>·
+            <code>TELEGRAM_WEBHOOK_SECRET</code> 시크릿을 설정한 뒤 한 번만 누르면 되고,
+            봇 토큰을 바꾸면 다시 눌러주세요.
+          </p>
+          <Button onClick={runBotSetup} disabled={botSetup} className="w-full">
+            {botSetup ? '등록 중…' : '웹훅·명령 등록'}
+          </Button>
+          {botInfo && (
+            <div className="space-y-1 rounded-md bg-[var(--bg-base)] p-3 text-[11px] text-[var(--fg-muted)]">
+              <p>봇: {botInfo.botUsername ? `@${botInfo.botUsername}` : '이름 없음'}</p>
+              <p className="break-all">웹훅: {botInfo.webhookUrl}</p>
+              {botInfo.lastErrorMessage && (
+                <p className="text-[var(--bloom)]">최근 오류: {botInfo.lastErrorMessage}</p>
+              )}
             </div>
           )}
         </section>

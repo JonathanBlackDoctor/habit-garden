@@ -14,7 +14,8 @@ import { format, subDays } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import { callGeminiWithRetry, GEMINI_MODEL } from './geminiUtil';
 import type { HabitDoc, DayDoc, ProgressDoc, UserSettingsDoc } from '../../shared/types/firestore';
-import { sendPush } from './notify';
+import { escapeHtml } from '../../shared/lib/telegram';
+import { notifyUser } from './notify';
 
 const db = admin.firestore();
 const REGION = 'asia-northeast3';
@@ -22,7 +23,7 @@ const KST = 'Asia/Seoul';
 
 export const morningBrief = functions
   .region(REGION)
-  .runWith({ secrets: ['GEMINI_API_KEY'], timeoutSeconds: 540 })
+  .runWith({ secrets: ['GEMINI_API_KEY', 'TELEGRAM_BOT_TOKEN'], timeoutSeconds: 540 })
   .pubsub
   .schedule('0 6 * * *')
   .timeZone(KST)
@@ -79,14 +80,26 @@ async function processUser(uid: string, today: string, yesterday: string, recent
     const settingsSnap = await db.doc(`users/${uid}/settings/main`).get();
     if ((settingsSnap.data() as UserSettingsDoc | undefined)?.notifications?.morningBrief === false) return;
 
-    const tokenSnap = await db.collection(`users/${uid}/notifications`).get();
-    if (!tokenSnap.empty) {
-      await sendPush(uid, tokenSnap.docs, {
-        title: '☀️ 오늘의 브리프',
-        body: top3.map((h) => h.title).join(' · '),
-        date: today,
-      }, { link: '/habit-garden/', type: 'morning_brief' });
-    }
+    await notifyUser(uid, {
+      title: '☀️ 오늘의 브리프',
+      body: top3.map((h) => h.title).join(' · '),
+      date: today,
+    }, {
+      link: '/habit-garden/',
+      type: 'morning_brief',
+      // 텔레그램에는 요약이 아니라 브리프 본문을 그대로 보낸다 — 앱을 열 이유가 없도록.
+      telegram: {
+        text: [
+          '☀️ <b>오늘의 브리프</b>',
+          escapeHtml(message),
+          '',
+          `오늘 핵심: ${escapeHtml(top3.map((h) => h.title).join(' · '))}`,
+          `어제 ${yesterdayScore}점${streak > 0 ? ` · 🔥 ${streak}일째` : ''}`,
+          '',
+          '체크하려면 /today',
+        ].join('\n'),
+      },
+    });
   } catch (e) {
     console.error(`morningBrief failed for uid=${uid}:`, e);
   }

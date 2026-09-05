@@ -7,8 +7,9 @@ import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
-import type { HabitDoc, HabitCheckDoc, UserSettingsDoc } from '../../shared/types/firestore';
-import { sendPush } from './notify';
+import type { HabitDoc, HabitCheckDoc, ProgressDoc, UserSettingsDoc } from '../../shared/types/firestore';
+import { visibleHabits, buildHabitListMessage, escapeHtml } from '../../shared/lib/telegram';
+import { notifyUser } from './notify';
 
 const db = admin.firestore();
 const REGION = 'asia-northeast3';
@@ -16,6 +17,7 @@ const KST = 'Asia/Seoul';
 
 export const flushReminderQueue = functions
   .region(REGION)
+  .runWith({ secrets: ['TELEGRAM_BOT_TOKEN'] })
   .pubsub
   .schedule('*/5 * * * *')
   .timeZone(KST)
@@ -69,15 +71,38 @@ async function processUser(uid: string, today: string, nowMs: number): Promise<v
     const habitOff = (settingsSnap.data() as UserSettingsDoc | undefined)?.notifications?.habitReminder === false;
 
     if (pending.length > 0 && !habitOff) {
-      const tokenSnap = await db.collection(`users/${uid}/notifications`).get();
-      if (!tokenSnap.empty) {
-        await sendPush(uid, tokenSnap.docs, {
-          title: `⏰ 다시 알림 — ${pending.length}개`,
-          body: `${titles.slice(0, 2).join(', ')}${pending.length > 2 ? ` 외 ${pending.length - 2}개` : ''}`,
-          date: today,
-          habitIds: pending.join(','),
-        }, { link: '/habit-garden/#/habits', type: 'habit_reminder' });
-      }
+      const title = `⏰ 다시 알림 — ${pending.length}개`;
+      const body = `${titles.slice(0, 2).join(', ')}${pending.length > 2 ? ` 외 ${pending.length - 2}개` : ''}`;
+
+      // 텔레그램에서는 재알림에도 체크 키보드를 붙여 그 자리에서 끝낼 수 있게 한다.
+      const [allHabitsSnap, allChecksSnap, progSnap] = await Promise.all([
+        db.collection(`users/${uid}/habits`).get(),
+        db.collection(`users/${uid}/days/${today}/habitChecks`).get(),
+        db.doc(`users/${uid}/progress/main`).get(),
+      ]);
+      const checkMap: Record<string, HabitCheckDoc> = {};
+      allChecksSnap.docs.forEach((d) => { checkMap[d.id] = d.data() as HabitCheckDoc; });
+      const list = buildHabitListMessage({
+        date: today,
+        habits: visibleHabits(allHabitsSnap.docs.map((d) => d.data() as HabitDoc)),
+        checks: checkMap,
+        streak: (progSnap.data() as ProgressDoc | undefined)?.globalStreak ?? 0,
+        dayScore: null,
+      });
+
+      await notifyUser(uid, {
+        title,
+        body,
+        date: today,
+        habitIds: pending.join(','),
+      }, {
+        link: '/habit-garden/#/habits',
+        type: 'habit_reminder',
+        telegram: {
+          text: `<b>${escapeHtml(title)}</b>\n${escapeHtml(body)}\n\n${list.text}`,
+          keyboard: list.keyboard,
+        },
+      });
     }
   }
 

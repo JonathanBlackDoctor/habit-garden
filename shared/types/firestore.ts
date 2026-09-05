@@ -65,6 +65,7 @@ export interface UserSettingsDoc {
   };
   notifications?: {          // 알림 타입별 on/off (미설정 = on). 푸시 알림이 켜진 경우에만 의미 있음
     habitReminder?: boolean; // 시간대별 습관 리마인더 + 스누즈 재알림
+    reflectionReminder?: boolean; // 매일 22:00 저녁 회고 리마인더
     morningBrief?: boolean;  // 매일 06:00 모닝 브리프
     prayerWeekly?: boolean;  // 주간 기도 회고 도착 알림
     progressWeekly?: boolean; // 주간 진척 요약 (일요일 20:00)
@@ -91,9 +92,13 @@ export interface LifeContext {
 export type NotificationType =
   | 'habit_reminder'
   | 'prayer_reminder'
+  | 'reflection_reminder'
   | 'morning_brief'
   | 'prayer_weekly'
   | 'progress_weekly';
+
+// 알림 전달 채널. 텔레그램이 연결된 사용자는 FCM 대신 텔레그램으로만 받는다.
+export type NotificationChannel = 'push' | 'telegram';
 
 // 알림 전달/오픈 트래킹 (일자별 집계) — users/{uid}/notifStats/{YYYY-MM-DD}
 //  - sent:   FCM 가 접수한 토큰 수 (디바이스 도달이 아닌 '발송 성공')
@@ -224,6 +229,58 @@ export interface NotificationTokenDoc {
   userAgent?: string;
   createdAt: Timestamp;
   lastSeenAt: Timestamp;
+}
+
+// ── 텔레그램 연동 ─────────────────────────────────────────
+// 연결 정보는 users/{uid} 밑이 아니라 최상위 컬렉션에 둔다.
+// users/{uid}/{document=**} 규칙이 클라이언트 쓰기를 허용하고 Firestore 규칙은 OR 로
+// 평가되므로, 하위 경로에서 다시 막을 수 없기 때문이다. 쓰기는 Cloud Functions 전용.
+
+// telegramLinks/{chatId} — chatId → uid 역인덱스 (웹훅이 매 요청 조회). 클라이언트 접근 금지.
+export interface TelegramLinkDoc {
+  chatId: string;
+  uid: string;
+  telegramUserId: number;
+  username: string | null;
+  firstName: string | null;
+  lastUpdateId?: number;      // 텔레그램 재전송으로 같은 업데이트가 두 번 처리되는 것을 막는 가드
+  linkedAt: Timestamp;
+  lastSeenAt: Timestamp;
+}
+
+// telegramUsers/{uid} — uid → chatId. 앱이 연결 상태를 보여주려고 읽는다(읽기 전용).
+export interface TelegramUserDoc {
+  uid: string;
+  chatId: string;
+  username: string | null;
+  firstName: string | null;
+  linkedAt: Timestamp;
+}
+
+// telegramLinkCodes/{code} — 앱에서 발급하는 1회용 연결 코드. 클라이언트 접근 금지.
+export interface TelegramLinkCodeDoc {
+  code: string;
+  uid: string;
+  createdAt: Timestamp;
+  expiresAt: Timestamp;
+  usedAt: Timestamp | null;
+}
+
+// 연결 코드 유효 시간(분).
+export const TELEGRAM_LINK_CODE_TTL_MIN = 10;
+
+// users/{uid}/telegramSession/current — 회고처럼 여러 턴에 걸친 대화의 진행 상태.
+export interface TelegramSessionDoc {
+  flow: 'reflection';
+  date: string;                 // 04:00 경계 기준 plannerDate
+  steps: string[];              // 이 세션에서 실제로 물어볼 단계 순서
+  stepIndex: number;
+  answers: Record<string, string>;
+  yesterdayResolution?: string;
+  resolutionPracticed?: boolean;
+  daySatisfaction?: number;
+  screenTimeMinutes?: number;
+  updatedAt: Timestamp;
 }
 
 // ── 회고 ────────────────────────────────────────────────
