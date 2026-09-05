@@ -49,13 +49,14 @@ describe('habit display calculations', () => {
     const grouped = groupHabitsByTime(habits);
 
     expect(grouped.morning?.map(({ id }) => id)).toEqual(['a', 'c']);
-    expect(grouped.evening?.map(({ id }) => id)).toEqual(['b']);
+    expect(grouped.evening?.map(({ id }) => id).toEqual(['b']);
   });
 
-  it('opens only the current group by default while preserving manual and edit expansion', () => {
-    expect(shouldExpandTimeGroup({ editMode: false, timeOfDay: 'morning', currentTimeOfDay: 'morning', manuallyOpened: [] })).toBe(true);
-    expect(shouldExpandTimeGroup({ editMode: false, timeOfDay: 'night', currentTimeOfDay: 'morning', manuallyOpened: [] })).toBe(false);
-    expect(shouldExpandTimeGroup({ editMode: false, timeOfDay: 'night', currentTimeOfDay: 'morning', manuallyOpened: ['night'] })).toBe(true);
-    expect(shouldExpandTimeGroup({ editMode: true, timeOfDay: 'night', currentTimeOfDay: 'morning', manuallyOpened: [] })).toBe(true);
+  it('opens only the current group by default and toggles either default state manually', () => {
+    expect(shouldExpandTimeGroup({ editMode: false, timeOfDay: 'morning', currentTimeOfDay: 'morning', manuallyToggled: [] })).toBe(true);
+    expect(shouldExpandTimeGroup({ editMode: false, timeOfDay: 'morning', currentTimeOfDay: 'morning', manuallyToggled: ['morning'] })).toBe(false);
+    expect(shouldExpandTimeGroup({ editMode: false, timeOfDay: 'night', currentTimeOfDay: 'morning', manuallyToggled: [] })).toBe(false);
+    expect(shouldExpandTimeGroup({ editMode: false, timeOfDay: 'night', currentTimeOfDay: 'morning', manuallyToggled: ['night'] })).toBe(true);
+    expect(shouldExpandTimeGroup({ editMode: true, timeOfDay: 'night', currentTimeOfDay: 'morning', manuallyToggled: ['night'] })).toBe(true);
   });
 });
