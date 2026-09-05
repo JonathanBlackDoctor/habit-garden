@@ -9,7 +9,12 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { format, subDays } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
-import { callGeminiWithRetry, throwIfRateLimit, GEMINI_MODEL } from './geminiUtil';
+import {
+  callGeminiWithRetry,
+  throwIfRateLimit,
+  GEMINI_FAST_MODEL,
+  GEMINI_SMART_MODEL,
+} from './geminiUtil';
 import type { HabitDoc, HabitCheckDoc, DayDoc } from '../../shared/types/firestore';
 
 const db = admin.firestore();
@@ -152,7 +157,8 @@ ${habitStats}
   if (!apiKey) throw new functions.https.HttpsError('internal', 'GEMINI_API_KEY not set');
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: GEMINI_MODEL, systemInstruction: sysInstr });
+  const modelId = mode === 'weekly' ? GEMINI_SMART_MODEL : GEMINI_FAST_MODEL;
+  const model = genAI.getGenerativeModel({ model: modelId, systemInstruction: sysInstr });
   const chat = model.startChat();
 
   let parsed: any;
