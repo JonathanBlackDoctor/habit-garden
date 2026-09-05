@@ -59,7 +59,8 @@ async function processUser(uid: string, today: string, nowMs: number): Promise<v
     habitDocs.forEach((h, i) => {
       if (!h.exists) return;
       const habit = h.data() as HabitDoc;
-      if (!habit.active) return;
+      // 예약 후 습관을 비활성화하거나 잠재웠다면 재알림에서도 제외한다.
+      if (visibleHabits([habit]).length === 0) return;
       const check = checkDocs[i].exists ? (checkDocs[i].data() as HabitCheckDoc) : null;
       if (check && check.score !== null && check.score !== undefined) return; // 이미 체크됨
       pending.push(h.id);

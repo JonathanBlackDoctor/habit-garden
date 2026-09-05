@@ -2,3 +2,10 @@ packages:
   - 'apps/*'
   - 'functions'
   - 'shared'
+
+# pnpm 11부터 빌드 허용 목록은 package.json의 `pnpm` 필드가 아니라
+# workspace 설정에서 읽는다. 새 클론에서도 install/test/build가 멈추지 않게 한다.
+allowBuilds:
+  esbuild: true
+  protobufjs: true
+  re2: true
