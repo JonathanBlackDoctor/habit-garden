@@ -1,4 +1,4 @@
-name: Temporary Functions Runtime Cleanup and Deploy
+name: Temporary Functions Runtime Deploy
 
 on:
   push:
@@ -8,19 +8,19 @@ on:
       - '.github/workflows/functions-runtime-deploy.yml'
 
 jobs:
-  cleanup-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 9
 
       - name: Setup Node.js 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
 
@@ -30,20 +30,14 @@ jobs:
       - name: Build Functions
         run: pnpm --filter functions build
 
+      - name: Audit production Functions dependencies (high+)
+        working-directory: functions
+        run: npm audit --omit=dev --audit-level=high
+
       - name: Prepare Firebase credentials
         run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > "${{ github.workspace }}/firebase-sa.json"
 
-      - name: Delete intentionally retired Functions
-        env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/firebase-sa.json
-        run: |
-          pnpm exec firebase functions:delete applicationCompleteAward --region asia-northeast3 --project planner-web-quick --force
-          pnpm exec firebase functions:delete awardEngine --region asia-northeast3 --project planner-web-quick --force
-          pnpm exec firebase functions:delete reflectionAward --region asia-northeast3 --project planner-web-quick --force
-          pnpm exec firebase functions:delete runGardenSettlementNow --region asia-northeast3 --project planner-web-quick --force
-          pnpm exec firebase functions:delete todoAward --region asia-northeast3 --project planner-web-quick --force
-
-      - name: Deploy all current Functions on Node.js 22
+      - name: Deploy all current Functions
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/firebase-sa.json
         run: |
