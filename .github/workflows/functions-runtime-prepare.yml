@@ -1,4 +1,4 @@
-name: Temporary Functions Runtime Prepare
+name: Temporary Runtime Final Validation
 
 on:
   push:
@@ -7,44 +7,45 @@ on:
     paths:
       - '.github/workflows/functions-runtime-prepare.yml'
 
-permissions:
-  contents: write
-
 jobs:
-  prepare:
+  validate:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 9
 
       - name: Setup Node.js 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
 
-      - name: Install workspace
-        run: pnpm install --no-frozen-lockfile
-
-      - name: Upgrade Firebase Functions SDK and CLI
-        run: |
-          pnpm --filter functions add firebase-functions@latest
-          pnpm add -Dw firebase-tools@latest
-          cd functions
-          npm install --package-lock-only --ignore-scripts
+      - name: Install workspace from lockfile
+        run: pnpm install --frozen-lockfile
 
       - name: Build Functions
         run: pnpm --filter functions build
 
-      - name: Commit dependency updates
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add functions/package.json functions/package-lock.json package.json pnpm-lock.yaml
-          git diff --cached --quiet && exit 0
-          git commit -m 'chore(functions): upgrade Firebase Functions SDK and CLI'
-          git push
+      - name: Audit production Functions dependencies (high+)
+        working-directory: functions
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Install web dependencies from lockfile
+        working-directory: apps/web
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck web
+        working-directory: apps/web
+        run: npm run typecheck
+
+      - name: Test web
+        working-directory: apps/web
+        run: npm run test
+
+      - name: Build web
+        working-directory: apps/web
+        run: npx vite build
