@@ -1,4 +1,4 @@
-name: Temporary Functions Security Audit
+name: Temporary Functions Security Remediation
 
 on:
   push:
@@ -7,18 +7,47 @@ on:
     paths:
       - '.github/workflows/functions-security-audit.yml'
 
+permissions:
+  contents: write
+
 jobs:
-  audit:
+  remediate:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 9
 
       - name: Setup Node.js 22
         uses: actions/setup-node@v7
         with:
           node-version: 22
 
-      - name: Audit production Functions dependencies
+      - name: Install workspace
+        run: pnpm install --frozen-lockfile
+
+      - name: Upgrade firebase-admin within compatible v13
+        run: |
+          pnpm --filter functions add firebase-admin@13
+          cd functions
+          npm install --package-lock-only --ignore-scripts
+
+      - name: Build Functions
+        run: pnpm --filter functions build
+
+      - name: Audit production Functions dependencies (high+)
         working-directory: functions
         run: npm audit --omit=dev --audit-level=high
+
+      - name: Commit compatible security upgrade
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add functions/package.json functions/package-lock.json pnpm-lock.yaml
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix(functions): update firebase-admin within v13 for security fixes'
+          git push
