@@ -30,12 +30,16 @@ jobs:
       - name: Install workspace
         run: pnpm install --no-frozen-lockfile
 
-      - name: Upgrade Firebase SDK and CLI
+      - name: Upgrade Firebase Functions SDK and CLI
         run: |
-          pnpm --filter functions add firebase-functions@latest firebase-admin@latest
+          pnpm --filter functions add firebase-functions@latest
           pnpm add -Dw firebase-tools@latest
           cd functions
           npm install --package-lock-only --ignore-scripts
+          cd ..
+          echo "firebase-functions=$(node -p \"require('./functions/package.json').dependencies['firebase-functions']\")"
+          echo "firebase-admin=$(node -p \"require('./functions/package.json').dependencies['firebase-admin']\")"
+          echo "firebase-tools=$(node -p \"require('./package.json').devDependencies['firebase-tools']\")"
 
       - name: Build Functions
         run: pnpm --filter functions build
@@ -46,5 +50,5 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add functions/package.json functions/package-lock.json package.json pnpm-lock.yaml
           git diff --cached --quiet && exit 0
-          git commit -m 'chore(functions): upgrade Firebase SDK and CLI'
+          git commit -m 'chore(functions): upgrade Firebase Functions SDK and CLI'
           git push
