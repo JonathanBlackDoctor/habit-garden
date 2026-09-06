@@ -11,15 +11,15 @@ jobs:
 
     steps:
       - name: 코드 체크아웃
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: pnpm 설치
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 9
 
       - name: Node.js 22 설정
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           # pnpm-lock.yaml 을 기준으로 의존성을 재현 가능하게 설치한다.
@@ -30,6 +30,10 @@ jobs:
 
       - name: Cloud Functions 빌드
         run: pnpm --filter functions build
+
+      - name: Functions 프로덕션 의존성 보안 점검
+        working-directory: functions
+        run: npm audit --omit=dev --audit-level=high
 
       - name: Firebase 서비스 계정 자격증명 준비
         run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > "${{ github.workspace }}/firebase-sa.json"
