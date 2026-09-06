@@ -22,16 +22,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 코드 체크아웃
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
-      - name: Node.js 20 설정
-        uses: actions/setup-node@v4
+      - name: Node.js 22 설정
+        uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: 22
 
       - name: 의존성 설치 (apps/web)
         working-directory: apps/web
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
       - name: 타입 체크
         working-directory: apps/web
