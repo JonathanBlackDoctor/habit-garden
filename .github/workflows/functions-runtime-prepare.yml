@@ -36,10 +36,6 @@ jobs:
           pnpm add -Dw firebase-tools@latest
           cd functions
           npm install --package-lock-only --ignore-scripts
-          cd ..
-          echo "firebase-functions=$(node -p \"require('./functions/package.json').dependencies['firebase-functions']\")"
-          echo "firebase-admin=$(node -p \"require('./functions/package.json').dependencies['firebase-admin']\")"
-          echo "firebase-tools=$(node -p \"require('./package.json').devDependencies['firebase-tools']\")"
 
       - name: Build Functions
         run: pnpm --filter functions build
