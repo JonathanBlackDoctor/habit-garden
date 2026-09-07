@@ -15,6 +15,10 @@ import { SUCCESS_THRESHOLD } from '../../shared/lib/daySuccess';
 const db = admin.firestore();
 const REGION = 'asia-northeast3';
 
+type HabitCheckWithSnapshot = HabitCheckDoc & {
+  habitSnapshot?: Partial<Pick<HabitDoc, 'weight' | 'scoreMode'>>;
+};
+
 // ── habitChecks onWrite ─────────────────────────────────────────────────────
 export const dayScoreEngine = functions
   .region(REGION)
@@ -38,15 +42,21 @@ async function updateDayScore(uid: string, date: string) {
   let achievedCount = 0, totalCount = 0;
 
   checksSnap.docs.forEach((d) => {
-    const c    = d.data() as HabitCheckDoc;
-    const h    = habitsMap[c.habitId];
-    if (!h) return;
+    const c = d.data() as HabitCheckWithSnapshot;
+    const h = habitsMap[c.habitId];
+    const weight = h?.weight ?? c.habitSnapshot?.weight;
+    const scoreMode = h?.scoreMode ?? c.habitSnapshot?.scoreMode;
+
+    // 정상 경로에서는 습관 정의를 사용한다. 과거에 정의 문서가 실제로 삭제됐더라도
+    // 새 체크에 저장된 스냅샷이 있으면 기록과 점수 계산을 계속 복구할 수 있다.
+    if (weight == null || !scoreMode) return;
+
     totalCount++;
     if (c.achieved) achievedCount++;
     if (c.score === null) return;
-    const norm = h.scoreMode === 'scaled' ? (c.score - 1) / 4 : c.score;
-    numerator   += norm * h.weight;
-    denominator += h.weight;
+    const norm = scoreMode === 'scaled' ? (c.score - 1) / 4 : c.score;
+    numerator += norm * weight;
+    denominator += weight;
   });
 
   const dayScore = denominator > 0 ? Math.round((numerator / denominator) * 100) : 0;
@@ -80,11 +90,11 @@ async function handleSuccessDay(uid: string, date: string) {
   const snap = await progressRef.get();
   const progress = snap.exists ? (snap.data() as ProgressDoc) : null;
   const lastStreak = progress?.globalStreak ?? 0;
-  const newStreak  = lastStreak + 1;
+  const newStreak = lastStreak + 1;
 
   await progressRef.set({
-    globalStreak:     newStreak,
+    globalStreak: newStreak,
     globalBestStreak: Math.max(progress?.globalBestStreak ?? 0, newStreak),
-    updatedAt:         FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   }, { merge: true });
 }
