@@ -10,6 +10,10 @@ import { isHibernating } from 'shared/lib/hibernation';
 import { toast } from 'sonner';
 import { feedback } from '@/lib/feedback';
 
+type ArchivedHabitDoc = HabitDoc & { archivedAt?: unknown };
+type HabitSnapshot = Pick<HabitDoc, 'title' | 'weight' | 'timeOfDay' | 'scoreMode' | 'achieveThreshold'>;
+type HabitCheckWithSnapshot = HabitCheckDoc & { habitSnapshot: HabitSnapshot };
+
 export function useHabits(opts?: { includeInactive?: boolean; includeHibernating?: boolean }) {
   const uid  = useAppStore((s) => s.uid);
   const includeInactive = opts?.includeInactive ?? false;
@@ -23,8 +27,9 @@ export function useHabits(opts?: { includeInactive?: boolean; includeHibernating
     if (!uid) return;
     const q = query(collection(db, 'users', uid, 'habits'), orderBy('order'));
     return onSnapshot(q, (snap) => {
-      const all = snap.docs.map((d) => d.data() as HabitDoc);
+      const all = snap.docs.map((d) => d.data() as ArchivedHabitDoc);
       setHabits(all.filter((h) =>
+        !h.archivedAt &&
         (includeInactive || h.active) &&
         (includeHibernating || !isHibernating(h)),
       ));
@@ -90,10 +95,17 @@ export function useSaveHabitCheck(dateOverride?: string) {
 
     const threshold = habit.scoreMode === 'scaled' ? SCALED_ACHIEVE_THRESHOLD : habit.achieveThreshold;
     const achieved = score !== null && score >= threshold;
-    const checkDoc: HabitCheckDoc = {
+    const checkDoc: HabitCheckWithSnapshot = {
       habitId: habit.id,
       score,
       achieved,
+      habitSnapshot: {
+        title: habit.title,
+        weight: habit.weight,
+        timeOfDay: habit.timeOfDay,
+        scoreMode: habit.scoreMode,
+        achieveThreshold: habit.achieveThreshold,
+      },
       checkedAt: serverTimestamp() as any,
     };
     await setDoc(
