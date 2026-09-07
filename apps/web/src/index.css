@@ -258,3 +258,18 @@
   border-radius: 0 !important;
   background: transparent !important;
 }
+
+/* 기도 텍스트는 입력한 줄바꿈과 빈 줄을 그대로 보존한다. */
+p.whitespace-pre-line {
+  white-space: pre-wrap !important;
+  overflow-wrap: anywhere;
+}
+
+/* 기도 카드/목록 제목은 말줄임 대신 자연 줄바꿈을 허용한다. */
+p[class~='truncate'][class~='tracking-[-0.018em]'],
+p[class~='truncate'][class~='text-sm'][class~='text-[var(--fg-primary)]'] {
+  overflow: visible !important;
+  text-overflow: clip !important;
+  white-space: pre-wrap !important;
+  overflow-wrap: anywhere;
+}
