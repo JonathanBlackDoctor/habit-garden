@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   collection, addDoc, onSnapshot, updateDoc, deleteDoc, doc, setDoc,
   deleteField, serverTimestamp, query, orderBy, getDoc, getDocs, runTransaction,
@@ -7,13 +7,14 @@ import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import { plannerDate } from '@/lib/dayBoundary';
 import type { TodayTodoDoc, LongTodoDoc } from 'shared/types/firestore';
-import { selectCarryOverItems, CARRY_LOOKBACK_DAYS, type CarryDay } from 'shared/todoCarryover';
-import { Plus, ChevronLeft, Trash2, CalendarDays, Pencil, Check, X, Undo2, Archive } from 'lucide-react';
+import { selectCarryOverItems, isCarryoverBoundary, CARRY_LOOKBACK_DAYS, type CarryDay } from 'shared/todoCarryover';
+import { Plus, ChevronLeft, Trash2, CalendarDays, Pencil, Check, X, Undo2, Archive, ArrowUpRight, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { differenceInCalendarDays, addDays, subDays, parseISO, format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { feedback } from '@/lib/feedback';
+import { moveTodayTodoToLong } from '@/features/planner/moveTodayTodo';
 
 type Priority = LongTodoDoc['priority'];
 
@@ -374,13 +375,15 @@ function TodayProgressRing({ done, total }: { done: number; total: number }) {
 }
 
 function TodayTodoItem({
-  todo, isToday, onToggle, onRename, onRemove,
+  todo, isToday, onToggle, onRename, onRemove, onMove, moving = false,
 }: {
   todo: TodayTodoDoc;
   isToday: boolean;
   onToggle: () => void;
   onRename: (title: string) => void;
   onRemove: () => void;
+  onMove?: () => void;
+  moving?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(todo.title);
@@ -424,9 +427,10 @@ function TodayTodoItem({
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -6 }}
+      aria-busy={moving}
       className={`flex w-full items-center gap-3 rounded-[var(--radius)] bg-[var(--bg-surface)] px-4 ${isToday ? 'py-3.5' : 'py-3'}`}
     >
-      <button onClick={onToggle} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+      <button onClick={onToggle} disabled={moving} className="flex min-w-0 flex-1 items-center gap-3 text-left disabled:opacity-50">
         <motion.div
           animate={todo.done ? { scale: [1, 1.25, 1] } : { scale: 1 }}
           transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
@@ -443,10 +447,23 @@ function TodayTodoItem({
           </span>
         )}
       </button>
-      <button onClick={startEdit} aria-label="수정" className="shrink-0 text-[var(--fg-faint)] hover:text-[var(--fg-muted)]">
+      {onMove && (
+        <button
+          type="button"
+          onClick={onMove}
+          disabled={moving}
+          aria-label={moving ? '장기 할 일로 이동 중' : `${todo.title}: 장기 할 일로 이동`}
+          title="장기 할 일로 이동"
+          className="inline-flex min-h-9 shrink-0 items-center gap-1 rounded-full px-2 text-xs font-medium text-[var(--leaf)] transition-colors hover:bg-[var(--leaf-soft)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--leaf)] disabled:cursor-wait disabled:opacity-50"
+        >
+          {moving ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : <ArrowUpRight size={14} aria-hidden="true" />}
+          {moving ? '이동 중' : '장기'}
+        </button>
+      )}
+      <button onClick={startEdit} disabled={moving} aria-label="수정" className="shrink-0 text-[var(--fg-faint)] hover:text-[var(--fg-muted)] disabled:opacity-50">
         <Pencil size={15} />
       </button>
-      <button onClick={onRemove} aria-label="삭제" className="shrink-0 text-[var(--fg-faint)] hover:text-[var(--wither)]">
+      <button onClick={onRemove} disabled={moving} aria-label="삭제" className="shrink-0 text-[var(--fg-faint)] hover:text-[var(--wither)] disabled:opacity-50">
         <Trash2 size={16} />
       </button>
     </motion.div>
@@ -459,6 +476,7 @@ function TodayTodoItem({
  * 오늘에 나타나지 않아 사라진 것처럼 보인다. 과거 문서는 복사만 하므로 원본은 보존된다.
  *  - todosCarriedOver 플래그(서버와 공유)로 하루 1회만 실행 — 트랜잭션으로 중복 이월 방지.
  *  - 서버 누락·사용자 부재로 사슬이 끊겼을 수 있으니 미완료가 남은 가장 최근 과거 날짜까지 거슬러 찾는다.
+ *  - 장기 이동 경계를 만나면 그 이전의 보존용 사본은 다시 복구하지 않는다.
  *  - 선택 규칙은 shared/todoCarryover 의 순수 함수로 서버와 공유 — 두 경로가 어긋나지 않는다.
  * 복구한 항목 수를 반환한다.
  */
@@ -470,10 +488,17 @@ async function carryOverPendingTodos(uid: string, today: string): Promise<number
   const candidates: CarryDay[] = [];
   for (let i = 1; i <= CARRY_LOOKBACK_DAYS; i++) {
     const prevDate = format(subDays(parseISO(today), i), 'yyyy-MM-dd');
-    const snap = await getDocs(collection(db, 'users', uid, 'days', prevDate, 'todayTodos'));
-    const todos = snap.docs.map((d) => d.data() as TodayTodoDoc);
-    candidates.push({ date: prevDate, todos });
-    if (todos.some((t) => !t.done)) break; // 가장 최근 미완료 날짜 발견
+    const [snap, previousDay] = await Promise.all([
+      getDocs(collection(db, 'users', uid, 'days', prevDate, 'todayTodos')),
+      getDoc(doc(db, 'users', uid, 'days', prevDate)),
+    ]);
+    const candidate: CarryDay = {
+      date: prevDate,
+      todos: snap.docs.map((d) => d.data() as TodayTodoDoc),
+      todoCarryoverClosed: previousDay.data()?.todoCarryoverClosed === true,
+    };
+    candidates.push(candidate);
+    if (isCarryoverBoundary(candidate)) break;
   }
   const { sourceDate, items } = selectCarryOverItems(candidates);
 
@@ -509,6 +534,8 @@ function DayTodoList({
 }) {
   const [todos, setTodos] = useState<TodayTodoDoc[]>([]);
   const [input, setInput] = useState('');
+  const [movingIds, setMovingIds] = useState<Set<string>>(new Set());
+  const movingRef = useRef(new Set<string>());
 
   useEffect(() => {
     if (!uid) return;
@@ -562,6 +589,33 @@ function DayTodoList({
     await deleteDoc(doc(db, 'users', uid, 'days', date, 'todayTodos', todo.id));
   };
 
+  const moveToLong = async (todo: TodayTodoDoc) => {
+    if (!uid || movingRef.current.has(todo.id)) return;
+    if (date !== plannerDate()) {
+      toast.error('날짜가 바뀌었어요. 오늘 화면에서 다시 시도해 주세요.');
+      return;
+    }
+    // A ref closes the double-click window before React has re-rendered.
+    movingRef.current.add(todo.id);
+    setMovingIds(new Set(movingRef.current));
+    try {
+      // Finish recovery before declaring the current day authoritative.
+      await carryOverPendingTodos(uid, date);
+      const result = await moveTodayTodoToLong(uid, date, todo.id);
+      toast.success(result.alreadyMoved
+        ? '이미 장기 할 일로 이동된 항목이에요.'
+        : '장기 할 일로 옮겼어요. 아래 장기 목표에서 확인하세요.');
+    } catch (error) {
+      console.error('todo move failed', error);
+      toast.error(error instanceof Error
+        ? error.message
+        : '이동하지 못했어요. 연결을 확인한 뒤 다시 시도해 주세요.');
+    } finally {
+      movingRef.current.delete(todo.id);
+      setMovingIds(new Set(movingRef.current));
+    }
+  };
+
   const isToday = variant === 'today';
   const doneCount = todos.filter((t) => t.done).length;
 
@@ -579,6 +633,8 @@ function DayTodoList({
             onToggle={() => toggle(todo)}
             onRename={(title) => rename(todo, title)}
             onRemove={() => remove(todo)}
+            onMove={uid && isToday && !todo.done ? () => moveToLong(todo) : undefined}
+            moving={movingIds.has(todo.id)}
           />
         ))}
       </AnimatePresence>
