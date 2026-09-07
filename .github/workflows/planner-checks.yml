@@ -1,0 +1,41 @@
+name: Planner checks
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/web/src/routes/Planner.tsx'
+      - 'apps/web/src/features/planner/**'
+      - 'shared/todoCarryover.ts'
+      - 'functions/src/dailyReset.ts'
+      - '.github/workflows/planner-checks.yml'
+      - '.github/workflows/firebase-deploy.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: planner-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Install locked workspace dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck web
+        run: pnpm --filter web typecheck
+      - name: Run web and planner regression tests
+        run: pnpm --filter web test
+      - name: Build web
+        run: pnpm --filter web exec vite build
+      - name: Build Cloud Functions
+        run: pnpm --filter functions build
