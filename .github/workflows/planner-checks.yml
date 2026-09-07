@@ -31,8 +31,9 @@ jobs:
           node-version: 22
       - name: Install locked workspace dependencies
         run: pnpm install --frozen-lockfile
-      - name: Typecheck web
-        run: pnpm --filter web typecheck
+      - name: Typecheck web application
+        # tsconfig.json only lists references; without --build it checks no files.
+        run: pnpm --filter web exec tsc --noEmit -p tsconfig.app.json
       - name: Run web and planner regression tests
         run: pnpm --filter web test
       - name: Build web
