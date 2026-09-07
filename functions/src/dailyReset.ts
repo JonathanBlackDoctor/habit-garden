@@ -12,7 +12,7 @@ import { subDays, format, parseISO } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import { SUCCESS_THRESHOLD } from '../../shared/lib/daySuccess';
 import { shouldBecomeDormant, selectTodayPrayers, type RotationInput } from '../../shared/prayerRotation';
-import { selectCarryOverItems, CARRY_LOOKBACK_DAYS, type CarryDay } from '../../shared/todoCarryover';
+import { selectCarryOverItems, isCarryoverBoundary, CARRY_LOOKBACK_DAYS, type CarryDay } from '../../shared/todoCarryover';
 import {
   APPLICATION_DEFAULT_TARGET_DAYS,
   APPLICATION_STALE_DAYS,
@@ -92,7 +92,7 @@ async function processDormantTransitions(
       lastPrayedAtMs: tsToMs(p.lastPrayedAt),
       target: p.target,
     };
-    if (!p.pinned && shouldBecomeDormant(input, nowMs)) {
+    if (shouldBecomeDormant(input, nowMs)) {
       batch.update(docSnap.ref, {
         status: 'dormant',
         dormantSince: FieldValue.serverTimestamp(),
@@ -160,7 +160,7 @@ async function ensurePrayerPlan(
   activeInputs: RotationInput[],
 ): Promise<void> {
   if (activeInputs.length === 0) return;
-  // 사용자가 직접 지정한 하루 기도 개수(dailyPrayerLimit)가 있으면 적용 (없으면 활성 수 기반 자동)
+  // 사용자가 직접 지정한 하루 기도 개수(dailyPrayerLimit)가 있으면 적용 (없으면 활성 수 기반)
   const settingsSnap = await db.doc(`users/${uid}/settings/main`).get();
   const override = settingsSnap.exists ? (settingsSnap.data()?.dailyPrayerLimit as number | undefined) : undefined;
   const { pinnedIds, rotationIds } = selectTodayPrayers(activeInputs, Date.now(), { override });
@@ -243,6 +243,7 @@ async function processUserDay(
  *  - todosCarriedOver 플래그로 하루 1회만 실행(멱등).
  *  - 어제 하루만 보지 않고 '미완료가 남은 가장 최근 과거 날짜'까지 거슬러 찾는다.
  *    서버가 하루 거르거나 사용자가 며칠 접속하지 않아 사슬이 끊겨도 항목이 고립·증발하지 않는다.
+ *  - 장기 이동 경계를 만나면 그 이전의 보존용 사본은 다시 복구하지 않는다.
  *  - 플래그 확인·쓰기는 트랜잭션으로 묶어, 같은 시각 클라이언트 안전망과 동시에 돌아도 중복 이월하지 않는다.
  *    (과거 todo 조회는 트랜잭션 밖에서 — 남은 항목 복구 용도라 그 짧은 창의 변화는 무시해도 된다.)
  */
@@ -251,14 +252,21 @@ async function carryOverTodos(uid: string, today: string): Promise<number> {
   const pre = await dayRef.get();
   if (pre.exists && pre.data()?.todosCarriedOver) return 0; // 이미 이월됨(서버/클라/다른 탭)
 
-  // 미완료가 남은 가장 최근 과거 날짜를 찾을 때까지 하루씩 거슬러 읽는다(보통 어제 한 번에 끝남).
+  // 미완료 항목 또는 장기 이동 경계를 만날 때까지 하루씩 거슬러 읽는다.
   const candidates: CarryDay[] = [];
   for (let i = 1; i <= CARRY_LOOKBACK_DAYS; i++) {
     const prevDate = format(subDays(parseISO(today), i), 'yyyy-MM-dd');
-    const snap = await db.collection(`users/${uid}/days/${prevDate}/todayTodos`).get();
-    const todos = snap.docs.map((d) => d.data() as TodayTodoDoc);
-    candidates.push({ date: prevDate, todos });
-    if (todos.some((t) => !t.done)) break; // 가장 최근 미완료 날짜 발견 — 더 거슬러 갈 필요 없음
+    const [snap, previousDay] = await Promise.all([
+      db.collection(`users/${uid}/days/${prevDate}/todayTodos`).get(),
+      db.doc(`users/${uid}/days/${prevDate}`).get(),
+    ]);
+    const candidate: CarryDay = {
+      date: prevDate,
+      todos: snap.docs.map((d) => d.data() as TodayTodoDoc),
+      todoCarryoverClosed: previousDay.data()?.todoCarryoverClosed === true,
+    };
+    candidates.push(candidate);
+    if (isCarryoverBoundary(candidate)) break;
   }
   const { sourceDate, items } = selectCarryOverItems(candidates);
 
