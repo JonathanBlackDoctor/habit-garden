@@ -1,12 +1,23 @@
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { CheckSquare, HandHeart, Home, MoreHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useVisibleTabs } from '@/lib/tabs';
 import { useScrollToTop } from '@/lib/scrollContext';
 import { useTabBadges } from '@/lib/tabBadges';
+import { useUiDesign } from '@/lib/features';
+
+const CLASSIC_ICONS: Record<string, typeof Home> = {
+  '/': Home,
+  '/habits': CheckSquare,
+  '/prayers': HandHeart,
+  '/more': MoreHorizontal,
+};
 
 export default function TabBar() {
   const tabs = useVisibleTabs();
   const badges = useTabBadges();
+  const uiDesign = useUiDesign();
+  const classic = uiDesign === 'classic';
   const location = useLocation();
   const navigate = useNavigate();
   const scrollToTop = useScrollToTop();
@@ -30,6 +41,7 @@ export default function TabBar() {
       <div data-tour="tabbar" className="mx-auto flex w-full items-center justify-around">
         {tabs.map(({ to, label }) => {
           const badge = badges[to] ?? 0;
+          const Icon = CLASSIC_ICONS[to] ?? MoreHorizontal;
           return (
           <NavLink
             key={to}
@@ -39,24 +51,46 @@ export default function TabBar() {
             onClick={(e) => handleReTap(e, to)}
             className={({ isActive }) =>
               cn(
-                'flex min-h-[43px] flex-1 flex-col items-center gap-[6px] pb-2 pt-1 text-[13.5px] tracking-[-0.01em] transition-colors',
+                'flex flex-1 flex-col items-center transition-colors',
+                classic ? 'gap-0.5 py-2 text-xs' : 'min-h-[43px] gap-[6px] pb-2 pt-1 text-[13.5px] tracking-[-0.01em]',
                 isActive
-                  ? 'font-semibold text-[var(--fg-primary)]'
+                  ? classic ? 'font-medium text-[var(--leaf)]' : 'font-semibold text-[var(--fg-primary)]'
                   : 'text-[var(--fg-faint)]'
               )
             }
           >
             {({ isActive }) => (
-              <>
-                <span
-                  aria-hidden="true"
-                  className={cn('h-1 w-1 rounded-full', isActive ? 'bg-[var(--leaf)]' : 'bg-transparent')}
-                />
-                <span className="flex items-baseline gap-[5px]">
+              classic ? (
+                <>
+                  <span className="relative">
+                    <Icon
+                      size={22}
+                      strokeWidth={isActive ? 2.2 : 1.8}
+                      className={isActive ? 'text-[var(--leaf)]' : 'text-[var(--fg-faint)]'}
+                    />
+                    {badge > 0 && (
+                      <span
+                        aria-label={`${badge}개 할 일`}
+                        className="absolute -right-2.5 -top-1.5 flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-[var(--bg-surface)]"
+                      >
+                        {badge > 99 ? '99+' : badge}
+                      </span>
+                    )}
+                  </span>
                   <span>{label}</span>
-                  {badge > 0 && <span aria-label={`${badge}개 할 일`} className="tabular-nums text-[12.5px] font-normal text-[var(--fg-faint)]">{badge > 99 ? '99+' : badge}</span>}
-                </span>
-              </>
+                </>
+              ) : (
+                <>
+                  <span
+                    aria-hidden="true"
+                    className={cn('h-1 w-1 rounded-full', isActive ? 'bg-[var(--leaf)]' : 'bg-transparent')}
+                  />
+                  <span className="flex items-baseline gap-[5px]">
+                    <span>{label}</span>
+                    {badge > 0 && <span aria-label={`${badge}개 할 일`} className="tabular-nums text-[12.5px] font-normal text-[var(--fg-faint)]">{badge > 99 ? '99+' : badge}</span>}
+                  </span>
+                </>
+              )
             )}
           </NavLink>
           );

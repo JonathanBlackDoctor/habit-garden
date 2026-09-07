@@ -5,6 +5,7 @@ import TabBar from './TabBar';
 import { ScrollTopContext } from '@/lib/scrollContext';
 import { TabActiveContext } from '@/lib/tabActive';
 import { useVisibleTabs } from '@/lib/tabs';
+import { useUiDesign } from '@/lib/features';
 import SwipeTabs from './SwipeTabs';
 import OnboardingFlow from '@/features/onboarding/OnboardingFlow';
 import PrayerTour from '@/features/onboarding/PrayerTour';
@@ -14,6 +15,7 @@ export default function AppLayout() {
   useOnboardingTrigger();
   const hostRef = useRef<HTMLDivElement>(null);
   const tabs = useVisibleTabs();
+  const uiDesign = useUiDesign();
   const location = useLocation();
   const [retapNonce, setRetapNonce] = useState(0);
 
@@ -43,7 +45,7 @@ export default function AppLayout() {
   return (
     <ScrollTopContext.Provider value={onReTap}>
       <TabActiveContext.Provider value={{ path: activePath, nonce: retapNonce }}>
-        <div className="fixed inset-0 flex items-center justify-center bg-[var(--bg-canvas)] sm:p-5">
+        <div className={`fixed inset-0 flex items-center justify-center bg-[var(--bg-canvas)] sm:p-5 ${uiDesign === 'classic' ? 'theme-classic' : ''}`}>
           <div
             className="app-shell relative flex h-full w-full max-w-[430px] flex-col overflow-hidden bg-[var(--bg-base)]"
             style={{

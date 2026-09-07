@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { signOutUser, isOwner } from '@/lib/auth';
-import { Cloud, BookOpen, Settings, LogOut, Bell, ChevronRight, Vibrate, Volume2, HandHeart, Download, GraduationCap, Sparkles, Share2, MessageCircle, Tags, BarChart2, LayoutGrid, Leaf } from 'lucide-react';
+import { Cloud, BookOpen, Settings, LogOut, Bell, ChevronRight, Vibrate, Volume2, HandHeart, Download, GraduationCap, Sparkles, Share2, MessageCircle, Tags, BarChart2, LayoutGrid, Leaf, Palette } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { isFcmEnabled } from '@/lib/fcm';
 import ToggleRow from '@/components/ToggleRow';
@@ -11,7 +11,7 @@ import {
   isSoundEnabled,  setSoundEnabled,
   feedback,
 } from '@/lib/feedback';
-import { useFaithEnabled, setFaithEnabled, useIsGuest, useIsPremium } from '@/lib/features';
+import { useFaithEnabled, setFaithEnabled, useIsGuest, useIsPremium, useUiDesign, setUiDesign, type UiDesign } from '@/lib/features';
 import { usePwaInstall } from '@/lib/pwaInstall';
 import { APP_SHARE_URL } from '@/lib/inquiries';
 import ContactDialog from '@/features/contact/ContactDialog';
@@ -29,6 +29,11 @@ const items = [
   { icon: Settings,      label: '관리',     to: '/admin' },
 ];
 
+const DESIGN_OPTIONS: Array<{ value: UiDesign; label: string; desc: string }> = [
+  { value: 'editorial', label: '현재 디자인', desc: '차분한 에디토리얼' },
+  { value: 'classic', label: '클래식 디자인', desc: '초록 카드형 디자인' },
+];
+
 export default function More() {
   const navigate = useNavigate();
   const startOnboarding = useAppStore((s) => s.startOnboarding);
@@ -44,6 +49,7 @@ export default function More() {
   const [lifeCtxOpen, setLifeCtxOpen] = useState(false);
   const lifeCtxSet = useAppStore((s) => hasLifeContext(s.settings?.lifeContext));
   const faithEnabled = useFaithEnabled();
+  const uiDesign = useUiDesign();
   const isGuest = useIsGuest();
   const isPremium = useIsPremium();
   const { canInstall, isStandalone, isIOS, promptInstall } = usePwaInstall();
@@ -60,6 +66,16 @@ export default function More() {
     await setFaithEnabled(uid, next);
     // 신앙 기능을 켤 때마다 기도 튜토리얼을 진행한다.
     if (next) startPrayerTour();
+  };
+
+  const onDesignChange = async (next: UiDesign) => {
+    if (!realUid || next === uiDesign) return;
+    try {
+      await setUiDesign(realUid, next);
+    } catch (e) {
+      console.error('design preference save failed', e);
+      toast.error('디자인 설정을 저장하지 못했어요.');
+    }
   };
 
   const onShare = async () => {
@@ -169,6 +185,38 @@ export default function More() {
 
       {/* 피드백 / 알림 설정 (Phase 1-2, 3-1) */}
       <p className="kicker px-0 pt-5">설정</p>
+      <div className="design-setting rounded-[var(--radius)] border border-[var(--divider-soft)] bg-[var(--bg-surface)] p-3">
+        <div className="mb-3 flex items-center gap-3">
+          <Palette size={18} className="shrink-0 text-[var(--leaf)]" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-[var(--fg-primary)]">화면 디자인</p>
+            <p className="text-[10px] text-[var(--fg-faint)]">기능과 기록은 그대로 두고 화면 스타일만 바꿔요</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="화면 디자인">
+          {DESIGN_OPTIONS.map((option) => {
+            const active = option.value === uiDesign;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                data-active={active}
+                onClick={() => onDesignChange(option.value)}
+                className={`design-setting-option rounded-[10px] border px-3 py-2.5 text-left transition-colors ${
+                  active
+                    ? 'border-[var(--fg-primary)] bg-[var(--fg-primary)] text-[var(--bg-base)]'
+                    : 'border-[var(--divider-soft)] bg-[var(--bg-base)] text-[var(--fg-primary)]'
+                }`}
+              >
+                <span className="block text-[12px] font-semibold">{option.label}</span>
+                <span className={`mt-0.5 block text-[10px] ${active ? 'opacity-70' : 'text-[var(--fg-faint)]'}`}>{option.desc}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
       {isPremium && (
         <button
           onClick={() => navigate('/settings/notifications')}
@@ -290,4 +338,3 @@ export default function More() {
     </div>
   );
 }
-
