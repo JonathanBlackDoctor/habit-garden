@@ -1,9 +1,23 @@
 name: Firebase Deploy
 
-# Firebase 백엔드(functions / firestore rules / storage rules) 배포 전용 워크플로.
-# 프론트엔드는 GitHub Pages (pages.yml) 가 담당하므로 여기서는 hosting 을 배포하지 않습니다.
+# 수동 실행은 기존 백엔드 전체 배포를 유지한다.
+# 플래너 이월 로직 변경 시에는 dailyReset만 자동 배포해 웹과 서버 규칙을 맞춘다.
+# 프론트엔드는 GitHub Pages (pages.yml)가 담당한다.
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'functions/src/dailyReset.ts'
+      - 'shared/todoCarryover.ts'
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+# 배포 중인 함수를 중단하지 않고 순서대로 처리한다.
+concurrency:
+  group: firebase-deploy
+  cancel-in-progress: false
 
 jobs:
   deploy:
@@ -22,11 +36,12 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: 22
-          # pnpm-lock.yaml 을 기준으로 의존성을 재현 가능하게 설치한다.
-          # cache: pnpm
 
       - name: 의존성 설치 (workspace 전체)
         run: pnpm install --frozen-lockfile
+
+      - name: 플래너 회귀 테스트
+        run: pnpm --filter web test
 
       - name: Cloud Functions 빌드
         run: pnpm --filter functions build
@@ -36,13 +51,30 @@ jobs:
         run: npm audit --omit=dev --audit-level=high
 
       - name: Firebase 서비스 계정 자격증명 준비
-        run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > "${{ github.workspace }}/firebase-sa.json"
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo 'FIREBASE_SERVICE_ACCOUNT secret is not configured.' >&2
+            exit 1
+          fi
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "${{ runner.temp }}/firebase-sa.json"
 
       - name: Firebase 배포
         env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/firebase-sa.json
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-sa.json
+          EVENT_NAME: ${{ github.event_name }}
         run: |
+          if [ "$EVENT_NAME" = 'push' ]; then
+            TARGET='functions:dailyReset'
+          else
+            TARGET='functions,firestore,storage'
+          fi
           pnpm exec firebase deploy \
-            --only functions,firestore,storage \
+            --only "$TARGET" \
             --project planner-web-quick \
             --non-interactive
+
+      - name: 임시 자격증명 정리
+        if: always()
+        run: rm -f "${{ runner.temp }}/firebase-sa.json"

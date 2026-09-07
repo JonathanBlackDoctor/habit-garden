@@ -7,8 +7,8 @@
  * 그래서 한 날만 보지 않고, '미완료가 남은 가장 최근 과거 날짜'까지 거슬러 찾아 복구한다.
  *
  * 핵심 규칙: 후보 날짜(최신순) 중 미완료가 하나라도 있는 '첫(=가장 최근) 날'만 이월한다.
- * 더 과거 날짜에 남아 있는 항목은 그 최근 날로 이미 사슬 복사돼 있거나 보존용 원본이므로,
- * 가장 최근 한 날만 가져와야 중복 이월을 막는다.
+ * 장기 할 일로 이동한 날은 명시적인 복구 경계다. 그 날의 나머지는 이월하되,
+ * 더 과거에 보존된 복사본을 다시 가져와 이동을 되돌리지 않는다.
  */
 
 /** 거슬러 찾을 최대 일수 — 서버/클라 공통. */
@@ -25,6 +25,8 @@ export interface CarryTodo {
 export interface CarryDay {
   date: string;            // 'YYYY-MM-DD'
   todos: CarryTodo[];
+  /** 이 날 이전의 기록은 장기 이동 전 보존용 복사본이므로 복구하지 않는다. */
+  todoCarryoverClosed?: boolean;
 }
 
 /** 이월돼 새로 만들어질 항목의 내용. */
@@ -40,10 +42,16 @@ export interface CarryResult {
   items: CarryItem[];
 }
 
+/** Stop reading older dates once there is pending work or an explicit boundary. */
+export function isCarryoverBoundary(day: CarryDay): boolean {
+  return day.todoCarryoverClosed === true || day.todos.some((todo) => !todo.done);
+}
+
 /**
  * 후보 과거 날짜들(최신순)에서 미완료가 남은 가장 최근 날짜를 찾아,
  * 그 날의 미완료(done=false) 항목만 이월 대상으로 돌려준다.
  * 완료 항목은 제외하고, title 과 linkedLongTodoId(있을 때만) 만 옮긴다.
+ * 명시적인 장기 이동 경계가 비어 있어도 더 오래된 사본은 복구하지 않는다.
  */
 export function selectCarryOverItems(days: CarryDay[]): CarryResult {
   for (const day of days) {
@@ -57,6 +65,7 @@ export function selectCarryOverItems(days: CarryDay[]): CarryResult {
         })),
       };
     }
+    if (day.todoCarryoverClosed) break;
   }
   return { sourceDate: null, items: [] };
 }
