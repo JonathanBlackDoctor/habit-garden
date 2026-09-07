@@ -1,4 +1,4 @@
-import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import { Switch } from '@/components/ui/switch';
@@ -62,9 +62,15 @@ export default function HabitEditRow({ habit, groupSiblings }: Props) {
 
   const remove = async () => {
     if (!uid) return;
-    if (!confirm(`"${habit.title}" 습관을 삭제하시겠습니까?`)) return;
+    if (!confirm(`"${habit.title}" 습관을 삭제하시겠습니까?\n\n과거 기록은 그대로 보존됩니다.`)) return;
     try {
-      await deleteDoc(doc(db, 'users', uid, 'habits', habit.id));
+      // 하드 삭제하지 않는다. 습관 정의를 보관해 과거 habitChecks가 무엇이었는지
+      // 영구적으로 해석할 수 있게 하고, 현재 목록에서는 즉시 제외한다.
+      await updateDoc(doc(db, 'users', uid, 'habits', habit.id), {
+        active: false,
+        archivedAt: serverTimestamp(),
+      });
+      toast(`${habit.title} 삭제됨`, { description: '과거 기록은 그대로 보존됩니다.' });
     } catch {
       toast.error('삭제 실패');
     }
