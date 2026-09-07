@@ -2,11 +2,18 @@ import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from './firebase';
 import { useAppStore } from './store';
 
+export type UiDesign = 'editorial' | 'classic';
+
 export function useFaithEnabled(): boolean {
   const settings = useAppStore((s) => s.settings);
   const profile = useAppStore((s) => s.profile);
   if (settings?.features?.faith !== undefined) return settings.features.faith;
   return profile?.isOwner ?? false;
+}
+
+export function useUiDesign(): UiDesign {
+  const settings = useAppStore((s) => s.settings) as ({ uiDesign?: UiDesign } | null);
+  return settings?.uiDesign === 'classic' ? 'classic' : 'editorial';
 }
 
 /** 익명(가입 없이 둘러보기) 게스트 여부 */
@@ -28,6 +35,14 @@ export async function setFaithEnabled(uid: string, enabled: boolean): Promise<vo
   await setDoc(
     doc(db, 'users', uid, 'settings', 'main'),
     { features: { faith: enabled }, updatedAt: serverTimestamp() },
+    { merge: true },
+  );
+}
+
+export async function setUiDesign(uid: string, uiDesign: UiDesign): Promise<void> {
+  await setDoc(
+    doc(db, 'users', uid, 'settings', 'main'),
+    { uiDesign, updatedAt: serverTimestamp() },
     { merge: true },
   );
 }
