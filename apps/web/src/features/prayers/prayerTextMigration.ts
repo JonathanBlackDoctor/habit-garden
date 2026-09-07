@@ -1,8 +1,11 @@
 import { onAuthStateChanged } from 'firebase/auth';
-import { collection, getDocs, serverTimestamp, writeBatch } from 'firebase/firestore';
+import {
+  collection, doc, getDoc, getDocs, serverTimestamp, setDoc, writeBatch,
+} from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { getPrayerTextRepairPatch } from './prayerText';
 
+const MIGRATION_FLAG = 'prayerTextLineBreaksV1';
 const repairedUids = new Set<string>();
 let started = false;
 
@@ -11,6 +14,10 @@ async function repairPrayerTexts(uid: string) {
   repairedUids.add(uid);
 
   try {
+    const settingsRef = doc(db, 'users', uid, 'settings', 'main');
+    const settingsSnap = await getDoc(settingsRef);
+    if (settingsSnap.data()?.[MIGRATION_FLAG] === true) return;
+
     const snap = await getDocs(collection(db, 'users', uid, 'prayers'));
     const repairs = snap.docs
       .map((d) => ({ ref: d.ref, patch: getPrayerTextRepairPatch(d.data()) }))
@@ -24,6 +31,12 @@ async function repairPrayerTexts(uid: string) {
       await batch.commit();
     }
 
+    await setDoc(
+      settingsRef,
+      { [MIGRATION_FLAG]: true, updatedAt: serverTimestamp() },
+      { merge: true },
+    );
+
     if (repairs.length > 0) {
       console.info(`[prayers] repaired line breaks in ${repairs.length} existing item(s)`);
     }
@@ -34,8 +47,8 @@ async function repairPrayerTexts(uid: string) {
 }
 
 /**
- * 앱 시작 시 인증 사용자의 기존 기도 데이터를 가볍게 점검한다.
- * 정상 데이터는 쓰기 없이 통과하고, 실제 개행 보정이 필요한 문서만 배치 수정한다.
+ * 앱 시작 시 인증 사용자의 기존 기도 데이터를 1회 점검한다.
+ * 완료 마커가 있으면 전체 목록을 다시 읽지 않고, 실제 보정이 필요한 문서만 배치 수정한다.
  */
 export function startPrayerTextMigration() {
   if (started) return;
