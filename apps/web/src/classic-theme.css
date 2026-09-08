@@ -93,6 +93,16 @@
   box-shadow: var(--shadow-sm);
 }
 
+/* Editorial habit rows have no horizontal padding because their default
+   presentation is edge-to-edge. Classic wraps those rows in a card, so give
+   the card contents an inset instead of letting controls/text touch the
+   rounded border. */
+.theme-classic .row-divide > * {
+  min-width: 0;
+  padding-left: 14px;
+  padding-right: 14px;
+}
+
 .theme-classic .editorial-list > * + *,
 .theme-classic .row-divide > * + * {
   border-top-color: var(--border-soft);
