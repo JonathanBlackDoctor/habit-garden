@@ -10,6 +10,8 @@ import { toZonedTime } from 'date-fns-tz';
 import type { HabitDoc, HabitCheckDoc, ProgressDoc, UserSettingsDoc } from '../../shared/types/firestore';
 import { visibleHabits, buildHabitListMessage, escapeHtml } from '../../shared/lib/telegram';
 import { notifyUser } from './notify';
+import { plannerDateKST } from '../../shared/lib/telegram';
+import { usesHabitCheck, habitCheckMessage } from '../../shared/lib/habitCheckReminder';
 
 const db = admin.firestore();
 const REGION = 'asia-northeast3';
@@ -22,7 +24,7 @@ export const flushReminderQueue = functions
   .schedule('*/5 * * * *')
   .timeZone(KST)
   .onRun(async () => {
-    const today = format(toZonedTime(new Date(), KST), 'yyyy-MM-dd');
+    const today = plannerDateKST();
     const nowMs = Date.now();
 
     const profilesSnap = await db.collection('userProfiles').where('status', '==', 'approved').get();
@@ -78,6 +80,14 @@ async function processUser(uid: string, today: string, nowMs: number): Promise<v
     const habitOff = (settingsSnap.data() as UserSettingsDoc | undefined)?.notifications?.habitReminder === false;
 
     if (pending.length > 0 && !habitOff) {
+      if (usesHabitCheck(settingsSnap.data() as UserSettingsDoc | undefined)) {
+        const message = habitCheckMessage(today, 'review', true);
+        await notifyUser(uid, { title: '⏰ 요청한 다시 알림', body: message.body, date: today }, {
+          link: message.link, type: 'habit_reminder', urgency: 'normal', telegram: { ...message.telegram, text: `⏰ 요청한 다시 알림\n${message.body}` },
+        });
+        await batch.commit();
+        return;
+      }
       const title = `⏰ 다시 알림 — ${pending.length}개`;
       const body = `${titles.slice(0, 2).join(', ')}${pending.length > 2 ? ` 외 ${pending.length - 2}개` : ''}`;
 

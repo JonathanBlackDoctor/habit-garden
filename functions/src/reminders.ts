@@ -22,6 +22,8 @@ import {
   reminderFilterForHour, habitMatchesFilter,
 } from '../../shared/lib/telegram';
 import { notifyUser } from './notify';
+import { plannerDateKST } from '../../shared/lib/telegram';
+import { usesHabitCheck, habitCheckTargets, habitCheckMessage } from '../../shared/lib/habitCheckReminder';
 
 const db = admin.firestore();
 const REGION = 'asia-northeast3';
@@ -41,12 +43,19 @@ export const sendScheduledReminder = functions
   .onRun(async () => {
     const now = toZonedTime(new Date(), KST);
     const hour = now.getHours();
-    const today = format(now, 'yyyy-MM-dd');
+    const today = plannerDateKST();
 
     // 승인된 사용자만 대상으로 처리 (비용 최소화)
     const profilesSnap = await db.collection('userProfiles').where('status', '==', 'approved').get();
     await Promise.all(profilesSnap.docs.map(async (doc) => {
       try {
+        const settings = (await db.doc(`users/${doc.id}/settings/main`).get()).data() as UserSettingsDoc | undefined;
+        if (usesHabitCheck(settings)) {
+          await processHabitCheckUser(doc.id, hour, today, settings!);
+          if (hour === REFLECTION_HOUR) await processReflectionReminder(doc.id, today);
+          await processPrayerReminder(doc.id, hour, today);
+          return;
+        }
         if (HABIT_HOURS.includes(hour)) await processUser(doc.id, hour, today);
         if (hour === REFLECTION_HOUR) await processReflectionReminder(doc.id, today);
         await processPrayerReminder(doc.id, hour, today);
@@ -56,6 +65,26 @@ export const sendScheduledReminder = functions
     }));
     return null;
   });
+
+async function processHabitCheckUser(uid: string, hour: number, today: string, settings: UserSettingsDoc): Promise<void> {
+  if (![9, 13, 19].includes(hour) || settings.notifications?.habitReminder === false) return;
+  const progRef = db.doc(`users/${uid}/progress/main`);
+  const prog = (await progRef.get()).data() as any;
+  if (prog?._todayHabitReminderPause?.date === today) return;
+  if (prog?._habitCheckReminder?.date === today && prog._habitCheckReminder.hours?.includes(hour)) return;
+  const [habitsSnap, checksSnap] = await Promise.all([
+    db.collection(`users/${uid}/habits`).get(),
+    db.collection(`users/${uid}/days/${today}/habitChecks`).get(),
+  ]);
+  const checks = Object.fromEntries(checksSnap.docs.map(d => [d.id, d.data() as HabitCheckDoc]));
+  if (!habitCheckTargets(hour, habitsSnap.docs.map(d => ({ ...d.data(), id: d.id }) as HabitDoc), checks).length) return;
+  const message = habitCheckMessage(today, 'habits');
+  await notifyUser(uid, { title: message.title, body: message.body, date: today }, {
+    link: message.link, type: 'habit_reminder', urgency: 'normal', telegram: message.telegram,
+  });
+  const hours: number[] = prog?._habitCheckReminder?.date === today ? prog._habitCheckReminder.hours ?? [] : [];
+  await progRef.set({ _habitCheckReminder: { date: today, hours: [...new Set([...hours, hour])] }, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+}
 
 async function processUser(uid: string, hour: number, today: string): Promise<void> {
   const progSnap = await db.doc(`users/${uid}/progress/main`).get();
@@ -182,6 +211,22 @@ async function processPrayerReminder(uid: string, hour: number, today: string): 
     ...(plan.pinnedIds ?? []), ...(plan.rotationIds ?? []), ...(plan.extraIds ?? []),
   ]));
   if (listIds.length === 0) return;
+
+  if (usesHabitCheck(settingsSnap.data() as UserSettingsDoc | undefined)) {
+    const [prayers, checks] = await Promise.all([
+      db.collection(`users/${uid}/prayers`).where('status', '==', 'active').get(),
+      db.collection(`users/${uid}/days/${today}/prayerChecks`).get(),
+    ]);
+    const active = new Set(prayers.docs.map(d => d.id));
+    const checked = new Set(checks.docs.map(d => d.id));
+    if (!listIds.some(id => active.has(id) && !checked.has(id))) return;
+    const message = habitCheckMessage(today, 'prayers');
+    await notifyUser(uid, { title: message.title, body: message.body, date: today }, {
+      link: message.link, type: 'prayer_reminder', urgency: 'normal', telegram: message.telegram,
+    });
+    await progRef.set({ _todayPrayerReminder: { date: today }, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    return;
+  }
 
   const checksSnap = await db.collection(`users/${uid}/days/${today}/prayerChecks`).get();
   const checked = new Set(checksSnap.docs.map((d) => d.id));

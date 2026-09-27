@@ -1,0 +1,48 @@
+name: Deploy Habit Check reminders
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'functions/src/reminders.ts'
+      - 'functions/src/reminderQueue.ts'
+      - 'shared/lib/habitCheckReminder.ts'
+      - 'functions/scripts/enable-habit-check.cjs'
+      - '.github/workflows/habit-check-reminders.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: firebase-deploy
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter web test
+      - run: pnpm --filter functions build
+      - name: Prepare existing deployment credentials
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          test -n "$FIREBASE_SERVICE_ACCOUNT"
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "${{ runner.temp }}/firebase-sa.json"
+      - name: Deploy only the two reminder functions
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-sa.json
+        run: pnpm exec firebase deploy --only functions:sendScheduledReminder,functions:flushReminderQueue --project planner-web-quick --non-interactive
+      - name: Enable simple reminders for the existing bot administrator
+        working-directory: functions
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-sa.json
+        run: node scripts/enable-habit-check.cjs
+      - name: Remove temporary credentials
+        if: always()
+        run: rm -f "${{ runner.temp }}/firebase-sa.json"
