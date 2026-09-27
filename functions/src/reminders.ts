@@ -52,6 +52,7 @@ export const sendScheduledReminder = functions
         const settings = (await db.doc(`users/${doc.id}/settings/main`).get()).data() as UserSettingsDoc | undefined;
         if (usesHabitCheck(settings)) {
           await processHabitCheckUser(doc.id, hour, today, settings!);
+          if (hour === REFLECTION_HOUR) await processReflectionReminder(doc.id, today);
           await processPrayerReminder(doc.id, hour, today);
           return;
         }

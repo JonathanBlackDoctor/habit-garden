@@ -17,10 +17,8 @@ async function main() {
     const settings = snap.data();
     const patch = {
       habitCheckReminders: 'three-times-daily',
-      notifications: { reflectionReminder: false, morningBrief: false, prayerWeekly: false, progressWeekly: false },
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
-    if (!settings.habitCheckPreviousNotifications) patch.habitCheckPreviousNotifications = settings.notifications ?? {};
     tx.set(ref, patch, { merge: true });
   });
   const saved = (await ref.get()).data();
