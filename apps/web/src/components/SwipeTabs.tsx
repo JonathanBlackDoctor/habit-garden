@@ -3,6 +3,7 @@ import type { ReactElement } from 'react';
 import { useLocation, useNavigate, useOutlet } from 'react-router-dom';
 import { animate, motion, useMotionValue } from 'framer-motion';
 import { useVisibleTabs } from '@/lib/tabs';
+import { useUiDesign } from '@/lib/features';
 import Main from '@/routes/Main';
 import Habits from '@/routes/Habits';
 import Prayers from '@/routes/Prayers';
@@ -23,6 +24,7 @@ const SPRING = { type: 'spring' as const, stiffness: 360, damping: 40, restDelta
 
 export default function SwipeTabs() {
   const tabs = useVisibleTabs();
+  const uiDesign = useUiDesign();
   const location = useLocation();
   const navigate = useNavigate();
   const outlet = useOutlet();
@@ -174,7 +176,7 @@ export default function SwipeTabs() {
             className="no-scrollbar h-full shrink-0 overflow-y-auto overflow-x-hidden overscroll-contain"
             style={{ width: w || '100%' }}
           >
-            {TAB_ELEMENTS[t.to]}
+            {uiDesign === 'editorial' && t.to === '/' ? <Habits /> : TAB_ELEMENTS[t.to]}
           </div>
         ))}
       </motion.div>

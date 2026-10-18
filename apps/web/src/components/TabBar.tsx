@@ -28,7 +28,7 @@ export default function TabBar() {
   // 신앙 탭(/prayers)은 기도 ↔ 말씀 적용 뷰를 토글하고, 그 외 탭은 맨 위로 스크롤한다.
   const handleReTap = (e: React.MouseEvent, to: string) => {
     if (!isActivePath(to)) return; // 다른 탭으로 이동 — NavLink 기본 동작
-    if (to === '/prayers') {
+    if (to === '/prayers' && classic) {
       e.preventDefault();
       const isApp = new URLSearchParams(location.search).get('view') === 'application';
       navigate(isApp ? '/prayers' : '/prayers?view=application');
@@ -40,7 +40,7 @@ export default function TabBar() {
     <nav className="tab-bar-safe absolute bottom-0 left-0 right-0 z-40 border-t border-[var(--divider-soft)] bg-[var(--bg-base)] px-[18px] pt-[10px]">
       <div data-tour="tabbar" className="mx-auto flex w-full items-center justify-around">
         {tabs.map(({ to, label }) => {
-          const badge = badges[to] ?? 0;
+          const badge = classic ? (badges[to] ?? 0) : 0;
           const Icon = CLASSIC_ICONS[to] ?? MoreHorizontal;
           return (
           <NavLink

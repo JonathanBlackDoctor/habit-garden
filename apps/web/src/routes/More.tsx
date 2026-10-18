@@ -65,7 +65,7 @@ export default function More() {
     const next = !faithEnabled;
     await setFaithEnabled(uid, next);
     // 신앙 기능을 켤 때마다 기도 튜토리얼을 진행한다.
-    if (next) startPrayerTour();
+    if (next && uiDesign === 'classic') startPrayerTour();
   };
 
   const onDesignChange = async (next: UiDesign) => {
@@ -118,6 +118,89 @@ export default function More() {
       description: '브라우저 메뉴의 "앱 설치" 항목을 사용해보세요',
     });
   };
+
+  // 에디토리얼에서는 습관·기도 외의 메뉴를 모두 감추고, 필수 설정만 남긴다.
+  if (uiDesign === 'editorial') {
+    return (
+      <div className="page-pad min-h-full space-y-6">
+        <PageHeader
+          kicker="습관 정원"
+          title="설정"
+          className="pt-1"
+          action={(
+            <button
+              type="button"
+              onClick={() => navigate('/')}
+              className="min-h-11 rounded-full px-3 text-[13px] text-[var(--fg-muted)]"
+            >
+              닫기
+            </button>
+          )}
+        />
+        <section className="space-y-3">
+          <p className="kicker">화면 디자인</p>
+          <p className="text-[13px] text-[var(--fg-muted)]">
+            에디토리얼은 습관과 기도만, 클래식은 모든 메뉴를 보여줘요. 기록은 그대로 유지됩니다.
+          </p>
+          <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="화면 디자인">
+            {DESIGN_OPTIONS.map((option) => {
+              const active = option.value === uiDesign;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  onClick={() => onDesignChange(option.value)}
+                  className={`rounded-[10px] border px-3 py-3 text-left transition-colors ${
+                    active
+                      ? 'border-[var(--fg-primary)] bg-[var(--fg-primary)] text-[var(--bg-base)]'
+                      : 'border-[var(--divider-soft)] bg-[var(--bg-surface)] text-[var(--fg-primary)]'
+                  }`}
+                >
+                  <span className="block text-[12px] font-semibold">{option.label}</span>
+                  <span className={`mt-1 block text-[10px] ${active ? 'opacity-70' : 'text-[var(--fg-faint)]'}`}>
+                    {option.desc}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+        <section className="space-y-2">
+          <p className="kicker">기도제목 관리</p>
+          <ToggleRow
+            icon={<HandHeart size={18} className="text-[var(--leaf)]" />}
+            label="기도 기능"
+            desc="기도·기도제목 메뉴 표시"
+            value={faithEnabled}
+            onToggle={onFaithToggle}
+          />
+          {faithEnabled && (
+            <button
+              type="button"
+              onClick={() => setTaxonomyOpen(true)}
+              className="flex min-h-12 w-full items-center justify-between border-y border-[var(--divider-soft)] py-3 text-left text-[14px] text-[var(--fg-primary)]"
+            >
+              모임·대상 분류 관리
+              <ChevronRight size={16} className="text-[var(--fg-faint)]" />
+            </button>
+          )}
+          {faithEnabled && <PrayerTaxonomyManager open={taxonomyOpen} onOpenChange={setTaxonomyOpen} />}
+        </section>
+        <button
+          type="button"
+          onClick={() => {
+            if (isGuest && !window.confirm('게스트로 둘러보는 중이에요. 로그아웃하면 이 기기에서 지금까지 쌓은 기록에 다시 접근할 수 없어요. 계속할까요?')) return;
+            signOutUser();
+          }}
+          className="flex w-full items-center gap-2 border-t border-[var(--divider-soft)] pt-4 text-left text-[13px] text-[var(--fg-muted)]"
+        >
+          <LogOut size={16} /> {isGuest ? '게스트 종료' : '로그아웃'}
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="more-editorial page-pad min-h-full space-y-2">

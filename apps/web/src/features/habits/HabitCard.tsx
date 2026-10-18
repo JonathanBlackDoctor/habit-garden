@@ -16,6 +16,8 @@ interface Props {
   streak?: number;
   /** 현재 시간대 그룹인지 — 지금은 그룹 카드가 강조를 맡아 행에서는 쓰지 않는다 */
   isNow?: boolean;
+  /** 에디토리얼 집중 모드: 습관 체크만 보이고 회고·스트릭·달력은 감춘다. */
+  compact?: boolean;
   onScore: (score: number | null) => void;
   onClear: () => void;
 }
@@ -23,7 +25,7 @@ interface Props {
 const SCORE_LABELS = ['', '매우 부족', '부족', '보통', '양호', '우수'];
 const BINARY_LABELS = ['미완료', '완료'];
 const MOOD_LABELS = ['', '많이 힘듦', '힘듦', '보통', '좋음', '아주 좋음'];
-export default function HabitCard({ habit, check, streak = 0, onScore, onClear }: Props) {
+export default function HabitCard({ habit, check, streak = 0, compact = false, onScore, onClear }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [showReflection, setShowReflection] = useState(false);
   const [mood, setMood] = useState<1 | 2 | 3 | 4 | 5 | null>(null);
@@ -139,7 +141,7 @@ export default function HabitCard({ habit, check, streak = 0, onScore, onClear }
             status === 'achieved' && 'text-[var(--fg-faint)]',
             status === 'skipped' && 'text-[var(--fg-faint)] line-through decoration-[var(--fg-faint)]'
           )}>{habit.title}</span>
-          <span className="truncate text-[12px] text-[var(--fg-faint)]">{subtitle}</span>
+          {!compact && <span className="truncate text-[12px] text-[var(--fg-faint)]">{subtitle}</span>}
         </button>
         <span className="meta-copy tabular-nums">
           {skipped ? '건너뜀' : habit.scoreMode === 'scaled' && currentScore === null ? '1–5' : ''}
@@ -147,7 +149,7 @@ export default function HabitCard({ habit, check, streak = 0, onScore, onClear }
       </div>
 
       {/* 스트릭 위험 경고 — 미기록 + 진행 중 스트릭 */}
-      {status === 'todo' && streak >= 2 && (
+      {!compact && status === 'todo' && streak >= 2 && (
         <p className="mt-2 text-[12px] text-[var(--bloom)]">
           {streak}일 연속 — 오늘 지키면 이어져요
         </p>
@@ -202,9 +204,9 @@ export default function HabitCard({ habit, check, streak = 0, onScore, onClear }
         )}
       </div>}
 
-      {/* 설명 + 30일 캘린더 (접기/펼치기) */}
+      {/* 설명 + 30일 캘린더는 클래식 화면에서만 표시 */}
       <AnimatePresence>
-        {expanded && (
+        {!compact && expanded && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
@@ -220,7 +222,7 @@ export default function HabitCard({ habit, check, streak = 0, onScore, onClear }
       </AnimatePresence>
 
       {/* 데일리 한 줄 회고 — 접힌 토글 or 펼쳐진 패널 */}
-      {canReflect && !showReflection && (
+      {!compact && canReflect && !showReflection && (
         <button
           onClick={() => setShowReflection(true)}
           className="mt-2 w-full text-left text-[12px] text-[var(--fg-faint)] transition-colors hover:text-[var(--fg-muted)]"
@@ -229,7 +231,7 @@ export default function HabitCard({ habit, check, streak = 0, onScore, onClear }
         </button>
       )}
       <AnimatePresence>
-        {showReflection && (
+        {!compact && showReflection && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}

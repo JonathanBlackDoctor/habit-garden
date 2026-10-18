@@ -57,8 +57,12 @@ export default function AppLayout() {
               <SwipeTabs />
             </div>
             <TabBar />
-            <OnboardingFlow />
-            <PrayerTour />
+            {uiDesign === 'classic' && (
+              <>
+                <OnboardingFlow />
+                <PrayerTour />
+              </>
+            )}
           </div>
         </div>
       </TabActiveContext.Provider>

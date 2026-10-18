@@ -19,11 +19,11 @@ import { DuplicateFinder } from '@/features/prayers/DuplicateFinder';
 import { WeeklyDigestCard } from '@/features/prayers/WeeklyDigestCard';
 import EmptyState from '@/components/EmptyState';
 import { selectMorePrayers, type RotationInput } from 'shared/prayerRotation';
-import { Plus, ClipboardList, Search, Heart, ListChecks, Layers, ChevronDown } from 'lucide-react';
+import { Plus, ClipboardList, Search, Heart, ListChecks, Layers, ChevronDown, Settings2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { Navigate, useSearchParams } from 'react-router-dom';
-import { useFaithEnabled, useIsPremium } from '@/lib/features';
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
+import { useFaithEnabled, useIsPremium, useUiDesign } from '@/lib/features';
 import { useTabBloomKey } from '@/lib/tabActive';
 import { ApplicationsPanel } from '@/routes/Applications';
 import { PageHeader, SegmentTabs } from '@/components/Editorial';
@@ -35,6 +35,13 @@ const SEGMENTS: { id: Segment; label: string }[] = [
   { id: 'all',      label: '전체' },
   { id: 'answered', label: '응답' },
   { id: 'dormant',  label: '잠든' },
+];
+
+const EDITORIAL_SEGMENTS: typeof SEGMENTS = [
+  { id: 'today', label: '오늘 기도' },
+  { id: 'all', label: '기도제목' },
+  { id: 'answered', label: '응답' },
+  { id: 'dormant', label: '보관' },
 ];
 
 const MORE_BATCH = 3;
@@ -62,6 +69,8 @@ export default function Prayers() {
 }
 
 function PrayersInner() {
+  const isEditorial = useUiDesign() === 'editorial';
+  const navigate = useNavigate();
   const date = useAppStore((s) => s.currentDate);
   const prayers = usePrayers();
   const checks  = usePrayerChecks(date);
@@ -71,7 +80,7 @@ function PrayersInner() {
   // 신앙 탭 상단 전환 — 기도 / 말씀 적용. URL ?view=application 로 딥링크·튜토리얼 연동.
   const [searchParams, setSearchParams] = useSearchParams();
   const view: 'prayer' | 'application' =
-    searchParams.get('view') === 'application' ? 'application' : 'prayer';
+    !isEditorial && searchParams.get('view') === 'application' ? 'application' : 'prayer';
   const setView = (v: 'prayer' | 'application') =>
     setSearchParams(v === 'application' ? { view: 'application' } : {}, { replace: true });
 
@@ -90,13 +99,29 @@ function PrayersInner() {
 
   return (
     <div className="page-pad flex flex-col gap-5">
-      <PageHeader kicker={formatLongKoreanDate(date)} title="신앙" />
-      <SegmentTabs
-        ariaLabel="신앙 보기"
-        items={[{ value: 'prayer', label: '기도' }, { value: 'application', label: '말씀 적용' }]}
-        value={view}
-        onChange={setView}
+      <PageHeader
+        kicker={formatLongKoreanDate(date)}
+        title={isEditorial ? '기도' : '신앙'}
+        action={isEditorial ? (
+          <button
+            type="button"
+            onClick={() => navigate('/more')}
+            className="grid h-11 w-11 place-items-center rounded-full text-[var(--fg-muted)] hover:bg-[var(--leaf-soft)]"
+            aria-label="설정"
+            title="설정"
+          >
+            <Settings2 size={18} />
+          </button>
+        ) : undefined}
       />
+      {!isEditorial && (
+        <SegmentTabs
+          ariaLabel="신앙 보기"
+          items={[{ value: 'prayer', label: '기도' }, { value: 'application', label: '말씀 적용' }]}
+          value={view}
+          onChange={setView}
+        />
+      )}
 
       {view === 'application' ? (
         <ApplicationsPanel />
@@ -133,13 +158,14 @@ function PrayerSection({
   liveSelected: PrayerDoc | null;
   openDetail: (p: PrayerDoc) => void;
 }) {
+  const isEditorial = useUiDesign() === 'editorial';
   return (
     <div className="flex flex-col gap-4">
       {/* 세그먼트 + 추가·무더기 */}
       <div data-tour="prayer-segments" className="space-y-3">
         <SegmentTabs
           ariaLabel="기도 필터"
-          items={SEGMENTS.map((s) => ({ value: s.id, label: s.label }))}
+          items={(isEditorial ? EDITORIAL_SEGMENTS : SEGMENTS).map((s) => ({ value: s.id, label: s.label }))}
           value={seg}
           onChange={setSeg}
         />
@@ -150,7 +176,7 @@ function PrayerSection({
           >
             <Plus size={14} /> 추가
           </button>
-          {isPremium && (
+          {isPremium && (!isEditorial || seg !== 'today') && (
             <button
               onClick={() => setBulkOpen(true)}
               data-tour="prayer-bulk"
@@ -197,6 +223,7 @@ function TodayView({
   const digest = useLatestWeeklyDigest();
   const dormantSoon = useDormantSoon(prayers);
   const isPremium = useIsPremium();
+  const isEditorial = useUiDesign() === 'editorial';
   const prayerBloomKey = useTabBloomKey('/prayers'); // 기도 탭 진입 시 진행바 재생
 
   // 오늘의 목록을 그날 한 번 확정 — 기도 체크로 lastPrayedAt 이 바뀌어도 목록이 흔들리지 않게.
@@ -249,13 +276,15 @@ function TodayView({
 
   return (
     <div className="space-y-5">
-      <WeeklyDigestCard
-        digest={digest}
-        dormantSoon={dormantSoon}
-        pendingToday={total - done}
-        onPrayNow={prayNow}
-        onOpenDuplicates={isPremium && active.length >= 5 ? onOpenAll : undefined}
-      />
+      {!isEditorial && (
+        <WeeklyDigestCard
+          digest={digest}
+          dormantSoon={dormantSoon}
+          pendingToday={total - done}
+          onPrayNow={prayNow}
+          onOpenDuplicates={isPremium && active.length >= 5 ? onOpenAll : undefined}
+        />
+      )}
 
       {/* 기도 모드 진입 — 어둡고 고요한 세션 */}
       {total > 0 && (
@@ -264,7 +293,7 @@ function TodayView({
           className="editorial-panel flex w-full items-center justify-between text-left"
         >
           <div>
-            <p className="text-[15.5px] font-semibold tracking-[-0.02em] text-[var(--fg-primary)]">기도 시작</p>
+            <p className="text-[15.5px] font-semibold tracking-[-0.02em] text-[var(--fg-primary)]">{isEditorial ? '기도 모드 시작' : '기도 시작'}</p>
             <p className="mt-1 text-[13px] text-[var(--fg-muted)]">
               {total - done > 0 ? `남은 기도 ${total - done}개 · ` : ''}조용히 머무는 시간
             </p>
@@ -347,7 +376,7 @@ function TodayView({
         </button>
       )}
 
-      <GratitudeSection date={date} />
+      {!isEditorial && <GratitudeSection date={date} />}
 
       <PrayerMode
         open={prayerModeOpen}
@@ -364,6 +393,7 @@ function TodayView({
 
 // ── 전체 (필터·검색·모임칩) ────────────────────────────────
 function AllView({ prayers, onOpen }: { prayers: PrayerDoc[]; onOpen: (p: PrayerDoc) => void }) {
+  const isEditorial = useUiDesign() === 'editorial';
   const knownGroups = usePrayerGroups();
   const knownTargets = usePrayerTargets();
   const [search, setSearch] = useState('');
@@ -434,9 +464,9 @@ function AllView({ prayers, onOpen }: { prayers: PrayerDoc[]; onOpen: (p: Prayer
         ))}
       </div>
 
-      {!sel.selectMode && <BatchGroupPanel batches={batches} onSelectBatch={selectBatch} />}
+      {!isEditorial && !sel.selectMode && <BatchGroupPanel batches={batches} onSelectBatch={selectBatch} />}
 
-      {!sel.selectMode && <DuplicateFinder prayers={active} onOpen={onOpen} />}
+      {!isEditorial && !sel.selectMode && <DuplicateFinder prayers={active} onOpen={onOpen} />}
 
       {filtered.length === 0 ? (
         <EmptyState compact title="조건에 맞는 기도제목이 없습니다." />

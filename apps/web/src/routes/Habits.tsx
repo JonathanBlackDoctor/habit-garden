@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { animate } from 'framer-motion';
-import { Pencil, Check, Plus, Sprout, ChevronRight } from 'lucide-react';
+import { Pencil, Check, Plus, Sprout, ChevronRight, Settings2 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
+import { useUiDesign } from '@/lib/features';
 import { cn } from '@/lib/utils';
 import EmptyState from '@/components/EmptyState';
 import SeedHabitsButton from '@/features/habits/SeedHabitsButton';
@@ -35,6 +36,8 @@ const TIME_LABELS: Record<string, string> = {
 };
 export default function Habits() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const isEditorial = useUiDesign() === 'editorial';
   const uid    = useAppStore((s) => s.uid);
   const today  = useAppStore((s) => s.currentDate);
   const dateParam = searchParams.get('date');
@@ -64,7 +67,7 @@ export default function Habits() {
   // scrollIntoView는 가로 트랜스폼된 트랙 내부 중첩 스크롤에서 불안정하므로
   // 스크롤 컨테이너의 scrollTop을 직접 애니메이션(AppLayout과 동일 방식)
   useEffect(() => {
-    if (bloomKey === 0) return;
+    if (isEditorial || bloomKey === 0) return;
     const el = nowSectionRef.current;
     if (!el) return;
     const raf = requestAnimationFrame(() => {
@@ -86,7 +89,7 @@ export default function Habits() {
       });
     });
     return () => cancelAnimationFrame(raf);
-  }, [bloomKey]);
+  }, [bloomKey, isEditorial]);
 
   // 휴면 중인 습관은 일일 목록·집계에서 빠지고, 편집 모드 전용 휴면 섹션에만 모인다.
   const liveHabits        = habits.filter((h) => !isHibernating(h));
@@ -121,6 +124,17 @@ export default function Habits() {
           summary={`${totalAchieved} / ${totalActive} 달성 · ${totalChecked} / ${totalActive} 기록`}
           action={(
             <div className="flex items-center gap-1">
+              {isEditorial && (
+                <button
+                  type="button"
+                  onClick={() => navigate('/more')}
+                  className="grid h-11 w-11 place-items-center rounded-full text-[var(--fg-muted)] hover:bg-[var(--leaf-soft)]"
+                  aria-label="설정"
+                  title="설정"
+                >
+                  <Settings2 size={18} />
+                </button>
+              )}
               <button
                 onClick={() => setAddOpen(true)}
                 className="grid h-11 w-11 place-items-center rounded-full text-[var(--fg-muted)] hover:bg-[var(--leaf-soft)] hover:text-[var(--leaf)]"
@@ -156,7 +170,7 @@ export default function Habits() {
       </div>
 
       {/* 습관 묶음 일괄 건너뛰기 — 오늘·비편집 모드에서만. 예: 등교 안 하는 날 '학교' 묶음 한 번에 건너뛰기 */}
-      {!editMode && !isPast && (() => {
+      {!isEditorial && !editMode && !isPast && (() => {
         const bars = habitGroups
           .map((g) => ({ group: g, members: liveHabits.filter((h) => h.active && h.groupId === g.id) }))
           .filter(({ members }) => members.length > 0);
@@ -198,9 +212,28 @@ export default function Habits() {
         );
       })()}
 
-      {/* 시간대별 그룹 — 기본은 현재 시간대만 펼치고, 헤더를 누르면 각 그룹을 자유롭게 펼치거나 접는다.
-          편집 모드에서는 전부 펼쳐야 손댈 수 있으므로 접기를 끈다. */}
-      {HABIT_TIME_ORDER.map((tod) => {
+      {/* 에디토리얼은 모든 시간대의 습관을 하나의 펼쳐진 체크리스트로 표시한다.
+          클래식 및 편집 화면은 기존 시간대 그룹을 유지한다. */}
+      {isEditorial && !editMode ? (
+        liveHabits.length > 0 ? (
+          <section aria-label="오늘의 모든 습관" className="row-divide flex flex-col border-y border-[var(--divider-soft)]">
+            {liveHabits.map((habit) => (
+              <div
+                key={habit.id}
+                data-tour={habit.id === firstTourHabitId ? 'habit-first' : undefined}
+              >
+                <HabitCard
+                  habit={habit}
+                  check={checks[habit.id]}
+                  compact
+                  onScore={(score) => save(habit, score, checks[habit.id])}
+                  onClear={() => clear(habit, checks[habit.id])}
+                />
+              </div>
+            ))}
+          </section>
+        ) : null
+      ) : HABIT_TIME_ORDER.map((tod) => {
         const group = groups[tod];
         if (!group || group.length === 0) return null;
         const groupAchieved = group.filter((h) => checks[h.id]?.achieved).length;
