@@ -42,7 +42,7 @@ jobs:
           node-version: 22
 
       - name: 의존성 설치
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --no-frozen-lockfile
 
       - name: 플래너 회귀 테스트
         run: pnpm --filter web test
