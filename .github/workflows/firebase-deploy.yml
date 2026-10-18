@@ -1,8 +1,8 @@
 name: Firebase Deploy
 
-# 수동 실행은 기존 백엔드 전체 배포를 유지한다.
-# 플래너 변경은 dailyReset, 기도제목 변경은 AI 파싱 및 복구 함수만 자동 배포한다.
-# 프론트엔드는 GitHub Pages (pages.yml)가 담당한다.
+# 수동 실행은 백엔드 전체 배포를 유지한다.
+# 자동 배포는 변경된 핵심 함수만 대상으로 한다.
+# 프론트엔드는 pages.yml에서 별도 배포한다.
 on:
   push:
     branches: [main]
@@ -17,7 +17,6 @@ on:
 permissions:
   contents: read
 
-# 배포 중인 함수를 중단하지 않고 순서대로 처리한다.
 concurrency:
   group: firebase-deploy
   cancel-in-progress: false
@@ -25,7 +24,6 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
       - name: 코드 체크아웃
         uses: actions/checkout@v7
@@ -42,7 +40,7 @@ jobs:
         with:
           node-version: 22
 
-      - name: 의존성 설치 (workspace 전체)
+      - name: 의존성 설치
         run: pnpm install --frozen-lockfile
 
       - name: 플래너 회귀 테스트
@@ -73,28 +71,10 @@ jobs:
           if [ "$EVENT_NAME" = 'push' ]; then
             CHANGED="$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}")"
             TARGETS=()
-            if echo "$CHANGED" | grep -Eq '^(functions/src/dailyReset\.ts|shared/todoCarryover\.ts)
-          pnpm exec firebase deploy \
-            --only "$TARGET" \
-            --project planner-web-quick \
-            --non-interactive
-
-      - name: 임시 자격증명 정리
-        if: always()
-        run: rm -f "${{ runner.temp }}/firebase-sa.json"
-; then
+            if echo "$CHANGED" | grep -Eq '^(functions/src/dailyReset[.]ts|shared/todoCarryover[.]ts)$'; then
               TARGETS+=('functions:dailyReset')
             fi
-            if echo "$CHANGED" | grep -Eq '^(functions/src/(parsePrayer|index)\.ts|\.github/workflows/firebase-deploy\.yml)
-          pnpm exec firebase deploy \
-            --only "$TARGET" \
-            --project planner-web-quick \
-            --non-interactive
-
-      - name: 임시 자격증명 정리
-        if: always()
-        run: rm -f "${{ runner.temp }}/firebase-sa.json"
-; then
+            if echo "$CHANGED" | grep -Eq '^(functions/src/(parsePrayer|index)[.]ts|[.]github/workflows/firebase-deploy[.]yml)$'; then
               TARGETS+=('functions:parsePrayerBulk' 'functions:repairPrayerBodies')
             fi
             TARGET="$(IFS=,; echo "${TARGETS[*]}")"
