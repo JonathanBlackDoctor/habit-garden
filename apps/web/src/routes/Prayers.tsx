@@ -176,13 +176,13 @@ function PrayerSection({
           >
             <Plus size={14} /> 추가
           </button>
-          {isPremium && (!isEditorial || seg !== 'today') && (
+          {isPremium && (
             <button
               onClick={() => setBulkOpen(true)}
               data-tour="prayer-bulk"
               className="flex min-h-10 items-center gap-1 rounded-full border border-[var(--border)] px-3 py-2 text-xs text-[var(--fg-muted)]"
             >
-              <ClipboardList size={14} /> 무더기
+              <ClipboardList size={14} /> {isEditorial ? '무더기 추가' : '무더기'}
             </button>
           )}
         </div>
