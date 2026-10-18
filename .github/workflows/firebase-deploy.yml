@@ -52,6 +52,10 @@ jobs:
       - name: Cloud Functions 빌드
         run: pnpm --filter functions build
 
+      - name: Functions 안전 패치 자동 적용
+        working-directory: functions
+        run: npm audit fix --omit=dev --audit-level=high --no-fund
+
       - name: Functions 프로덕션 의존성 보안 점검
         working-directory: functions
         run: npm audit --omit=dev --audit-level=high
