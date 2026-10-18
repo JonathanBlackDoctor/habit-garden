@@ -26,3 +26,29 @@ export function getPrayerTextRepairPatch(
 
   return patch;
 }
+
+
+/**
+ * 과거 일괄 등록 본문에 한 줄로 붙은 불릿/번호 목록을 복원한다.
+ * 추측으로 문장을 분리하지 않으며, 글자는 고치지 않고 불릿 앞 공백만 LF로 바꾼다.
+ */
+export function restoreInlinePrayerBullets(value: string): string {
+  const normalized = normalizePrayerText(value);
+  if (normalized.includes('\n')) return normalized;
+  const bullets = normalized.match(/(?:^|[ \t])[-•][ \t]+\S/g) ?? [];
+  if (bullets.length >= 2) {
+    return normalized.replace(/[ \t]+(?=[-•][ \t]+\S)/g, '\n');
+  }
+  const numbered = normalized.match(/(?:^|[ \t])\d+[.)][ \t]+\S/g) ?? [];
+  if (numbered.length >= 2) {
+    return normalized.replace(/[ \t]+(?=\d+[.)][ \t]+\S)/g, '\n');
+  }
+  return normalized;
+}
+
+/** AI 교정 시 원본의 모든 비공백 문자를 보존해야 한다. */
+export function isSafePrayerLineBreakRepair(original: string, next: string): boolean {
+  return typeof original === 'string' && typeof next === 'string'
+    && next.includes('\n')
+    && original.replace(/\s/g, '') === next.replace(/\s/g, '');
+}
