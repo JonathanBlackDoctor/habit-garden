@@ -2,6 +2,7 @@ name: Firebase Deploy
 
 # 수동 실행은 백엔드 전체 배포를 유지한다.
 # 자동 배포는 변경된 핵심 함수만 대상으로 한다.
+# 기존 기도제목 복구는 배포된 repairPrayerBodies 함수를 로그인한 클라이언트가 호출한다.
 # 프론트엔드는 pages.yml에서 별도 배포한다.
 on:
   push:
