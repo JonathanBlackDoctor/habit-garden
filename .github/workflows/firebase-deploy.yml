@@ -1,7 +1,7 @@
 name: Firebase Deploy
 
 # 수동 실행은 기존 백엔드 전체 배포를 유지한다.
-# 플래너 이월 로직 변경 시에는 dailyReset만 자동 배포해 웹과 서버 규칙을 맞춘다.
+# 플래너 변경은 dailyReset, 기도제목 변경은 AI 파싱 및 복구 함수만 자동 배포한다.
 # 프론트엔드는 GitHub Pages (pages.yml)가 담당한다.
 on:
   push:
@@ -9,6 +9,9 @@ on:
     paths:
       - 'functions/src/dailyReset.ts'
       - 'shared/todoCarryover.ts'
+      - 'functions/src/parsePrayer.ts'
+      - 'functions/src/index.ts'
+      - '.github/workflows/firebase-deploy.yml'
   workflow_dispatch:
 
 permissions:
@@ -26,6 +29,8 @@ jobs:
     steps:
       - name: 코드 체크아웃
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: pnpm 설치
         uses: pnpm/action-setup@v6
@@ -66,7 +71,37 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
         run: |
           if [ "$EVENT_NAME" = 'push' ]; then
-            TARGET='functions:dailyReset'
+            CHANGED="$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}")"
+            TARGETS=()
+            if echo "$CHANGED" | grep -Eq '^(functions/src/dailyReset\.ts|shared/todoCarryover\.ts)
+          pnpm exec firebase deploy \
+            --only "$TARGET" \
+            --project planner-web-quick \
+            --non-interactive
+
+      - name: 임시 자격증명 정리
+        if: always()
+        run: rm -f "${{ runner.temp }}/firebase-sa.json"
+; then
+              TARGETS+=('functions:dailyReset')
+            fi
+            if echo "$CHANGED" | grep -Eq '^(functions/src/(parsePrayer|index)\.ts|\.github/workflows/firebase-deploy\.yml)
+          pnpm exec firebase deploy \
+            --only "$TARGET" \
+            --project planner-web-quick \
+            --non-interactive
+
+      - name: 임시 자격증명 정리
+        if: always()
+        run: rm -f "${{ runner.temp }}/firebase-sa.json"
+; then
+              TARGETS+=('functions:parsePrayerBulk' 'functions:repairPrayerBodies')
+            fi
+            TARGET="$(IFS=,; echo "${TARGETS[*]}")"
+            if [ -z "$TARGET" ]; then
+              echo 'No matching Firebase functions changed.'
+              exit 0
+            fi
           else
             TARGET='functions,firestore,storage'
           fi
