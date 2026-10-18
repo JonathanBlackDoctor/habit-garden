@@ -13,6 +13,8 @@ on:
       - 'functions/src/parsePrayer.ts'
       - 'functions/src/index.ts'
       - '.github/workflows/firebase-deploy.yml'
+      - 'pnpm-workspace.yaml'
+      - 'functions/package.json'
   workflow_dispatch:
 
 permissions:
@@ -75,7 +77,26 @@ jobs:
             if echo "$CHANGED" | grep -Eq '^(functions/src/dailyReset[.]ts|shared/todoCarryover[.]ts)$'; then
               TARGETS+=('functions:dailyReset')
             fi
-            if echo "$CHANGED" | grep -Eq '^(functions/src/(parsePrayer|index)[.]ts|[.]github/workflows/firebase-deploy[.]yml)$'; then
+            if echo "$CHANGED" | grep -Eq '^(functions/src/(parsePrayer|index)[.]ts|[.]github/workflows/firebase-deploy[.]yml|pnpm-workspace[.]yaml|functions/package[.]json)
+              TARGETS+=('functions:parsePrayerBulk' 'functions:repairPrayerBodies')
+            fi
+            TARGET="$(IFS=,; echo "${TARGETS[*]}")"
+            if [ -z "$TARGET" ]; then
+              echo 'No matching Firebase functions changed.'
+              exit 0
+            fi
+          else
+            TARGET='functions,firestore,storage'
+          fi
+          pnpm exec firebase deploy \
+            --only "$TARGET" \
+            --project planner-web-quick \
+            --non-interactive
+
+      - name: 임시 자격증명 정리
+        if: always()
+        run: rm -f "${{ runner.temp }}/firebase-sa.json"
+; then
               TARGETS+=('functions:parsePrayerBulk' 'functions:repairPrayerBodies')
             fi
             TARGET="$(IFS=,; echo "${TARGETS[*]}")"
