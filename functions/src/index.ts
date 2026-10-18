@@ -10,7 +10,7 @@ export { dailyReset }  from './dailyReset';
 export { dayScoreEngine } from './dayScore';
 export { generateFeedback } from './feedback';
 export { monthlyBackup } from './backup';
-export { parsePrayerBulk } from './parsePrayer';
+export { parsePrayerBulk, repairPrayerBodies } from './parsePrayer';
 export { suggestPrayerVerse } from './suggestPrayerVerse';
 export { findDuplicatePrayers } from './findDuplicates';
 export { generatePrayerWeekly } from './prayerWeekly';
