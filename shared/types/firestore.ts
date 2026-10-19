@@ -191,6 +191,8 @@ export interface HabitDoc {
   iconName: string;
   description?: string;
   active: boolean;
+  startedOn?: string;              // 새 습관의 시작 플래너 날짜 (기존 문서는 생략)
+  archivedAt?: Timestamp;
   groupId?: string | null;          // 소속 습관 묶음 id (HabitGroup.id). 없으면 묶음 없음.
   hibernatedSince?: string | null;  // YYYY-MM-DD, 휴면 시작일
   hibernatedUntil?: string | null;  // YYYY-MM-DD, 휴면 종료(깨운)일. 비어있으면 현재 휴면 중

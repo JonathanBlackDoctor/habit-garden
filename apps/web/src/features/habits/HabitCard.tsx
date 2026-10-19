@@ -50,13 +50,7 @@ export default function HabitCard({ habit, check, streak = 0, compact = false, o
     streak > 0 ? `${streak}일 연속` : null,
   ].filter(Boolean).join(' · ');
   const quickCircleLabel = habit.scoreMode === 'scaled'
-    ? status === 'skipped'
-      ? '기록 취소'
-      : currentScore === null
-        ? '1점'
-        : currentScore >= 5
-          ? '기록 취소'
-          : `${currentScore + 1}점`
+    ? '점수 선택'
     : status === 'todo'
       ? '완료'
       : status === 'achieved'
@@ -115,13 +109,7 @@ export default function HabitCard({ habit, check, streak = 0, compact = false, o
           label={`${habit.title} ${quickCircleLabel}`}
           onClick={() => {
             if (habit.scoreMode === 'scaled') {
-              if (status === 'skipped' || (currentScore !== null && currentScore >= 5)) {
-                // 건너뜀 또는 5점 다음 탭은 미입력(○)으로 되돌린다.
-                onClear();
-              } else {
-                // ○ → 1 → 2 → 3 → 4 → 5
-                onScore((currentScore ?? 0) + 1);
-              }
+              setExpanded((value) => !value);
             } else if (status === 'todo') {
               onScore(1);
             } else if (status === 'achieved') {
@@ -156,7 +144,7 @@ export default function HabitCard({ habit, check, streak = 0, compact = false, o
       )}
 
       {/* 점수 입력 — 5단계는 원형 숫자, 완료 여부는 알약 버튼 */}
-      {expanded && <div className="mt-2.5 pl-8">
+      {expanded && <div className={cn('mt-2.5', !compact && 'pl-8')}>
         {habit.scoreMode === 'scaled' ? (
           <div className="flex items-center gap-[7px]">
             {[1, 2, 3, 4, 5].map((s) => (
@@ -165,7 +153,7 @@ export default function HabitCard({ habit, check, streak = 0, compact = false, o
                 onClick={() => onScore(s)}
                 aria-label={`${s}점 · ${SCORE_LABELS[s]}`}
                 className={cn(
-                  'grid h-9 flex-1 place-items-center rounded-[9px] border text-[13.5px] transition-colors',
+                  'grid h-[44px] min-w-0 flex-1 place-items-center rounded-[9px] border text-[13.5px] transition-colors',
                   currentScore === s
                     ? 'border-[var(--fg-primary)] bg-[var(--fg-primary)] font-semibold text-[var(--bg-base)]'
                     : 'border-[var(--divider-soft)] bg-[var(--bg-surface)] text-[var(--fg-muted)] hover:border-[var(--border)]'
@@ -202,6 +190,10 @@ export default function HabitCard({ habit, check, streak = 0, compact = false, o
             </button>
           </div>
         )}
+        {habit.scoreMode === 'scaled' && <div className="mt-2 flex gap-2">
+          <button type="button" onClick={() => onScore(null)} className="min-h-11 flex-1 rounded-[9px] border border-[var(--divider-soft)] px-2 text-xs text-[var(--fg-muted)]">건너뜀</button>
+          {check && <button type="button" onClick={onClear} className="min-h-11 flex-1 rounded-[9px] border border-[var(--divider-soft)] px-2 text-xs text-[var(--fg-muted)]">기록 지우기</button>}
+        </div>}
       </div>}
 
       {/* 설명 + 30일 캘린더는 클래식 화면에서만 표시 */}

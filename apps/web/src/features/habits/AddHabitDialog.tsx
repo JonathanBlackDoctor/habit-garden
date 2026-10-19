@@ -29,6 +29,7 @@ export default function AddHabitDialog({
   nextOrder: number;
 }) {
   const uid = useAppStore((s) => s.uid);
+  const today = useAppStore((s) => s.currentDate);
   const groups = useHabitGroups();
   const [title, setTitle] = useState('');
   const [timeOfDay, setTimeOfDay] = useState<HabitDoc['timeOfDay']>('anytime');
@@ -64,6 +65,7 @@ export default function AddHabitDialog({
         achieveThreshold: scoreMode === 'scaled' ? 3 : 1,
         iconName: 'leaf',
         active: true,
+        startedOn: today,
         groupId: groupId || null,
       });
       await updateDoc(ref, { id: ref.id });
