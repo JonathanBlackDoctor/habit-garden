@@ -5,7 +5,7 @@ import TabBar from './TabBar';
 import { ScrollTopContext } from '@/lib/scrollContext';
 import { TabActiveContext } from '@/lib/tabActive';
 import { useVisibleTabs } from '@/lib/tabs';
-import { useUiDesign } from '@/lib/features';
+import { useUiDesign, useWeeklyHabitMode } from '@/lib/features';
 import SwipeTabs from './SwipeTabs';
 import OnboardingFlow from '@/features/onboarding/OnboardingFlow';
 import PrayerTour from '@/features/onboarding/PrayerTour';
@@ -17,6 +17,8 @@ export default function AppLayout() {
   const tabs = useVisibleTabs();
   const uiDesign = useUiDesign();
   const location = useLocation();
+  const weeklyMode = useWeeklyHabitMode();
+  const weekly = weeklyMode && (location.pathname === '/' || location.pathname === '/habits') && new URLSearchParams(location.search).get('view') === 'week';
   const [retapNonce, setRetapNonce] = useState(0);
 
   const activePath =
@@ -47,7 +49,7 @@ export default function AppLayout() {
       <TabActiveContext.Provider value={{ path: activePath, nonce: retapNonce }}>
         <div className={`fixed inset-0 flex items-center justify-center bg-[var(--bg-canvas)] sm:p-5 ${uiDesign === 'classic' ? 'theme-classic' : ''}`}>
           <div
-            className="app-shell relative flex h-full w-full max-w-[430px] flex-col overflow-hidden bg-[var(--bg-base)]"
+            className={`app-shell relative flex h-full w-full flex-col overflow-hidden bg-[var(--bg-base)] ${weekly ? 'max-w-[960px]' : 'max-w-[430px]'}`}
             style={{
               paddingTop: 'env(safe-area-inset-top)',
               paddingBottom: 'calc(61px + max(env(safe-area-inset-bottom), 8px))',

@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { animate } from 'framer-motion';
 import { Pencil, Check, Plus, Sprout, ChevronRight, Settings2 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
-import { useUiDesign } from '@/lib/features';
+import { useUiDesign, useWeeklyHabitMode } from '@/lib/features';
 import { cn } from '@/lib/utils';
 import EmptyState from '@/components/EmptyState';
 import SeedHabitsButton from '@/features/habits/SeedHabitsButton';
@@ -19,7 +19,8 @@ import type { HabitDoc } from 'shared/types/firestore';
 import { isHibernating } from 'shared/lib/hibernation';
 import { formatLongKoreanDate, timeOfDay } from '@/lib/dayBoundary';
 import { useTabBloomKey } from '@/lib/tabActive';
-import { PageHeader, ProgressRail } from '@/components/Editorial';
+import { PageHeader, ProgressRail, SegmentTabs } from '@/components/Editorial';
+import HabitWeekBoard from '@/features/habits/HabitWeekBoard';
 import {
   HABIT_TIME_ORDER,
   getHabitOverview,
@@ -38,6 +39,7 @@ export default function Habits() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const isEditorial = useUiDesign() === 'editorial';
+  const weeklyMode = useWeeklyHabitMode();
   const uid    = useAppStore((s) => s.uid);
   const today  = useAppStore((s) => s.currentDate);
   const dateParam = searchParams.get('date');
@@ -45,6 +47,14 @@ export default function Habits() {
   const isPast = !!dateParam && dateParam !== today;
   const [editMode, setEditMode] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+  const weekView = weeklyMode && searchParams.get('view') === 'week' && !isPast;
+  const setView = (value: 'today' | 'week') => {
+    const next = new URLSearchParams(searchParams);
+    if (value === 'week') next.set('view', 'week');
+    else next.delete('view');
+    navigate({ search: next.toString() }, { replace: true });
+    setEditMode(false);
+  };
   // 기본 펼침 상태(현재 시간대)를 사용자가 직접 반전한 그룹들
   const [toggledTods, setToggledTods] = useState<HabitDoc['timeOfDay'][]>([]);
   const habits = useHabits({ includeInactive: editMode, includeHibernating: true });
@@ -121,7 +131,7 @@ export default function Habits() {
         <PageHeader
           kicker={formatLongKoreanDate(date)}
           title="습관"
-          summary={`${totalAchieved} / ${totalActive} 달성 · ${totalChecked} / ${totalActive} 기록`}
+          summary={weekView ? '한 주의 실천을 한눈에 돌아봐요' : `${totalAchieved} / ${totalActive} 달성 · ${totalChecked} / ${totalActive} 기록`}
           action={(
             <div className="flex items-center gap-1">
               {isEditorial && (
@@ -144,7 +154,7 @@ export default function Habits() {
                 <Plus size={18} />
               </button>
               <button
-                onClick={() => setEditMode((v) => !v)}
+                onClick={() => { if (weekView) { setView('today'); setEditMode(true); } else setEditMode((v) => !v); }}
                 className={`grid h-11 w-11 place-items-center rounded-full ${editMode ? 'bg-[var(--leaf-soft)] text-[var(--leaf)]' : 'text-[var(--fg-muted)] hover:bg-[var(--leaf-soft)] hover:text-[var(--leaf)]'}`}
                 aria-label={editMode ? '편집 완료' : '편집'}
                 title={editMode ? '편집 완료' : '편집'}
@@ -154,7 +164,7 @@ export default function Habits() {
             </div>
           )}
         />
-        <div>
+        {!weekView && <div>
           <ProgressRail value={totalActive > 0 ? (totalChecked / totalActive) * 100 : 0} />
           {nudge && (
             <p className={`mt-2 text-[13.5px] tracking-[-0.01em] ${remaining === 0 ? 'text-[var(--leaf)]' : 'text-[var(--fg-muted)]'}`}>
@@ -166,8 +176,11 @@ export default function Habits() {
               모든 습관이 휴면 중이에요 · 편집에서 깨울 수 있어요
             </p>
           )}
-        </div>
+        </div>}
       </div>
+
+      {!isPast && weeklyMode && <SegmentTabs items={[{ value: 'today' as const, label: '오늘' }, { value: 'week' as const, label: '주간' }]} value={weekView ? 'week' : 'today'} onChange={setView} ariaLabel="습관 보기" />}
+      {weekView ? <HabitWeekBoard /> : <>
 
       {/* 습관 묶음 일괄 건너뛰기 — 오늘·비편집 모드에서만. 예: 등교 안 하는 날 '학교' 묶음 한 번에 건너뛰기 */}
       {!isEditorial && !editMode && !isPast && (() => {
@@ -346,6 +359,7 @@ export default function Habits() {
         />
       )}
 
+      </>}
       <AddHabitDialog open={addOpen} onOpenChange={setAddOpen} nextOrder={nextOrder} />
     </div>
   );

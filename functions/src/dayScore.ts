@@ -9,15 +9,12 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
-import type { HabitDoc, HabitCheckDoc, ProgressDoc } from '../../shared/types/firestore';
-import { SUCCESS_THRESHOLD } from '../../shared/lib/daySuccess';
+import type { HabitDoc, ProgressDoc } from '../../shared/types/firestore';
+import { calculateDayScore, canAwardLiveSuccess, type ScoredCheck } from '../../shared/lib/dayScoreCalculation';
+import { plannerDateKST } from '../../shared/lib/telegram';
 
 const db = admin.firestore();
 const REGION = 'asia-northeast3';
-
-type HabitCheckWithSnapshot = HabitCheckDoc & {
-  habitSnapshot?: Partial<Pick<HabitDoc, 'weight' | 'scoreMode'>>;
-};
 
 // ── habitChecks onWrite ─────────────────────────────────────────────────────
 export const dayScoreEngine = functions
@@ -38,37 +35,15 @@ async function updateDayScore(uid: string, date: string) {
   const habitsMap: Record<string, HabitDoc> = {};
   habitsSnap.docs.forEach((d) => { habitsMap[d.id] = d.data() as HabitDoc; });
 
-  let numerator = 0, denominator = 0;
-  let achievedCount = 0, totalCount = 0;
-
-  checksSnap.docs.forEach((d) => {
-    const c = d.data() as HabitCheckWithSnapshot;
-    const h = habitsMap[c.habitId];
-    const weight = h?.weight ?? c.habitSnapshot?.weight;
-    const scoreMode = h?.scoreMode ?? c.habitSnapshot?.scoreMode;
-
-    // 정상 경로에서는 습관 정의를 사용한다. 과거에 정의 문서가 실제로 삭제됐더라도
-    // 새 체크에 저장된 스냅샷이 있으면 기록과 점수 계산을 계속 복구할 수 있다.
-    if (weight == null || !scoreMode) return;
-
-    totalCount++;
-    if (c.achieved) achievedCount++;
-    if (c.score === null) return;
-    const norm = scoreMode === 'scaled' ? (c.score - 1) / 4 : c.score;
-    numerator += norm * weight;
-    denominator += weight;
-  });
-
-  const dayScore = denominator > 0 ? Math.round((numerator / denominator) * 100) : 0;
-  const successRatio = totalCount > 0 ? achievedCount / totalCount : 0;
-  const isSuccessDay = successRatio >= SUCCESS_THRESHOLD;
+  const { dayScore, isSuccessDay } = calculateDayScore(checksSnap.docs.map((d) => d.data() as ScoredCheck), habitsMap);
 
   await db.doc(`users/${uid}/days/${date}`).set(
     { dayScore, updatedAt: FieldValue.serverTimestamp() },
     { merge: true }
   );
 
-  if (isSuccessDay) {
+  // 과거 기록 수정은 해당 날짜의 점수만 갱신한다. 현재 연속일을 추가 보상하지 않는다.
+  if (canAwardLiveSuccess(isSuccessDay, date, plannerDateKST())) {
     await handleSuccessDay(uid, date);
   }
 }

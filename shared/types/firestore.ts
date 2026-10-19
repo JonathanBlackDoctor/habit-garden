@@ -52,6 +52,7 @@ export const INQUIRY_CATEGORY_LABELS: Record<InquiryCategory, string> = {
 // ── 사용자 설정 ─────────────────────────────────────────
 // users/{uid}/settings/main
 export interface UserSettingsDoc {
+  weeklyHabitMode?: boolean; // true일 때 주간 보기·직접 점수 선택 사용. 기본은 기존 방식.
   habitCheckReminders?: 'three-times-daily'; // 선택한 계정만 09시·13시·19시 Habit Check 알림 사용
   features: {
     faith: boolean;          // 경건·기도제목 메뉴 표시 여부
@@ -191,6 +192,8 @@ export interface HabitDoc {
   iconName: string;
   description?: string;
   active: boolean;
+  startedOn?: string;              // 새 습관의 시작 플래너 날짜 (기존 문서는 생략)
+  archivedAt?: Timestamp;
   groupId?: string | null;          // 소속 습관 묶음 id (HabitGroup.id). 없으면 묶음 없음.
   hibernatedSince?: string | null;  // YYYY-MM-DD, 휴면 시작일
   hibernatedUntil?: string | null;  // YYYY-MM-DD, 휴면 종료(깨운)일. 비어있으면 현재 휴면 중

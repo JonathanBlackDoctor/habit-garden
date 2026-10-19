@@ -14,9 +14,10 @@ type ArchivedHabitDoc = HabitDoc & { archivedAt?: unknown };
 type HabitSnapshot = Pick<HabitDoc, 'title' | 'weight' | 'timeOfDay' | 'scoreMode' | 'achieveThreshold'>;
 type HabitCheckWithSnapshot = HabitCheckDoc & { habitSnapshot: HabitSnapshot };
 
-export function useHabits(opts?: { includeInactive?: boolean; includeHibernating?: boolean }) {
+export function useHabits(opts?: { includeInactive?: boolean; includeHibernating?: boolean; includeArchived?: boolean }) {
   const uid  = useAppStore((s) => s.uid);
   const includeInactive = opts?.includeInactive ?? false;
+  const includeArchived = opts?.includeArchived ?? false;
   // 휴면(잠재운) 습관은 active:true 를 유지하므로 기본 목록에서 명시적으로 제외한다.
   // 제외하지 않으면 '오늘의 습관' 위젯 등에서 체크 문서가 없어 미체크로 잘못 집계된다.
   // 휴면 습관까지 다뤄야 하는 화면(습관 관리)만 includeHibernating 으로 포함한다.
@@ -29,12 +30,12 @@ export function useHabits(opts?: { includeInactive?: boolean; includeHibernating
     return onSnapshot(q, (snap) => {
       const all = snap.docs.map((d) => d.data() as ArchivedHabitDoc);
       setHabits(all.filter((h) =>
-        !h.archivedAt &&
+        (includeArchived || !h.archivedAt) &&
         (includeInactive || h.active) &&
         (includeHibernating || !isHibernating(h)),
       ));
     });
-  }, [uid, includeInactive, includeHibernating]);
+  }, [uid, includeInactive, includeHibernating, includeArchived]);
 
   return habits;
 }
@@ -67,7 +68,7 @@ export function useClearHabitCheck(dateOverride?: string) {
   const isPastEdit = !!dateOverride && dateOverride !== storeDate;
 
   return async (habit: HabitDoc, prevCheck?: HabitCheckDoc | null) => {
-    if (!uid || prevCheck == null) return;
+    if (!uid || date > storeDate || prevCheck == null) return;
     await deleteDoc(doc(db, 'users', uid, 'days', date, 'habitChecks', habit.id));
     feedback('check');
     toast(isPastEdit ? '기록 삭제됨' : '건너뜀 취소됨', { description: habit.title });
@@ -85,7 +86,7 @@ export function useSaveHabitCheck(dateOverride?: string) {
     score: number | null,
     prevCheck?: HabitCheckDoc | null,
   ) => {
-    if (!uid) return;
+    if (!uid || date > storeDate) return;
 
     const prevScore = prevCheck?.score ?? null;
 
@@ -110,12 +111,13 @@ export function useSaveHabitCheck(dateOverride?: string) {
     };
     await setDoc(
       doc(db, 'users', uid, 'days', date, 'habitChecks', habit.id),
-      checkDoc
+      checkDoc,
+      { merge: true },
     );
 
     if (isPastEdit) {
       if (score === null) {
-        toast(`${habit.title} 기록 삭제됨`);
+        toast(`${habit.title} 건너뜀`, { description: date });
       } else {
         toast(`${habit.title} 저장됨`, {
           description: `${date} · ${achieved ? '달성' : '시도'}`,

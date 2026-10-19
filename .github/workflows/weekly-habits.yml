@@ -1,0 +1,54 @@
+name: Weekly habits checks and selected deploy
+
+on:
+  pull_request:
+    paths:
+      - 'apps/web/**'
+      - 'functions/src/dayScore.ts'
+      - 'shared/**'
+      - '.github/workflows/weekly-habits.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'functions/src/dayScore.ts'
+      - 'shared/lib/dayScoreCalculation.ts'
+      - '.github/workflows/weekly-habits.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.event_name == 'pull_request' && format('weekly-habits-pr-{0}', github.event.pull_request.number) || 'firebase-deploy' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  verify-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      # Match the existing Firebase workflow: resolve the repository's patched overrides.
+      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm --filter web test
+      - run: pnpm --filter web build
+      - run: pnpm --filter functions build
+      - name: Prepare existing deployment credentials
+        if: github.event_name == 'push'
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          test -n "$FIREBASE_SERVICE_ACCOUNT"
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "${{ runner.temp }}/firebase-sa.json"
+      - name: Deploy only the day score function
+        if: github.event_name == 'push'
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-sa.json
+        run: pnpm exec firebase deploy --only functions:dayScoreEngine --project planner-web-quick --non-interactive
+      - name: Remove temporary credentials
+        if: always() && github.event_name == 'push'
+        run: rm -f "${{ runner.temp }}/firebase-sa.json"

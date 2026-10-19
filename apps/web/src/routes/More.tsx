@@ -20,6 +20,7 @@ import LifeContextEditor from '@/features/applications/LifeContextEditor';
 import { hasLifeContext } from 'shared/lib/lifeContext';
 import SignupCTA from '@/components/SignupCTA';
 import { PageHeader } from '@/components/Editorial';
+import HabitModeSetting from '@/features/habits/HabitModeSetting';
 
 const items = [
   { icon: BarChart2,     label: '진척 현황', to: '/progress' },
@@ -137,6 +138,7 @@ export default function More() {
             </button>
           )}
         />
+        <HabitModeSetting />
         <section className="space-y-3">
           <p className="kicker">화면 디자인</p>
           <p className="text-[13px] text-[var(--fg-muted)]">
@@ -211,6 +213,7 @@ export default function More() {
         className="pb-3"
       />
 
+      <HabitModeSetting />
       {/* 가입 유도 — 게스트/미승인 사용자 */}
       {!isPremium && (
         <SignupCTA
