@@ -48,12 +48,6 @@ export default function Habits() {
   const [editMode, setEditMode] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const weekView = weeklyMode && searchParams.get('view') === 'week' && !isPast;
-  useEffect(() => {
-    if (weeklyMode || searchParams.get('view') !== 'week') return;
-    const next = new URLSearchParams(searchParams);
-    next.delete('view');
-    navigate({ search: next.toString() }, { replace: true });
-  }, [weeklyMode, searchParams, navigate]);
   const setView = (value: 'today' | 'week') => {
     const next = new URLSearchParams(searchParams);
     if (value === 'week') next.set('view', 'week');
