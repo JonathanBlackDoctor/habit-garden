@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { habitCheckTargets, habitCheckMessage, usesHabitCheck } from './habitCheckReminder';
+import { habitCheckTargets, habitCheckMessage, usesHabitCheck, isHabitCheckHour } from './habitCheckReminder';
 import type { HabitDoc, HabitCheckDoc, UserSettingsDoc } from '../types/firestore';
 import { plannerDateKST } from './telegram';
 const habit = (id: string, timeOfDay: HabitDoc['timeOfDay'], overrides = {}) => ({ id, timeOfDay, title: 'Synthetic habit', order: 1, active: true, scoreMode: 'binary', ...overrides }) as HabitDoc;
@@ -7,6 +7,24 @@ describe('Habit Check reminders', () => {
   it('requires per-account opt in', () => {
     expect(usesHabitCheck()).toBe(false);
     expect(usesHabitCheck({ habitCheckReminders: 'three-times-daily' } as UserSettingsDoc)).toBe(true);
+    expect(usesHabitCheck({ habitCheckReminders: 'evening-once' } as UserSettingsDoc)).toBe(true);
+  });
+  it('schedules the evening account only at 21 KST while preserving legacy hours', () => {
+    const evening = { habitCheckReminders: 'evening-once' } as UserSettingsDoc;
+    const legacy = { habitCheckReminders: 'three-times-daily' } as UserSettingsDoc;
+    const hours = Array.from({ length: 24 }, (_, hour) => hour);
+    expect(hours.filter(hour => isHabitCheckHour(hour, evening))).toEqual([21]);
+    expect(hours.filter(hour => isHabitCheckHour(hour, legacy))).toEqual([9, 13, 19]);
+    const habits = [habit('m', 'morning'), habit('a', 'afternoon'), habit('e', 'evening'), habit('n', 'night'), habit('any', 'anytime')];
+    for (const hour of hours.filter(hour => hour !== 21)) expect(habitCheckTargets(hour, habits, {}, evening)).toEqual([]);
+    expect(habitCheckTargets(21, habits, {}, evening).map(h => h.id)).toEqual(['m', 'a', 'e', 'n', 'any']);
+  });
+  it('does not nudge recorded, skipped, archived or sleeping habits at the evening check', () => {
+    const evening = { habitCheckReminders: 'evening-once' } as UserSettingsDoc;
+    const habits = [habit('off', 'night', { active: false }), habit('sleep', 'anytime', { hibernatedSince: '2026-01-01' }), habit('archive', 'morning', { archivedAt: 1 }), habit('zero', 'morning'), habit('skip', 'afternoon'), habit('done', 'evening'), habit('open', 'night')];
+    const checks = { zero: { score: 0 }, skip: { score: null }, done: { score: 1 } } as unknown as Record<string, HabitCheckDoc>;
+    expect(habitCheckTargets(21, habits, checks, evening).map(h => h.id)).toEqual(['open']);
+    expect(habitCheckTargets(21, habits, { ...checks, open: { score: 1 } as HabitCheckDoc }, evening)).toEqual([]);
   });
   it('sends only the current period at 9, 13 and 19, including anytime in the evening', () => {
     const habits = [habit('a', 'morning'), habit('b', 'afternoon'), habit('c', 'anytime')];
