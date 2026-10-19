@@ -5,7 +5,7 @@ import TabBar from './TabBar';
 import { ScrollTopContext } from '@/lib/scrollContext';
 import { TabActiveContext } from '@/lib/tabActive';
 import { useVisibleTabs } from '@/lib/tabs';
-import { useUiDesign } from '@/lib/features';
+import { useUiDesign, useWeeklyHabitMode } from '@/lib/features';
 import SwipeTabs from './SwipeTabs';
 import OnboardingFlow from '@/features/onboarding/OnboardingFlow';
 import PrayerTour from '@/features/onboarding/PrayerTour';
@@ -17,7 +17,8 @@ export default function AppLayout() {
   const tabs = useVisibleTabs();
   const uiDesign = useUiDesign();
   const location = useLocation();
-  const weekly = (location.pathname === '/' || location.pathname === '/habits') && new URLSearchParams(location.search).get('view') === 'week';
+  const weeklyMode = useWeeklyHabitMode();
+  const weekly = weeklyMode && (location.pathname === '/' || location.pathname === '/habits') && new URLSearchParams(location.search).get('view') === 'week';
   const [retapNonce, setRetapNonce] = useState(0);
 
   const activePath =

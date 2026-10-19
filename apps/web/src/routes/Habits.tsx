@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { animate } from 'framer-motion';
 import { Pencil, Check, Plus, Sprout, ChevronRight, Settings2 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
-import { useUiDesign } from '@/lib/features';
+import { useUiDesign, useWeeklyHabitMode } from '@/lib/features';
 import { cn } from '@/lib/utils';
 import EmptyState from '@/components/EmptyState';
 import SeedHabitsButton from '@/features/habits/SeedHabitsButton';
@@ -39,6 +39,7 @@ export default function Habits() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const isEditorial = useUiDesign() === 'editorial';
+  const weeklyMode = useWeeklyHabitMode();
   const uid    = useAppStore((s) => s.uid);
   const today  = useAppStore((s) => s.currentDate);
   const dateParam = searchParams.get('date');
@@ -46,7 +47,13 @@ export default function Habits() {
   const isPast = !!dateParam && dateParam !== today;
   const [editMode, setEditMode] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
-  const weekView = searchParams.get('view') === 'week' && !isPast;
+  const weekView = weeklyMode && searchParams.get('view') === 'week' && !isPast;
+  useEffect(() => {
+    if (weeklyMode || searchParams.get('view') !== 'week') return;
+    const next = new URLSearchParams(searchParams);
+    next.delete('view');
+    navigate({ search: next.toString() }, { replace: true });
+  }, [weeklyMode, searchParams, navigate]);
   const setView = (value: 'today' | 'week') => {
     const next = new URLSearchParams(searchParams);
     if (value === 'week') next.set('view', 'week');
@@ -178,7 +185,7 @@ export default function Habits() {
         </div>}
       </div>
 
-      {!isPast && <SegmentTabs items={[{ value: 'today' as const, label: '오늘' }, { value: 'week' as const, label: '주간' }]} value={weekView ? 'week' : 'today'} onChange={setView} ariaLabel="습관 보기" />}
+      {!isPast && weeklyMode && <SegmentTabs items={[{ value: 'today' as const, label: '오늘' }, { value: 'week' as const, label: '주간' }]} value={weekView ? 'week' : 'today'} onChange={setView} ariaLabel="습관 보기" />}
       {weekView ? <HabitWeekBoard /> : <>
 
       {/* 습관 묶음 일괄 건너뛰기 — 오늘·비편집 모드에서만. 예: 등교 안 하는 날 '학교' 묶음 한 번에 건너뛰기 */}

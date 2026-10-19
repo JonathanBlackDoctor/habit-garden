@@ -16,6 +16,18 @@ export function useUiDesign(): UiDesign {
   return settings?.uiDesign === 'classic' ? 'classic' : 'editorial';
 }
 
+/** 명시적으로 켜기 전에는 기존 습관 입력 방식을 유지한다. */
+export function useWeeklyHabitMode(): boolean {
+  return useAppStore((s) => s.settings?.weeklyHabitMode === true);
+}
+
+export async function setWeeklyHabitMode(uid: string, enabled: boolean): Promise<void> {
+  await setDoc(doc(db, 'users', uid, 'settings', 'main'), {
+    weeklyHabitMode: enabled,
+    updatedAt: serverTimestamp(),
+  }, { merge: true });
+}
+
 /** 익명(가입 없이 둘러보기) 게스트 여부 */
 export function useIsGuest(): boolean {
   const user = useAppStore((s) => s.user);

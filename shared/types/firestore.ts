@@ -52,6 +52,7 @@ export const INQUIRY_CATEGORY_LABELS: Record<InquiryCategory, string> = {
 // ── 사용자 설정 ─────────────────────────────────────────
 // users/{uid}/settings/main
 export interface UserSettingsDoc {
+  weeklyHabitMode?: boolean; // true일 때 주간 보기·직접 점수 선택 사용. 기본은 기존 방식.
   habitCheckReminders?: 'three-times-daily'; // 선택한 계정만 09시·13시·19시 Habit Check 알림 사용
   features: {
     faith: boolean;          // 경건·기도제목 메뉴 표시 여부
