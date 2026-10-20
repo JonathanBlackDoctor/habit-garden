@@ -7,6 +7,8 @@ on:
       - 'functions/src/reminderQueue.ts'
       - 'shared/lib/habitCheckReminder.ts'
       - 'functions/scripts/enable-habit-check.cjs'
+      - 'functions/package.json'
+      - 'functions/package-lock.json'
       - '.github/workflows/habit-check-reminders.yml'
   workflow_dispatch:
 permissions:
