@@ -23,7 +23,7 @@ import {
 } from '../../shared/lib/telegram';
 import { notifyUser } from './notify';
 import { plannerDateKST } from '../../shared/lib/telegram';
-import { usesHabitCheck, habitCheckTargets, habitCheckMessage } from '../../shared/lib/habitCheckReminder';
+import { usesHabitCheck, isHabitCheckHour, habitCheckTargets, habitCheckMessage } from '../../shared/lib/habitCheckReminder';
 
 const db = admin.firestore();
 const REGION = 'asia-northeast3';
@@ -67,7 +67,7 @@ export const sendScheduledReminder = functions
   });
 
 async function processHabitCheckUser(uid: string, hour: number, today: string, settings: UserSettingsDoc): Promise<void> {
-  if (![9, 13, 19].includes(hour) || settings.notifications?.habitReminder === false) return;
+  if (!isHabitCheckHour(hour, settings) || settings.notifications?.habitReminder === false) return;
   const progRef = db.doc(`users/${uid}/progress/main`);
   const prog = (await progRef.get()).data() as any;
   if (prog?._todayHabitReminderPause?.date === today) return;
@@ -77,7 +77,7 @@ async function processHabitCheckUser(uid: string, hour: number, today: string, s
     db.collection(`users/${uid}/days/${today}/habitChecks`).get(),
   ]);
   const checks = Object.fromEntries(checksSnap.docs.map(d => [d.id, d.data() as HabitCheckDoc]));
-  if (!habitCheckTargets(hour, habitsSnap.docs.map(d => ({ ...d.data(), id: d.id }) as HabitDoc), checks).length) return;
+  if (!habitCheckTargets(hour, habitsSnap.docs.map(d => ({ ...d.data(), id: d.id }) as HabitDoc), checks, settings).length) return;
   const message = habitCheckMessage(today, 'habits');
   await notifyUser(uid, { title: message.title, body: message.body, date: today }, {
     link: message.link, type: 'habit_reminder', urgency: 'normal', telegram: message.telegram,

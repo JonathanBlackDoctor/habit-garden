@@ -2,12 +2,14 @@ import type { HabitDoc, HabitCheckDoc, UserSettingsDoc } from '../types/firestor
 import { visibleHabits, type InlineKeyboard } from './telegram';
 
 export const HABIT_CHECK_URL = 'https://jonathanblackdoctor.github.io/habit-check/';
-export const usesHabitCheck = (settings?: UserSettingsDoc) => settings?.habitCheckReminders === 'three-times-daily';
-export function habitCheckTargets(hour: number, habits: HabitDoc[], checks: Record<string, HabitCheckDoc>) {
+export const usesHabitCheck = (settings?: UserSettingsDoc) => settings?.habitCheckReminders === 'three-times-daily' || settings?.habitCheckReminders === 'evening-once';
+export const isHabitCheckHour = (hour: number, settings: UserSettingsDoc) => settings.habitCheckReminders === 'evening-once' ? hour === 21 : [9, 13, 19].includes(hour);
+export function habitCheckTargets(hour: number, habits: HabitDoc[], checks: Record<string, HabitCheckDoc>, settings?: UserSettingsDoc) {
+  const evening = settings?.habitCheckReminders === 'evening-once';
   const period = ({ 9: 'morning', 13: 'afternoon', 19: 'evening' } as const)[hour as 9 | 13 | 19];
-  if (!period) return [];
+  if (evening ? hour !== 21 : !period) return [];
   return visibleHabits(habits).filter(h => !(h as HabitDoc & { archivedAt?: unknown }).archivedAt)
-    .filter(h => h.timeOfDay === period || (hour === 19 && h.timeOfDay === 'anytime'))
+    .filter(h => evening || h.timeOfDay === period || (hour === 19 && h.timeOfDay === 'anytime'))
     .filter(h => !Object.prototype.hasOwnProperty.call(checks, h.id));
 }
 export function habitCheckMessage(date: string, view: 'habits' | 'review' | 'prayers', snooze = false) {
