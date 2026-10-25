@@ -1,6 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { HashRouter, Route, Routes, Navigate } from 'react-router-dom';
-import { Toaster } from 'sonner';
 import { useAuth } from '@/lib/auth';
 
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -46,18 +45,6 @@ export default function App() {
           <SandboxBanner />
           <OwnerAlertBanner />
           <ReminderActionHandler />
-          <Toaster
-            position="bottom-center"
-            richColors
-            closeButton
-            swipeDirections={['left', 'right']}
-            offset={{ bottom: 'calc(80px + env(safe-area-inset-bottom))' }}
-            mobileOffset={{ bottom: 'calc(80px + env(safe-area-inset-bottom))' }}
-            toastOptions={{
-              closeButtonAriaLabel: '알림 닫기',
-              style: { background: 'var(--bloom-soft)', border: '1px solid var(--bloom)', color: 'var(--bloom)' },
-            }}
-          />
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/pending" element={<PendingApproval />} />

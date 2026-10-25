@@ -60,8 +60,10 @@ export default function HabitCard({ habit, check, streak = 0, compact = false, o
     : status === 'todo'
       ? '완료'
       : status === 'achieved'
-        ? '미완료'
-        : '기록 취소';
+        ? '건너뜀'
+        : status === 'skipped'
+          ? '미완료'
+          : '기록 취소';
 
   // 점수가 새로 변경되면 폼 초기화 (자동 오픈 없음)
   useEffect(() => {
@@ -121,9 +123,11 @@ export default function HabitCard({ habit, check, streak = 0, compact = false, o
             } else if (status === 'todo') {
               onScore(1);
             } else if (status === 'achieved') {
+              onScore(null);
+            } else if (status === 'skipped') {
               onScore(0);
             } else {
-              // 미완료(×) 또는 기존 건너뜀 기록은 미입력(○)으로 되돌린다.
+              // 완료 → 건너뜀(—) → 미완료(×) → 미기록 순서로 순환한다.
               onClear();
             }
           }}
