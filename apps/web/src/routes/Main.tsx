@@ -7,7 +7,7 @@ import { useHabits, useHabitChecks, useSaveHabitCheck, useClearHabitCheck } from
 import { useProgress } from '@/features/progress/useProgress';
 import { formatLongKoreanDate, timeOfDay } from '@/lib/dayBoundary';
 import { cn } from '@/lib/utils';
-import WeeklyRhythm from '@/features/stats/WeeklyRhythm';
+import CompactWeeklyScore from '@/features/stats/CompactWeeklyScore';
 import type { DayDoc, TodayTodoDoc } from 'shared/types/firestore';
 import { motion, Reorder, useDragControls } from 'framer-motion';
 import { CheckCircle2, RefreshCw, GripVertical, Pencil, Check, RotateCcw, Eye, EyeOff } from 'lucide-react';
@@ -159,7 +159,6 @@ export default function Main() {
 
   useCrisisWatcher();
   const totalHabits   = habits.length;
-  const totalRecorded = habits.filter((habit) => checks[habit.id] !== undefined).length;
   const streak     = progress?.globalStreak ?? 0;
   const hasReflection = !!dayDoc?.reflection;
 
@@ -195,12 +194,6 @@ export default function Main() {
         : remaining > 0
           ? `다른 시간대 습관 ${countWord(remaining)}가\n남아 있어요`
           : '오늘 할 일을\n모두 기록했어요';
-
-  // 오늘 요약 — 습관 진행 + (신앙 사용 시) 남은 기도 수
-  const summaryLine = [
-    totalHabits > 0 ? `오늘 ${totalHabits}개 중 ${totalRecorded}개 기록` : '아직 습관이 없어요',
-    streak > 0 ? `${streak}일 연속` : null,
-  ].filter(Boolean).join(' · ');
 
   // ── 위젯 레지스트리 — id → 렌더 노드 ──
   // 조건부 위젯은 표시 조건이 아니면 null 을 돌려 일반 모드에서 자연히 사라진다.
@@ -429,11 +422,9 @@ export default function Main() {
         >
           {headline}
         </h1>
-        <p className="text-sm tabular-nums text-[var(--fg-muted)]">{summaryLine}</p>
+        {streak > 0 && <p className="text-[12px] text-[var(--fg-muted)]">{streak}일 연속</p>}
+        <CompactWeeklyScore className="pt-1" />
       </motion.div>
-
-      {/* ── 지난 7일 리듬 — 게임 요소를 걷어낸 뒤 남은 유일한 피드백 ── */}
-      <WeeklyRhythm className="pt-1" />
 
       {/* ── 위젯 목록 ── */}
       {editMode ? (

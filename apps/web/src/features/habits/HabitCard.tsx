@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { useSaveReflection, useSaveMissReason } from '@/features/habits/useReflections';
 import { useHabitHistory } from '@/features/habits/useHabitHistory';
 import { statusOf } from '@/features/habits/habitStatus';
+import { nextBinaryAction } from '@/features/habits/binaryCycle';
 import { SCALED_ACHIEVE_THRESHOLD } from 'shared/lib/habitPoints';
 import { StatusCircle } from '@/components/Editorial';
 import { useWeeklyHabitMode } from '@/lib/features';
@@ -24,7 +25,7 @@ interface Props {
 }
 
 const SCORE_LABELS = ['', '매우 부족', '부족', '보통', '양호', '우수'];
-const BINARY_LABELS = ['미완료', '완료'];
+const BINARY_LABELS = ['실패', '성공'];
 const MOOD_LABELS = ['', '많이 힘듦', '힘듦', '보통', '좋음', '아주 좋음'];
 export default function HabitCard({ habit, check, streak = 0, compact = false, onScore, onClear }: Props) {
   const weeklyMode = useWeeklyHabitMode();
@@ -57,13 +58,7 @@ export default function HabitCard({ habit, check, streak = 0, compact = false, o
       : currentScore === null ? '1점'
       : currentScore >= 5 ? '기록 취소'
       : `${currentScore + 1}점`
-    : status === 'todo'
-      ? '완료'
-      : status === 'achieved'
-        ? '건너뜀'
-        : status === 'skipped'
-          ? '미완료'
-          : '기록 취소';
+    : ({ success: '성공', failure: '실패', skip: '건너뜀', undo: '되돌리기' } as const)[nextBinaryAction(status)];
 
   // 점수가 새로 변경되면 폼 초기화 (자동 오픈 없음)
   useEffect(() => {
@@ -120,15 +115,10 @@ export default function HabitCard({ habit, check, streak = 0, compact = false, o
               if (weeklyMode) setExpanded((value) => !value);
               else if (status === 'skipped' || (currentScore !== null && currentScore >= 5)) onClear();
               else onScore((currentScore ?? 0) + 1);
-            } else if (status === 'todo') {
-              onScore(1);
-            } else if (status === 'achieved') {
-              onScore(null);
-            } else if (status === 'skipped') {
-              onScore(0);
             } else {
-              // 완료 → 건너뜀(—) → 미완료(×) → 미기록 순서로 순환한다.
-              onClear();
+              const action = nextBinaryAction(status);
+              if (action === 'undo') onClear();
+              else onScore(action === 'success' ? 1 : action === 'failure' ? 0 : null);
             }
           }}
         />
@@ -143,9 +133,14 @@ export default function HabitCard({ habit, check, streak = 0, compact = false, o
           )}>{habit.title}</span>
           {!compact && <span className="truncate text-[12px] text-[var(--fg-faint)]">{subtitle}</span>}
         </button>
-        <span className="meta-copy tabular-nums">
-          {skipped ? '건너뜀' : habit.scoreMode === 'scaled' && currentScore === null ? '1–5' : ''}
-        </span>
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="meta-copy tabular-nums">
+            {skipped ? '건너뜀' : habit.scoreMode === 'scaled' && currentScore === null ? '1–5' : ''}
+          </span>
+          <span className="text-[10px] font-normal tabular-nums text-[var(--fg-faint)] opacity-70" title={'가중치 ' + habit.weight} aria-label={'가중치 ' + habit.weight}>
+            {habit.weight}
+          </span>
+        </div>
       </div>
 
       {/* 스트릭 위험 경고 — 미기록 + 진행 중 스트릭 */}
@@ -177,13 +172,13 @@ export default function HabitCard({ habit, check, streak = 0, compact = false, o
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-4 gap-1.5">
             {[1, 0].map((s) => (
               <button
                 key={s}
                 onClick={() => onScore(s)}
                 className={cn(
-                  'rounded-[9px] border px-3 py-2 text-[13px] transition-colors',
+                  'rounded-[9px] border px-1 py-2 text-[12.5px] transition-colors',
                   currentScore === s
                     ? s === 1
                       ? 'border-[var(--leaf)] bg-[var(--leaf)] text-white'
@@ -196,10 +191,18 @@ export default function HabitCard({ habit, check, streak = 0, compact = false, o
             ))}
             <button
               type="button"
-              onClick={() => (skipped ? onClear() : onScore(null))}
-              className={cn('rounded-[9px] border px-3 py-2 text-[13px]', skipped ? 'border-[var(--fg-primary)] bg-[var(--fg-primary)] text-[var(--bg-base)]' : 'border-[var(--border)] text-[var(--fg-muted)]')}
+              onClick={() => onScore(null)}
+              className={cn('rounded-[9px] border px-1 py-2 text-[12.5px]', skipped ? 'border-[var(--fg-primary)] bg-[var(--fg-primary)] text-[var(--bg-base)]' : 'border-[var(--border)] text-[var(--fg-muted)]')}
             >
               건너뜀
+            </button>
+            <button
+              type="button"
+              onClick={onClear}
+              disabled={!check}
+              className="rounded-[9px] border border-[var(--border)] px-1 py-2 text-[12.5px] text-[var(--fg-muted)] disabled:opacity-40"
+            >
+              되돌리기
             </button>
           </div>
         )}
