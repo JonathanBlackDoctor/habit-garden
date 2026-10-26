@@ -22,6 +22,23 @@ const LOCK_PX = 10;            // 가로 제스처로 확정하는 최소 이동
 const PROJECT_MS = 120;        // 놓는 순간 속도를 이만큼(ms) 투영해 목표 패널 결정
 const SPRING = { type: 'spring' as const, stiffness: 360, damping: 40, restDelta: 0.5 };
 
+function PullRefreshFeedback({ distance, refreshing }: { distance: number; refreshing: boolean }) {
+  if (!distance && !refreshing) return null;
+  return (
+    <div
+      className="pointer-events-none absolute inset-x-0 z-30 flex justify-center"
+      style={{ top: Math.round(distance / 2), opacity: refreshing ? 1 : Math.min(1, distance / 24) }}
+      role="status"
+      aria-live="polite"
+    >
+      <span className="flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-1.5 text-[11px] text-[var(--fg-muted)] shadow-sm">
+        <span className={refreshing ? 'animate-spin' : ''} aria-hidden="true">↻</span>
+        {refreshing ? '새로고침 중' : distance >= 61 ? '놓으면 새로고침' : '아래로 당겨 새로고침'}
+      </span>
+    </div>
+  );
+}
+
 export default function SwipeTabs() {
   const tabs = useVisibleTabs();
   const uiDesign = useUiDesign();
@@ -35,6 +52,9 @@ export default function SwipeTabs() {
   const isTabRoute = activeIndex !== -1;
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const detailPanelRef = useRef<HTMLDivElement>(null);
+  const [pullDistance, setPullDistance] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
   const [w, setW] = useState(0);
   const trackX = useMotionValue(0);
 
@@ -150,15 +170,87 @@ export default function SwipeTabs() {
     };
   }, [isTabRoute, activeIndex, w, tabs, trackX, navigate]);
 
+  // 모바일: 활성 페이지 맨 위에서 아래로 당기면 전체 새로고침.
+  // 실제 스크롤 패널에만 연결해 좌우 탭 전환과 내부 스크롤을 방해하지 않는다.
+  useEffect(() => {
+    const panel = isTabRoute
+      ? containerRef.current?.querySelector<HTMLElement>('[data-active-panel]')
+      : detailPanelRef.current;
+    if (!panel) return;
+
+    let started = false;
+    let pulling = false;
+    let startX = 0;
+    let startY = 0;
+    let travel = 0;
+
+    const reset = () => {
+      started = false;
+      pulling = false;
+      travel = 0;
+      setPullDistance(0);
+    };
+
+    const onStart = (event: TouchEvent) => {
+      reset();
+      if (refreshing || event.touches.length !== 1 || panel.scrollTop > 1) return;
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (target.closest('input, textarea, select, [contenteditable="true"], [role="dialog"], [data-no-pull]')) return;
+      // 별도 세로 스크롤 컨테이너 안의 제스처는 그 컨테이너가 처리한다.
+      for (let node: Element | null = target; node && node !== panel; node = node.parentElement) {
+        const style = getComputedStyle(node);
+        if (/(auto|scroll)/.test(style.overflowY) && node.scrollHeight > node.clientHeight + 2) return;
+      }
+      started = true;
+      startX = event.touches[0].clientX;
+      startY = event.touches[0].clientY;
+    };
+
+    const onMove = (event: TouchEvent) => {
+      if (!started) return;
+      if (event.touches.length !== 1 || panel.scrollTop > 1) { reset(); return; }
+      const dx = event.touches[0].clientX - startX;
+      const dy = event.touches[0].clientY - startY;
+      // 위로 스크롤·좌우 탭 스와이프는 그대로 통과.
+      if (dy <= 0 || Math.abs(dx) >= Math.abs(dy)) { reset(); return; }
+      if (dy < 9) return;
+      pulling = true;
+      travel = dy;
+      if (event.cancelable) event.preventDefault();
+      setPullDistance(Math.min(70, dy * 0.65));
+    };
+
+    const onEnd = () => {
+      const reload = pulling && travel >= 95;
+      reset();
+      if (reload) {
+        setRefreshing(true);
+        window.location.reload();
+      }
+    };
+
+    panel.addEventListener('touchstart', onStart, { passive: true });
+    panel.addEventListener('touchmove', onMove, { passive: false });
+    panel.addEventListener('touchend', onEnd);
+    panel.addEventListener('touchcancel', reset);
+    return () => {
+      panel.removeEventListener('touchstart', onStart);
+      panel.removeEventListener('touchmove', onMove);
+      panel.removeEventListener('touchend', onEnd);
+      panel.removeEventListener('touchcancel', reset);
+    };
+  }, [isTabRoute, activeIndex, location.pathname, refreshing]);
+
   // 비탭 라우트(상세 페이지 등)는 캐러셀 없이 자체 스크롤 컨테이너로
   if (!isTabRoute) {
-    return <div className="no-scrollbar h-full overflow-y-auto overflow-x-hidden">{outlet}</div>;
+    return <div ref={detailPanelRef} className="no-scrollbar relative h-full overflow-y-auto overflow-x-hidden overscroll-contain">{outlet}<PullRefreshFeedback distance={pullDistance} refreshing={refreshing} /></div>;
   }
 
   return (
     <div
       ref={containerRef}
-      className="h-full w-full overflow-hidden"
+      className="relative h-full w-full overflow-hidden"
       style={{ touchAction: 'pan-y' }}
       // 트랙 위치는 transform(trackX)으로만 잡으므로 컨테이너의 scrollLeft 는 항상 0이어야 한다.
       // 외부 코드(예: scrollIntoView)가 가로로 스크롤시키면 탭 정렬이 어긋나므로 즉시 되돌린다.
@@ -167,6 +259,7 @@ export default function SwipeTabs() {
         if (e.currentTarget.scrollTop !== 0) e.currentTarget.scrollTop = 0;
       }}
     >
+      <PullRefreshFeedback distance={pullDistance} refreshing={refreshing} />
       <motion.div className="flex h-full" style={{ x: trackX, width: w ? tabs.length * w : '100%' }}>
         {tabs.map((t, i) => (
           <div

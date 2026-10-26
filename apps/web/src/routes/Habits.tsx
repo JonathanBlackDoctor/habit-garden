@@ -21,6 +21,7 @@ import { formatLongKoreanDate, timeOfDay } from '@/lib/dayBoundary';
 import { useTabBloomKey } from '@/lib/tabActive';
 import { PageHeader, ProgressRail, SegmentTabs } from '@/components/Editorial';
 import HabitWeekBoard from '@/features/habits/HabitWeekBoard';
+import CompactWeeklyScore from '@/features/stats/CompactWeeklyScore';
 import {
   HABIT_TIME_ORDER,
   getHabitOverview,
@@ -131,7 +132,7 @@ export default function Habits() {
         <PageHeader
           kicker={formatLongKoreanDate(date)}
           title="습관"
-          summary={weekView ? '한 주의 실천을 한눈에 돌아봐요' : `${totalAchieved} / ${totalActive} 달성 · ${totalChecked} / ${totalActive} 기록`}
+          summary={weekView ? '한 주의 실천을 한눈에 돌아봐요' : isPast ? `${totalAchieved} / ${totalActive} 달성 · ${totalChecked} / ${totalActive} 기록` : undefined}
           action={(
             <div className="flex items-center gap-1">
               {isEditorial && (
@@ -164,6 +165,7 @@ export default function Habits() {
             </div>
           )}
         />
+        {!weekView && !isPast && <CompactWeeklyScore />}
         {!weekView && <div>
           <ProgressRail value={totalActive > 0 ? (totalChecked / totalActive) * 100 : 0} />
           {nudge && (
