@@ -3,6 +3,17 @@ import { format, toZonedTime } from 'date-fns-tz';
 
 const KST = 'Asia/Seoul';
 
+/**
+ * 다음 플래너 날짜가 시작되는 한국시간 오전 4시의 실제 시각.
+ * 한국은 연중 UTC+9이므로 해당 플래너 날짜의 19:00 UTC가 다음 날 04:00 KST다.
+ * (예: 10/27 플래너 날짜 → 10/27 19:00 UTC = 10/28 04:00 KST)
+ */
+export function nextPlannerDayBoundary(now: Date = new Date()): Date {
+  const [year, month, day] = plannerDate(now).split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, day, 19));
+}
+
+
 /** 주어진 시각이 속하는 '플래너 날짜'를 YYYY-MM-DD로 반환 (04:00 경계) */
 export function plannerDate(date: Date = new Date()): string {
   const kst = toZonedTime(date, KST);

@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { HashRouter, Route, Routes, Navigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
+import { usePlannerDaySync } from '@/lib/usePlannerDaySync';
 
 import ProtectedRoute from '@/components/ProtectedRoute';
 import OwnerRoute from '@/components/OwnerRoute';
@@ -33,6 +34,7 @@ const queryClient = new QueryClient({
 
 function AuthInit({ children }: { children: React.ReactNode }) {
   useAuth(); // triggers onAuthStateChanged → store
+  usePlannerDaySync(); // 04:00 KST / PWA 복귀 시 오늘 날짜 자동 갱신
   return <>{children}</>;
 }
 

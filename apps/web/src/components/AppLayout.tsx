@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
+import { useAppStore } from '@/lib/store';
 import { animate } from 'framer-motion';
 import TabBar from './TabBar';
 import { ScrollTopContext } from '@/lib/scrollContext';
@@ -17,6 +18,7 @@ export default function AppLayout() {
   const tabs = useVisibleTabs();
   const uiDesign = useUiDesign();
   const location = useLocation();
+  const currentDate = useAppStore((s) => s.currentDate);
   const weeklyMode = useWeeklyHabitMode();
   const weekly = weeklyMode && (location.pathname === '/' || location.pathname === '/habits') && new URLSearchParams(location.search).get('view') === 'week';
   const [retapNonce, setRetapNonce] = useState(0);
@@ -56,7 +58,8 @@ export default function AppLayout() {
             }}
           >
             <div ref={hostRef} className="min-h-0 flex-1 overflow-hidden">
-              <SwipeTabs />
+              {/* 날짜가 바뀌면 오늘 화면만 재마운트: 이전 날짜의 미완료 입력/구독 캐시가 보이지 않도록 한다. */}
+              <SwipeTabs key={currentDate} />
             </div>
             <TabBar />
             {uiDesign === 'classic' && (
