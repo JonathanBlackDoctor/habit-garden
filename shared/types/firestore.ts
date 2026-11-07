@@ -535,9 +535,9 @@ export const SEED_PRAYERS: PrayerSeed[] = [
   { group: '개인', target: '친구',     title: '친구·지인의 구원과 회복',         priority: 'low',  body: '아직 주님을 모르는 친구들을 위한 중보' },
 ];
 
-// 기도 우선순위 라벨 (UI 표시용)
+// 기도 노출 빈도 라벨 (저장 구조인 priority 키는 기존대로 유지)
 export const PRAYER_PRIORITY_LABELS: Record<PrayerPriority, string> = {
-  high: '높음',
+  high: '자주',
   mid:  '보통',
-  low:  '낮음',
+  low:  '가끔',
 };

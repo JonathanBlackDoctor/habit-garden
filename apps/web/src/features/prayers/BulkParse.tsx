@@ -3,6 +3,7 @@ import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/lib/firebase';
 import type { PrayerPriority } from 'shared/types/firestore';
 import { PRAYER_PRIORITY_LABELS } from 'shared/types/firestore';
+import { fallbackParsePrayerText } from 'shared/prayerBulkFallback';
 import { usePrayerActions, usePrayerGroups, usePrayerTargets } from './usePrayers';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
@@ -37,38 +38,59 @@ export default function BulkParse({
   const [parsing, setParsing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [items, setItems] = useState<ParsedItem[] | null>(null);
+  const [usedFallback, setUsedFallback] = useState(false);
 
-  const reset = () => { setRaw(''); setItems(null); setParsing(false); setSaving(false); };
+  const reset = () => { setRaw(''); setItems(null); setParsing(false); setSaving(false); setUsedFallback(false); };
   const close = () => { reset(); onOpenChange(false); };
 
+  const asReviewItems = (parsed: Array<{ title: string; body?: string; target?: string; confidence?: number }>): ParsedItem[] =>
+    parsed.map((it) => ({
+      title: it.title,
+      body: it.body ?? '',
+      group: batchGroup,
+      target: (typeof it.target === 'string' && it.target.trim()) ? it.target.trim() : '나 자신',
+      priority: batchPriority,
+      confidence: typeof it.confidence === 'number' ? it.confidence : undefined,
+      include: true,
+    }));
+
   const parse = async () => {
-    if (!raw.trim() || parsing) return;
+    const text = raw.trim();
+    if (!text || parsing) return;
+    if (text.length > 8000) {
+      toast.error('8,000자 이하로 나누어 입력해 주세요.');
+      return;
+    }
     setParsing(true);
+    setUsedFallback(false);
     try {
       const fn = httpsCallable(functions, 'parsePrayerBulk');
-      const res: any = await fn({ rawText: raw.trim() });
-      const parsed: any[] = res.data?.items ?? [];
-      if (parsed.length === 0) {
+      const res = await fn({ rawText: text });
+      const data = res.data as { items?: unknown; fallback?: boolean };
+      const parsed = Array.isArray(data?.items)
+        ? data.items.filter((it): it is { title: string; body?: string; target?: string; confidence?: number } =>
+            !!it && typeof it.title === 'string' && !!it.title.trim())
+        : [];
+      if (!parsed.length) throw new Error('AI 정리 결과가 비어 있습니다.');
+      setItems(asReviewItems(parsed));
+      if (data?.fallback) {
+        setUsedFallback(true);
+        toast.warning('AI 연결 문제로 기본 정리로 전환했습니다. 저장 전 확인해 주세요.');
+      }
+    } catch (e: any) {
+      console.warn('parsePrayerBulk unavailable; using local fallback', e?.code ?? 'unknown');
+      const parsed = fallbackParsePrayerText(text);
+      if (!parsed.length) {
         toast.error('정리할 항목을 찾지 못했습니다.');
-        setParsing(false);
         return;
       }
-      setItems(parsed.map((it) => ({
-        title: it.title ?? '',
-        body: it.body ?? '',
-        group: batchGroup,
-        target: (typeof it.target === 'string' && it.target.trim()) ? it.target.trim() : '나 자신',
-        priority: batchPriority,
-        confidence: typeof it.confidence === 'number' ? it.confidence : undefined,
-        include: true,
-      })));
-    } catch (e: any) {
-      toast.error('AI 정리 실패: ' + (e?.message ?? '알 수 없는 오류'));
+      setItems(asReviewItems(parsed));
+      setUsedFallback(true);
+      toast.warning('AI 연결 문제로 기본 정리로 전환했습니다. 저장 전 확인해 주세요.');
     } finally {
       setParsing(false);
     }
   };
-
   const patch = (idx: number, p: Partial<ParsedItem>) => {
     setItems((prev) => prev ? prev.map((it, i) => i === idx ? { ...it, ...p } : it) : prev);
   };
@@ -79,7 +101,7 @@ export default function BulkParse({
     setItems((prev) => prev ? prev.map((it) => ({ ...it, group: g })) : prev);
   };
 
-  // 전체 중요도 일괄 적용
+  // 전체 노출 빈도 일괄 적용
   const applyPriorityToAll = (p: PrayerPriority) => {
     setBatchPriority(p);
     setItems((prev) => prev ? prev.map((it) => ({ ...it, priority: p })) : prev);
@@ -136,7 +158,7 @@ export default function BulkParse({
                 </select>
               </label>
               <label className="flex items-center gap-2 text-xs text-[var(--fg-muted)]">
-                중요도
+                노출 빈도
                 <select
                   value={batchPriority}
                   onChange={(e) => setBatchPriority(e.target.value as PrayerPriority)}
@@ -155,9 +177,13 @@ export default function BulkParse({
               rows={8}
               className="w-full resize-none rounded-[var(--radius)] border border-[var(--border)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--sky)]"
             />
+            <p className="text-right text-[11px] text-[var(--fg-faint)]">{raw.trim().length.toLocaleString()} / 8,000자</p>
+            {raw.trim().length > 8000 && (
+              <p className="text-xs text-amber-700">8,000자 이하로 나누어 입력해 주세요.</p>
+            )}
             <button
               onClick={parse}
-              disabled={parsing || !raw.trim()}
+              disabled={parsing || !raw.trim() || raw.trim().length > 8000}
               className="flex w-full items-center justify-center gap-2 rounded-[var(--radius)] bg-[var(--leaf)] py-2.5 text-sm font-medium text-white disabled:opacity-50"
             >
               {parsing ? <><Loader2 size={15} className="animate-spin" /> 정리 중…</> : <>정리하기</>}
@@ -165,7 +191,12 @@ export default function BulkParse({
           </div>
         ) : (
           <div className="space-y-2 pt-2">
-            <div className="flex items-center justify-between">
+            {usedFallback && (
+              <p role="status" className="rounded-[var(--radius)] border border-amber-300 px-3 py-2 text-xs text-amber-800">
+                AI 연결 문제로 원문을 빈 줄·줄바꿈 기준으로 임시 정리했습니다. 사람별로 묶이지 않았을 수 있으니 저장 전에 항목을 확인해 주세요.
+              </p>
+            )}
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs text-[var(--fg-muted)]">
                 {items.length}개 항목을 찾았습니다. 검토 후 저장하세요.
               </p>
@@ -181,7 +212,7 @@ export default function BulkParse({
                   </select>
                 </label>
                 <label className="flex items-center gap-1 text-[11px] text-[var(--fg-muted)]">
-                  전체 중요도
+                  전체 노출 빈도
                   <select
                     value={batchPriority}
                     onChange={(e) => applyPriorityToAll(e.target.value as PrayerPriority)}

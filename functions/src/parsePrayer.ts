@@ -5,9 +5,11 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { callGeminiWithRetry, throwIfRateLimit, GEMINI_MODEL } from './geminiUtil';
+import { callGeminiWithRetry, isModelNotFound, isRateLimit, throwIfRateLimit, GEMINI_MODEL, GEMINI_SMART_MODEL } from './geminiUtil';
+import { fallbackParsePrayerText } from '../../shared/prayerBulkFallback';
 
 const REGION = 'asia-northeast3';
+const BULK_MODELS = [GEMINI_MODEL, 'gemini-2.5-flash-lite', GEMINI_SMART_MODEL] as const;
 
 const SYS_INSTRUCTION = `당신은 한국어 기도 요청 텍스트를 정리하는 도우미다.
 - 통일되지 않은 덩어리 텍스트를 "사람(또는 대상) 단위"로 묶는다.
@@ -62,55 +64,71 @@ export const parsePrayerBulk = functions
       throw new functions.https.HttpsError('invalid-argument', '텍스트가 너무 깁니다 (최대 8000자).');
     }
     const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) throw new functions.https.HttpsError('internal', 'GEMINI_API_KEY not set');
+    if (!apiKey) {
+      console.error('parsePrayerBulk: GEMINI_API_KEY missing; using text fallback');
+      return { items: fallbackParsePrayerText(rawText), fallback: true };
+    }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({
-      model: GEMINI_MODEL,
-      systemInstruction: SYS_INSTRUCTION,
-      generationConfig: {
-        responseMimeType: 'application/json',
-        // 타입 정의가 enum/Schema를 강하게 요구해 any 캐스팅
-        responseSchema: RESPONSE_SCHEMA as any,
-      },
-    });
-
     const prompt = `아래 텍스트를 사람(대상) 단위로 묶어 정리하라. 한 사람의 여러 제목은 한 항목으로 합쳐라:
 """
 ${rawText}
 """`;
 
-    try {
-      const chat = model.startChat();
-      const res  = await callGeminiWithRetry(() => chat.sendMessage(prompt));
-      const text = res.response.text().trim();
-      const clean = text.replace(/```json|```/g, '').trim();
-      const parsed = JSON.parse(clean);
-      const items = Array.isArray(parsed?.items) ? parsed.items : [];
+    // 모델 1개가 할당량 초과·폐기·일시 장애를 겪어도 다른 모델로 계속 시도한다.
+    let lastError: unknown;
+    for (const modelId of BULK_MODELS) {
+      try {
+        const model = genAI.getGenerativeModel({
+          model: modelId,
+          systemInstruction: SYS_INSTRUCTION,
+          generationConfig: {
+            responseMimeType: 'application/json',
+            responseSchema: RESPONSE_SCHEMA as any,
+          },
+        });
+        const res = await model.generateContent(prompt);
+        const responseText = res.response.text().trim();
+        const parsed = JSON.parse(responseText.replace(/^\u0060{3}(?:json)?\s*|\u0060{3}$/g, '').trim());
+        const items = Array.isArray(parsed?.items) ? parsed.items : [];
 
-      // 가벼운 정규화 + 방어
-      const cleaned = items
-        .filter((it: any) => it && typeof it.title === 'string' && it.title.trim())
-        .slice(0, 100)
-        .map((it: any) => ({
-          title: it.title.trim().slice(0, 60),
-          // 배열을 프로그램에서 직접 LF로 연결해 AI가 한 줄로 뭉치는 일을 방지한다.
-          body: (Array.isArray(it.bodyLines)
-            ? it.bodyLines.filter((line: unknown): line is string => typeof line === 'string')
-                .map((line: string) => line.trim().replace(/^[-•]\s*/, ''))
-                .filter(Boolean).map((line: string) => '- ' + line).join('\n')
-            : (typeof it.body === 'string' ? it.body.trim() : '')).slice(0, 600),
-          target: typeof it.target === 'string' ? it.target.trim().slice(0, 40) : '',
-          priority: ['high', 'mid', 'low'].includes(it.priority) ? it.priority : 'mid',
-          confidence: typeof it.confidence === 'number' ? Math.max(0, Math.min(1, it.confidence)) : undefined,
-        }));
+        // 가벼운 정규화 + 방어
+        const cleaned = items
+          .filter((it: any) => it && typeof it.title === 'string' && it.title.trim())
+          .slice(0, 100)
+          .map((it: any) => ({
+            title: it.title.trim().slice(0, 60),
+            // 배열을 프로그램에서 직접 LF로 연결해 AI가 한 줄로 뭉치는 일을 방지한다.
+            body: (Array.isArray(it.bodyLines)
+              ? it.bodyLines.filter((line: unknown): line is string => typeof line === 'string')
+                  .map((line: string) => line.trim().replace(/^[-•]\s*/, ''))
+                  .filter(Boolean).map((line: string) => '- ' + line).join('\n')
+              : (typeof it.body === 'string' ? it.body.trim() : '')).slice(0, 8000),
+            target: typeof it.target === 'string' ? it.target.trim().slice(0, 40) : '',
+            priority: ['high', 'mid', 'low'].includes(it.priority) ? it.priority : 'mid',
+            confidence: typeof it.confidence === 'number' ? Math.max(0, Math.min(1, it.confidence)) : undefined,
+          }));
 
-      return { items: cleaned };
-    } catch (e) {
-      console.error('parsePrayerBulk error', e);
-      throwIfRateLimit(e);
-      throw new functions.https.HttpsError('internal', 'AI 정리에 실패했습니다.');
+
+        if (cleaned.length === 0) throw new Error('Empty AI prayer items');
+        return { items: cleaned, fallback: false };
+      } catch (e) {
+        lastError = e;
+        const status = Number((e as any)?.status);
+        const retryable = isRateLimit(e) || isModelNotFound(e)
+          || [500, 502, 503, 504].includes(status)
+          || e instanceof SyntaxError
+          || (e instanceof Error && e.message === 'Empty AI prayer items');
+        console.warn('parsePrayerBulk model failed', {
+          modelId, status: Number.isFinite(status) ? status : null, retryable,
+        });
+        if (!retryable) break;
+      }
     }
+    console.error('parsePrayerBulk: AI unavailable; returning reviewable text fallback', {
+      status: Number((lastError as any)?.status) || null,
+    });
+    return { items: fallbackParsePrayerText(rawText), fallback: true };
   });
 
 
