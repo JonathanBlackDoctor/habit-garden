@@ -367,7 +367,7 @@ function BulkEditDialog({
         </label>
 
         <label className="block space-y-1">
-          <span className="text-xs text-[var(--fg-muted)]">우선순위</span>
+          <span className="text-xs text-[var(--fg-muted)]">노출 빈도</span>
           <select
             className={cn(SELECT_CLS, 'w-full')}
             value={priority}
@@ -469,7 +469,7 @@ export function TargetSelect({
   );
 }
 
-// ── 상세 추가 다이얼로그 (제목·상세·모임·대상·우선순위) ──────
+// ── 상세 추가 다이얼로그 (제목·상세·모임·대상·노출 빈도) ──────
 export function AddPrayerDialog({
   open, onOpenChange,
 }: {
@@ -544,7 +544,7 @@ export function AddPrayerDialog({
 
         <div className="grid grid-cols-2 gap-2">
           <label className="space-y-1">
-            <span className="text-xs text-[var(--fg-muted)]">우선순위</span>
+            <span className="text-xs text-[var(--fg-muted)]">노출 빈도</span>
             <select
               className={cn(SELECT_CLS, 'w-full')}
               value={priority}
@@ -788,7 +788,7 @@ export function PrayerDetailDialog({
                 />
               </label>
               <label className="space-y-1">
-                <span className="text-xs text-[var(--fg-muted)]">우선순위</span>
+                <span className="text-xs text-[var(--fg-muted)]">노출 빈도</span>
                 <select
                   className={cn(SELECT_CLS, 'w-full')}
                   defaultValue={prayer.priority}
@@ -840,7 +840,7 @@ export function PrayerDetailDialog({
               </label>
             </div>
             <p className="text-[11px] text-[var(--fg-faint)]">
-              비워두면 우선순위 기본값({baseDays}일)으로 순환합니다.
+              비워두면 노출 빈도 기본값({baseDays}일)으로 순환합니다.
             </p>
 
             <button
