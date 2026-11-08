@@ -39,6 +39,13 @@ function fmtClock(ms: number): string {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
+/** 기도제목을 받은 날짜 — 기록이 없으면 날짜를 표시하지 않는다. */
+function fmtReceivedDate(receivedAt: PrayerDoc['receivedAt']): string {
+  const date = receivedAt?.toDate?.();
+  if (!date || !Number.isFinite(date.getTime())) return '';
+  return `${date.getFullYear()}.${date.getMonth() + 1}.${date.getDate()}`;
+}
+
 /** 화면 꺼짐 방지 — 미지원 브라우저에서는 조용히 무시 */
 function useWakeLock(active: boolean) {
   useEffect(() => {
@@ -132,6 +139,7 @@ export default function PrayerMode({
   );
   const ordered = sessionIds.map((id) => byId.get(id)).filter(Boolean) as PrayerDoc[];
   const current = ordered[index];
+  const receivedDate = current ? fmtReceivedDate(current.receivedAt) : '';
 
   const timeLeft = endsAt !== null ? endsAt - now : null;
   const timeUp = timeLeft !== null && timeLeft <= 0;
@@ -344,6 +352,10 @@ export default function PrayerMode({
                             <span className="ml-auto text-[10px]" style={{ color: DARK.accent }}>오늘 기도함</span>
                           )}
                         </div>
+                        <p className={cn('mt-2 text-[10px] leading-relaxed tabular-nums', DARK.muted)}>
+                          {receivedDate && `${receivedDate} 받음 · `}
+                          누적 {current.prayCount ?? 0}회 기도
+                        </p>
 
                         <div className="flex flex-1 flex-col justify-center py-8">
                           <h2 className="text-[27px] font-medium leading-[1.38] tracking-[-0.035em] [text-wrap:balance]">{current.title}</h2>
