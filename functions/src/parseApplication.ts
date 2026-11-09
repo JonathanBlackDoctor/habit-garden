@@ -9,7 +9,7 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { callGeminiWithRetry, throwIfRateLimit, GEMINI_MODEL } from './geminiUtil';
+import { requestGemini, throwIfRateLimit, GEMINI_MODEL } from './geminiUtil';
 import { formatLifeContext } from '../../shared/lib/lifeContext';
 import type { UserSettingsDoc } from '../../shared/types/firestore';
 
@@ -102,7 +102,7 @@ ${rawText}
 
     try {
       const chat = model.startChat();
-      const res  = await callGeminiWithRetry(() => chat.sendMessage(prompt));
+      const res = await requestGemini('application-parser', GEMINI_MODEL, () => chat.sendMessage(prompt));
       const text = res.response.text().trim();
       const clean = text.replace(/```json|```/g, '').trim();
       const parsed = JSON.parse(clean);

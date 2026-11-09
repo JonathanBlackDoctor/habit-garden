@@ -2,6 +2,8 @@
  * Gemini 호출 공통 유틸 — 레이트리밋(429) 친화 처리 + 1회 자동 재시도.
  */
 import * as functions from 'firebase-functions/v1';
+import { logger } from 'firebase-functions';
+import type { GenerateContentResult } from '@google/generative-ai';
 
 /**
  * 모델 라우팅.
@@ -60,17 +62,39 @@ function parseRetryDelayMs(e: any): number {
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**
- * fn 실행 중 429가 나면 retryDelay(없으면 3초)만큼 한 번만 기다렸다 재시도한다.
- * 429가 아닌 에러는 즉시 원래 에러를 던진다.
+ * 일시적인 429만 한 번 재시도한다. 응답 본문과 사용자 데이터는 로그에 넣지 않는다.
  */
-export async function callGeminiWithRetry<T>(fn: () => Promise<T>): Promise<T> {
+export async function requestGemini(
+  feature: string,
+  model: string,
+  fn: () => Promise<GenerateContentResult>,
+  { retryRateLimit = true } = {},
+): Promise<GenerateContentResult> {
+  let result: GenerateContentResult;
   try {
-    return await fn();
+    result = await fn();
   } catch (e) {
-    if (!isRateLimit(e)) throw e;
+    if (!retryRateLimit || !isRateLimit(e) || rateLimitMessage(e) !== RATE_LIMIT_MESSAGE) throw e;
     await delay(parseRetryDelayMs(e) || 3000);
-    return await fn();
+    result = await fn();
   }
+  const response = result.response as GenerateContentResult['response'] & { modelVersion?: string };
+  const usage = response.usageMetadata as
+    (NonNullable<typeof response.usageMetadata> & { thoughtsTokenCount?: number }) | undefined;
+  const count = (value: number | undefined) =>
+    typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : null;
+  logger.info('Gemini token usage', {
+    app: 'habit-garden',
+    feature,
+    model,
+    modelVersion: response.modelVersion ?? null,
+    promptTokens: count(usage?.promptTokenCount),
+    cachedPromptTokens: count(usage?.cachedContentTokenCount),
+    outputTokens: count(usage?.candidatesTokenCount),
+    thinkingTokens: count(usage?.thoughtsTokenCount),
+    totalTokens: count(usage?.totalTokenCount),
+  });
+  return result;
 }
 
 /** 429면 callable 친화 코드(resource-exhausted)로, 그 외는 원래 에러를 던진다. */

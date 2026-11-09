@@ -10,7 +10,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { format, subDays } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import {
-  callGeminiWithRetry,
+  requestGemini,
   throwIfRateLimit,
   GEMINI_FAST_MODEL,
   GEMINI_SMART_MODEL,
@@ -164,7 +164,10 @@ ${habitStats}
   let parsed: any;
   let isFallback = false;
   try {
-    const res = await callGeminiWithRetry(() => chat.sendMessage(finalPrompt));
+    const feature = mode === 'daily' || mode === 'crisis' || mode === 'weekly'
+      ? `coach-${mode}`
+      : 'coach-other';
+    const res = await requestGemini(feature, modelId, () => chat.sendMessage(finalPrompt));
     const text = res.response.text().trim().replace(/```json|```/g, '').trim();
     parsed = JSON.parse(text);
   } catch (e) {

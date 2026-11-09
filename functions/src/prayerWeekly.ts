@@ -9,7 +9,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { subDays, format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { callGeminiWithRetry, GEMINI_MODEL } from './geminiUtil';
+import { requestGemini, GEMINI_MODEL } from './geminiUtil';
 import type { PrayerDoc, UserSettingsDoc } from '../../shared/types/firestore';
 import { escapeHtml } from '../../shared/lib/telegram';
 import { notifyUser } from './notify';
@@ -127,7 +127,7 @@ async function processUserWeekly(uid: string, nowKst: Date): Promise<void> {
 - 체크 횟수 또는 집중 모임을 한 번 짚고, 꾸준함이나 응답의 의미를 짧게 더한다.
 - 잊혀가는 기도가 있으면 비난 없이 한 마디만 환기한다.
 - 군더더기 없이 핵심만. 길게 늘이지 않는다.`;
-      const res = await callGeminiWithRetry(() => model.generateContent(prompt));
+      const res = await requestGemini('prayer-weekly', GEMINI_MODEL, () => model.generateContent(prompt));
       const t = res.response.text().trim();
       if (t) encouragement = t.slice(0, 160);
     } catch (e) {

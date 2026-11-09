@@ -8,7 +8,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { subDays, format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
-import { callGeminiWithRetry, throwIfRateLimit, GEMINI_SMART_MODEL } from './geminiUtil';
+import { requestGemini, throwIfRateLimit, GEMINI_SMART_MODEL } from './geminiUtil';
 import type { HabitDoc, HabitCheckDoc, DayDoc } from '../../shared/types/firestore';
 
 const db = admin.firestore();
@@ -124,7 +124,7 @@ ${habitSummary}
     let result;
     try {
       const chat = model.startChat();
-      const res  = await callGeminiWithRetry(() => chat.sendMessage(prompt));
+      const res = await requestGemini('daily-feedback', GEMINI_SMART_MODEL, () => chat.sendMessage(prompt));
       const text = res.response.text().trim();
       const clean = text.replace(/```json|```/g, '').trim();
       result = JSON.parse(clean);

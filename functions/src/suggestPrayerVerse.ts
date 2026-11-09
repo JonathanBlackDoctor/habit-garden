@@ -16,7 +16,7 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { isRateLimit, isModelNotFound } from './geminiUtil';
+import { requestGemini, isRateLimit, isModelNotFound } from './geminiUtil';
 
 const REGION = 'asia-northeast3';
 /** 쿼터 버킷이 서로(그리고 GEMINI_MODEL과) 분리된 무료 티어 모델 체인 */
@@ -98,7 +98,9 @@ async function generateWithFallback(apiKey: string, schema: object, prompt: stri
   let lastErr: unknown = null;
   for (const modelId of VERSE_MODELS) {
     try {
-      return await build(modelId).generateContent(prompt);
+      return await requestGemini('prayer-verse', modelId, () => build(modelId).generateContent(prompt), {
+        retryRateLimit: false,
+      });
     } catch (e) {
       if (!isRateLimit(e) && !isModelNotFound(e)) throw e;
       console.warn(`suggestPrayerVerse: ${modelId} unavailable, trying next —`, String((e as any)?.message ?? e));

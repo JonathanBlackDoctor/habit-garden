@@ -5,7 +5,7 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { callGeminiWithRetry, isModelNotFound, isRateLimit, throwIfRateLimit, GEMINI_MODEL, GEMINI_SMART_MODEL } from './geminiUtil';
+import { requestGemini, isModelNotFound, isRateLimit, throwIfRateLimit, GEMINI_MODEL, GEMINI_SMART_MODEL } from './geminiUtil';
 import { fallbackParsePrayerText } from '../../shared/prayerBulkFallback';
 
 const REGION = 'asia-northeast3';
@@ -87,7 +87,9 @@ ${rawText}
             responseSchema: RESPONSE_SCHEMA as any,
           },
         });
-        const res = await model.generateContent(prompt);
+        const res = await requestGemini('prayer-bulk-parser', modelId, () => model.generateContent(prompt), {
+          retryRateLimit: false,
+        });
         const responseText = res.response.text().trim();
         const parsed = JSON.parse(responseText.replace(/^\u0060{3}(?:json)?\s*|\u0060{3}$/g, '').trim());
         const items = Array.isArray(parsed?.items) ? parsed.items : [];
@@ -200,7 +202,7 @@ export const repairPrayerBodies = functions
     });
 
     try {
-      const response = await callGeminiWithRetry(() =>
+      const response = await requestGemini('prayer-item-parser', GEMINI_MODEL, () =>
         model.generateContent(JSON.stringify({ items })));
       const parsed = JSON.parse(response.response.text().replace(/```json|```/g, '').trim());
       const resultItems: any[] = Array.isArray(parsed?.items) ? parsed.items : [];
