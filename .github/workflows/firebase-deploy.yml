@@ -10,6 +10,7 @@ on:
     paths:
       - 'functions/src/dailyReset.ts'
       - 'shared/todoCarryover.ts'
+      - 'functions/src/geminiUtil.ts'
       - 'functions/src/parsePrayer.ts'
       - 'functions/src/index.ts'
       - '.github/workflows/firebase-deploy.yml'
@@ -81,7 +82,13 @@ jobs:
             if echo "$CHANGED" | grep -Eq '^(functions/src/dailyReset[.]ts|shared/todoCarryover[.]ts)$'; then
               TARGETS+=('functions:dailyReset')
             fi
-            if echo "$CHANGED" | grep -Eq '^(functions/src/(parsePrayer|index)[.]ts|[.]github/workflows/firebase-deploy[.]yml|pnpm-workspace[.]yaml|functions/package[.]json)$'; then
+            if echo "$CHANGED" | grep -Fxq 'functions/src/geminiUtil.ts'; then
+              TARGETS+=(
+                'functions:generateFeedback' 'functions:parsePrayerBulk' 'functions:repairPrayerBodies'
+                'functions:suggestPrayerVerse' 'functions:findDuplicatePrayers' 'functions:generatePrayerWeekly'
+                'functions:parseApplication' 'functions:aiCoach' 'functions:morningBrief' 'functions:telegramWebhook'
+              )
+            elif echo "$CHANGED" | grep -Eq '^(functions/src/(parsePrayer|index)[.]ts|[.]github/workflows/firebase-deploy[.]yml|pnpm-workspace[.]yaml|functions/package[.]json)$'; then
               TARGETS+=('functions:parsePrayerBulk' 'functions:repairPrayerBodies')
             fi
             TARGET="$(IFS=,; echo "${TARGETS[*]}")"
