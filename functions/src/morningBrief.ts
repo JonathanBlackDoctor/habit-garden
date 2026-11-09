@@ -12,7 +12,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { format, subDays } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
-import { callGeminiWithRetry, GEMINI_MODEL } from './geminiUtil';
+import { requestGemini, GEMINI_MODEL } from './geminiUtil';
 import type { HabitDoc, DayDoc, ProgressDoc, UserSettingsDoc } from '../../shared/types/firestore';
 import { escapeHtml } from '../../shared/lib/telegram';
 import { notifyUser } from './notify';
@@ -131,7 +131,7 @@ async function buildMessage(ctx: BriefCtx): Promise<string> {
 
 이 사용자를 위한 모닝 브리프를 1-2문장(70자 이내)으로 작성하라.
 반드시 다음 JSON 스키마로만 응답: {"message":"…70자 이내…"}`;
-    const res = await callGeminiWithRetry(() => chat.sendMessage(prompt));
+    const res = await requestGemini('morning-brief', GEMINI_MODEL, () => chat.sendMessage(prompt));
     const text = res.response.text().trim().replace(/```json|```/g, '').trim();
     const parsed = JSON.parse(text);
     return typeof parsed.message === 'string' && parsed.message.trim() ? parsed.message.trim() : fallback;
