@@ -143,13 +143,13 @@ export function usePrayerSessionHistory(date: string) {
   const dates = useMemo(() => lastNDates(date, 7), [date]);
   const key = (uid || '') + ':' + date;
   const [state, setState] = useState<{
-    key: string; byDate: Record<string, PrayerSessionDoc[]>; loaded: boolean; error: boolean;
+    key: string; byDate: Record<string, (PrayerSessionDoc & { id: string })[]>; loaded: boolean; error: boolean;
   }>({ key: '', byDate: {}, loaded: false, error: false });
 
   useEffect(() => {
     if (!uid) return;
     let subscribed = true;
-    const byDate: Record<string, PrayerSessionDoc[]> = {};
+    const byDate: Record<string, (PrayerSessionDoc & { id: string })[]> = {};
     const loaded = new Set<string>();
     let failed = false;
     setState({ key, byDate: {}, loaded: false, error: false });
@@ -157,7 +157,7 @@ export function usePrayerSessionHistory(date: string) {
       collection(db, 'users', uid, 'days', day, 'prayerSessions'),
       (snapshot) => {
         if (!subscribed) return;
-        byDate[day] = snapshot.docs.map((item) => ({ ...item.data() as PrayerSessionDoc }));
+        byDate[day] = snapshot.docs.map((item) => ({ ...item.data() as PrayerSessionDoc, id: item.id }));
         loaded.add(day);
         setState({ key, byDate: { ...byDate }, loaded: loaded.size === dates.length, error: failed });
       },
@@ -173,7 +173,7 @@ export function usePrayerSessionHistory(date: string) {
 
   const current = state.key === key
     ? state
-    : { key, byDate: {} as Record<string, PrayerSessionDoc[]>, loaded: false, error: false };
+    : { key, byDate: {} as Record<string, (PrayerSessionDoc & { id: string })[]>, loaded: false, error: false };
   const todaySessions = current.byDate[date] || [];
   const recentSessions = dates.flatMap((day) =>
     (current.byDate[day] || []).map((session) => ({ ...session, date: day })),
