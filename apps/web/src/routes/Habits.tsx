@@ -64,6 +64,7 @@ export default function Habits() {
     if (selected === today) next.delete('date');
     else next.set('date', selected);
     setEditMode(false);
+    setToggledTods([]);
     navigate({ pathname: '/habits', search: next.toString() });
   };
   // 기본 펼침 상태(현재 시간대)를 사용자가 직접 반전한 그룹들
@@ -152,7 +153,7 @@ export default function Habits() {
         <PageHeader
           kicker={(
             <div className="inline-flex items-center gap-2">
-              <label className="relative inline-flex min-h-10 cursor-pointer items-center gap-1.5" title="날짜를 눌러 지난 습관 기록하기">
+              <label className="relative inline-flex min-h-10 cursor-pointer items-center gap-1.5" data-no-swipe title="날짜를 눌러 지난 습관 기록하기">
                 <span>{date.slice(0, 4) === today.slice(0, 4) ? '' : `${date.slice(0, 4)}년 · `}{formatLongKoreanDate(date)}</span>
                 <CalendarDays size={13} aria-hidden="true" className="text-[var(--fg-faint)]" />
                 <input
@@ -297,7 +298,7 @@ export default function Habits() {
         const groupAchieved = group.filter((h) => checks[h.id]?.achieved).length;
         const isNow = !isPast && tod === currentTOD;
         const settled = group.every((h) => checks[h.id] !== undefined);
-        const expanded = isPast || shouldExpandTimeGroup({
+        const expanded = isPast ? !toggledTods.includes(tod) : shouldExpandTimeGroup({
           editMode,
           timeOfDay: tod,
           currentTimeOfDay: currentTOD,
@@ -396,7 +397,10 @@ export default function Habits() {
         </section>
       )}
 
-      {habits.length === 0 && (
+      {isPast && liveHabits.length === 0 && (
+        <p className="py-8 text-center text-sm text-[var(--fg-faint)]">이 날짜에 기록할 습관이 없어요.</p>
+      )}
+      {!isPast && habits.length === 0 && (
         <EmptyState
           icon={Sprout}
           title="아직 습관이 없어요"
