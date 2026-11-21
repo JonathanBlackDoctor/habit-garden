@@ -5,6 +5,7 @@ import { X, Check, ChevronRight, ChevronLeft, Plus, BookOpen } from 'lucide-reac
 import type { PrayerDoc } from 'shared/types/firestore';
 import { pickDailyVerse } from 'shared/prayerVerses';
 import { usePrayerActions } from './usePrayers';
+import { usePrayerSessionRecorder } from './usePrayerSessions';
 import { cn } from '@/lib/utils';
 
 /**
@@ -31,6 +32,12 @@ const DARK = {
   faint: 'text-[#777168]',
   accent: '#CDB58F',
 };
+
+function fmtSessionTime(ms: number): string {
+  return new Date(ms).toLocaleTimeString('ko-KR', {
+    timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hour12: false,
+  });
+}
 
 function fmtClock(ms: number): string {
   const total = Math.max(0, Math.round(ms / 1000));
@@ -83,6 +90,11 @@ export default function PrayerMode({
   hasMore?: boolean;                          // 더 받을 후보가 남아 있는지
 }) {
   const { checkPrayer } = usePrayerActions();
+  const { start: startSession, heartbeat, stop: stopSession, heartbeatIntervalMs } = usePrayerSessionRecorder();
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  const stopRef = useRef(stopSession);
+  stopRef.current = stopSession;
   const [step, setStep] = useState<Step>('setup');
   const [durationMin, setDurationMin] = useState<number | null>(null);
   const [sessionIds, setSessionIds] = useState<string[]>([]);
@@ -106,6 +118,8 @@ export default function PrayerMode({
     setCheckedInSession(new Set());
     setDurationMin(null);
     setEndsAt(null);
+    setStartedAt(0);
+    finishedAtRef.current = 0;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -118,6 +132,39 @@ export default function PrayerMode({
   }, [open]);
 
   useWakeLock(open && (step === 'meditate' || step === 'pray'));
+
+  // X 버튼·탭 이동·화면 잠금·다른 앱으로 전환하면 자동 종료한다.
+  // 모바일 강제 종료로 이벤트가 오지 않더라도 마지막 heartbeat를 다음 실행 때 복구한다.
+  useEffect(() => {
+    if (!open) return;
+    const onHidden = () => {
+      if (document.visibilityState !== 'hidden') return;
+      stopRef.current('interrupted');
+      closeRef.current();
+    };
+    const onPageHide = () => { stopRef.current('interrupted'); };
+    document.addEventListener('visibilitychange', onHidden);
+    window.addEventListener('pagehide', onPageHide);
+    return () => {
+      document.removeEventListener('visibilitychange', onHidden);
+      window.removeEventListener('pagehide', onPageHide);
+      stopRef.current('interrupted');
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || step !== 'pray') return;
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') heartbeat();
+    }, heartbeatIntervalMs);
+    return () => window.clearInterval(timer);
+  }, [open, step, heartbeat, heartbeatIntervalMs]);
+
+  const handleClose = () => {
+    stopSession(step === 'done' ? 'completed' : 'interrupted',
+      step === 'done' ? finishedAtRef.current || Date.now() : Date.now());
+    onClose();
+  };
 
   // 1초 시계 — 절대시각 기준이라 백그라운드 스로틀에도 안전
   useEffect(() => {
@@ -147,6 +194,8 @@ export default function PrayerMode({
 
   const beginPray = () => {
     const t = Date.now();
+    finishedAtRef.current = 0;
+    startSession(t);
     setStartedAt(t);
     setEndsAt(durationMin !== null ? t + durationMin * 60_000 : null);
     setNow(t);
@@ -156,6 +205,7 @@ export default function PrayerMode({
   const advance = () => {
     if (index + 1 >= ordered.length) {
       finishedAtRef.current = Date.now();
+      stopSession('completed', finishedAtRef.current);
       setStep('done');
     } else {
       setIndex(index + 1);
@@ -188,7 +238,8 @@ export default function PrayerMode({
     });
     if (jump) {
       setIndex(ordered.length); // 기존 카드 뒤 — 새로 받은 첫 카드
-      setStep('pray');
+      // 완료된 세션은 유지하고, 추가 기도는 새 세션으로 기록한다.
+      beginPray();
     }
   };
 
@@ -226,7 +277,7 @@ export default function PrayerMode({
             <div className="shrink-0 px-5 pt-4">
               <div className="flex min-h-[44px] items-center justify-between">
                 <button
-                  onClick={onClose}
+                  onClick={handleClose}
                   aria-label="기도 모드 닫기"
                   className={cn('flex h-[44px] w-[44px] items-center justify-center rounded-full border transition-colors hover:bg-white/[0.04]', DARK.border, DARK.muted)}
                 >
@@ -433,7 +484,7 @@ export default function PrayerMode({
                     <p className={cn('mt-1 text-xs', DARK.muted)}>기도제목을 추가한 뒤 다시 시작해 주세요.</p>
                   </div>
                   <button
-                    onClick={onClose}
+                    onClick={handleClose}
                     className={cn('min-h-12 rounded-[16px] border px-6 text-sm', DARK.border, DARK.muted)}
                   >
                     돌아가기
@@ -456,6 +507,11 @@ export default function PrayerMode({
                       {checkedInSession.size > 0 && `${checkedInSession.size}개 기도 · `}
                       {fmtClock(elapsed)} 머물렀어요
                     </p>
+                    {startedAt > 0 && finishedAtRef.current > 0 && (
+                      <p className={cn('mt-2 text-xs tabular-nums', DARK.faint)}>
+                        {fmtSessionTime(startedAt)} – {fmtSessionTime(finishedAtRef.current)} · 자동 저장됨
+                      </p>
+                    )}
                   </motion.div>
 
                   <div className="mt-12 w-full space-y-3">
@@ -468,7 +524,7 @@ export default function PrayerMode({
                       </button>
                     )}
                     <button
-                      onClick={onClose}
+                      onClick={handleClose}
                       className="flex min-h-14 w-full items-center justify-center rounded-[18px] text-sm font-semibold text-[#17130D]"
                       style={{ backgroundColor: DARK.accent }}
                     >
