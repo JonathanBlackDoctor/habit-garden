@@ -359,6 +359,17 @@ export interface PrayerCheckDoc {
   prayedAt: Timestamp;
 }
 
+// 기도시간 세션 — users/{uid}/days/{YYYY-MM-DD}/prayerSessions/{sessionId}
+// 날짜는 시작 시각이 속한 플래너 날짜(한국시간 오전 4시 기준).
+export interface PrayerSessionDoc {
+  startedAt: Timestamp;
+  lastActiveAt: Timestamp;       // 마지막 확인 시각. 앱 강제 종료 시 여기까지만 계산
+  endedAt?: Timestamp;          // 정상/자동 종료 시각
+  durationSeconds: number;      // 경과 초(진행 중에도 마지막 heartbeat까지)
+  status: 'active' | 'completed' | 'interrupted';
+  updatedAt: Timestamp;
+}
+
 // 주간 기도 회고 — users/{uid}/prayerWeekly/{weekId='YYYY-MM-DD'(주 시작일)}
 export interface PrayerWeeklyDigestDoc {
   id: string;
