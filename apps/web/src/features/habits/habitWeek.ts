@@ -12,7 +12,7 @@ export function shiftDate(date: string, days: number): string {
 
 /** 유효한 과거/오늘 날짜만 선택할 수 있다. 미래·잘못된 날짜는 거부. */
 export function isSelectableHabitDate(date: string, today: string): boolean {
-  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(date) || date > today) return false;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date > today) return false;
   const parsed = new Date(`${date}T12:00:00Z`);
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === date;
 }
