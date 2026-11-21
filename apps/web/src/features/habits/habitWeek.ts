@@ -10,6 +10,13 @@ export function shiftDate(date: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+/** 유효한 과거/오늘 날짜만 선택할 수 있다. 미래·잘못된 날짜는 거부. */
+export function isSelectableHabitDate(date: string, today: string): boolean {
+  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(date) || date > today) return false;
+  const parsed = new Date(`${date}T12:00:00Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === date;
+}
+
 export function weekDates(date: string, offset = 0): string[] {
   const weekday = new Date(`${date}T12:00:00Z`).getUTCDay();
   const monday = shiftDate(date, -(weekday === 0 ? 6 : weekday - 1) + offset * 7);
@@ -45,6 +52,18 @@ export function weekSummary(habits: HabitDoc[], dates: string[], checks: WeekChe
   }
   const target = total - skipped;
   return { total, achieved, recorded, skipped, target, rate: target ? Math.round(achieved / target * 100) : null };
+}
+
+/** 해당 날짜에 존재하던 습관과 이미 기록된 항목만 표시. 기록 시점의 설정을 우선한다. */
+export function historicalHabitsForDate(
+  habits: HabitDoc[],
+  date: string,
+  today: string,
+  checks: Record<string, HabitCheckDoc>,
+): HabitDoc[] {
+  return habits
+    .filter((habit) => cellAvailability(habit, date, today, checks[habit.id]) === 'available')
+    .map((habit) => recordingHabit(habit, checks[habit.id]));
 }
 
 export function checkLabel(check?: HabitCheckDoc): string {

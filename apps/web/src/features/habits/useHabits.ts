@@ -40,9 +40,18 @@ export function useHabits(opts?: { includeInactive?: boolean; includeHibernating
   return habits;
 }
 
-export function useHabitChecks(date: string) {
-  const uid  = useAppStore((s) => s.uid);
-  const [checks, setChecks] = useState<Record<string, HabitCheckDoc>>({});
+/**
+ * 날짜 전환 중 이전 날짜의 체크가 잠깐 표시되는 것을 방지한다.
+ * 과거 기록 화면은 첫 스냅샷 이후에만 수정 버튼을 노출한다.
+ */
+export function useHabitChecksState(date: string) {
+  const uid = useAppStore((s) => s.uid);
+  const key = `${uid ?? ''}:${date}`;
+  const [state, setState] = useState<{
+    key: string;
+    checks: Record<string, HabitCheckDoc>;
+    error: boolean;
+  }>({ key: '', checks: {}, error: false });
 
   useEffect(() => {
     if (!uid) return;
@@ -50,11 +59,17 @@ export function useHabitChecks(date: string) {
     return onSnapshot(q, (snap) => {
       const map: Record<string, HabitCheckDoc> = {};
       snap.docs.forEach((d) => { map[d.id] = d.data() as HabitCheckDoc; });
-      setChecks(map);
-    });
-  }, [uid, date]);
+      setState({ key, checks: map, error: false });
+    }, () => setState({ key, checks: {}, error: true }));
+  }, [uid, date, key]);
 
-  return checks;
+  return state.key === key
+    ? { checks: state.checks, loading: false, error: state.error }
+    : { checks: {} as Record<string, HabitCheckDoc>, loading: !!uid, error: false };
+}
+
+export function useHabitChecks(date: string) {
+  return useHabitChecksState(date).checks;
 }
 
 /**

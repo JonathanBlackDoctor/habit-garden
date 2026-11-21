@@ -1,26 +1,26 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { animate } from 'framer-motion';
-import { Pencil, Check, Plus, Sprout, ChevronRight, Settings2 } from 'lucide-react';
+import { Pencil, Check, Plus, Sprout, ChevronRight, Settings2, CalendarDays } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { useUiDesign, useWeeklyHabitMode } from '@/lib/features';
 import { cn } from '@/lib/utils';
 import EmptyState from '@/components/EmptyState';
 import SeedHabitsButton from '@/features/habits/SeedHabitsButton';
 import AddHabitDialog from '@/features/habits/AddHabitDialog';
-import { useHabits, useHabitChecks, useSaveHabitCheck, useClearHabitCheck } from '@/features/habits/useHabits';
+import { useHabits, useHabitChecksState, useSaveHabitCheck, useClearHabitCheck } from '@/features/habits/useHabits';
 import { useHabitGroups, useBulkSkip } from '@/features/habits/useHabitGroups';
 import { useHabitStreaks } from '@/features/habits/useHabitStreaks';
 import { statusOf } from '@/features/habits/habitStatus';
 import HabitCard from '@/features/habits/HabitCard';
 import HabitEditRow from '@/features/habits/HabitEditRow';
-import PastDateBanner from '@/components/PastDateBanner';
 import type { HabitDoc } from 'shared/types/firestore';
 import { isHibernating } from 'shared/lib/hibernation';
 import { formatLongKoreanDate, timeOfDay } from '@/lib/dayBoundary';
 import { useTabBloomKey } from '@/lib/tabActive';
 import { PageHeader, ProgressRail, SegmentTabs } from '@/components/Editorial';
 import HabitWeekBoard from '@/features/habits/HabitWeekBoard';
+import { historicalHabitsForDate, isSelectableHabitDate } from '@/features/habits/habitWeek';
 import CompactWeeklyScore from '@/features/stats/CompactWeeklyScore';
 import {
   HABIT_TIME_ORDER,
@@ -44,8 +44,8 @@ export default function Habits() {
   const uid    = useAppStore((s) => s.uid);
   const today  = useAppStore((s) => s.currentDate);
   const dateParam = searchParams.get('date');
-  const date   = dateParam ?? today;
-  const isPast = !!dateParam && dateParam !== today;
+  const date   = dateParam && isSelectableHabitDate(dateParam, today) ? dateParam : today;
+  const isPast = date !== today;
   const [editMode, setEditMode] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const weekView = weeklyMode && searchParams.get('view') === 'week' && !isPast;
@@ -56,10 +56,24 @@ export default function Habits() {
     navigate({ search: next.toString() }, { replace: true });
     setEditMode(false);
   };
+  // 날짜만 바꾸고 같은 습관 화면을 재사용한다. 날짜 기준은 KST 오전 4시.
+  const showDate = (selected: string) => {
+    if (!isSelectableHabitDate(selected, today)) return;
+    const next = new URLSearchParams(searchParams);
+    next.delete('view');
+    if (selected === today) next.delete('date');
+    else next.set('date', selected);
+    setEditMode(false);
+    navigate({ pathname: '/habits', search: next.toString() });
+  };
   // 기본 펼침 상태(현재 시간대)를 사용자가 직접 반전한 그룹들
   const [toggledTods, setToggledTods] = useState<HabitDoc['timeOfDay'][]>([]);
-  const habits = useHabits({ includeInactive: editMode, includeHibernating: true });
-  const checks = useHabitChecks(date);
+  const habits = useHabits({
+    includeInactive: editMode || isPast,
+    includeHibernating: true,
+    includeArchived: isPast,
+  });
+  const { checks, loading: checksLoading, error: checksError } = useHabitChecksState(date);
   const save   = useSaveHabitCheck(isPast ? date : undefined);
   const clear  = useClearHabitCheck(isPast ? date : undefined);
   const streaks = useHabitStreaks(habits);
@@ -103,12 +117,18 @@ export default function Habits() {
   }, [bloomKey, isEditorial]);
 
   // 휴면 중인 습관은 일일 목록·집계에서 빠지고, 편집 모드 전용 휴면 섹션에만 모인다.
-  const liveHabits        = habits.filter((h) => !isHibernating(h));
-  const hibernatingHabits = habits.filter((h) => isHibernating(h));
+  const liveHabits = isPast
+    ? historicalHabitsForDate(habits, date, today, checks)
+    : habits.filter((h) => !isHibernating(h));
+  const hibernatingHabits = isPast ? [] : habits.filter((h) => isHibernating(h));
   const groups = groupHabitsByTime(liveHabits);
   // 온보딩 스포트라이트가 가리킬 첫 습관 카드 (TIME_ORDER 기준 최상단)
   const firstTourHabitId = HABIT_TIME_ORDER.map((t) => groups[t]?.[0]).find(Boolean)?.id;
-  const overview = getHabitOverview(liveHabits, checks);
+  // 과거에 체크한 뒤 비활성화/보관한 습관도 해당 날짜의 기록으로 집계한다.
+  const overview = getHabitOverview(
+    isPast ? liveHabits.map((habit) => ({ ...habit, active: true })) : liveHabits,
+    checks,
+  );
   const totalActive = overview.total;
   const totalAchieved = overview.achieved;
   const totalChecked = overview.recorded;
@@ -116,7 +136,8 @@ export default function Habits() {
   // 미기록(체크 문서 없음) 습관 수 — 격려 넛지용
   const remaining = overview.remaining;
   const nudge =
-    totalActive === 0 ? null
+    isPast ? null
+    : totalActive === 0 ? null
     : remaining === 0 ? '오늘 다 했어요'
     : remaining === 1 ? '딱 하나만 더'
     : remaining <= 3  ? `거의 다 왔어요 · ${remaining}개 남음`
@@ -126,13 +147,35 @@ export default function Habits() {
 
   return (
     <div className="page-pad min-h-full space-y-5">
-      {isPast && <PastDateBanner date={date} />}
       {/* 헤더 */}
       <div className="space-y-4 pt-1">
         <PageHeader
-          kicker={formatLongKoreanDate(date)}
+          kicker={(
+            <div className="inline-flex items-center gap-2">
+              <label className="relative inline-flex min-h-10 cursor-pointer items-center gap-1.5" title="날짜를 눌러 지난 습관 기록하기">
+                <span>{date.slice(0, 4) === today.slice(0, 4) ? '' : `${date.slice(0, 4)}년 · `}{formatLongKoreanDate(date)}</span>
+                <CalendarDays size={13} aria-hidden="true" className="text-[var(--fg-faint)]" />
+                <input
+                  type="date"
+                  aria-label="습관 기록 날짜 선택"
+                  value={date}
+                  max={today}
+                  onChange={(event) => showDate(event.target.value)}
+                  onClick={(event) => { try { event.currentTarget.showPicker?.(); } catch { /* 기본 날짜 선택 사용 */ } }}
+                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                />
+              </label>
+              {isPast && (
+                <button type="button" onClick={() => showDate(today)} className="min-h-10 px-2 text-xs text-[var(--leaf)]">
+                  오늘로
+                </button>
+              )}
+            </div>
+          )}
           title="습관"
-          summary={weekView ? '한 주의 실천을 한눈에 돌아봐요' : isPast ? `${totalAchieved} / ${totalActive} 달성 · ${totalChecked} / ${totalActive} 기록` : undefined}
+          summary={weekView ? '한 주의 실천을 한눈에 돌아봐요' : isPast
+            ? checksLoading ? '기록을 불러오는 중…' : checksError ? '기록을 불러오지 못했어요. 연결을 확인해 주세요.' : `${totalAchieved} / ${totalActive} 달성 · ${totalChecked} / ${totalActive} 기록`
+            : undefined}
           action={(
             <div className="flex items-center gap-1">
               {isEditorial && (
@@ -146,22 +189,22 @@ export default function Habits() {
                   <Settings2 size={18} />
                 </button>
               )}
-              <button
+              {!isPast && <button
                 onClick={() => setAddOpen(true)}
                 className="grid h-11 w-11 place-items-center rounded-full text-[var(--fg-muted)] hover:bg-[var(--leaf-soft)] hover:text-[var(--leaf)]"
                 aria-label="습관 추가"
                 title="습관 추가"
               >
                 <Plus size={18} />
-              </button>
-              <button
+              </button>}
+              {!isPast && <button
                 onClick={() => { if (weekView) { setView('today'); setEditMode(true); } else setEditMode((v) => !v); }}
                 className={`grid h-11 w-11 place-items-center rounded-full ${editMode ? 'bg-[var(--leaf-soft)] text-[var(--leaf)]' : 'text-[var(--fg-muted)] hover:bg-[var(--leaf-soft)] hover:text-[var(--leaf)]'}`}
                 aria-label={editMode ? '편집 완료' : '편집'}
                 title={editMode ? '편집 완료' : '편집'}
               >
                 {editMode ? <Check size={18} /> : <Pencil size={18} />}
-              </button>
+              </button>}
             </div>
           )}
         />
@@ -182,7 +225,7 @@ export default function Habits() {
       </div>
 
       {!isPast && weeklyMode && <SegmentTabs items={[{ value: 'today' as const, label: '오늘' }, { value: 'week' as const, label: '주간' }]} value={weekView ? 'week' : 'today'} onChange={setView} ariaLabel="습관 보기" />}
-      {weekView ? <HabitWeekBoard /> : <>
+      {weekView ? <HabitWeekBoard /> : isPast && (checksLoading || checksError) ? null : <>
 
       {/* 습관 묶음 일괄 건너뛰기 — 오늘·비편집 모드에서만. 예: 등교 안 하는 날 '학교' 묶음 한 번에 건너뛰기 */}
       {!isEditorial && !editMode && !isPast && (() => {
@@ -231,10 +274,10 @@ export default function Habits() {
           클래식 및 편집 화면은 기존 시간대 그룹을 유지한다. */}
       {isEditorial && !editMode ? (
         liveHabits.length > 0 ? (
-          <section aria-label="오늘의 모든 습관" className="row-divide flex flex-col border-y border-[var(--divider-soft)]">
+          <section aria-label={isPast ? '선택한 날짜의 습관' : '오늘의 모든 습관'} className="row-divide flex flex-col border-y border-[var(--divider-soft)]">
             {liveHabits.map((habit) => (
               <div
-                key={habit.id}
+                key={`${date}:${habit.id}`}
                 data-tour={habit.id === firstTourHabitId ? 'habit-first' : undefined}
               >
                 <HabitCard
@@ -252,9 +295,9 @@ export default function Habits() {
         const group = groups[tod];
         if (!group || group.length === 0) return null;
         const groupAchieved = group.filter((h) => checks[h.id]?.achieved).length;
-        const isNow = tod === currentTOD;
+        const isNow = !isPast && tod === currentTOD;
         const settled = group.every((h) => checks[h.id] !== undefined);
-        const expanded = shouldExpandTimeGroup({
+        const expanded = isPast || shouldExpandTimeGroup({
           editMode,
           timeOfDay: tod,
           currentTimeOfDay: currentTOD,
@@ -323,14 +366,15 @@ export default function Habits() {
                   </div>
                 ) : (
                   <div
-                    key={habit.id}
+                    key={`${date}:${habit.id}`}
                     data-tour={habit.id === firstTourHabitId ? 'habit-first' : undefined}
                   >
                     <HabitCard
                       habit={habit}
                       check={checks[habit.id]}
-                      streak={streaks[habit.id] ?? 0}
+                      streak={isPast ? 0 : streaks[habit.id] ?? 0}
                       isNow={isNow}
+                      compact={isPast}
                       onScore={(score) => save(habit, score, checks[habit.id])}
                       onClear={() => clear(habit, checks[habit.id])}
                     />
