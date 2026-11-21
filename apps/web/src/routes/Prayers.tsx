@@ -15,6 +15,9 @@ import {
 } from '@/features/prayers/PrayerComponents';
 import BulkParse from '@/features/prayers/BulkParse';
 import PrayerMode from '@/features/prayers/PrayerMode';
+import { usePrayerSessionHistory } from '@/features/prayers/usePrayerSessions';
+import { prayerDurationLabel, prayerSessionIsStale, prayerTimeLabel } from '@/features/prayers/prayerSessionModel';
+import { formatKoreanDate } from '@/lib/dayBoundary';
 import { DuplicateFinder } from '@/features/prayers/DuplicateFinder';
 import { WeeklyDigestCard } from '@/features/prayers/WeeklyDigestCard';
 import EmptyState from '@/components/EmptyState';
@@ -257,6 +260,8 @@ function TodayView({
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
 
   const [prayerModeOpen, setPrayerModeOpen] = useState(false);
+  const [showTimeHistory, setShowTimeHistory] = useState(false);
+  const { todaySeconds, recentSeconds, recentSessions, loaded: timeLoaded, error: timeError } = usePrayerSessionHistory(date);
 
   const loadMore = (): PrayerDoc[] => {
     const exclude = new Set([...planIds, ...extraIds]);
@@ -301,6 +306,46 @@ function TodayView({
           <span className="text-[var(--leaf)]">→</span>
         </button>
       )}
+
+      {/* 기도시간 — 기존 기도 목록 디자인에 짧은 한 줄만 추가한다. */}
+      <section className="border-y border-[var(--divider-soft)]" aria-label="기도시간 기록">
+        <button
+          type="button"
+          onClick={() => setShowTimeHistory((value) => !value)}
+          aria-expanded={showTimeHistory}
+          className="flex min-h-12 w-full items-center justify-between gap-3 py-3 text-left"
+        >
+          <span className="text-[13.5px] text-[var(--fg-primary)]">기도시간</span>
+          <span className="flex items-center gap-2 text-[12px] tabular-nums text-[var(--fg-muted)]">
+            {timeError ? '기록 조회 실패' : !timeLoaded ? '불러오는 중…'
+              : '오늘 ' + prayerDurationLabel(todaySeconds) + ' · 최근 7일 ' + prayerDurationLabel(recentSeconds)}
+            <ChevronDown size={14} className={cn('transition-transform', showTimeHistory && 'rotate-180')} />
+          </span>
+        </button>
+        {showTimeHistory && (
+          <div className="space-y-2 border-t border-[var(--divider-soft)] pb-3 pt-3">
+            {recentSessions.length === 0 ? (
+              <p className="text-xs text-[var(--fg-faint)]">최근 7일 동안 저장된 기도시간이 없어요.</p>
+            ) : recentSessions.map((session) => {
+              const stale = prayerSessionIsStale(session, Date.now());
+              const status = session.status === 'completed' ? '완료'
+                : session.status === 'interrupted' || stale ? '자동 종료' : '진행 중';
+              return (
+                <div key={session.id} className="flex items-center justify-between gap-3 text-[12px] text-[var(--fg-muted)]">
+                  <span className="min-w-0 truncate tabular-nums">
+                    {formatKoreanDate(session.date)} · {prayerTimeLabel(session.startedAt)}
+                    {'–'}{prayerTimeLabel(session.endedAt || session.lastActiveAt)}
+                    {status !== '완료' && <span className="ml-1 text-[var(--fg-faint)]">({status})</span>}
+                  </span>
+                  <span className="shrink-0 tabular-nums text-[var(--fg-primary)]">
+                    {prayerDurationLabel(session.durationSeconds)}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
 
       {/* 진행 표시 (목록이 있을 때만) */}
       {total > 0 ? (
